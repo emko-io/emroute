@@ -1,0 +1,23 @@
+<svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="40" cy="40" r="7.5" fill="black" />
+  <circle cx="7.5" cy="7.5" r="7.5" fill="black" />
+  <circle cx="72.5" cy="7.5" r="7.5" fill="black" />
+  <circle cx="7.5" cy="72.5" r="5.5" stroke="black" stroke-width="4" />
+  <circle cx="72.5" cy="72.5" r="5.5" stroke="black" stroke-width="4" />
+  <rect x="5.625" y="5.3125" width="3.75" height="60.9375" fill="black" />
+  <rect
+    x="5"
+    y="7.65161"
+    width="3.75"
+    height="47.7747"
+    transform="rotate(-45 5 7.65161)"
+    fill="black"
+  />
+  <rect
+    width="3.75"
+    height="47.7747"
+    transform="matrix(-0.707107 -0.707107 -0.707107 0.707107 74.99 7.65985)"
+    fill="black"
+  />
+  <rect x="70.625" y="4.99994" width="3.75" height="61.25" fill="black" />
+</svg>

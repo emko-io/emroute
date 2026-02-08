@@ -1,0 +1,196 @@
+/**
+ * Component Element - Unified Browser Custom Element
+ *
+ * Renders Component (and Widget) instances in the browser. Handles:
+ * - SSR hydration (data-ssr attribute)
+ * - Client-side data fetching with AbortSignal
+ * - Loading/error states
+ * - Tag prefix: `c-{name}` for Component, `widget-{name}` for Widget
+ */
+
+import type { Component } from '../component/abstract.component.ts';
+import { HTMLElementBase } from '../util/html.util.ts';
+
+type ComponentState = 'idle' | 'loading' | 'ready' | 'error';
+
+/**
+ * Custom element that renders a Component in the browser.
+ */
+export class ComponentElement<TParams, TData> extends HTMLElementBase {
+  private component: Component<TParams, TData>;
+  private params: TParams | null = null;
+  private data: TData | null = null;
+  private state: ComponentState = 'idle';
+  private errorMessage = '';
+  private readyPromise: Promise<void> | null = null;
+  private readyResolve: (() => void) | null = null;
+  private abortController: AbortController | null = null;
+
+  /** Promise that resolves with fetched data (available after loadData starts) */
+  dataPromise: Promise<TData | null> | null = null;
+
+  constructor(component: Component<TParams, TData>) {
+    super();
+    this.component = component;
+  }
+
+  /**
+   * Register a component as a custom element.
+   * Tag name derived from component class: `widget-{name}` for Widget subclasses, `c-{name}` otherwise.
+   */
+  static register<TP, TD>(component: Component<TP, TD>): void {
+    const ctor = component.constructor;
+    const prefix = ('tagPrefix' in ctor && typeof ctor.tagPrefix === 'string')
+      ? ctor.tagPrefix
+      : 'c';
+    const tagName = `${prefix}-${component.name}`;
+
+    if (!globalThis.customElements || customElements.get(tagName)) {
+      return;
+    }
+
+    const BoundElement = class extends ComponentElement<TP, TD> {
+      constructor() {
+        super(component);
+      }
+    };
+
+    customElements.define(tagName, BoundElement);
+  }
+
+  /**
+   * Promise that resolves when component is ready (data loaded and rendered).
+   * Used by router to wait for async components.
+   */
+  get ready(): Promise<void> {
+    if (this.state === 'ready') {
+      return Promise.resolve();
+    }
+    if (!this.readyPromise) {
+      this.readyPromise = new Promise((resolve) => {
+        this.readyResolve = resolve;
+      });
+    }
+    return this.readyPromise;
+  }
+
+  async connectedCallback(): Promise<void> {
+    this.abortController = new AbortController();
+
+    // Parse params from data-params attribute
+    const raw = this.getAttribute('data-params');
+    this.params = raw ? JSON.parse(raw) : ({} as TParams);
+
+    // Validate params
+    if (this.component.validateParams && this.params !== null) {
+      const error = this.component.validateParams(this.params);
+      if (error) {
+        this.setError(error);
+        return;
+      }
+    }
+
+    // Check for SSR data
+    const ssrAttr = this.getAttribute('data-ssr');
+    if (ssrAttr) {
+      try {
+        this.data = JSON.parse(ssrAttr);
+        this.state = 'ready';
+        this.render();
+        this.signalReady();
+        return;
+      } catch {
+        // SSR data invalid - fall through to fetch
+      }
+    }
+
+    await this.loadData();
+  }
+
+  disconnectedCallback(): void {
+    this.abortController?.abort();
+    this.abortController = null;
+    this.state = 'idle';
+    this.data = null;
+    this.dataPromise = null;
+    this.errorMessage = '';
+    this.readyPromise = null;
+    this.readyResolve = null;
+  }
+
+  /**
+   * Reload component data. Aborts any in-flight request first.
+   */
+  async reload(): Promise<void> {
+    if (this.params === null) return;
+
+    // Abort previous and create fresh controller
+    this.abortController?.abort();
+    this.abortController = new AbortController();
+
+    await this.loadData();
+  }
+
+  private async loadData(): Promise<void> {
+    if (this.params === null) return;
+
+    const signal = this.abortController?.signal;
+
+    this.state = 'loading';
+    this.render();
+
+    try {
+      const promise = this.component.getData({ params: this.params, signal });
+      this.dataPromise = promise;
+      this.data = await promise;
+
+      // Check abort after await — don't touch DOM if disconnected
+      if (signal?.aborted) return;
+
+      this.state = 'ready';
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return;
+      if (signal?.aborted) return;
+
+      this.setError(e instanceof Error ? e.message : String(e));
+      return;
+    }
+
+    this.render();
+    this.signalReady();
+  }
+
+  private setError(message: string): void {
+    this.state = 'error';
+    this.errorMessage = message;
+    this.render();
+    this.signalReady(); // Ready even on error (completed loading)
+  }
+
+  private signalReady(): void {
+    if (this.readyResolve) {
+      this.readyResolve();
+      this.readyResolve = null;
+    }
+  }
+
+  private render(): void {
+    if (this.params === null) {
+      this.innerHTML = '';
+      return;
+    }
+
+    if (this.state === 'error') {
+      this.innerHTML = this.component.renderError({
+        error: new Error(this.errorMessage),
+        params: this.params,
+      });
+      return;
+    }
+
+    this.innerHTML = this.component.renderHTML({
+      data: this.state === 'ready' ? this.data : null,
+      params: this.params,
+    });
+  }
+}

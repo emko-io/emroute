@@ -1,0 +1,193 @@
+<svg width="960" height="960" viewBox="0 0 960 960" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <style>
+  svg {
+    --bg: #ffffff;
+    --dimmed: #e8e8e8;
+    --dimmed-text: #c0c0c0;
+    --secondary-text: #90a0d0;
+    --accent: #4a6cf7;
+    --accent-dim: #d0d0d0;
+  }
+  @media (prefers-color-scheme: dark) {
+    svg {
+      --bg: #1e1e1e;
+      --dimmed: #3a3a3a;
+      --dimmed-text: #555;
+      --secondary-text: #7888b8;
+      --accent: #6b8cff;
+      --accent-dim: #444;
+    }
+  }
+  .bg {
+    fill: var(--bg);
+  }
+  .m-line {
+    stroke: var(--dimmed);
+  }
+  .dimmed-node {
+    stroke: var(--dimmed);
+    fill: var(--bg);
+  }
+  .dimmed-node-fill {
+    fill: var(--dimmed);
+    opacity: 0.3;
+  }
+  .dimmed-node-stroke {
+    stroke: var(--dimmed);
+    fill: none;
+  }
+  .active-fill {
+    fill: var(--accent);
+    opacity: 0.15;
+  }
+  .active-stroke {
+    stroke: var(--accent);
+    fill: none;
+  }
+  .active-node {
+    stroke: var(--accent);
+    fill: var(--bg);
+  }
+  .arrow-line {
+    stroke: var(--accent);
+  }
+  .label {
+    font-family: system-ui, sans-serif;
+    fill: var(--accent);
+  }
+  .label-dimmed {
+    font-family: system-ui, sans-serif;
+    fill: var(--dimmed-text);
+  }
+  .label-accent-dim {
+    font-family: system-ui, sans-serif;
+    fill: var(--accent-dim);
+  }
+  .title {
+    font-family: system-ui, sans-serif;
+    fill: var(--accent);
+  }
+  </style>
+  <defs>
+    <marker
+      id="arrow"
+      viewBox="0 0 10 7"
+      refX="9"
+      refY="3.5"
+      markerWidth="10"
+      markerHeight="7"
+      orient="auto-start-reverse"
+    >
+      <polygon points="0 0, 10 3.5, 0 7" style="fill: var(--accent)" />
+    </marker>
+  </defs>
+
+  <rect width="960" height="960" class="bg" />
+
+  <!-- Base M structure (dimmed) -->
+  <line
+    x1="256"
+    y1="258"
+    x2="256"
+    y2="680"
+    class="m-line"
+    stroke-width="16"
+    stroke-linecap="round"
+  />
+  <line
+    x1="262"
+    y1="262"
+    x2="478"
+    y2="478"
+    class="m-line"
+    stroke-width="16"
+    stroke-linecap="round"
+  />
+  <line
+    x1="698"
+    y1="262"
+    x2="482"
+    y2="478"
+    class="m-line"
+    stroke-width="16"
+    stroke-linecap="round"
+  />
+  <line
+    x1="704"
+    y1="256"
+    x2="704"
+    y2="680"
+    class="m-line"
+    stroke-width="16"
+    stroke-linecap="round"
+  />
+
+  <!-- Dimmed nodes -->
+  <circle cx="256" cy="704" r="28" class="dimmed-node" stroke-width="6" />
+  <circle cx="480" cy="480" r="32" class="dimmed-node-fill" />
+  <circle cx="480" cy="480" r="32" class="dimmed-node-stroke" stroke-width="3" />
+
+  <!-- Flow: TS Component (active) -->
+  <circle cx="256" cy="256" r="32" class="active-fill" />
+  <circle cx="256" cy="256" r="32" class="active-stroke" stroke-width="4" />
+
+  <!-- Flow: TS → Markdown (renderMarkdown) — horizontal -->
+  <line
+    x1="288"
+    y1="256"
+    x2="672"
+    y2="256"
+    class="arrow-line"
+    stroke-width="4"
+    marker-end="url(#arrow)"
+  />
+
+  <!-- Flow: Markdown content (active) -->
+  <circle cx="704" cy="256" r="32" class="active-fill" />
+  <circle cx="704" cy="256" r="32" class="active-stroke" stroke-width="4" />
+
+  <!-- Flow: Markdown → SSR (serve text) — on right vertical -->
+  <line
+    x1="704"
+    y1="288"
+    x2="704"
+    y2="676"
+    class="arrow-line"
+    stroke-width="4"
+    marker-end="url(#arrow)"
+  />
+
+  <!-- Flow: SSR (active) -->
+  <circle cx="704" cy="704" r="28" class="active-node" stroke-width="6" />
+
+  <!-- HTML Element dimmed label -->
+  <text x="480" y="545" text-anchor="middle" font-size="28" class="label-accent-dim"
+  >HTML Element</text>
+  <text
+    x="480"
+    y="575"
+    text-anchor="middle"
+    font-size="20"
+    font-style="italic"
+    class="label-accent-dim"
+  >(bypassed)</text>
+
+  <!-- Labels -->
+  <text x="256" y="210" text-anchor="middle" font-size="28" font-weight="600" class="label"
+  >TypeScript Component</text>
+  <text x="704" y="210" text-anchor="middle" font-size="28" font-weight="600" class="label"
+  >Markdown content</text>
+  <text x="256" y="770" text-anchor="middle" font-size="28" class="label-dimmed"
+  >Single Page Application</text>
+  <text x="704" y="770" text-anchor="middle" font-size="28" font-weight="600" class="label"
+  >Server-Side Rendering</text>
+
+  <!-- Step labels -->
+  <text x="200" y="300" text-anchor="end" font-size="22" class="label">1. getData()</text>
+  <text x="480" y="240" text-anchor="middle" font-size="22" class="label">2. renderMarkdown()</text>
+  <text x="750" y="500" font-size="22" class="label">3. serve text</text>
+
+  <!-- Title -->
+  <text x="480" y="900" text-anchor="middle" font-size="32" font-weight="700" class="title"
+  >SSR Markdown Flow — GET /md/projects/42</text>
+</svg>

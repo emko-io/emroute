@@ -1,0 +1,207 @@
+<svg width="960" height="960" viewBox="0 0 960 960" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <style>
+  svg {
+    --bg: #ffffff;
+    --dimmed: #e8e8e8;
+    --dimmed-text: #c0c0c0;
+    --secondary-text: #90a0d0;
+    --accent: #4a6cf7;
+    --accent-dim: #d0d0d0;
+  }
+  @media (prefers-color-scheme: dark) {
+    svg {
+      --bg: #1e1e1e;
+      --dimmed: #3a3a3a;
+      --dimmed-text: #555;
+      --secondary-text: #7888b8;
+      --accent: #6b8cff;
+      --accent-dim: #444;
+    }
+  }
+  .bg {
+    fill: var(--bg);
+  }
+  .m-line {
+    stroke: var(--dimmed);
+  }
+  .dimmed-node {
+    stroke: var(--dimmed);
+    fill: var(--bg);
+  }
+  .active-fill {
+    fill: var(--accent);
+    opacity: 0.15;
+  }
+  .active-stroke {
+    stroke: var(--accent);
+    fill: none;
+  }
+  .active-node {
+    stroke: var(--accent);
+    fill: var(--bg);
+  }
+  .arrow-line {
+    stroke: var(--accent);
+  }
+  .dashed-node-fill {
+    fill: var(--accent);
+    opacity: 0.08;
+  }
+  .dashed-node-stroke {
+    stroke: var(--accent);
+    fill: none;
+  }
+  .dashed-line {
+    stroke: var(--accent);
+  }
+  .label {
+    font-family: system-ui, sans-serif;
+    fill: var(--accent);
+  }
+  .label-dimmed {
+    font-family: system-ui, sans-serif;
+    fill: var(--dimmed-text);
+  }
+  .label-secondary {
+    font-family: system-ui, sans-serif;
+    fill: var(--secondary-text);
+  }
+  .title {
+    font-family: system-ui, sans-serif;
+    fill: var(--accent);
+  }
+  </style>
+  <defs>
+    <marker
+      id="arrow"
+      viewBox="0 0 10 7"
+      refX="9"
+      refY="3.5"
+      markerWidth="10"
+      markerHeight="7"
+      orient="auto-start-reverse"
+    >
+      <polygon points="0 0, 10 3.5, 0 7" style="fill: var(--accent)" />
+    </marker>
+  </defs>
+
+  <rect width="960" height="960" class="bg" />
+
+  <!-- Base M structure (dimmed) -->
+  <line
+    x1="256"
+    y1="258"
+    x2="256"
+    y2="680"
+    class="m-line"
+    stroke-width="16"
+    stroke-linecap="round"
+  />
+  <line
+    x1="262"
+    y1="262"
+    x2="478"
+    y2="478"
+    class="m-line"
+    stroke-width="16"
+    stroke-linecap="round"
+  />
+  <line
+    x1="698"
+    y1="262"
+    x2="482"
+    y2="478"
+    class="m-line"
+    stroke-width="16"
+    stroke-linecap="round"
+  />
+  <line
+    x1="704"
+    y1="256"
+    x2="704"
+    y2="680"
+    class="m-line"
+    stroke-width="16"
+    stroke-linecap="round"
+  />
+
+  <!-- Dimmed nodes -->
+  <circle cx="256" cy="704" r="28" class="dimmed-node" stroke-width="6" />
+
+  <!-- Flow: TS Component (active) -->
+  <circle cx="256" cy="256" r="32" class="active-fill" />
+  <circle cx="256" cy="256" r="32" class="active-stroke" stroke-width="4" />
+
+  <!-- Flow: TS → HTML Element (renderHTML) -->
+  <line
+    x1="262"
+    y1="262"
+    x2="478"
+    y2="478"
+    class="arrow-line"
+    stroke-width="4"
+    marker-end="url(#arrow)"
+  />
+
+  <!-- Flow: Markdown → HTML Element (context.files, dashed) -->
+  <circle cx="704" cy="256" r="32" class="dashed-node-fill" />
+  <circle
+    cx="704"
+    cy="256"
+    r="32"
+    class="dashed-node-stroke"
+    stroke-width="2"
+    stroke-dasharray="6 4"
+  />
+  <line
+    x1="698"
+    y1="262"
+    x2="482"
+    y2="478"
+    class="dashed-line"
+    stroke-width="2.5"
+    stroke-dasharray="8 5"
+    marker-end="url(#arrow)"
+  />
+
+  <!-- Flow: HTML Element (active) -->
+  <circle cx="480" cy="480" r="32" class="active-fill" />
+  <circle cx="480" cy="480" r="32" class="active-stroke" stroke-width="4" />
+
+  <!-- Flow: HTML Element → SSR (serve HTML) -->
+  <line
+    x1="502"
+    y1="502"
+    x2="682"
+    y2="682"
+    class="arrow-line"
+    stroke-width="4"
+    marker-end="url(#arrow)"
+  />
+
+  <!-- Flow: SSR (active) -->
+  <circle cx="704" cy="704" r="28" class="active-node" stroke-width="6" />
+
+  <!-- Labels -->
+  <text x="256" y="210" text-anchor="middle" font-size="28" font-weight="600" class="label"
+  >TypeScript Component</text>
+  <text x="704" y="210" text-anchor="middle" font-size="28" class="label-secondary"
+  >Markdown content</text>
+  <text x="480" y="545" text-anchor="middle" font-size="28" font-weight="600" class="label"
+  >HTML Element</text>
+  <text x="256" y="770" text-anchor="middle" font-size="28" class="label-dimmed"
+  >Single Page Application</text>
+  <text x="704" y="770" text-anchor="middle" font-size="28" font-weight="600" class="label"
+  >Server-Side Rendering</text>
+
+  <!-- Step labels -->
+  <text x="170" y="300" text-anchor="end" font-size="22" class="label">1. getData()</text>
+  <text x="310" y="395" font-size="22" class="label">2. renderHTML()</text>
+  <text x="620" y="340" text-anchor="end" font-size="20" class="label-secondary"
+  >context.files</text>
+  <text x="630" y="620" text-anchor="end" font-size="22" class="label">3. serve HTML</text>
+
+  <!-- Title -->
+  <text x="480" y="900" text-anchor="middle" font-size="32" font-weight="700" class="title"
+  >SSR HTML Flow — GET /html/projects/42</text>
+</svg>

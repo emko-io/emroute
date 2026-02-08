@@ -1,0 +1,27 @@
+import { PageComponent } from '@emkodev/emroute';
+
+class ProjectPage extends PageComponent<{ id: string }, { name: string }> {
+  override readonly name = 'project';
+
+  override async getData({ params }: { params: { id: string } }) {
+    return { name: `Project ${params.id}` };
+  }
+
+  override renderHTML({ data, params }: {
+    data: { name: string } | null;
+    params: { id: string };
+  }) {
+    if (!data) return '<p>Loading...</p>';
+    return `<h1>${data.name}</h1><p class="project-id">ID: ${params.id}</p><router-slot></router-slot>`;
+  }
+
+  override renderMarkdown({ data }: {
+    data: { name: string } | null;
+    params: { id: string };
+  }) {
+    if (!data) return '';
+    return `# ${data.name}`;
+  }
+}
+
+export default new ProjectPage();

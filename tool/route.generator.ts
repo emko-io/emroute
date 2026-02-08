@@ -336,7 +336,7 @@ export function generateManifestCode(
   }
 
   const moduleLoadersCode = [...tsModulePaths]
-    .map((p) => `    '${p}': () => import('./${p}'),`)
+    .map((p) => `    '${p}': () => import('./${p.replace(/^\.\//, '')}'),`)
     .join('\n');
 
   return `/**

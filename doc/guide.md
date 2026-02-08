@@ -16,6 +16,10 @@ One codebase, three outputs. A page component defines `renderHTML()` and
 `renderMarkdown()` — the router calls the right one based on how the page is
 accessed.
 
+## Quick Start
+
+See the [Quick Start guide](./quick-start.md) — three files, one command.
+
 ## Core Concepts
 
 ### File-Based Routing
@@ -47,7 +51,7 @@ routes/
 - Both can coexist: `projects.page.md` handles `/projects`, while `projects/index.page.md` catches `/projects/unknown/extra` — the flat file wins the exact path, the directory index catches the rest
 - Specific routes always win over catch-all: `/projects/42` matches `[id].page.ts`, not `index.page.md`
 - Static segments win over dynamic: `eth.page.ts` matches `/crypto/eth` before `[coin].page.ts`
-- Root `index.page.*` matches `/` exactly (no catch-all)
+- Root `index.page.*` matches `/` exactly for URL purposes, but still acts as a layout parent — all routes render inside its `<router-slot>`
 
 ### Three File Types per Route
 
@@ -67,6 +71,17 @@ When all three exist, the `.ts` component is the entry point. It receives the
 override renderHTML({ data, context }) {
   const template = context?.files?.html ?? '<h1>Fallback</h1>';
   return template.replaceAll('{{name}}', data.name);
+}
+```
+
+When all three files exist, the `.ts` component can combine them — use the
+`.html` as a layout shell and embed the `.md` via `<mark-down>`:
+
+```ts
+override renderHTML({ data, context }) {
+  const html = context?.files?.html ?? '';
+  const md = context?.files?.md ?? '';
+  return html.replace('{{content}}', `<mark-down>${md}</mark-down>`);
 }
 ```
 
@@ -232,6 +247,32 @@ override renderHTML({ data, params }) {
 The `parent` field in the route manifest links child → parent. The route
 generator handles this automatically based on directory structure.
 
+> **Root index is a layout shell.** A root `index.page.*` matches `/` and
+> becomes the parent of all routes — its content renders on every page, with
+> child content injected into its `<router-slot>`. If you want a standalone
+> homepage, put the homepage content before the slot:
+>
+> ```md
+> <!-- routes/index.page.md — renders on every page as a layout -->
+>
+> # My App
+>
+> [Home](/) | [About](/about) | [Projects](/projects)
+>
+> ---
+> ```
+>
+> router-slot
+>
+> ```
+> ```
+>
+> The markdown/HTML above the slot acts as a persistent layout. The child
+> route's content fills the slot. To keep the root index as just a homepage
+> with no layout wrapping, don't use a directory `index.page.*` — use a flat
+> `index.page.md` at the root instead, which matches `/` exactly without
+> becoming a catch-all parent.
+
 ## Widgets
 
 Widgets are self-contained components embedded in page content. They extend
@@ -380,13 +421,22 @@ The minimal SPA entry point:
 import { createSpaHtmlRouter, MarkdownElement } from '@emkodev/emroute/spa';
 import { routesManifest } from './routes.manifest.ts';
 
-// Provide a markdown renderer (bring your own)
+// Required if any route uses .page.md files — see note below
 MarkdownElement.setRenderer({
   render: (md) => myMarkdownLib.render(md),
 });
 
 const router = await createSpaHtmlRouter(routesManifest);
 ```
+
+> **When do you need a markdown renderer?** Only in the SPA (browser). SSR
+> markdown mode (`/md/*`) outputs raw markdown text and never invokes the
+> `<mark-down>` element. SSR HTML mode (`/html/*`) renders components
+> server-side without custom elements. But in the SPA, navigating to a
+> `.page.md` route renders it through the `<mark-down>` custom element, which
+> requires a renderer. If your app has no `.page.md` routes, you can skip
+> `setRenderer()` entirely. See [Markdown Renderers](./markdown-renderer.md)
+> for available options.
 
 The SPA router:
 
@@ -517,6 +567,18 @@ const server = await createDevServer({
   watch: true, // Rebuild on changes
 }, denoServerRuntime);
 ```
+
+**Required permissions** (Deno):
+
+```bash
+deno run --allow-net --allow-read --allow-write --allow-run --allow-env dev.ts
+```
+
+- `--allow-net` — HTTP server
+- `--allow-read` — read route files, templates, static assets
+- `--allow-write` — write generated `routes.manifest.ts` and `.build/` output
+- `--allow-run` — spawn `deno bundle --watch` for bundling
+- `--allow-env` — read `PORT`, `ENTRY_POINT`, etc. (optional, only if using env vars)
 
 The server handles:
 

@@ -3,7 +3,7 @@
 /**
  * Deno CLI Entry Point for Dev Server
  *
- * Usage: deno run --allow-net --allow-read --allow-env server/cli.deno.ts
+ * Usage: deno run --allow-net --allow-read --allow-write --allow-run --allow-env server/cli.deno.ts
  *
  * Scans ./routes directory and starts dev server with file watching.
  */
@@ -12,7 +12,7 @@ import { createDevServer } from './dev.server.ts';
 import { denoServerRuntime } from './server.deno.ts';
 
 const PORT = parseInt(Deno.env.get('PORT') || '1420', 10);
-const ENTRY_POINT = Deno.env.get('ENTRY_POINT') || 'routes/index.page.ts';
+const ENTRY_POINT = Deno.env.get('ENTRY_POINT') || 'main.ts';
 const SPA_ROOT = Deno.env.get('SPA_ROOT') || 'index.html';
 const ROUTES_DIR = Deno.env.get('ROUTES_DIR') || './routes';
 

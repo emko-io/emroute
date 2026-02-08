@@ -93,17 +93,18 @@ export default new ProjectPage();
 
 ## Getting Started
 
+See the [Quick Start](doc/quick-start.md) — three files, one command.
+
 ```bash
 deno task dev             # start dev server
 deno task test            # run tests
 ```
 
-See [the guide](doc/guide.md) for full documentation — routing rules, component
-API, widgets, error handling, SSR setup, and the dev server.
-
 ## Further Reading
 
+- [Quick start](doc/quick-start.md) — three files, one command
 - [Consumer guide](doc/guide.md) — full API and usage documentation
 - [Architecture overview](doc/architecture.md)
-- [Markdown renderers](doc/markdown-renderer.md)
+- [Setting up emko-md](doc/setup-emko-md.md) — WASM markdown renderer setup
+- [Markdown renderers](doc/markdown-renderer.md) — all supported renderers
 - [Architectural decisions](doc/architecture/) — ADR-0001 through ADR-0007

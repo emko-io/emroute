@@ -16,12 +16,12 @@ interface MarkdownRenderer {
 
 ## Setup
 
-Call `MarkdownIsland.setRenderer()` **before** any `<mark-down>` elements are connected:
+Call `MarkdownElement.setRenderer()` **before** any `<mark-down>` elements are connected:
 
 ```typescript
-import { MarkdownIsland } from '@emkodev/emroute';
+import { MarkdownElement } from '@emkodev/emroute/spa';
 
-MarkdownIsland.setRenderer({
+MarkdownElement.setRenderer({
   render(markdown: string): string {
     return yourMarkdownParser(markdown);
   },
@@ -32,33 +32,21 @@ MarkdownIsland.setRenderer({
 
 ## Renderers
 
-### @emkodev/hypertext (Recommended)
+### @emkodev/emko-md (Recommended)
 
-WASM-based parser with custom widget support.
+WASM-based parser with widget support. Zero JS dependencies. An editor built
+on the same parser is in development.
 
-```typescript
-import { MarkdownIsland } from '@emkodev/emroute';
-import { WasmCore, WasmMarkdownRenderer } from '@emkodev/hypertext';
-
-let core: WasmCore;
-let renderer: WasmMarkdownRenderer;
-
-MarkdownIsland.setRenderer({
-  async init() {
-    core = new WasmCore({ wasmPath: '/wasm/hypertext_core_bg.wasm' });
-    await core.init();
-    renderer = new WasmMarkdownRenderer();
-  },
-  render(markdown: string): string {
-    core.setText(markdown);
-    const ast = core.parse();
-    return renderer.render(ast);
-  },
-});
+```bash
+deno add jsr:@emkodev/emko-md@^0.1.0-beta.2/parser
 ```
 
+Requires vendoring the WASM binary (~50KB) into your project. See
+[Setting Up emko-md](./setup-emko-md.md) for the full setup guide covering
+both client-side and server-side configuration.
+
 **Pros:** Fast (WASM), supports fenced widgets, same parser for all contexts
-**Cons:** Requires WASM file hosting
+**Cons:** Requires WASM file hosting, pre-release
 
 ---
 
@@ -75,10 +63,10 @@ npm install marked
 ```
 
 ```typescript
-import { MarkdownIsland } from '@emkodev/emroute';
+import { MarkdownElement } from '@emkodev/emroute/spa';
 import { marked } from 'marked';
 
-MarkdownIsland.setRenderer({
+MarkdownElement.setRenderer({
   render(markdown: string): string {
     return marked.parse(markdown, { async: false }) as string;
   },
@@ -100,7 +88,7 @@ marked.setOptions({
   },
 });
 
-MarkdownIsland.setRenderer({
+MarkdownElement.setRenderer({
   render: (md) => marked.parse(md, { async: false }) as string,
 });
 ```
@@ -119,7 +107,7 @@ deno add npm:markdown-it
 ```
 
 ```typescript
-import { MarkdownIsland } from '@emkodev/emroute';
+import { MarkdownElement } from '@emkodev/emroute/spa';
 import MarkdownIt from 'markdown-it';
 
 const md = new MarkdownIt({
@@ -128,7 +116,7 @@ const md = new MarkdownIt({
   typographer: true, // Smart quotes, dashes
 });
 
-MarkdownIsland.setRenderer({
+MarkdownElement.setRenderer({
   render: (markdown) => md.render(markdown),
 });
 ```
@@ -144,7 +132,7 @@ const md = new MarkdownIt()
   .use(anchor, { permalink: true })
   .use(toc);
 
-MarkdownIsland.setRenderer({
+MarkdownElement.setRenderer({
   render: (markdown) => md.render(markdown),
 });
 ```
@@ -163,10 +151,10 @@ deno add npm:micromark
 ```
 
 ```typescript
-import { MarkdownIsland } from '@emkodev/emroute';
+import { MarkdownElement } from '@emkodev/emroute/spa';
 import { micromark } from 'micromark';
 
-MarkdownIsland.setRenderer({
+MarkdownElement.setRenderer({
   render: (markdown) => micromark(markdown),
 });
 ```
@@ -177,7 +165,7 @@ MarkdownIsland.setRenderer({
 import { micromark } from 'micromark';
 import { gfm, gfmHtml } from 'micromark-extension-gfm';
 
-MarkdownIsland.setRenderer({
+MarkdownElement.setRenderer({
   render(markdown: string): string {
     return micromark(markdown, {
       extensions: [gfm()],
@@ -201,7 +189,7 @@ deno add npm:unified npm:remark-parse npm:remark-html
 ```
 
 ```typescript
-import { MarkdownIsland } from '@emkodev/emroute';
+import { MarkdownElement } from '@emkodev/emroute/spa';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkHtml from 'remark-html';
@@ -210,7 +198,7 @@ const processor = unified()
   .use(remarkParse)
   .use(remarkHtml);
 
-MarkdownIsland.setRenderer({
+MarkdownElement.setRenderer({
   render(markdown: string): string {
     return processor.processSync(markdown).toString();
   },
@@ -231,7 +219,7 @@ deno add npm:showdown
 ```
 
 ```typescript
-import { MarkdownIsland } from '@emkodev/emroute';
+import { MarkdownElement } from '@emkodev/emroute/spa';
 import showdown from 'showdown';
 
 const converter = new showdown.Converter({
@@ -240,7 +228,7 @@ const converter = new showdown.Converter({
   tasklists: true,
 });
 
-MarkdownIsland.setRenderer({
+MarkdownElement.setRenderer({
   render: (markdown) => converter.makeHtml(markdown),
 });
 ```
@@ -275,13 +263,13 @@ export const markdownRenderer = {
 };
 
 // server
-import { createSsrHtmlRouter } from '@emkodev/emroute';
+import { createSsrHtmlRouter } from '@emkodev/emroute/ssr/html';
 // Renderer used internally by components
 
 // client
-import { MarkdownIsland } from '@emkodev/emroute';
+import { MarkdownElement } from '@emkodev/emroute/spa';
 import { markdownRenderer } from './shared/markdown.ts';
-MarkdownIsland.setRenderer(markdownRenderer);
+MarkdownElement.setRenderer(markdownRenderer);
 ```
 
 ---
@@ -290,12 +278,12 @@ MarkdownIsland.setRenderer(markdownRenderer);
 
 1. **Reuse parser instances** - Don't create new instances per render
 2. **Disable unused features** - Most parsers have options to disable features you don't use
-3. **Consider WASM** - For heavy markdown processing, WASM parsers (like @emkodev/hypertext) are faster
+3. **Consider WASM** - For heavy markdown processing, WASM parsers (like @emkodev/emko-md) are significantly faster
 4. **Lazy load** - Use dynamic imports if markdown isn't needed immediately
 
 ```typescript
 // Lazy load renderer
-MarkdownIsland.setRenderer({
+MarkdownElement.setRenderer({
   async init() {
     const { marked } = await import('marked');
     this._marked = marked;

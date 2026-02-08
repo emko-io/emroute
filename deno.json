@@ -1,6 +1,6 @@
 {
   "name": "@emkodev/emroute",
-  "version": "1.0.0-beta.1",
+  "version": "1.0.0-beta.2",
   "description": "File-based router with triple rendering (SPA, SSR HTML, SSR Markdown). Zero dependencies.",
   "license": "BSD-3-Clause",
   "author": "emko.dev",
@@ -54,7 +54,7 @@
     "fmt": "deno fmt",
     "lint": "deno lint",
     "generate:routes": "deno run --allow-read --allow-write tool/cli.ts",
-    "dev": "deno run --allow-net --allow-read --allow-env server/cli.deno.ts",
+    "dev": "deno run --allow-net --allow-read --allow-write --allow-run --allow-env server/cli.deno.ts",
     "test:browser": "deno test test/browser/*.test.ts --allow-net --allow-read --allow-write --allow-env --allow-run --allow-sys"
   },
   "compilerOptions": {

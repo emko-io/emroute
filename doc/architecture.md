@@ -175,18 +175,18 @@ Here are your project stats:
 
 The fenced block is processed differently per renderer:
 
-- **SPA**: `MarkdownElement` converts it to `<widget-project-stats project-id="123">` during client-side markdown rendering. The web component hydrates.
-- **SSR HTML**: `SsrHtmlRouter` expands the `<mark-down>` tag server-side, converting the fenced block to the same `<widget-project-stats>` element. The bundled JS registers the custom element, and it hydrates as an island.
-- **SSR Markdown**: The fenced block stays as-is in the markdown output.
+- **SPA**: `MarkdownElement` converts it to `<widget-project-stats project-id="123">` during client-side markdown rendering. The custom element hydrates.
+- **SSR HTML**: `SsrHtmlRouter` expands the `<mark-down>` tag server-side, converting the fenced block to a `<widget-project-stats>` element. If a `WidgetRegistry` is provided, the renderer calls `getData()` + `renderHTML()` on the widget, fills the tag with rendered content, and adds `data-ssr` with serialized data. The SPA adopts this content without re-rendering.
+- **SSR Markdown**: If a `WidgetRegistry` is provided, the fenced block is replaced with the widget's `renderMarkdown()` output. Otherwise it passes through as-is.
 
-Widgets are the interactive islands in an otherwise static page. Markdown is content; widgets are behavior.
+Widgets are embeddable units within page content. Pages live in the routes manifest; widgets live in the `WidgetRegistry`. Everything reusable that is not a page is a widget.
 
 ## No Framework
 
 - No virtual DOM. `innerHTML` for the SPA, string concatenation for SSR.
 - No build-time JSX transform. Templates are template literals.
 - No client-side state management. URL is the state.
-- No hydration mismatch problem. SPA renders fresh; SSR serves complete HTML.
-- Web components for interactive islands. Everything else is static content.
+- No hydration mismatch problem. SPA detects SSR content via `data-ssr-route` and adopts it.
+- Light DOM custom elements for widgets. No Shadow DOM — global styles cascade naturally.
 
 The router is ~500 lines across three renderers sharing a core. Pages are classes with two render methods. That's the whole framework.

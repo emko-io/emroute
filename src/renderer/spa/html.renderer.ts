@@ -86,7 +86,30 @@ export class SpaHtmlRouter {
       this.navigate(href);
     });
 
-    // Initial navigation
+    // Check for SSR content — skip initial render if route matches
+    const ssrRoute = this.slot.getAttribute('data-ssr-route');
+    if (ssrRoute) {
+      let currentPath = location.pathname;
+      if (currentPath.startsWith(SSR_HTML_PREFIX)) {
+        currentPath = '/' + currentPath.slice(SSR_HTML_PREFIX.length);
+      }
+
+      if (currentPath === ssrRoute || currentPath === ssrRoute + '/') {
+        // Adopt SSR content: set internal state without re-rendering
+        const matched = this.core.match(new URL(ssrRoute, location.origin));
+        if (matched) {
+          this.core.currentRoute = matched;
+          history.replaceState(
+            { pathname: ssrRoute, params: matched.params } as RouterState,
+            '',
+          );
+        }
+        this.slot.removeAttribute('data-ssr-route');
+        return;
+      }
+    }
+
+    // No SSR content or route mismatch — full client-side render
     await this.handleNavigation(
       location.pathname + location.search + location.hash,
     );

@@ -15,7 +15,6 @@
  */
 
 import { Widget } from '../component/widget.component.ts';
-import { ComponentElement } from '../element/component.element.ts';
 import { escapeHtml } from '../util/html.util.ts';
 import { SSR_HTML_PREFIX } from '../route/route.core.ts';
 
@@ -100,10 +99,4 @@ class BreadcrumbWidget extends Widget<BreadcrumbParams, BreadcrumbData> {
   }
 }
 
-const breadcrumbWidget = new BreadcrumbWidget();
-
-if (globalThis.customElements) {
-  ComponentElement.register(breadcrumbWidget);
-}
-
-export default breadcrumbWidget;
+export const breadcrumbWidget = new BreadcrumbWidget();

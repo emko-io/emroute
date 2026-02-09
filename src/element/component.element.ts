@@ -1,11 +1,11 @@
 /**
- * Component Element - Unified Browser Custom Element
+ * Widget Element - Browser Custom Element
  *
- * Renders Component (and Widget) instances in the browser. Handles:
+ * Renders Widget instances in the browser as `widget-{name}` elements.
+ * Handles:
  * - SSR hydration (data-ssr attribute)
  * - Client-side data fetching with AbortSignal
  * - Loading/error states
- * - Tag prefix: `c-{name}` for Component, `widget-{name}` for Widget
  */
 
 import type { Component } from '../component/abstract.component.ts';
@@ -35,15 +35,10 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
   }
 
   /**
-   * Register a component as a custom element.
-   * Tag name derived from component class: `widget-{name}` for Widget subclasses, `c-{name}` otherwise.
+   * Register a widget as a custom element: `widget-{name}`.
    */
   static register<TP, TD>(component: Component<TP, TD>): void {
-    const ctor = component.constructor;
-    const prefix = ('tagPrefix' in ctor && typeof ctor.tagPrefix === 'string')
-      ? ctor.tagPrefix
-      : 'c';
-    const tagName = `${prefix}-${component.name}`;
+    const tagName = `widget-${component.name}`;
 
     if (!globalThis.customElements || customElements.get(tagName)) {
       return;
@@ -99,13 +94,13 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
       }
     }
 
-    // Check for SSR data
+    // Hydrate from SSR: DOM is already correct, just restore state
     const ssrAttr = this.getAttribute('data-ssr');
     if (ssrAttr) {
       try {
         this.data = JSON.parse(ssrAttr);
         this.state = 'ready';
-        this.render();
+        this.removeAttribute('data-ssr');
         this.signalReady();
         return;
       } catch {

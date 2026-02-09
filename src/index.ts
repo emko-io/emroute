@@ -47,6 +47,7 @@ export {
 } from './component/abstract.component.ts';
 
 export { Widget } from './component/widget.component.ts';
+export { WidgetRegistry } from './widget/widget.registry.ts';
 export { DefaultPageComponent } from './component/page.component.ts';
 
 // Route matching

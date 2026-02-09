@@ -42,7 +42,7 @@ export type RenderContext = 'markdown' | 'html' | 'spa';
  * - validateParams(): params validation
  */
 export abstract class Component<TParams = unknown, TData = unknown> {
-  /** Unique name in kebab-case. Used for custom element: `<c-{name}>` */
+  /** Unique name in kebab-case. Used for custom element: `<widget-{name}>` */
   abstract readonly name: string;
 
   /**

@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0-beta.4] - 2026-02-08
+
+### Added
+
+- WidgetRegistry — canonical registry where all widgets live, used by all
+  renderers (SPA, SSR HTML, SSR Markdown)
+- Server-side widget rendering: SSR HTML calls getData() + renderHTML() on
+  widgets, injects content + data-ssr attribute for hydration
+- Server-side widget rendering: SSR Markdown resolves fenced widget blocks
+  via getData() + renderMarkdown(), replacing blocks with text output
+- SPA hydration: router detects data-ssr-route on <router-slot>, skips
+  initial render and adopts SSR content
+- Widget hydration: ComponentElement skips render() when data-ssr present,
+  restores state from attribute, removes it after adoption
+- ADR-0011: Light DOM with Server-Side Widget Rendering (rejects Shadow DOM,
+  defines CSS scoping by convention, unifies SSR/hydration/CSS decisions)
+
+### Changed
+
+- Everything non-page is now a Widget (dropped c-* prefix, removed tagPrefix
+  from Widget class, ComponentElement.register always uses widget-* prefix)
+- SSR HTML shell adds data-ssr-route attribute to <router-slot> for SPA
+  adoption
+
 ## [1.0.0-beta.3] - 2026-02-08
 
 ### Fixed

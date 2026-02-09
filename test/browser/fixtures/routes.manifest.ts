@@ -60,6 +60,12 @@ export const routesManifest: RoutesManifest = {
       files: { md: 'routes/blog.page.md', ts: 'routes/blog.page.ts' },
     },
     {
+      pattern: '/hydration',
+      type: 'page',
+      modulePath: 'routes/hydration.page.ts',
+      files: { ts: 'routes/hydration.page.ts' },
+    },
+    {
       pattern: '/old',
       type: 'redirect',
       modulePath: 'routes/old.redirect.ts',
@@ -109,6 +115,7 @@ export const routesManifest: RoutesManifest = {
     'routes/docs.page.ts': () => import('./routes/docs.page.ts'),
     'routes/crash.page.ts': () => import('./routes/crash.page.ts'),
     'routes/blog.page.ts': () => import('./routes/blog.page.ts'),
+    'routes/hydration.page.ts': () => import('./routes/hydration.page.ts'),
     'routes/old.redirect.ts': () => import('./routes/old.redirect.ts'),
     'routes/projects/[id].error.ts': () => import('./routes/projects/[id].error.ts'),
     'routes/error.ts': () => import('./routes/error.ts'),

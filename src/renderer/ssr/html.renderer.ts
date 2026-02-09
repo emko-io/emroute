@@ -26,14 +26,18 @@ import {
   escapeHtml,
   processFencedSlots,
   processFencedWidgets,
+  resolveWidgetTags,
   STATUS_MESSAGES,
   unescapeHtml,
 } from '../../util/html.util.ts';
+import type { WidgetRegistry } from '../../widget/widget.registry.ts';
 
 /** Options for SSR HTML Router */
 export interface SsrHtmlRouterOptions extends RouteCoreOptions {
   /** Markdown renderer for server-side <mark-down> expansion */
   markdownRenderer?: MarkdownRenderer;
+  /** Widget registry for server-side widget rendering */
+  widgets?: WidgetRegistry;
 }
 
 /**
@@ -43,10 +47,12 @@ export class SsrHtmlRouter {
   private core: RouteCore;
   private markdownRenderer: MarkdownRenderer | null;
   private markdownReady: Promise<void> | null = null;
+  private widgets: WidgetRegistry | null;
 
   constructor(manifest: RoutesManifest, options: SsrHtmlRouterOptions = {}) {
     this.core = new RouteCore(manifest, options);
     this.markdownRenderer = options.markdownRenderer ?? null;
+    this.widgets = options.widgets ?? null;
 
     if (this.markdownRenderer?.init) {
       this.markdownReady = this.markdownRenderer.init();
@@ -167,6 +173,11 @@ export class SsrHtmlRouter {
 
     // Expand <mark-down> tags server-side
     html = await this.expandMarkdown(html);
+
+    // Resolve <widget-*> tags: call getData() + renderHTML(), inject data-ssr
+    if (this.widgets) {
+      html = await resolveWidgetTags(html, this.widgets);
+    }
 
     return { html, title };
   }

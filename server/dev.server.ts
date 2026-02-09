@@ -17,6 +17,7 @@ import type { MarkdownRenderer } from '../src/type/markdown.type.ts';
 import { generateManifestCode, generateRoutesManifest } from '../tool/route.generator.ts';
 import type { FileSystem } from '../tool/fs.type.ts';
 import type { ServerHandle, ServerRuntime, WatchHandle } from './server.type.ts';
+import type { WidgetRegistry } from '../src/widget/widget.registry.ts';
 
 export interface DevServerConfig {
   /** Port to serve on */
@@ -48,6 +49,9 @@ export interface DevServerConfig {
 
   /** Markdown renderer for server-side <mark-down> expansion in SSR HTML */
   markdownRenderer?: MarkdownRenderer;
+
+  /** Widget registry for server-side widget rendering */
+  widgets?: WidgetRegistry;
 }
 
 /** Create module loaders for server-side SSR imports */
@@ -106,6 +110,7 @@ async function buildSsrHtmlShell(
   indexPath: string,
   content: string,
   title: string | undefined,
+  ssrRoute?: string,
 ): Promise<string> {
   let html: string;
   try {
@@ -120,7 +125,8 @@ async function buildSsrHtmlShell(
     return buildFallbackHtmlShell(content, title ?? 'eMroute App');
   }
 
-  html = html.replace(slotPattern, `<router-slot>${content}</router-slot>`);
+  const ssrAttr = ssrRoute ? ` data-ssr-route="${ssrRoute}"` : '';
+  html = html.replace(slotPattern, `<router-slot${ssrAttr}>${content}</router-slot>`);
 
   // Replace <title> content if SSR returned a title
   if (title) {
@@ -205,9 +211,9 @@ export async function createDevServer(
 
   // Initialize SSR routers
   const baseUrl = `http://localhost:${port}`;
-  const { markdownRenderer } = config;
-  let ssrHtmlRouter = new SsrHtmlRouter(routesManifest, { baseUrl, markdownRenderer });
-  let ssrMdRouter = new SsrMdRouter(routesManifest, { baseUrl });
+  const { markdownRenderer, widgets } = config;
+  let ssrHtmlRouter = new SsrHtmlRouter(routesManifest, { baseUrl, markdownRenderer, widgets });
+  let ssrMdRouter = new SsrMdRouter(routesManifest, { baseUrl, widgets });
 
   // Regenerate manifest, write file, and update SSR routers
   async function regenerateRoutes(): Promise<void> {
@@ -222,8 +228,8 @@ export async function createDevServer(
     const code = generateManifestCode(result, '@emkodev/eMroute');
     await runtime.writeTextFile(`${appRoot}/routes.manifest.ts`, code);
 
-    ssrHtmlRouter = new SsrHtmlRouter(routesManifest, { baseUrl, markdownRenderer });
-    ssrMdRouter = new SsrMdRouter(routesManifest, { baseUrl });
+    ssrHtmlRouter = new SsrHtmlRouter(routesManifest, { baseUrl, markdownRenderer, widgets });
+    ssrMdRouter = new SsrMdRouter(routesManifest, { baseUrl, widgets });
 
     console.log(`Routes regenerated: ${result.routes.length} routes`);
   }
@@ -282,7 +288,17 @@ export async function createDevServer(
       try {
         const result = await ssrHtmlRouter.render(pathname);
         const ssrTitle = result.title ?? title;
-        const shell = await buildSsrHtmlShell(runtime, indexPath, result.html, ssrTitle);
+        // Strip /html/ prefix for the route path SPA will compare against
+        const ssrRoute = pathname.startsWith(SSR_HTML_PREFIX)
+          ? '/' + pathname.slice(SSR_HTML_PREFIX.length)
+          : pathname;
+        const shell = await buildSsrHtmlShell(
+          runtime,
+          indexPath,
+          result.html,
+          ssrTitle,
+          ssrRoute,
+        );
         return new Response(shell, {
           status: result.status,
           headers: {

@@ -280,7 +280,6 @@ Widgets are self-contained components embedded in page content. They extend
 
 ```ts
 import { Widget } from '@emkodev/emroute';
-import { ComponentElement } from '@emkodev/emroute/spa';
 
 class CryptoPrice extends Widget<{ coin: string }, { price: number }> {
   override readonly name = 'crypto-price';
@@ -301,11 +300,12 @@ class CryptoPrice extends Widget<{ coin: string }, { price: number }> {
   }
 }
 
-ComponentElement.register(new CryptoPrice());
+export default new CryptoPrice();
 ```
 
-Widgets register as `<widget-{name}>` custom elements (vs `<c-{name}>` for
-regular components). Use them in HTML or Markdown:
+Widgets register as `<widget-{name}>` custom elements. Add them to a
+`WidgetRegistry` so all renderers (SPA, SSR HTML, SSR Markdown) can resolve
+them. Use widgets in HTML or Markdown:
 
 **In HTML templates:**
 
@@ -466,9 +466,14 @@ For server-side rendering, create the appropriate router with the same manifest:
 ```ts
 import { createSsrHtmlRouter } from '@emkodev/emroute/ssr/html';
 import { createSsrMdRouter } from '@emkodev/emroute/ssr/md';
+import { WidgetRegistry } from '@emkodev/emroute';
 
-const htmlRouter = createSsrHtmlRouter(manifest);
-const mdRouter = createSsrMdRouter(manifest);
+// Register widgets so SSR can render them
+const widgets = new WidgetRegistry();
+widgets.add(myCryptoWidget);
+
+const htmlRouter = createSsrHtmlRouter(manifest, { widgets });
+const mdRouter = createSsrMdRouter(manifest, { widgets });
 
 // Handle /html/* requests
 const { html, status, title } = await htmlRouter.render('/html/projects/42');
@@ -479,20 +484,18 @@ const { markdown, status } = await mdRouter.render('/md/projects/42');
 
 The SSR renderers strip their prefix (`/html/` or `/md/`) before matching.
 
-**SSR HTML is island-style, not full-page SSG.** The HTML renderer calls each
-component's `renderHTML()` and assembles the route hierarchy, but it does not
-produce a complete `<!DOCTYPE html>` document. It returns the rendered content
-fragment — the same HTML that would be injected into `<router-slot>` in the SPA.
-Widgets are passed through as custom element tags (`<widget-name>`) for
-client-side hydration rather than expanded server-side. This keeps SSR HTML
-lightweight and consistent with the SPA output rather than acting as a static
-site generator.
+**SSR HTML renders widgets server-side.** The HTML renderer calls each
+component's `renderHTML()` and assembles the route hierarchy. When a
+`WidgetRegistry` is provided, `<widget-*>` tags are resolved: the renderer
+calls `getData()` + `renderHTML()` on each widget, fills the tag with rendered
+content, and adds a `data-ssr` attribute with serialized data. In the browser,
+the SPA adopts this content without re-rendering — it detects `data-ssr`,
+restores state, and the widget is live.
 
-> **Planned:** Pre-generated data support for islands. The server would call
-> `getData()` for each widget during SSR, render its HTML server-side, and pass
-> the data as initial state. On the client, hydrated widgets would surgically
-> replace their content once ready — giving you server-rendered islands without
-> a loading flash, while keeping the architecture composable.
+**SSR Markdown renders widgets too.** Fenced `widget:name` blocks are resolved
+via the registry: `getData()` + `renderMarkdown()` replaces the fenced block
+with text output. This is critical for `/md/` routes which have zero
+client-side JS — widgets must be fully rendered server-side.
 
 ## Routes Manifest
 
@@ -599,9 +602,10 @@ The server handles:
 3. **File = Route.** The filesystem is the routing config. No registration, no
    config file, no build step required (the manifest generator is optional).
 
-4. **Everything is a Component.** Pages and widgets share the same base class,
-   the same lifecycle (`getData` → `render`), and the same error handling.
-   Widgets just use a different tag prefix.
+4. **Pages and Widgets.** Pages are content units resolved by URL via the routes
+   manifest. Widgets are embeddable units resolved by name via the
+   `WidgetRegistry`. Both share the same lifecycle (`getData` → `render`) and
+   render across all three contexts.
 
 5. **Three contexts, one component.** A single component serves browsers (SPA),
    server-rendered HTML, and plain markdown. No separate API layer needed for

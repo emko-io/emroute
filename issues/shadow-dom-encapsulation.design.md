@@ -1,24 +1,12 @@
 Components render into light DOM (innerHTML), breaking self-contained model
 
-ComponentElement sets this.innerHTML directly, which means:
+---
 
-- Component styles leak into the page and page styles leak into the component
-- No native encapsulation — the component boundary is purely conceptual
-- Developers can't write self-contained components with their own styling
-  without risking collisions
+Resolved: Shadow DOM rejected. See ADR-0011.
 
-The web component platform solves this with Shadow DOM
-(this.attachShadow({ mode: 'open' })), which gives each component an isolated
-style scope.
-
-Cascading implications:
-
-- <router-slot> inside a shadow root needs <slot> projection to work
-- SSR hydration would need Declarative Shadow DOM
-- Global theming/CSS would need CSS custom properties or ::part() to penetrate
-- <mark-down> element also needs a light vs shadow decision
-- Shadow DOM on <mark-down> would be the natural place for default markdown
-  styles (typography, code blocks, tables) that can't be overridden by page
-  CSS. Consumers would customize via CSS custom properties. But enforcing
-  styles at the package level may be unwanted — consumers likely want full
-  control over markdown appearance.
+SSR renders widgets by replacing their tags with rendered output (calling
+getData() + renderHTML() server-side). Content lives in light DOM — there is
+no shadow root to attach to. This is by design: emroute is markdown-first,
+content-first. Global styles (typography, theming, resets) should cascade into
+components. Custom element tag names provide natural CSS scoping without
+browser-enforced isolation.

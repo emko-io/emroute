@@ -9,7 +9,6 @@
  */
 
 import { Widget } from '../component/widget.component.ts';
-import { ComponentElement } from '../element/component.element.ts';
 
 interface PageTitleParams {
   title: string;
@@ -52,10 +51,4 @@ class PageTitleWidget extends Widget<PageTitleParams, PageTitleData> {
   }
 }
 
-const pageTitleWidget = new PageTitleWidget();
-
-if (globalThis.customElements) {
-  ComponentElement.register(pageTitleWidget);
-}
-
-export default pageTitleWidget;
+export const pageTitleWidget = new PageTitleWidget();

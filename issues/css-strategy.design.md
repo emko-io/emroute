@@ -79,7 +79,8 @@ or push it proactively with HTTP/2.
 - `tool/route.generator.ts` — detect .page.css, include in manifest
 - `server/dev.server.ts` — add .page.css to watcher, serve composed CSS
 
-### Blocked by
+### Unblocked
 
-Shadow DOM decision — if Shadow DOM is adopted, styles become naturally scoped
-and the composition model changes significantly. Resolve Shadow DOM first.
+Shadow DOM rejected (ADR-0011). Light DOM rendering means convention-based
+scoping via custom element tag names. Per-route CSS composition proceeds as
+described above.

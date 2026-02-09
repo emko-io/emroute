@@ -21,18 +21,25 @@ import {
   toUrl,
 } from '../../route/route.core.ts';
 import { STATUS_MESSAGES } from '../../util/html.util.ts';
+import { parseWidgetBlocks, replaceWidgetBlocks } from '../../widget/widget.parser.ts';
+import type { WidgetRegistry } from '../../widget/widget.registry.ts';
 
 /** Options for SSR Markdown Router */
-export interface SsrMdRouterOptions extends RouteCoreOptions {}
+export interface SsrMdRouterOptions extends RouteCoreOptions {
+  /** Widget registry for server-side widget rendering */
+  widgets?: WidgetRegistry;
+}
 
 /**
  * SSR Markdown Router for server-side markdown rendering.
  */
 export class SsrMdRouter {
   private core: RouteCore;
+  private widgets: WidgetRegistry | null;
 
   constructor(manifest: RoutesManifest, options: SsrMdRouterOptions = {}) {
     this.core = new RouteCore(manifest, options);
+    this.widgets = options.widgets ?? null;
   }
 
   /**
@@ -131,7 +138,48 @@ export class SsrMdRouter {
 
     const context = await this.core.buildPageContext(route, params);
     const data = await component.getData({ params, context });
-    return component.renderMarkdown({ data, params, context });
+    let markdown = component.renderMarkdown({ data, params, context });
+
+    // Resolve fenced widget blocks: call getData() + renderMarkdown()
+    if (this.widgets) {
+      markdown = await this.resolveWidgets(markdown);
+    }
+
+    return markdown;
+  }
+
+  /**
+   * Resolve fenced widget blocks in markdown content.
+   * Replaces ```widget:name blocks with rendered markdown output.
+   */
+  private async resolveWidgets(markdown: string): Promise<string> {
+    const blocks = parseWidgetBlocks(markdown);
+    if (blocks.length === 0) return markdown;
+
+    const replacements = new Map<(typeof blocks)[0], string>();
+
+    await Promise.all(blocks.map(async (block) => {
+      if (block.parseError || !block.params) {
+        replacements.set(block, `> **Error** (\`${block.widgetName}\`): ${block.parseError}`);
+        return;
+      }
+
+      const widget = this.widgets!.get(block.widgetName);
+      if (!widget) {
+        replacements.set(block, `> **Error**: Unknown widget \`${block.widgetName}\``);
+        return;
+      }
+
+      try {
+        const data = await widget.getData({ params: block.params });
+        const rendered = widget.renderMarkdown({ data, params: block.params });
+        replacements.set(block, rendered);
+      } catch (e) {
+        replacements.set(block, widget.renderMarkdownError(e));
+      }
+    }));
+
+    return replaceWidgetBlocks(markdown, replacements);
   }
 
   /**

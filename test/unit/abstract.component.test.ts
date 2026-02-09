@@ -1,4 +1,4 @@
-import { assertEquals } from '@std/assert';
+import { assert, assertEquals } from '@std/assert';
 import {
   Component,
   ComponentManifestEntry,
@@ -628,8 +628,9 @@ Deno.test('Widget - has name property', () => {
   assertEquals(widget.name, 'test-widget');
 });
 
-Deno.test('Widget - has static tagPrefix', () => {
-  assertEquals(Widget.tagPrefix, 'widget');
+Deno.test('Widget - extends Component', () => {
+  const widget = new TestWidget();
+  assert(widget instanceof Widget);
 });
 
 Deno.test('Widget - getData works', async () => {

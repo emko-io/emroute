@@ -16,3 +16,10 @@ Possible approaches:
 - Make render methods async (breaking change, but aligns with reality)
 - Render tokens / placeholders resolved in a post-render async pass
 - Keep current model, document the limitation
+
+---
+
+Resolved: not a problem. getData() handles async data fetching, renderHTML()
+is sync templating, and composition is via custom elements (widgets handle
+their own async lifecycle independently). Parent components that need child
+data should fetch it in getData(). No changes needed.

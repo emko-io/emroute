@@ -175,9 +175,15 @@ export class SsrMdRouter {
       }
 
       try {
-        const context = { pathname, params: routeParams };
+        // Load widget files if declared
+        let files: { html?: string; md?: string } | undefined;
+        if (widget.files) {
+          files = await this.core.loadWidgetFiles(widget.files);
+        }
+
+        const context = { pathname, params: routeParams, files };
         const data = await widget.getData({ params: block.params, context });
-        const rendered = widget.renderMarkdown({ data, params: block.params });
+        const rendered = widget.renderMarkdown({ data, params: block.params, context });
         replacements.set(block, rendered);
       } catch (e) {
         replacements.set(block, widget.renderMarkdownError(e));

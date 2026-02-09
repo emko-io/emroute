@@ -1,25 +1,25 @@
-import { ComponentElement, createSpaHtmlRouter, MarkdownElement } from '@emkodev/emroute/spa';
+import { ComponentElement, createSpaHtmlRouter, WidgetRegistry } from '@emkodev/emroute/spa';
 import { routesManifest } from './routes.manifest.ts';
-import failingWidget from './failing.widget.ts';
+import failingWidget from './widgets/failing/failing.widget.ts';
+import { greetingWidget } from './widgets/greeting/greeting.widget.ts';
+import { infoCardWidget } from './widgets/info-card/info-card.widget.ts';
+import { counterHtmWidget } from './widgets/counter-htm/counter-htm.widget.ts';
+import { counterVanillaWidget } from './widgets/counter-vanilla/counter-vanilla.widget.ts';
 
-ComponentElement.register(failingWidget);
+// Set up emko-md markdown renderer (side-effect import)
+import './emko.renderer.ts';
 
-// Minimal markdown renderer for tests
-MarkdownElement.setRenderer({
-  render: (md: string) =>
-    md
-      .split('\n\n')
-      .map((block) => {
-        if (block.startsWith('# ')) return `<h1>${block.slice(2)}</h1>`;
-        if (block.startsWith('## ')) return `<h2>${block.slice(3)}</h2>`;
-        const withLinks = block.replace(
-          /\[([^\]]+)\]\(([^)]+)\)/g,
-          '<a href="$2">$1</a>',
-        );
-        return `<p>${withLinks}</p>`;
-      })
-      .join('\n'),
-});
+// Create widget registry and register all widgets
+const widgets = new WidgetRegistry();
+widgets.add(failingWidget);
+widgets.add(greetingWidget);
+widgets.add(infoCardWidget);
+widgets.add(counterHtmWidget);
+widgets.add(counterVanillaWidget);
+
+for (const widget of widgets) {
+  ComponentElement.register(widget);
+}
 
 const router = await createSpaHtmlRouter(routesManifest);
 

@@ -46,6 +46,9 @@ export abstract class Component<TParams = unknown, TData = unknown> {
   /** Unique name in kebab-case. Used for custom element: `<widget-{name}>` */
   abstract readonly name: string;
 
+  /** Associated file paths for pre-loaded content (html, md). */
+  readonly files?: { html?: string; md?: string };
+
   /**
    * Fetch or compute data based on params.
    * Called server-side for SSR, client-side for SPA.
@@ -56,7 +59,7 @@ export abstract class Component<TParams = unknown, TData = unknown> {
    * Render as markdown.
    * This is the canonical content representation.
    */
-  abstract renderMarkdown(args: { data: TData | null; params: TParams }): string;
+  abstract renderMarkdown(args: { data: TData | null; params: TParams; context?: ComponentContext }): string;
 
   /**
    * Render as HTML for browser context.
@@ -64,7 +67,7 @@ export abstract class Component<TParams = unknown, TData = unknown> {
    * Default implementation converts renderMarkdown() output to HTML.
    * Override for custom HTML rendering with rich styling/interactivity.
    */
-  renderHTML(args: { data: TData | null; params: TParams }): string {
+  renderHTML(args: { data: TData | null; params: TParams; context?: ComponentContext }): string {
     if (args.data === null) {
       return `<div class="c-loading" data-component="${this.name}">Loading...</div>`;
     }

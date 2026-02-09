@@ -71,7 +71,7 @@ class BreadcrumbWidget extends WidgetComponent<BreadcrumbParams, BreadcrumbData>
   }
 
   override renderHTML(
-    args: { data: BreadcrumbData | null; params: BreadcrumbParams },
+    args: { data: BreadcrumbData | null; params: BreadcrumbParams; context?: ComponentContext },
   ): string {
     if (!args.data || args.data.segments.length === 0) return '';
 
@@ -90,7 +90,7 @@ class BreadcrumbWidget extends WidgetComponent<BreadcrumbParams, BreadcrumbData>
   }
 
   override renderMarkdown(
-    args: { data: BreadcrumbData | null; params: BreadcrumbParams },
+    args: { data: BreadcrumbData | null; params: BreadcrumbParams; context?: ComponentContext },
   ): string {
     if (!args.data || args.data.segments.length === 0) return '';
 

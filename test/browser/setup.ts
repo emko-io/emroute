@@ -9,6 +9,16 @@ import { createDevServer, type DevServer } from '../../server/dev.server.ts';
 import { denoServerRuntime } from '../../server/server.deno.ts';
 import { generateManifestCode, generateRoutesManifest } from '../../tool/route.generator.ts';
 import type { FileSystem } from '../../tool/fs.type.ts';
+import { WidgetRegistry } from '../../src/widget/widget.registry.ts';
+import type { MarkdownRenderer } from '../../src/type/markdown.type.ts';
+import { AstRenderer, initParser, MarkdownParser } from 'jsr:@emkodev/emko-md@0.1.0-beta.2/parser';
+import { greetingWidget } from './fixtures/widgets/greeting/greeting.widget.ts';
+import { infoCardWidget } from './fixtures/widgets/info-card/info-card.widget.ts';
+import failingWidget from './fixtures/widgets/failing/failing.widget.ts';
+import { counterHtmWidget } from './fixtures/widgets/counter-htm/counter-htm.widget.ts';
+import { counterVanillaWidget } from './fixtures/widgets/counter-vanilla/counter-vanilla.widget.ts';
+import { fileWidget } from './fixtures/widgets/file-widget/file-widget.widget.ts';
+import { remoteWidget } from './fixtures/widgets/remote-widget/remote-widget.widget.ts';
 
 import { type Browser, chromium, type Page } from 'npm:playwright@1.50.1';
 
@@ -44,7 +54,7 @@ function stripPrefix(path: string): string {
   return path.startsWith(`${FIXTURES_DIR}/`) ? path.slice(FIXTURES_DIR.length + 1) : path;
 }
 
-export async function startServer(): Promise<void> {
+export async function startServer(options?: { watch?: boolean }): Promise<void> {
   if (server) return;
 
   // Generate manifest from fixture route files
@@ -110,13 +120,41 @@ export async function startServer(): Promise<void> {
 
   result.moduleLoaders = moduleLoaders;
 
+  // Create widget registry for SSR rendering
+  const widgets = new WidgetRegistry();
+  widgets.add(greetingWidget);
+  widgets.add(infoCardWidget);
+  widgets.add(failingWidget);
+  widgets.add(counterHtmWidget);
+  widgets.add(counterVanillaWidget);
+  widgets.add(fileWidget);
+  widgets.add(remoteWidget);
+
+  // Create server-side emko-md renderer
+  const wasmUrl = new URL(
+    './fixtures/assets/hypertext_parser_bg.0.1.0-beta.2.wasm',
+    import.meta.url,
+  );
+  await initParser({ module_or_path: wasmUrl });
+  const mdParser = new MarkdownParser();
+  const astRenderer = new AstRenderer();
+  const markdownRenderer: MarkdownRenderer = {
+    render(markdown: string): string {
+      mdParser.set_text(markdown);
+      const ast = JSON.parse(mdParser.parse_to_json());
+      return astRenderer.render(ast);
+    },
+  };
+
   server = await createDevServer(
     {
       port: PORT,
       entryPoint: `${FIXTURES_DIR}/main.ts`,
       routesManifest: result,
       appRoot: FIXTURES_DIR,
-      watch: false,
+      watch: options?.watch ?? false,
+      widgets,
+      markdownRenderer,
     },
     denoServerRuntime,
   );

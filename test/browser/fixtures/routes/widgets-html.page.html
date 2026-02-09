@@ -1,0 +1,47 @@
+<title>Widgets in HTML</title>
+<h1>Widgets in HTML</h1>
+
+<p>
+  This page tests <strong>server-side widget rendering</strong> in HTML content. Widget elements
+  (<code>&lt;widget-*&gt;</code>) are embedded directly in the HTML template.
+</p>
+
+<h2>How it works</h2>
+<p>
+  When served via <strong>SSR HTML</strong> (<code>/html/widgets-html</code>),
+  <code>resolveWidgetTags()</code> finds each <code>&lt;widget-*&gt;</code>
+  element, looks up the widget in the <code>WidgetRegistry</code>, calls
+  <code>getData()</code> + <code>renderHTML()</code>, and injects the rendered content inside the
+  element. A <code>data-ssr</code> attribute is added with serialized data for SPA hydration.
+</p>
+<p>
+  When served via <strong>SSR Markdown</strong> (<code>/md/widgets-html</code>), this is a <code
+  >.page.html</code> with no <code>.page.md</code> companion, so the markdown renderer returns a
+  <code>router-slot</code> placeholder.
+</p>
+<p>
+  When the <strong>SPA</strong> loads, the custom elements either hydrate from
+  <code>data-ssr</code> (skipping <code>getData()</code>) or fetch data client-side if no SSR
+  content is present.
+</p>
+
+<h2>Greeting Widget (no params)</h2>
+<widget-greeting></widget-greeting>
+
+<h2>Greeting Widget (with name param)</h2>
+<widget-greeting name="Developer"></widget-greeting>
+
+<h2>Info Card Widget (multiple params)</h2>
+<widget-info-card
+  title="SSR Widget"
+  description="Rendered on the server."
+  badge="test"
+></widget-info-card>
+
+<h2>Failing Widget (error handling)</h2>
+<p>
+  This widget throws in <code>getData()</code>. Since rendering fails,
+  <code>resolveWidgetTags()</code> leaves the element as-is for client-side error handling by <code
+  >ComponentElement</code>.
+</p>
+<widget-failing></widget-failing>

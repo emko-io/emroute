@@ -28,12 +28,12 @@ Deno.test(
 
     // --- .page.md ---
 
-    await t.step('.page.md renders markdown wrapped in <mark-down>', async () => {
+    await t.step('.page.md renders expanded markdown as HTML', async () => {
       const res = await fetch(baseUrl('/html/'));
       assertEquals(res.status, 200);
       const html = await res.text();
-      assert(html.includes('<mark-down>'), 'should wrap md in <mark-down>');
-      assert(html.includes('Home'), 'should contain Home heading');
+      assert(!html.includes('<mark-down>'), 'should expand <mark-down> when renderer is configured');
+      assert(html.includes('Home'), 'should contain rendered heading');
     });
 
     // --- .page.html ---
@@ -46,8 +46,8 @@ Deno.test(
       assert(html.includes('About Page'), 'should contain title text');
       assert(html.includes('section-1'), 'should contain section anchor');
       assert(
-        html.includes('<widget-failing>'),
-        'should pass through widget tag for client hydration',
+        html.includes('<widget-failing'),
+        'should contain failing widget tag (left as-is because getData throws)',
       );
     });
 
@@ -88,7 +88,7 @@ Deno.test(
       const res = await fetch(baseUrl('/html/blog'));
       assertEquals(res.status, 200);
       const html = await res.text();
-      assert(html.includes('<mark-down>'), 'should contain <mark-down> for md content');
+      assert(html.includes('Blog'), 'should contain expanded markdown heading');
       assert(html.includes('Posts: 0'), 'should contain blog footer');
     });
 
@@ -136,6 +136,66 @@ Deno.test(
       assertEquals(res.status, 404);
       const html = await res.text();
       assert(html.includes('Not Found'), 'should contain Not Found');
+    });
+
+    // --- Widgets in HTML: SSR rendering ---
+
+    await t.step('widgets in .page.html are rendered server-side with data-ssr', async () => {
+      const res = await fetch(baseUrl('/html/widgets-html'));
+      assertEquals(res.status, 200);
+      const html = await res.text();
+      assert(html.includes('Widgets in HTML'), 'should contain page title');
+      // Greeting widget (no params) should be rendered with data-ssr
+      assert(html.includes('Hello, World!'), 'should render greeting widget with default name');
+      assert(html.includes('data-ssr='), 'should have data-ssr attribute on rendered widgets');
+      // Greeting widget (with name param) should use the param
+      assert(html.includes('Hello, Developer!'), 'should render greeting widget with name param');
+      // Info card widget should be rendered
+      assert(html.includes('SSR Widget'), 'should render info card title');
+      assert(html.includes('Rendered on the server.'), 'should render info card description');
+      // Failing widget should be left as-is (getData throws)
+      assert(html.includes('<widget-failing'), 'should leave failing widget as-is');
+    });
+
+    // --- Widgets in Markdown: SSR rendering ---
+
+    await t.step('widgets in .page.md are rendered server-side via resolveWidgetTags', async () => {
+      const res = await fetch(baseUrl('/html/widgets'));
+      assertEquals(res.status, 200);
+      const html = await res.text();
+      assert(html.includes('Widgets in Markdown'), 'should contain page heading');
+      // After markdown expansion, widget fenced blocks become <widget-*> elements
+      // Then resolveWidgetTags renders them with data-ssr
+      assert(html.includes('Hello, World!'), 'should render greeting widget (no params)');
+      assert(html.includes('Hello, Developer!'), 'should render greeting widget (with name)');
+      assert(html.includes('Widget Rendering'), 'should render info card title');
+    });
+
+    // --- File-backed widgets: SSR rendering ---
+
+    await t.step('file-backed widget renders HTML from static file', async () => {
+      const res = await fetch(baseUrl('/html/widget-files'));
+      assertEquals(res.status, 200);
+      const html = await res.text();
+      assert(html.includes('Widget Files in HTML'), 'should contain page title');
+      // File widget should have loaded its HTML from the static file
+      assert(
+        html.includes('This HTML was loaded from a static file'),
+        'should render file widget from static HTML file',
+      );
+      assert(html.includes('data-ssr='), 'file widget should have data-ssr attribute');
+      // Greeting widget (no files) should still work as before
+      assert(html.includes('Hello, World!'), 'greeting widget without files still works');
+    });
+
+    await t.step('remote widget renders HTML from absolute URL', async () => {
+      const res = await fetch(baseUrl('/html/widget-files'));
+      assertEquals(res.status, 200);
+      const html = await res.text();
+      assert(
+        html.includes('This HTML was loaded from an absolute URL'),
+        'should render remote widget from absolute URL',
+      );
     });
 
     // --- Error: getData throws ---
@@ -259,6 +319,47 @@ Deno.test(
       assertEquals(res.status, 404);
       const md = await res.text();
       assert(md.includes('Not Found'), 'should contain Not Found');
+    });
+
+    // --- Widgets in Markdown: SSR rendering ---
+
+    await t.step('widgets in .page.md are resolved to renderMarkdown() output', async () => {
+      const res = await fetch(baseUrl('/md/widgets'));
+      assertEquals(res.status, 200);
+      const md = await res.text();
+      assert(md.includes('Widgets in Markdown'), 'should contain page heading');
+      // Fenced widget blocks should be replaced with renderMarkdown() output
+      assert(md.includes('Hello, World!'), 'should resolve greeting widget (no params)');
+      assert(md.includes('Hello, Developer!'), 'should resolve greeting widget (with name)');
+      assert(
+        md.includes('[SSR] Widget Rendering'),
+        'should resolve info card with badge and title',
+      );
+      // Failing widget should show error output
+      assert(
+        md.includes('Widget data fetch failed') || md.includes('Error'),
+        'should show error for failing widget',
+      );
+      // No fenced widget blocks should remain
+      assert(!md.includes('```widget:'), 'should have no unresolved widget blocks');
+    });
+
+    // --- File-backed widgets: SSR markdown rendering ---
+
+    await t.step('file-backed widget renders markdown from static file', async () => {
+      const res = await fetch(baseUrl('/md/widget-files-md'));
+      assertEquals(res.status, 200);
+      const md = await res.text();
+      assert(md.includes('Widget Files in Markdown'), 'should contain page heading');
+      // File widget should render its md file content
+      assert(
+        md.includes('This markdown was loaded from a static file'),
+        'should render file widget from static MD file',
+      );
+      // Greeting widget (no files) should still work
+      assert(md.includes('Hello, World!'), 'greeting widget without files still works');
+      // No unresolved widget blocks should remain
+      assert(!md.includes('```widget:'), 'should have no unresolved widget blocks');
     });
 
     // --- Error: getData throws ---

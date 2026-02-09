@@ -93,10 +93,8 @@ export async function resolveWidgetTags(
   registry: { get(name: string): WidgetLike | undefined },
   pathname?: string,
   routeParams?: Record<string, string>,
+  loadFiles?: (files: { html?: string; md?: string }) => Promise<{ html?: string; md?: string }>,
 ): Promise<string> {
-  const context: WidgetRouteContext | undefined = pathname
-    ? { pathname, params: routeParams ?? {} }
-    : undefined;
   const pattern = /<widget-([a-z][a-z0-9-]*)(\s[^>]*?)\/>|<widget-([a-z][a-z0-9-]*)(\s[^>]*)?>([^]*?)<\/widget-\3>/gi;
   const matches = [...html.matchAll(pattern)];
 
@@ -114,8 +112,18 @@ export async function resolveWidgetTags(
     const params = parseAttrsToParams(attrsString);
 
     try {
+      // Build context with optional file loading
+      let files: { html?: string; md?: string } | undefined;
+      if (widget.files && loadFiles) {
+        files = await loadFiles(widget.files);
+      }
+
+      const context: WidgetRouteContext | undefined = pathname
+        ? { pathname, params: routeParams ?? {}, files }
+        : files ? { pathname: '', params: {}, files } : undefined;
+
       const data = await widget.getData({ params, context });
-      const rendered = widget.renderHTML({ data, params });
+      const rendered = widget.renderHTML({ data, params, context });
       const ssrData = escapeAttr(JSON.stringify(data));
       const tagName = `widget-${widgetName}`;
       const attrs = attrsString ? ` ${attrsString}` : '';
@@ -167,12 +175,14 @@ function escapeAttr(value: string): string {
 export interface WidgetRouteContext {
   pathname: string;
   params: Record<string, string>;
+  files?: { html?: string; md?: string };
 }
 
 /** Minimal widget interface for resolveWidgetTags (avoids circular imports). */
 interface WidgetLike {
+  files?: { html?: string; md?: string };
   getData(args: { params: unknown; context?: WidgetRouteContext }): Promise<unknown>;
-  renderHTML(args: { data: unknown; params: unknown }): string;
+  renderHTML(args: { data: unknown; params: unknown; context?: WidgetRouteContext }): string;
 }
 
 /**

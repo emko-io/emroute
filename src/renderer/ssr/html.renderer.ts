@@ -176,7 +176,13 @@ export class SsrHtmlRouter {
 
     // Resolve <widget-*> tags: call getData() + renderHTML(), inject data-ssr
     if (this.widgets) {
-      html = await resolveWidgetTags(html, this.widgets, route.pattern, params);
+      html = await resolveWidgetTags(
+        html,
+        this.widgets,
+        route.pattern,
+        params,
+        this.core.loadWidgetFiles.bind(this.core),
+      );
     }
 
     return { html, title };

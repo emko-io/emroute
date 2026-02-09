@@ -46,6 +46,7 @@ export class RouteCore {
   readonly matcher: RouteMatcher;
   private listeners: Set<RouterEventListener> = new Set();
   private moduleCache: Map<string, unknown> = new Map();
+  private widgetFileCache: Map<string, string> = new Map();
   private moduleLoaders: Record<string, () => Promise<unknown>>;
   private _currentRoute: MatchedRoute | null = null;
   private baseUrl: string;
@@ -166,6 +167,54 @@ export class RouteCore {
 
     this.moduleCache.set(modulePath, module);
     return module as T;
+  }
+
+  /**
+   * Load widget file contents with caching.
+   * Relative paths are resolved via baseUrl; absolute URLs (http/https) are fetched directly.
+   * Returns an object with loaded file contents.
+   */
+  async loadWidgetFiles(
+    widgetFiles: { html?: string; md?: string },
+  ): Promise<{ html?: string; md?: string }> {
+    const result: { html?: string; md?: string } = {};
+
+    const load = async (path: string): Promise<string | undefined> => {
+      const cached = this.widgetFileCache.get(path);
+      if (cached !== undefined) return cached;
+
+      try {
+        const url = path.startsWith('http://') || path.startsWith('https://')
+          ? path
+          : this.baseUrl + this.toAbsolutePath(path);
+
+        const response = await fetch(url);
+        if (!response.ok) {
+          console.warn(`[RouteCore] Failed to load widget file ${path}: ${response.status}`);
+          return undefined;
+        }
+
+        const content = await response.text();
+        this.widgetFileCache.set(path, content);
+        return content;
+      } catch (e) {
+        console.warn(
+          `[RouteCore] Failed to load widget file ${path}:`,
+          e instanceof Error ? e.message : e,
+        );
+        return undefined;
+      }
+    };
+
+    if (widgetFiles.html) {
+      result.html = await load(widgetFiles.html);
+    }
+
+    if (widgetFiles.md) {
+      result.md = await load(widgetFiles.md);
+    }
+
+    return result;
   }
 
   /**

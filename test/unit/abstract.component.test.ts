@@ -612,7 +612,7 @@ class TestWidget extends WidgetComponent<{ query: string }, { result: string }> 
     return { result: `Result for ${params.query}` };
   }
 
-  renderMarkdown({ data }: { data: { result: string }; params: { query: string } }): string {
+  override renderMarkdown({ data }: { data: { result: string }; params: { query: string } }): string {
     return `**${data.result}**`;
   }
 }

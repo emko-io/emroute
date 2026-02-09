@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0-beta.5] - 2026-02-09
+
+### Added
+
+- CSS companion files for pages (`.page.css`) and widgets (`.widget.css`) —
+  discovered, loaded, and injected as `<style>` tags in SSR HTML output
+- Widget file support: widgets can declare `.html`, `.md`, and `.css` files
+  that get loaded by SSR infrastructure and passed through `ComponentContext.files`
+- WidgetComponent default `renderHTML`/`renderMarkdown` fallback chains that
+  use declared files automatically (html file → md `<mark-down>` → base default)
+- Remote widget files: absolute URLs supported for widget file paths (fetched
+  at render time with caching)
+- `leafPathname` propagation in both SSR HTML and Markdown renderers — widgets
+  in parent layouts now see the actual target route's pathname, not the layout's
+- Nav widget test fixture demonstrating CSS files + active route highlighting
+
+### Fixed
+
+- XSS in dev server title injection (escapeHtml)
+- Code injection via file paths in generated route manifest
+- Broken route collision detection in generator
+- Self-closing widget tag matching in `resolveWidgetTags`
+- Markdown renderer race condition (eager init, local ref capture)
+- `buildComponentContext` not throwing on failed fetch responses
+- URLPattern groups cast (filter undefined values)
+- `readyPromise` hang on disconnect (signal before nulling)
+- SPA renderer timeout leak — added `dispose()` for listener cleanup
+- Single-quote escaping added to `escapeHtml`/`unescapeHtml`
+
+### Changed
+
+- Renamed `Widget` → `WidgetComponent`, `PageContext` → `ComponentContext`
+- Widgets receive `pathname` and route params during SSR via unified context
+- Breadcrumb widget works server-side via `ComponentContext.pathname`
+- Sort error boundaries once at construction instead of per lookup
+- Removed dead code from `markdown.element.ts`
+- Test suite expanded: 506 unit tests, 33 SSR browser test steps
+
 ## [1.0.0-beta.4] - 2026-02-08
 
 ### Added

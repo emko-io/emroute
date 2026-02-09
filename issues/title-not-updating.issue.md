@@ -13,3 +13,9 @@ Possible approaches:
 - <title> tag in .page.html files already works via updateTitle() fallback
 - Frontmatter parsing (heavy, doesn't fit the custom element model)
 - Auto-extract from content (fragile, makes assumptions about structure)
+
+---
+
+Resolved: added built-in widget-page-title widget (src/widget/page-title.widget.ts).
+Sets document.title directly from params, renders no visible output.
+Auto-registered when @emkodev/emroute/spa is imported.

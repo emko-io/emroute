@@ -108,7 +108,7 @@ The component never fetches its own files. The router does that once, passes the
 
 Markdown content flows through different paths depending on the renderer:
 
-- **SPA**: `renderHTML` produces `<mark-down>content</mark-down>`. The `MarkdownIsland` custom element renders it client-side using a pluggable `MarkdownRenderer` set via `MarkdownIsland.setRenderer()`.
+- **SPA**: `renderHTML` produces `<mark-down>content</mark-down>`. The `MarkdownElement` custom element renders it client-side using a pluggable `MarkdownRenderer` set via `MarkdownElement.setRenderer()`.
 - **SSR HTML**: `renderHTML` produces the same `<mark-down>` tags, but `SsrHtmlRouter` expands them server-side before sending the response. It unescapes HTML entities, runs the markdown through the renderer, and processes fenced blocks (router-slots and widgets). The result is plain HTML — no `<mark-down>` elements reach the browser.
 - **SSR Markdown**: `renderMarkdown` returns raw markdown. No rendering step.
 
@@ -175,7 +175,7 @@ Here are your project stats:
 
 The fenced block is processed differently per renderer:
 
-- **SPA**: `MarkdownIsland` converts it to `<widget-project-stats data-params='{"projectId":"123"}'>` during client-side markdown rendering. The web component hydrates.
+- **SPA**: `MarkdownElement` converts it to `<widget-project-stats project-id="123">` during client-side markdown rendering. The web component hydrates.
 - **SSR HTML**: `SsrHtmlRouter` expands the `<mark-down>` tag server-side, converting the fenced block to the same `<widget-project-stats>` element. The bundled JS registers the custom element, and it hydrates as an island.
 - **SSR Markdown**: The fenced block stays as-is in the markdown output.
 

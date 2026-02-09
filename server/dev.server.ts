@@ -100,8 +100,38 @@ function createFileSystemAdapter(runtime: ServerRuntime): FileSystem {
   };
 }
 
-/** Generate HTML document for SSR with island scripts */
-function generateHtmlShell(content: string, title: string, scriptPath: string): string {
+/** Inject SSR-rendered content into the app's index.html shell */
+async function buildSsrHtmlShell(
+  runtime: ServerRuntime,
+  indexPath: string,
+  content: string,
+  title: string | undefined,
+): Promise<string> {
+  let html: string;
+  try {
+    html = await runtime.readTextFile(indexPath);
+  } catch {
+    return buildFallbackHtmlShell(content, title ?? 'eMroute App');
+  }
+
+  // Inject SSR content into <router-slot>
+  const slotPattern = /<router-slot\b[^>]*>[\s\S]*?<\/router-slot>/;
+  if (!slotPattern.test(html)) {
+    return buildFallbackHtmlShell(content, title ?? 'eMroute App');
+  }
+
+  html = html.replace(slotPattern, `<router-slot>${content}</router-slot>`);
+
+  // Replace <title> content if SSR returned a title
+  if (title) {
+    html = html.replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`);
+  }
+
+  return html;
+}
+
+/** Fallback HTML shell when index.html is missing or has no <router-slot> */
+function buildFallbackHtmlShell(content: string, title: string): string {
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -111,7 +141,6 @@ function generateHtmlShell(content: string, title: string, scriptPath: string): 
 </head>
 <body>
 ${content}
-<script type="module" src="${scriptPath}"></script>
 </body>
 </html>`;
 }
@@ -141,7 +170,7 @@ export async function createDevServer(
     watch = routesDir !== undefined,
     appRoot = '.',
     spaRoot = 'index.html',
-    title = 'Vanilla App',
+    title = 'eMroute App',
     aliases = {},
   } = config;
 
@@ -155,7 +184,7 @@ export async function createDevServer(
     routesManifest.moduleLoaders = createServerModuleLoaders(routesManifest, appRoot, runtime);
 
     // Write manifest file so the bundle can import it
-    const code = generateManifestCode(result, '@emkodev/emroute');
+    const code = generateManifestCode(result, '@emkodev/eMroute');
     await runtime.writeTextFile(`${appRoot}/routes.manifest.ts`, code);
 
     console.log(`Scanned ${routesDir}/`);
@@ -190,7 +219,7 @@ export async function createDevServer(
     routesManifest.moduleLoaders = createServerModuleLoaders(routesManifest, appRoot, runtime);
 
     // Write manifest file — deno bundle --watch will pick up the change
-    const code = generateManifestCode(result, '@emkodev/emroute');
+    const code = generateManifestCode(result, '@emkodev/eMroute');
     await runtime.writeTextFile(`${appRoot}/routes.manifest.ts`, code);
 
     ssrHtmlRouter = new SsrHtmlRouter(routesManifest, { baseUrl, markdownRenderer });
@@ -225,6 +254,8 @@ export async function createDevServer(
     return appRoot + pathname;
   }
 
+  const indexPath = `${appRoot}/${spaRoot}`;
+
   async function handleRequest(req: Request): Promise<Response> {
     const url = new URL(req.url);
     const pathname = url.pathname;
@@ -246,12 +277,13 @@ export async function createDevServer(
       }
     }
 
-    // Handle /html/* routes — SSR HTML
+    // Handle /html/* routes — SSR HTML using the app's index.html as shell
     if (pathname.startsWith(SSR_HTML_PREFIX) || pathname + '/' === SSR_HTML_PREFIX) {
       try {
         const result = await ssrHtmlRouter.render(pathname);
-        const scriptUrl = '/' + entryPoint.replace(/\.ts$/, '.js');
-        return new Response(generateHtmlShell(result.html, result.title ?? title, scriptUrl), {
+        const ssrTitle = result.title ?? title;
+        const shell = await buildSsrHtmlShell(runtime, indexPath, result.html, ssrTitle);
+        return new Response(shell, {
           status: result.status,
           headers: {
             'Content-Type': 'text/html; charset=utf-8',
@@ -267,7 +299,6 @@ export async function createDevServer(
     // SPA fallback — serve app's index.html for non-file requests
     if (!isFileRequest(pathname)) {
       try {
-        const indexPath = `${appRoot}/${spaRoot}`;
         let html = await runtime.readTextFile(indexPath);
 
         // Inject SSR hint for LLMs and text clients

@@ -77,9 +77,18 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
   async connectedCallback(): Promise<void> {
     this.abortController = new AbortController();
 
-    // Parse params from data-params attribute
-    const raw = this.getAttribute('data-params');
-    this.params = raw ? JSON.parse(raw) : ({} as TParams);
+    // Parse params from element attributes
+    const params: Record<string, unknown> = {};
+    for (const attr of this.attributes) {
+      if (attr.name === 'data-ssr') continue;
+      const key = attr.name.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+      try {
+        params[key] = JSON.parse(attr.value);
+      } catch {
+        params[key] = attr.value;
+      }
+    }
+    this.params = params as TParams;
 
     // Validate params
     if (this.component.validateParams && this.params !== null) {
@@ -108,6 +117,7 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
   }
 
   disconnectedCallback(): void {
+    this.component.destroy?.();
     this.abortController?.abort();
     this.abortController = null;
     this.state = 'idle';

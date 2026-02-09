@@ -76,6 +76,16 @@ export abstract class Component<TParams = unknown, TData = unknown> {
   }
 
   /**
+   * Cleanup hook called when the component is removed from the DOM.
+   * Use for clearing timers, removing event listeners, unmounting
+   * third-party renderers, closing connections, etc.
+   *
+   * Intentionally synchronous (called from disconnectedCallback). You can
+   * fire async cleanup here, but it will not be awaited.
+   */
+  destroy?(): void;
+
+  /**
    * Validate params.
    * @returns Error message if invalid, undefined if valid.
    */

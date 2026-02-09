@@ -45,19 +45,37 @@ export function processFencedSlots(html: string, unescape: UnescapeHtml): string
 /**
  * Convert fenced widget code blocks to custom elements.
  */
-export function processFencedWidgets(html: string, unescape: UnescapeHtml): string {
+export function processFencedWidgets(
+  html: string,
+  unescape: UnescapeHtml,
+): string {
   const pattern =
     /<pre><code (?:data-language|class)="(?:language-)?widget:([a-z][a-z0-9-]*)">([\s\S]*?)<\/code><\/pre>/gi;
 
   return html.replace(pattern, (_match, widgetName, paramsJson) => {
     const decoded = unescape(paramsJson.trim());
     const tagName = `widget-${widgetName}`;
-    const escaped = decoded
-      .replace(/&/g, '&amp;')
-      .replace(/'/g, '&#39;')
-      .replace(/"/g, '&quot;');
 
-    return `<${tagName} data-params='${escaped || '{}'}'></${tagName}>`;
+    if (!decoded) {
+      return `<${tagName}></${tagName}>`;
+    }
+
+    let params: Record<string, unknown>;
+    try {
+      params = JSON.parse(decoded);
+    } catch {
+      return `<${tagName}></${tagName}>`;
+    }
+
+    const attrs = Object.entries(params)
+      .map(([key, value]) => {
+        const attrName = key.replace(/([A-Z])/g, '-$1').toLowerCase();
+        const attrValue = typeof value === 'string' ? value : JSON.stringify(value);
+        return `${attrName}="${attrValue.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"`;
+      })
+      .join(' ');
+
+    return `<${tagName} ${attrs}></${tagName}>`;
   });
 }
 

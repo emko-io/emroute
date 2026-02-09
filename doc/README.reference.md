@@ -21,13 +21,13 @@ import { createRouter } from '@emkodev/emroute';
 ### SPA (Browser)
 
 ```typescript
-import { createRouter, MarkdownIsland } from '@emkodev/emroute';
+import { createSpaHtmlRouter, MarkdownElement } from '@emkodev/emroute/spa';
 import { marked } from 'marked';
 import manifest from './routes.manifest.ts';
 
 // Setup markdown renderer (required for <mark-down> elements)
 // See doc/markdown-renderer.md for all options
-MarkdownIsland.setRenderer({
+MarkdownElement.setRenderer({
   render: (md) => marked.parse(md, { async: false }) as string,
 });
 
@@ -78,7 +78,7 @@ emroute/
 │   │   └── md.renderer.ts       # Server Markdown generation
 │   │
 │   ├── slot.component.ts         # <router-slot> custom element
-│   ├── markdown.island.ts       # <mark-down> element
+│   ├── markdown.element.ts      # <mark-down> element
 │   │
 │   ├── abstract.component.ts    # Component, PageComponent, PageContext
 │   ├── widget.component.ts      # Widget (extends Component, widget- tag prefix)
@@ -188,17 +188,17 @@ In markdown:
 The `<mark-down>` element requires a renderer. Bring your own markdown parser:
 
 ```typescript
-import { MarkdownIsland } from '@emkodev/emroute';
+import { MarkdownElement } from '@emkodev/emroute/spa';
 import { marked } from 'marked';
 
-MarkdownIsland.setRenderer({
+MarkdownElement.setRenderer({
   render: (md) => marked.parse(md, { async: false }) as string,
 });
 ```
 
 See **[doc/markdown-renderer.md](doc/markdown-renderer.md)** for integration guides with:
 
-- @emkodev/hypertext (WASM)
+- @emkodev/emko-md (WASM)
 - marked
 - markdown-it
 - micromark
@@ -362,7 +362,7 @@ deno task lint
 - Deno runtime
 - URLPattern API (native browser)
 - Custom Elements (Web Components)
-- `@emkodev/hypertext` WASM for markdown (optional)
+- `@emkodev/emko-md` WASM for markdown (optional)
 - Zero external UI dependencies
 
 ## Compatibility

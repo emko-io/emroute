@@ -33,8 +33,8 @@ The APIs used:
 - **Template literals** for HTML generation (no JSX, no virtual DOM)
 
 The markdown renderer is the one pluggable dependency -- the app provides its own
-parser (marked, markdown-it, @emkodev/hypertext, etc.) via
-`MarkdownIsland.setRenderer()`. The router doesn't know or care what parses the
+parser (marked, markdown-it, @emkodev/emko-md, etc.) via
+`MarkdownElement.setRenderer()`. The router doesn't know or care what parses the
 markdown.
 
 ## Consequences
@@ -65,7 +65,7 @@ markdown.
 - Code: `emroute/src/route.matcher.ts` -- URLPattern usage
 - Code: `emroute/src/component.element.ts` -- Custom Elements + AbortController
 - Code: `emroute/src/spa/html.renderer.ts` -- History API + innerHTML
-- Code: `emroute/src/markdown.island.ts` -- pluggable MarkdownRenderer interface
+- Code: `emroute/src/element/markdown.element.ts` -- pluggable MarkdownRenderer interface
 - Doc: `emroute/doc/markdown-renderer.md` -- supported markdown parsers
 
 ## Notes

@@ -115,22 +115,22 @@ export const denoServerRuntime: ServerRuntime = {
   },
 
   watchDir(path: string, callback: (event: WatchEvent) => void): WatchHandle {
-    const watcher = Deno.watchFs(path);
+    const watcher = Deno.watchFs(path, { recursive: true });
 
     // Process events asynchronously
     (async () => {
       for await (const event of watcher) {
-        const kind = event.kind === 'create'
+        if (event.kind === 'access') continue;
+
+        // On macOS, FSEvents can deliver file creation as "other" or "any"
+        // instead of "create", so treat all non-remove/non-create as "modify"
+        const kind: WatchEvent['kind'] = event.kind === 'create'
           ? 'create'
-          : event.kind === 'modify'
-          ? 'modify'
           : event.kind === 'remove'
           ? 'remove'
-          : null;
+          : 'modify';
 
-        if (kind) {
-          callback({ kind, paths: event.paths });
-        }
+        callback({ kind, paths: event.paths });
       }
     })();
 

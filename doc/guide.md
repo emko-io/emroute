@@ -310,7 +310,7 @@ regular components). Use them in HTML or Markdown:
 **In HTML templates:**
 
 ```html
-<widget-crypto-price data-params='{"coin":"bitcoin"}'></widget-crypto-price>
+<widget-crypto-price coin="bitcoin"></widget-crypto-price>
 ```
 
 **In Markdown (fenced block syntax):**

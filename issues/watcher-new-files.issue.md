@@ -14,3 +14,8 @@ Possible causes:
 - Race condition with the 100ms debounce timer
 - Platform-specific FSEvents behavior on macOS
 - Need to reproduce and verify
+
+---
+
+Resolved: Fixed in beta.3. FSEvents on macOS reports "other" instead of
+"create" for new files. Fixed by treating both event kinds as rebuild triggers.

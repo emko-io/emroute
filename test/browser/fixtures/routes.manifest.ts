@@ -9,104 +9,135 @@ import type { RoutesManifest } from '@emkodev/emroute';
 
 export const routesManifest: RoutesManifest = {
   routes: [
-    {
-      pattern: '/projects/:id/tasks',
-      type: 'page',
-      modulePath: 'routes/projects/[id]/tasks.page.ts',
-      files: { ts: 'routes/projects/[id]/tasks.page.ts' },
-      parent: '/projects/:id',
-    },
-    {
-      pattern: '/projects/:id',
-      type: 'page',
-      modulePath: 'routes/projects/[id].page.ts',
-      files: { ts: 'routes/projects/[id].page.ts' },
-      parent: '/projects',
-    },
-    {
-      pattern: '/profile',
-      type: 'page',
-      modulePath: 'routes/profile.page.ts',
-      files: { ts: 'routes/profile.page.ts', html: 'routes/profile.page.html' },
-    },
-    {
-      pattern: '/projects',
-      type: 'page',
-      modulePath: 'routes/projects.page.md',
-      files: { md: 'routes/projects.page.md' },
-    },
-    {
-      pattern: '/about',
-      type: 'page',
-      modulePath: 'routes/about.page.html',
-      files: { html: 'routes/about.page.html' },
-    },
-    {
-      pattern: '/docs',
-      type: 'page',
-      modulePath: 'routes/docs.page.ts',
-      files: { html: 'routes/docs.page.html', ts: 'routes/docs.page.ts' },
-    },
-    {
-      pattern: '/crash',
-      type: 'page',
-      modulePath: 'routes/crash.page.ts',
-      files: { ts: 'routes/crash.page.ts' },
-    },
-    {
-      pattern: '/blog',
-      type: 'page',
-      modulePath: 'routes/blog.page.ts',
-      files: { md: 'routes/blog.page.md', ts: 'routes/blog.page.ts' },
-    },
-    {
-      pattern: '/hydration',
-      type: 'page',
-      modulePath: 'routes/hydration.page.ts',
-      files: { ts: 'routes/hydration.page.ts' },
-    },
-    {
-      pattern: '/old',
-      type: 'redirect',
-      modulePath: 'routes/old.redirect.ts',
-    },
-    {
-      pattern: '/',
-      type: 'page',
-      modulePath: 'routes/index.page.md',
-      files: { md: 'routes/index.page.md' },
-    },
-    {
-      pattern: '/projects/:rest*',
-      type: 'page',
-      modulePath: 'routes/projects/index.page.md',
-      files: { md: 'routes/projects/index.page.md' },
-      parent: '/projects',
-    },
+  {
+    pattern: '/projects/:id/tasks',
+    type: 'page',
+    modulePath: 'routes/projects/[id]/tasks.page.ts',
+    files: { ts: 'routes/projects/[id]/tasks.page.ts' },
+    parent: '/projects/:id',
+  },
+  {
+    pattern: '/vanilla/counter',
+    type: 'page',
+    modulePath: 'routes/vanilla/counter.page.md',
+    files: { md: 'routes/vanilla/counter.page.md' },
+    parent: '/vanilla',
+  },
+  {
+    pattern: '/projects/:id',
+    type: 'page',
+    modulePath: 'routes/projects/[id].page.ts',
+    files: { ts: 'routes/projects/[id].page.ts' },
+    parent: '/projects',
+  },
+  {
+    pattern: '/preact',
+    type: 'page',
+    modulePath: 'routes/preact.page.md',
+    files: { md: 'routes/preact.page.md' },
+  },
+  {
+    pattern: '/profile',
+    type: 'page',
+    modulePath: 'routes/profile.page.ts',
+    files: { ts: 'routes/profile.page.ts', html: 'routes/profile.page.html' },
+  },
+  {
+    pattern: '/widgets-html',
+    type: 'page',
+    modulePath: 'routes/widgets-html.page.html',
+    files: { html: 'routes/widgets-html.page.html' },
+  },
+  {
+    pattern: '/projects',
+    type: 'page',
+    modulePath: 'routes/projects.page.md',
+    files: { md: 'routes/projects.page.md' },
+  },
+  {
+    pattern: '/about',
+    type: 'page',
+    modulePath: 'routes/about.page.html',
+    files: { css: 'routes/about.page.css', html: 'routes/about.page.html' },
+  },
+  {
+    pattern: '/docs',
+    type: 'page',
+    modulePath: 'routes/docs.page.ts',
+    files: { html: 'routes/docs.page.html', ts: 'routes/docs.page.ts' },
+  },
+  {
+    pattern: '/crash',
+    type: 'page',
+    modulePath: 'routes/crash.page.ts',
+    files: { ts: 'routes/crash.page.ts' },
+  },
+  {
+    pattern: '/widgets',
+    type: 'page',
+    modulePath: 'routes/widgets.page.md',
+    files: { md: 'routes/widgets.page.md' },
+  },
+  {
+    pattern: '/blog',
+    type: 'page',
+    modulePath: 'routes/blog.page.ts',
+    files: { md: 'routes/blog.page.md', ts: 'routes/blog.page.ts' },
+  },
+  {
+    pattern: '/widget-files-md',
+    type: 'page',
+    modulePath: 'routes/widget-files-md.page.md',
+    files: { md: 'routes/widget-files-md.page.md' },
+  },
+  {
+    pattern: '/widget-files',
+    type: 'page',
+    modulePath: 'routes/widget-files.page.html',
+    files: { html: 'routes/widget-files.page.html' },
+  },
+  {
+    pattern: '/hydration',
+    type: 'page',
+    modulePath: 'routes/hydration.page.ts',
+    files: { ts: 'routes/hydration.page.ts' },
+  },
+  {
+    pattern: '/old',
+    type: 'redirect',
+    modulePath: 'routes/old.redirect.ts',
+  },
+  {
+    pattern: '/',
+    type: 'page',
+    modulePath: 'routes/index.page.md',
+    files: { md: 'routes/index.page.md' },
+  },
+  {
+    pattern: '/projects/:rest*',
+    type: 'page',
+    modulePath: 'routes/projects/index.page.md',
+    files: { md: 'routes/projects/index.page.md' },
+    parent: '/projects',
+  }
   ],
 
   errorBoundaries: [
-    {
-      pattern: '/projects',
-      modulePath: 'routes/projects/[id].error.ts',
-    },
+  {
+    pattern: '/projects',
+    modulePath: 'routes/projects/[id].error.ts',
+  }
   ],
 
   statusPages: new Map([
-    [404, {
-      pattern: '/404',
-      type: 'page',
-      modulePath: 'routes/404.page.html',
-      statusCode: 404,
-      files: { html: 'routes/404.page.html' },
-    }],
+  [404, { pattern: '/404', type: 'page', modulePath: 'routes/404.page.html', statusCode: 404, files: { html: 'routes/404.page.html' } }]
   ]),
 
   errorHandler: {
-    pattern: '/',
-    type: 'error',
-    modulePath: 'routes/error.ts',
-  },
+  pattern: '/',
+  type: 'error',
+  modulePath: 'routes/error.ts',
+},
 
   moduleLoaders: {
     'routes/projects/[id]/tasks.page.ts': () => import('./routes/projects/[id]/tasks.page.ts'),

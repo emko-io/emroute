@@ -32,6 +32,7 @@ the initial handleNavigation(). Detection via self-contained attributes:
 ```
 
 On initialize():
+
 - Check for data-ssr-route on the slot element
 - Verify it matches current location.pathname (strip /html/ prefix)
 - If match: skip handleNavigation(), set internal state (currentRoute, params)
@@ -67,11 +68,13 @@ data), attach behavior (custom element is now live).
 Currently NEITHER SSR renderer actually renders widgets:
 
 SSR HTML renderer:
+
 - processFencedWidgets() converts fenced blocks to <widget-*> HTML elements
   but never calls getData() or renderHTML(). Widgets are empty shells waiting
   for client-side JS.
 
 SSR Markdown renderer:
+
 - Does not process fenced widget blocks at all. A .page.md with widgets
   outputs the raw fenced block syntax to LLMs/text clients, which is useless.
 
@@ -80,6 +83,7 @@ must be fully rendered server-side. The markdown response is final output.
 
 Required: a server-side widget registry so SSR renderers can look up widget
 instances, call getData(), and render them:
+
 - SSR HTML: call getData() + renderHTML(), inject data-ssr attribute with
   the data for client-side adoption
 - SSR Markdown: call getData() + renderMarkdown(), replace fenced block
@@ -88,6 +92,7 @@ instances, call getData(), and render them:
 ### Self-contained attributes over <script> blocks
 
 Hydration metadata uses attributes on the elements themselves rather than
+
 <script type="application/json"> blocks. Reasons:
 - Self-contained: data travels with the element
 - Works in markdown context (no <script> tags)
@@ -125,3 +130,9 @@ SSR replaces widgets with rendered output. CSS scoped by convention via tag name
 
 test/browser/fixtures/routes/hydration.page.ts — tracks getData() call count
 and timestamps. test/browser/hydration.test.ts confirms the double render bug.
+
+---
+
+Resolved: Implemented in beta.4: route-level hydration (data-ssr-route),
+widget-level hydration (data-ssr), SSR widget rendering via WidgetRegistry.
+See ADR-0011.

@@ -116,3 +116,9 @@ Document issues — all resolved:
 - SPA Setup: added renderer requirement callout.
 - Markdown renderer doc: MarkdownIsland → MarkdownElement, import paths fixed.
 - Three File Types: added .ts + .html + .md composition example.
+
+---
+
+Resolved: All actionable items addressed during beta development. Remaining
+open item (#4, CLI not exported) is tracked separately. External items (JSR
+quirks, Deno experimental features) are outside project scope.

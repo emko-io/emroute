@@ -48,8 +48,10 @@ class CounterVanillaWidget extends WidgetComponent<{ start?: string }, CounterDa
 
   override renderHTML({ data }: { data: CounterData | null; params: { start?: string } }) {
     if (!data) return '';
-    const dec = `this.parentElement.querySelector('[data-count]').textContent=Number(this.parentElement.querySelector('[data-count]').textContent)-1`;
-    const inc = `this.parentElement.querySelector('[data-count]').textContent=Number(this.parentElement.querySelector('[data-count]').textContent)+1`;
+    const dec =
+      `this.parentElement.querySelector('[data-count]').textContent=Number(this.parentElement.querySelector('[data-count]').textContent)-1`;
+    const inc =
+      `this.parentElement.querySelector('[data-count]').textContent=Number(this.parentElement.querySelector('[data-count]').textContent)+1`;
     return `${STYLES}<div class="c-counter-vanilla">
   <button class="c-counter-vanilla__btn" onclick="${dec}">−</button>
   <p class="c-counter-vanilla__display">Count: <strong data-count>${data.initial}</strong></p>

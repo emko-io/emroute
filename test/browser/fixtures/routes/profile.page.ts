@@ -1,4 +1,4 @@
-import { PageComponent, type ComponentContext } from '@emkodev/emroute';
+import { type ComponentContext, PageComponent } from '@emkodev/emroute';
 
 interface ProfileData {
   name: string;

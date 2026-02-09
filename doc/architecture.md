@@ -44,8 +44,9 @@ A route is defined by one or more files sharing the same stem:
 - `.page.ts` — logic (data fetching, custom rendering)
 - `.page.html` — HTML template
 - `.page.md` — markdown content
+- `.page.css` — styles (injected as `<style>` tag in HTML rendering)
 
-These combine. A route can have all three, or just one.
+These combine. A route can have all four, or just one. A `.page.css` file alone does not create a route — it's always a companion.
 
 ## The Component
 
@@ -64,12 +65,14 @@ The SPA and SSR HTML routers call `renderHTML`. The SSR Markdown router calls `r
 
 When you don't override the render methods, `PageComponent` follows a fallback chain based on what files exist:
 
-| Files present   | `renderHTML()`                         | `renderMarkdown()`        |
-| --------------- | -------------------------------------- | ------------------------- |
-| `.html` + `.md` | HTML file content                      | Markdown file content     |
-| `.html` only    | HTML file content                      | `router-slot` placeholder |
-| `.md` only      | `<mark-down>` wrapping markdown + slot | Markdown file content     |
-| Neither         | Bare `<router-slot>`                   | `router-slot` placeholder |
+| Files present   | `renderHTML()`                                     | `renderMarkdown()`        |
+| --------------- | -------------------------------------------------- | ------------------------- |
+| `.html` + `.md` | `<style>` (if css) + HTML file content             | Markdown file content     |
+| `.html` only    | `<style>` (if css) + HTML file content             | `router-slot` placeholder |
+| `.md` only      | `<style>` (if css) + `<mark-down>` markdown + slot | Markdown file content     |
+| Neither         | Bare `<router-slot>`                               | `router-slot` placeholder |
+
+When a `.page.css` file exists alongside other files, its content is prepended as a `<style>` tag in `renderHTML()`. CSS alone (no `.html`/`.md`) does not inject — the slot fallback returns bare `<router-slot>`.
 
 The `<router-slot>` is where child routes get injected. A route with no content of its own is a layout — it just passes through to its children.
 
@@ -91,14 +94,15 @@ Each level renders its content, and the next level's output replaces the `<route
 - **SSR HTML**: string replacement — replace `<router-slot></router-slot>` in the parent string
 - **SSR Markdown**: concatenation — join sections with `---` separators
 
-## PageContext
+## ComponentContext
 
-The router loads file content before calling the component. The component receives a `PageContext`:
+The router loads file content before calling the component. The component receives a `ComponentContext`:
 
 ```typescript
-interface PageContext {
+interface ComponentContext {
+  pathname: string;
   params: Record<string, string>;
-  files: { html?: string; md?: string };
+  files?: { html?: string; md?: string; css?: string };
 }
 ```
 
@@ -180,6 +184,8 @@ The fenced block is processed differently per renderer:
 - **SSR Markdown**: If a `WidgetRegistry` is provided, the fenced block is replaced with the widget's `renderMarkdown()` output. Otherwise it passes through as-is.
 
 Widgets are embeddable units within page content. Pages live in the routes manifest; widgets live in the `WidgetRegistry`. Everything reusable that is not a page is a widget.
+
+Widgets can declare companion files (`.html`, `.md`, `.css`) via a `files` property. These are loaded by the SSR infrastructure and passed through `ComponentContext.files`, the same way page files work. File paths are relative to the app root; absolute URLs are also supported for remote assets.
 
 ## No Framework
 

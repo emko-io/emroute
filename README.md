@@ -86,7 +86,9 @@ export default new ProjectPage();
 
 - **File-based routing** with dynamic segments (`[id]`), catch-all directories, and nested layouts via `<router-slot>`
 - **Triple rendering** — SPA, SSR HTML, SSR Markdown from one component
-- **Widgets** — interactive islands embedded in Markdown content, self-contained with their own data lifecycle and error handling
+- **Companion files** — `.page.html`, `.page.md`, `.page.css` loaded automatically and passed through context
+- **Widgets** — interactive islands with their own data lifecycle, error handling, and optional file companions (`.html`, `.md`, `.css`)
+- **SSR hydration** — server-rendered HTML adopted by the SPA without re-rendering
 - **Error boundaries** — scoped error handlers per route prefix, plus status pages (`404.page.html`) and a root fallback
 - **Native APIs only** — URLPattern, custom elements, History API. No framework runtime, no virtual DOM, no build-time magic
 - **Redirects** — declarative `.redirect.ts` files with 301/302 support
@@ -107,4 +109,4 @@ deno task test            # run tests
 - [Architecture overview](doc/architecture.md)
 - [Setting up emko-md](doc/setup-emko-md.md) — WASM markdown renderer setup
 - [Markdown renderers](doc/markdown-renderer.md) — all supported renderers
-- [Architectural decisions](doc/architecture/) — ADR-0001 through ADR-0007
+- [Architectural decisions](doc/architecture/) — ADR-0001 through ADR-0011

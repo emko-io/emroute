@@ -7,7 +7,7 @@ Three files, one command.
 ```bash
 mkdir my-app && cd my-app
 deno init
-deno add jsr:@emkodev/emroute@^1.0.0-beta.1
+deno add jsr:@emkodev/emroute@^1.0.0-beta.5
 ```
 
 ## 2. Create the files
@@ -49,7 +49,7 @@ await createSpaHtmlRouter(routesManifest);
 
 ```bash
 deno run --allow-net --allow-read --allow-write --allow-run --allow-env \
-  jsr:@emkodev/emroute@^1.0.0-beta.1/server/cli.deno.ts
+  jsr:@emkodev/emroute@^1.0.0-beta.5/server/cli.deno.ts
 ```
 
 Or add a task to `deno.json`:

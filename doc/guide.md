@@ -53,19 +53,21 @@ routes/
 - Static segments win over dynamic: `eth.page.ts` matches `/crypto/eth` before `[coin].page.ts`
 - Root `index.page.*` matches `/` exactly for URL purposes, but still acts as a layout parent — all routes render inside its `<router-slot>`
 
-### Three File Types per Route
+### Companion Files per Route
 
-A single route can have up to three files. The framework resolves them in
-order of precedence: `.ts` > `.html` > `.md`.
+A single route can have up to four companion files. The framework resolves the
+primary module in order of precedence: `.ts` > `.html` > `.md`. A `.css` file
+is always a companion — it never creates a route on its own.
 
 | File             | Purpose                                 |
 | ---------------- | --------------------------------------- |
 | `name.page.ts`   | Component with data lifecycle           |
 | `name.page.html` | HTML template (available in context)    |
 | `name.page.md`   | Markdown content (available in context) |
+| `name.page.css`  | CSS styles (injected as `<style>` tag)  |
 
-When all three exist, the `.ts` component is the entry point. It receives the
-`.html` and `.md` content via `context.files`:
+When a `.ts` component exists, it is the entry point. It receives companion
+file content via `context.files`:
 
 ```ts
 override renderHTML({ data, context }) {
@@ -134,13 +136,13 @@ from the URL.
 
 **Default fallbacks** (if you don't override):
 
-| Method             | Default behavior                                        |
-| ------------------ | ------------------------------------------------------- |
-| `getData()`        | Returns `null`                                          |
-| `renderHTML()`     | `.html` file → `.md` in `<mark-down>` → `<router-slot>` |
-| `renderMarkdown()` | `.md` file → slot placeholder                           |
-| `getTitle()`       | `undefined` (no title change)                           |
-| `renderError()`    | `<div class="c-error">Error: {message}</div>`           |
+| Method             | Default behavior                                                        |
+| ------------------ | ----------------------------------------------------------------------- |
+| `getData()`        | Returns `null`                                                          |
+| `renderHTML()`     | css `<style>` + `.html` file → `.md` in `<mark-down>` → `<router-slot>` |
+| `renderMarkdown()` | `.md` file → slot placeholder                                           |
+| `getTitle()`       | `undefined` (no title change)                                           |
+| `renderError()`    | `<div class="c-error">Error: {message}</div>`                           |
 
 ### Template Pattern
 
@@ -170,7 +172,7 @@ class ProfilePage extends PageComponent<Record<string, string>, ProfileData> {
   override renderHTML({ data, context }: {
     data: ProfileData | null;
     params: Record<string, string>;
-    context?: PageContext;
+    context?: ComponentContext;
   }) {
     const template = context?.files?.html ?? '<h1>Profile</h1>';
     if (!data) return template;
@@ -205,7 +207,7 @@ class BlogPage extends PageComponent {
   override renderHTML({ context }: {
     data: unknown;
     params: Record<string, string>;
-    context?: PageContext;
+    context?: ComponentContext;
   }) {
     const md = context?.files?.md ?? '';
     return `<mark-down>${md}</mark-down>\n<p class="blog-footer">Posts: 0</p>`;
@@ -214,7 +216,7 @@ class BlogPage extends PageComponent {
   override renderMarkdown({ context }: {
     data: unknown;
     params: Record<string, string>;
-    context?: PageContext;
+    context?: ComponentContext;
   }) {
     return context?.files?.md ?? '';
   }
@@ -276,12 +278,12 @@ generator handles this automatically based on directory structure.
 ## Widgets
 
 Widgets are self-contained components embedded in page content. They extend
-`Widget` instead of `PageComponent`:
+`WidgetComponent` instead of `PageComponent`:
 
 ```ts
-import { Widget } from '@emkodev/emroute';
+import { WidgetComponent } from '@emkodev/emroute';
 
-class CryptoPrice extends Widget<{ coin: string }, { price: number }> {
+class CryptoPrice extends WidgetComponent<{ coin: string }, { price: number }> {
   override readonly name = 'crypto-price';
 
   override async getData({ params, signal }) {
@@ -320,6 +322,33 @@ them. Use widgets in HTML or Markdown:
 {"coin": "bitcoin"}
 ```
 ````
+
+### Widget Files
+
+Widgets can declare companion files (`.html`, `.md`, `.css`) that get loaded
+by the SSR infrastructure and passed through `context.files`, mirroring how
+page files work:
+
+```ts
+class NavWidget extends WidgetComponent<Record<string, unknown>, NavData> {
+  override readonly name = 'nav';
+  override readonly files = {
+    html: 'widgets/nav/nav.widget.html',
+    css: 'widgets/nav/nav.widget.css',
+  };
+
+  override renderHTML({ data, context }) {
+    const style = context?.files?.css ? `<style>${context.files.css}</style>` : '';
+    const html = context?.files?.html ?? '<nav>Loading...</nav>';
+    return style + html;
+  }
+}
+```
+
+File paths are relative to the app root. Absolute URLs (e.g.,
+`https://cdn.example.com/widget.css`) are also supported — fetched at render
+time with caching. The default `WidgetComponent.renderHTML()` automatically
+prepends `<style>` tags when a CSS file is declared.
 
 Widget errors are contained — a failing widget renders its error state inline
 without breaking the surrounding page.

@@ -175,9 +175,9 @@ export class RouteCore {
    * Returns an object with loaded file contents.
    */
   async loadWidgetFiles(
-    widgetFiles: { html?: string; md?: string },
-  ): Promise<{ html?: string; md?: string }> {
-    const result: { html?: string; md?: string } = {};
+    widgetFiles: { html?: string; md?: string; css?: string },
+  ): Promise<{ html?: string; md?: string; css?: string }> {
+    const result: { html?: string; md?: string; css?: string } = {};
 
     const load = async (path: string): Promise<string | undefined> => {
       const cached = this.widgetFileCache.get(path);
@@ -214,19 +214,23 @@ export class RouteCore {
       result.md = await load(widgetFiles.md);
     }
 
+    if (widgetFiles.css) {
+      result.css = await load(widgetFiles.css);
+    }
+
     return result;
   }
 
   /**
    * Build a ComponentContext from a route's files and params.
-   * Fetches html/md file content as needed.
+   * Fetches html/md/css file content as needed.
    */
   async buildComponentContext(
     pathname: string,
     route: RouteConfig,
     params: RouteParams,
   ): Promise<ComponentContext> {
-    const files: { html?: string; md?: string } = {};
+    const files: { html?: string; md?: string; css?: string } = {};
 
     if (route.files?.html) {
       const htmlPath = this.toAbsolutePath(route.files.html);
@@ -244,6 +248,15 @@ export class RouteCore {
         throw new Error(`Failed to fetch ${route.files.md}: ${response.status}`);
       }
       files.md = await response.text();
+    }
+
+    if (route.files?.css) {
+      const cssPath = this.toAbsolutePath(route.files.css);
+      const response = await fetch(this.baseUrl + cssPath);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch ${route.files.css}: ${response.status}`);
+      }
+      files.css = await response.text();
     }
 
     return { pathname, params, files };

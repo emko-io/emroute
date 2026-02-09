@@ -19,6 +19,7 @@ class RemoteWidget extends WidgetComponent<Record<string, unknown>, RemoteWidget
   override readonly name = 'remote-widget';
   override readonly files = {
     html: 'http://localhost:4100/widgets/remote-widget/remote-widget.widget.html',
+    css: 'http://localhost:4100/widgets/remote-widget/remote-widget.widget.css',
   };
 
   override getData(): Promise<RemoteWidgetData> {

@@ -113,7 +113,7 @@ export class SsrMdRouter {
       // Skip wildcard route appearing as its own parent (prevents double-render)
       if (route === matched.route && routePattern !== matched.route.pattern) continue;
 
-      const markdown = await this.renderRouteContent(route, matched.params);
+      const markdown = await this.renderRouteContent(route, matched.params, pathname);
       if (markdown) {
         parts.push(markdown);
       }
@@ -125,7 +125,11 @@ export class SsrMdRouter {
   /**
    * Render a single route's content to Markdown.
    */
-  private async renderRouteContent(route: RouteConfig, params: RouteParams): Promise<string> {
+  private async renderRouteContent(
+    route: RouteConfig,
+    params: RouteParams,
+    leafPathname?: string,
+  ): Promise<string> {
     if (route.modulePath === DEFAULT_ROOT_ROUTE.modulePath) {
       return '';
     }
@@ -142,7 +146,7 @@ export class SsrMdRouter {
 
     // Resolve fenced widget blocks: call getData() + renderMarkdown()
     if (this.widgets) {
-      markdown = await this.resolveWidgets(markdown, route.pattern, params);
+      markdown = await this.resolveWidgets(markdown, leafPathname ?? route.pattern, params);
     }
 
     return markdown;

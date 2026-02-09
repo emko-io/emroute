@@ -163,7 +163,7 @@ export function filePathToPattern(filePath: string): string {
   // Remove routes/ prefix and file extension
   let pattern = filePath
     .replace(/^routes\//, '')
-    .replace(/\.(page|error|redirect)\.(ts|html|md)$/, '');
+    .replace(/\.(page|error|redirect)\.(ts|html|md|css)$/, '');
 
   // Detect non-root directory index before stripping
   const isDirectoryIndex = pattern.endsWith('/index') && pattern !== 'index';
@@ -212,10 +212,11 @@ export function getRouteType(
  */
 export function getPageFileType(
   filename: string,
-): 'ts' | 'html' | 'md' | null {
+): 'ts' | 'html' | 'md' | 'css' | null {
   if (filename.endsWith('.page.ts')) return 'ts';
   if (filename.endsWith('.page.html')) return 'html';
   if (filename.endsWith('.page.md')) return 'md';
+  if (filename.endsWith('.page.css')) return 'css';
   return null;
 }
 

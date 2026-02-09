@@ -1,0 +1,9 @@
+.widget-file {
+  border: 1px solid #ddd;
+  padding: 1rem;
+  border-radius: 4px;
+}
+
+.file-title {
+  color: #2c3e50;
+}

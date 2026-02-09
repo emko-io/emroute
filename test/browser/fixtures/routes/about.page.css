@@ -1,0 +1,8 @@
+.about-page h1 {
+  color: #2c3e50;
+  border-bottom: 2px solid #3498db;
+}
+
+.about-page p {
+  line-height: 1.6;
+}

@@ -21,7 +21,7 @@ import { escapeHtml } from '../util/html.util.ts';
 export interface ComponentContext {
   pathname: string;
   params: Record<string, string>;
-  files?: { html?: string; md?: string };
+  files?: { html?: string; md?: string; css?: string };
   signal?: AbortSignal;
 }
 
@@ -46,20 +46,24 @@ export abstract class Component<TParams = unknown, TData = unknown> {
   /** Unique name in kebab-case. Used for custom element: `<widget-{name}>` */
   abstract readonly name: string;
 
-  /** Associated file paths for pre-loaded content (html, md). */
-  readonly files?: { html?: string; md?: string };
+  /** Associated file paths for pre-loaded content (html, md, css). */
+  readonly files?: { html?: string; md?: string; css?: string };
 
   /**
    * Fetch or compute data based on params.
    * Called server-side for SSR, client-side for SPA.
    */
-  abstract getData(args: { params: TParams; signal?: AbortSignal; context?: ComponentContext }): Promise<TData | null>;
+  abstract getData(
+    args: { params: TParams; signal?: AbortSignal; context?: ComponentContext },
+  ): Promise<TData | null>;
 
   /**
    * Render as markdown.
    * This is the canonical content representation.
    */
-  abstract renderMarkdown(args: { data: TData | null; params: TParams; context?: ComponentContext }): string;
+  abstract renderMarkdown(
+    args: { data: TData | null; params: TParams; context?: ComponentContext },
+  ): string;
 
   /**
    * Render as HTML for browser context.
@@ -165,13 +169,14 @@ export class PageComponent<
     args: { data: TData | null; params: TParams; context?: ComponentContext },
   ): string {
     const files = args.context?.files;
+    const style = files?.css ? `<style>${files.css}</style>\n` : '';
 
     if (files?.html) {
-      return files.html;
+      return style + files.html;
     }
 
     if (files?.md) {
-      return `<mark-down>${escapeHtml(files.md)}</mark-down>\n<router-slot></router-slot>`;
+      return `${style}<mark-down>${escapeHtml(files.md)}</mark-down>\n<router-slot></router-slot>`;
     }
 
     return '<router-slot></router-slot>';

@@ -40,9 +40,9 @@ export type { MarkdownRenderer } from './type/markdown.type.ts';
 // Components
 export {
   Component,
+  type ComponentContext,
   type ComponentManifestEntry,
   PageComponent,
-  type ComponentContext,
   type RenderContext,
 } from './component/abstract.component.ts';
 

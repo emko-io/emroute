@@ -32,7 +32,10 @@ Deno.test(
       const res = await fetch(baseUrl('/html/'));
       assertEquals(res.status, 200);
       const html = await res.text();
-      assert(!html.includes('<mark-down>'), 'should expand <mark-down> when renderer is configured');
+      assert(
+        !html.includes('<mark-down>'),
+        'should expand <mark-down> when renderer is configured',
+      );
       assert(html.includes('Home'), 'should contain rendered heading');
     });
 
@@ -196,6 +199,42 @@ Deno.test(
         html.includes('This HTML was loaded from an absolute URL'),
         'should render remote widget from absolute URL',
       );
+    });
+
+    // --- CSS file injection: page ---
+
+    await t.step('.page.css injects <style> tag into SSR HTML', async () => {
+      const res = await fetch(baseUrl('/html/about'));
+      assertEquals(res.status, 200);
+      const html = await res.text();
+      assert(html.includes('<style>'), 'should contain <style> tag from .page.css');
+      assert(html.includes('.about-page h1'), 'should contain CSS content from about.page.css');
+      assert(html.includes('border-bottom'), 'should contain full CSS rule');
+      // Style should appear before the HTML content
+      const styleIdx = html.indexOf('<style>');
+      const h1Idx = html.indexOf('<h1>About</h1>');
+      assert(styleIdx < h1Idx, '<style> should appear before page content');
+    });
+
+    // --- CSS file injection: widget (local) ---
+
+    await t.step('file-backed widget with CSS injects <style> tag', async () => {
+      const res = await fetch(baseUrl('/html/widget-files'));
+      assertEquals(res.status, 200);
+      const html = await res.text();
+      assert(html.includes('<style>'), 'should contain <style> tag from widget CSS');
+      assert(html.includes('.widget-file'), 'should contain local widget CSS content');
+      assert(html.includes('border-radius'), 'should contain full CSS rule from local file');
+    });
+
+    // --- CSS file injection: widget (remote/absolute URL) ---
+
+    await t.step('remote widget with CSS injects <style> tag from absolute URL', async () => {
+      const res = await fetch(baseUrl('/html/widget-files'));
+      assertEquals(res.status, 200);
+      const html = await res.text();
+      assert(html.includes('.widget-remote'), 'should contain remote widget CSS content');
+      assert(html.includes('border-left'), 'should contain full CSS rule from remote file');
     });
 
     // --- Error: getData throws ---

@@ -49,6 +49,27 @@ function mockFetch(responses: Record<string, string>) {
 // Test Widgets
 // ============================================================================
 
+class CssWidget extends WidgetComponent<Record<string, unknown>, { title: string }> {
+  override readonly name = 'css-widget';
+  override readonly files = {
+    html: 'widgets/css-widget.widget.html',
+    css: 'widgets/css-widget.widget.css',
+  };
+
+  override getData(): Promise<{ title: string }> {
+    return Promise.resolve({ title: 'Styled' });
+  }
+}
+
+class CssOnlyWidget extends WidgetComponent<Record<string, unknown>, null> {
+  override readonly name = 'css-only';
+  override readonly files = { css: 'widgets/css-only.widget.css' };
+
+  override getData(): Promise<null> {
+    return Promise.resolve(null);
+  }
+}
+
 class FileBackedWidget extends WidgetComponent<Record<string, unknown>, { title: string }> {
   override readonly name = 'file-backed';
   override readonly files = { html: 'widgets/file-backed.widget.html' };
@@ -87,13 +108,21 @@ class NoFilesWidget extends WidgetComponent<Record<string, unknown>, { count: nu
   }
 
   override renderHTML(
-    args: { data: { count: number } | null; params: Record<string, unknown>; context?: ComponentContext },
+    args: {
+      data: { count: number } | null;
+      params: Record<string, unknown>;
+      context?: ComponentContext;
+    },
   ): string {
     return `<span>${args.data?.count ?? 0}</span>`;
   }
 
   override renderMarkdown(
-    args: { data: { count: number } | null; params: Record<string, unknown>; context?: ComponentContext },
+    args: {
+      data: { count: number } | null;
+      params: Record<string, unknown>;
+      context?: ComponentContext;
+    },
   ): string {
     return `Count: ${args.data?.count ?? 0}`;
   }
@@ -108,14 +137,22 @@ class CustomRenderWidget extends WidgetComponent<Record<string, unknown>, { name
   }
 
   override renderHTML(
-    args: { data: { name: string } | null; params: Record<string, unknown>; context?: ComponentContext },
+    args: {
+      data: { name: string } | null;
+      params: Record<string, unknown>;
+      context?: ComponentContext;
+    },
   ): string {
     const template = args.context?.files?.html ?? '<p>{{name}}</p>';
     return template.replace('{{name}}', args.data?.name ?? '');
   }
 
   override renderMarkdown(
-    args: { data: { name: string } | null; params: Record<string, unknown>; context?: ComponentContext },
+    args: {
+      data: { name: string } | null;
+      params: Record<string, unknown>;
+      context?: ComponentContext;
+    },
   ): string {
     return `Hello, ${args.data?.name}!`;
   }
@@ -639,4 +676,144 @@ Deno.test('SsrMdRouter - renders widget without files unchanged', async () => {
   } finally {
     restore();
   }
+});
+
+// ============================================================================
+// CSS File Support Tests
+// ============================================================================
+
+Deno.test('loadWidgetFiles - loads css file via baseUrl', async () => {
+  const restore = mockFetch({
+    '/widgets/css-widget.widget.css': '.widget { color: red; }',
+  });
+
+  try {
+    const core = new RouteCore(createTestManifest(), { baseUrl: 'http://localhost:8000' });
+    const files = await core.loadWidgetFiles({ css: 'widgets/css-widget.widget.css' });
+
+    assertEquals(files.css, '.widget { color: red; }');
+    assertEquals(files.html, undefined);
+    assertEquals(files.md, undefined);
+  } finally {
+    restore();
+  }
+});
+
+Deno.test('loadWidgetFiles - loads html, md, and css files together', async () => {
+  const restore = mockFetch({
+    '/widgets/all.widget.html': '<div>All HTML</div>',
+    '/widgets/all.widget.md': '# All Markdown',
+    '/widgets/all.widget.css': '.all { display: block; }',
+  });
+
+  try {
+    const core = new RouteCore(createTestManifest(), { baseUrl: 'http://localhost:8000' });
+    const files = await core.loadWidgetFiles({
+      html: 'widgets/all.widget.html',
+      md: 'widgets/all.widget.md',
+      css: 'widgets/all.widget.css',
+    });
+
+    assertEquals(files.html, '<div>All HTML</div>');
+    assertEquals(files.md, '# All Markdown');
+    assertEquals(files.css, '.all { display: block; }');
+  } finally {
+    restore();
+  }
+});
+
+Deno.test('WidgetComponent - renderHTML prepends style tag when css file in context', () => {
+  const widget = new CssWidget();
+  const result = widget.renderHTML({
+    data: { title: 'Styled' },
+    params: {},
+    context: {
+      pathname: '/',
+      params: {},
+      files: { html: '<div>Content</div>', css: '.widget { color: red; }' },
+    },
+  });
+
+  assertStringIncludes(result, '<style>.widget { color: red; }</style>');
+  assertStringIncludes(result, '<div>Content</div>');
+  assertEquals(result.indexOf('<style>') < result.indexOf('<div>Content</div>'), true);
+});
+
+Deno.test('WidgetComponent - renderHTML prepends style tag with md fallback', () => {
+  const widget = new CssOnlyWidget();
+  const result = widget.renderHTML({
+    data: null,
+    params: {},
+    context: {
+      pathname: '/',
+      params: {},
+      files: { md: '# Styled MD', css: '.md { font-size: 14px; }' },
+    },
+  });
+
+  assertStringIncludes(result, '<style>.md { font-size: 14px; }</style>');
+  assertStringIncludes(result, '<mark-down>');
+});
+
+Deno.test('WidgetComponent - renderHTML prepends style tag with base default fallback', () => {
+  const widget = new CssOnlyWidget();
+  const result = widget.renderHTML({
+    data: null,
+    params: {},
+    context: {
+      pathname: '/',
+      params: {},
+      files: { css: '.base { margin: 0; }' },
+    },
+  });
+
+  assertStringIncludes(result, '<style>.base { margin: 0; }</style>');
+  assertStringIncludes(result, 'c-loading');
+});
+
+Deno.test('WidgetComponent - renderHTML no style tag when no css in context', () => {
+  const widget = new FileBackedWidget();
+  const result = widget.renderHTML({
+    data: { title: 'Hello' },
+    params: {},
+    context: { pathname: '/', params: {}, files: { html: '<div>No CSS</div>' } },
+  });
+
+  assertEquals(result.includes('<style>'), false);
+  assertEquals(result, '<div>No CSS</div>');
+});
+
+Deno.test('WidgetComponent - renderMarkdown ignores css file', () => {
+  const widget = new CssWidget();
+  const result = widget.renderMarkdown({
+    data: { title: 'Styled' },
+    params: {},
+    context: {
+      pathname: '/',
+      params: {},
+      files: { md: '# Content', css: '.widget { color: red; }' },
+    },
+  });
+
+  assertEquals(result, '# Content');
+  assertEquals(result.includes('<style>'), false);
+});
+
+Deno.test('resolveWidgetTags - loads css for css-backed widget', async () => {
+  const widget = new CssWidget();
+  const registry = { get: (name: string) => name === 'css-widget' ? widget : undefined };
+
+  const loadFiles = async (files: { html?: string; md?: string; css?: string }) => {
+    const result: { html?: string; md?: string; css?: string } = {};
+    if (files.html) result.html = '<div>CSS Widget HTML</div>';
+    if (files.css) result.css = '.css-widget { color: blue; }';
+    return result;
+  };
+
+  const html = '<widget-css-widget></widget-css-widget>';
+  const result = await resolveWidgetTags(html, registry, '/test', {}, loadFiles);
+
+  assertStringIncludes(result, '<style>.css-widget { color: blue; }</style>');
+  assertStringIncludes(result, '<div>CSS Widget HTML</div>');
+  assertStringIncludes(result, 'data-ssr');
 });

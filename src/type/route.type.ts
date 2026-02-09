@@ -27,6 +27,9 @@ export interface RouteFiles {
 
   /** Markdown content path (.page.md) */
   md?: string;
+
+  /** CSS stylesheet path (.page.css) */
+  css?: string;
 }
 
 /** Route configuration for a single route */

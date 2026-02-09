@@ -1,6 +1,6 @@
 import { assertEquals } from '@std/assert';
 import { DefaultPageComponent } from '../../src/component/page.component.ts';
-import { PageComponent, type ComponentContext } from '../../src/component/abstract.component.ts';
+import { type ComponentContext, PageComponent } from '../../src/component/abstract.component.ts';
 import { escapeHtml } from '../../src/util/html.util.ts';
 
 // ==============================================================================
@@ -245,6 +245,75 @@ Deno.test('fallback - ts+no-html+no-md: renderHTML is slot, renderMarkdown is sl
     component.renderMarkdown({ data: undefined, params: {}, context }),
     '```\nrouter-slot\n```',
   );
+});
+
+// ==============================================================================
+// renderHTML() Tests - With CSS file
+// ==============================================================================
+
+Deno.test('renderHTML - prepends style tag when css file with html', () => {
+  const component = new DefaultPageComponent();
+  const context: ComponentContext = {
+    pathname: '/',
+    params: {},
+    files: { html: '<div>Content</div>', css: '.page { color: red; }' },
+  };
+  const result = component.renderHTML({ data: undefined, params: {}, context });
+  assertEquals(result, '<style>.page { color: red; }</style>\n<div>Content</div>');
+});
+
+Deno.test('renderHTML - prepends style tag when css file with md', () => {
+  const component = new DefaultPageComponent();
+  const md = '# Styled';
+  const context: ComponentContext = {
+    pathname: '/',
+    params: {},
+    files: { md, css: '.page { font-size: 16px; }' },
+  };
+  const result = component.renderHTML({ data: undefined, params: {}, context });
+  assertEquals(
+    result,
+    `<style>.page { font-size: 16px; }</style>\n<mark-down>${
+      escapeHtml(md)
+    }</mark-down>\n<router-slot></router-slot>`,
+  );
+});
+
+Deno.test('renderHTML - no style tag when css only (no html/md)', () => {
+  const component = new DefaultPageComponent();
+  const context: ComponentContext = {
+    pathname: '/',
+    params: {},
+    files: { css: '.page { color: red; }' },
+  };
+  const result = component.renderHTML({ data: undefined, params: {}, context });
+  assertEquals(result, '<router-slot></router-slot>');
+});
+
+Deno.test('renderMarkdown - ignores css file', () => {
+  const component = new DefaultPageComponent();
+  const context: ComponentContext = {
+    pathname: '/',
+    params: {},
+    files: { md: '# Content', css: '.page { color: red; }' },
+  };
+  const result = component.renderMarkdown({ data: undefined, params: {}, context });
+  assertEquals(result, '# Content');
+  assertEquals(result.includes('<style>'), false);
+});
+
+Deno.test('fallback - css+html+md: renderHTML has style+html, renderMarkdown from md', () => {
+  const component = new DefaultPageComponent();
+  const context: ComponentContext = {
+    pathname: '/',
+    params: {},
+    files: { html: '<div>HTML</div>', md: '# MD', css: 'h1 { color: blue; }' },
+  };
+  assertEquals(
+    component.renderHTML({ data: undefined, params: {}, context }),
+    '<style>h1 { color: blue; }</style>\n<div>HTML</div>',
+  );
+  assertEquals(component.renderMarkdown({ data: undefined, params: {}, context }), '# MD');
 });
 
 // ==============================================================================

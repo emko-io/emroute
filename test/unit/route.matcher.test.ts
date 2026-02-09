@@ -603,6 +603,16 @@ Deno.test('filePathToPattern - handles .page.md files', () => {
   assertEquals(pattern, '/about');
 });
 
+Deno.test('filePathToPattern - handles .page.css files', () => {
+  const pattern = filePathToPattern('routes/about.page.css');
+  assertEquals(pattern, '/about');
+});
+
+Deno.test('filePathToPattern - handles nested .page.css files', () => {
+  const pattern = filePathToPattern('routes/projects/[id].page.css');
+  assertEquals(pattern, '/projects/:id');
+});
+
 Deno.test('filePathToPattern - handles .error.ts files', () => {
   const pattern = filePathToPattern('routes/admin.error.ts');
   assertEquals(pattern, '/admin');
@@ -744,6 +754,11 @@ Deno.test('getPageFileType - returns null for error files', () => {
 Deno.test('getPageFileType - returns null for redirect files', () => {
   const type = getPageFileType('old-path.redirect.ts');
   assertEquals(type, null);
+});
+
+Deno.test('getPageFileType - identifies .page.css files', () => {
+  const type = getPageFileType('about.page.css');
+  assertEquals(type, 'css');
 });
 
 Deno.test('getPageFileType - returns null for unknown extensions', () => {

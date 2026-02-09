@@ -416,7 +416,7 @@ export async function createDevServer(
       const isRouteFile = event.paths.some(
         (p) =>
           p.endsWith('.page.ts') || p.endsWith('.page.html') || p.endsWith('.page.md') ||
-          p.endsWith('.error.ts') || p.endsWith('.redirect.ts'),
+          p.endsWith('.page.css') || p.endsWith('.error.ts') || p.endsWith('.redirect.ts'),
       );
 
       if (!isRouteFile) return;

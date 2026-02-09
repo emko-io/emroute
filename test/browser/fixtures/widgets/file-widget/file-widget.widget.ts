@@ -24,6 +24,7 @@ class FileWidget extends WidgetComponent<Record<string, unknown>, FileWidgetData
   override readonly files = {
     html: 'widgets/file-widget/file-widget.widget.html',
     md: 'widgets/file-widget/file-widget.widget.md',
+    css: 'widgets/file-widget/file-widget.widget.css',
   };
 
   override getData(): Promise<FileWidgetData> {

@@ -150,3 +150,58 @@ Deno.test('generator - wildcard routes sort after specific routes', async () => 
   assertEquals(result.routes[0].pattern, '/crypto/eth');
   assertEquals(result.routes[1].pattern, '/crypto/:rest*');
 });
+
+// ============================================================================
+// CSS Companion Files
+// ============================================================================
+
+Deno.test('generator - css companion file is grouped with page route', async () => {
+  const fs = createMockFs([
+    'routes/about.page.html',
+    'routes/about.page.css',
+  ]);
+  const result = await generateRoutesManifest('routes', fs);
+
+  assertEquals(result.routes.length, 1);
+  assertEquals(result.routes[0].pattern, '/about');
+  assertEquals(result.routes[0].files?.html, 'routes/about.page.html');
+  assertEquals(result.routes[0].files?.css, 'routes/about.page.css');
+});
+
+Deno.test('generator - css companion with ts and md files', async () => {
+  const fs = createMockFs([
+    'routes/dashboard.page.ts',
+    'routes/dashboard.page.md',
+    'routes/dashboard.page.css',
+  ]);
+  const result = await generateRoutesManifest('routes', fs);
+
+  assertEquals(result.routes.length, 1);
+  assertEquals(result.routes[0].files?.ts, 'routes/dashboard.page.ts');
+  assertEquals(result.routes[0].files?.md, 'routes/dashboard.page.md');
+  assertEquals(result.routes[0].files?.css, 'routes/dashboard.page.css');
+  assertEquals(result.routes[0].modulePath, 'routes/dashboard.page.ts');
+});
+
+Deno.test('generator - css file alone does not create a route', async () => {
+  const fs = createMockFs([
+    'routes/orphan.page.css',
+  ]);
+  const result = await generateRoutesManifest('routes', fs);
+
+  // CSS alone creates a group but getPrimaryModulePath returns '' so it's skipped
+  assertEquals(result.routes.length, 0);
+});
+
+Deno.test('generator - nested css companion file', async () => {
+  const fs = createMockFs([
+    'routes/projects/[id].page.ts',
+    'routes/projects/[id].page.css',
+  ]);
+  const result = await generateRoutesManifest('routes', fs);
+
+  assertEquals(result.routes.length, 1);
+  assertEquals(result.routes[0].pattern, '/projects/:id');
+  assertEquals(result.routes[0].files?.ts, 'routes/projects/[id].page.ts');
+  assertEquals(result.routes[0].files?.css, 'routes/projects/[id].page.css');
+});

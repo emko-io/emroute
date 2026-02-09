@@ -29,13 +29,18 @@ export abstract class WidgetComponent<TParams = unknown, TData = unknown>
     args: { data: TData | null; params: TParams; context?: ComponentContext },
   ): string {
     const files = args.context?.files;
+    const style = files?.css ? `<style>${files.css}</style>\n` : '';
 
     if (files?.html) {
-      return files.html;
+      return style + files.html;
     }
 
     if (files?.md) {
-      return `<mark-down>${escapeHtml(files.md)}</mark-down>`;
+      return `${style}<mark-down>${escapeHtml(files.md)}</mark-down>`;
+    }
+
+    if (style) {
+      return style + super.renderHTML(args);
     }
 
     return super.renderHTML(args);

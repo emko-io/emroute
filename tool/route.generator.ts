@@ -66,7 +66,7 @@ interface RouteFileGroup {
 
 /** Group page files by their route pattern */
 function groupFilesByPattern(
-  files: Array<{ path: string; pattern: string; fileType: 'ts' | 'html' | 'md' }>,
+  files: Array<{ path: string; pattern: string; fileType: 'ts' | 'html' | 'md' | 'css' }>,
 ): Map<string, RouteFileGroup> {
   const groups = new Map<string, RouteFileGroup>();
 
@@ -139,7 +139,7 @@ export async function generateRoutesManifest(
   const pageFiles: Array<{
     path: string;
     pattern: string;
-    fileType: 'ts' | 'html' | 'md';
+    fileType: 'ts' | 'html' | 'md' | 'css';
   }> = [];
   const redirects: RouteConfig[] = [];
   const errorBoundaries: ErrorBoundary[] = [];
@@ -163,6 +163,14 @@ export async function generateRoutesManifest(
         type: 'error',
         modulePath: filePath,
       };
+      continue;
+    }
+
+    // Handle companion CSS files (.page.css) — not a route type, but grouped with the route
+    const cssFileType = getPageFileType(filename);
+    if (cssFileType === 'css') {
+      const pattern = filePathToPattern(relativePath);
+      pageFiles.push({ path: filePath, pattern, fileType: 'css' });
       continue;
     }
 
@@ -286,9 +294,9 @@ export function generateManifestCode(
       return `  {
     pattern: '${escapeForCodeString(r.pattern)}',
     type: '${escapeForCodeString(r.type)}',
-    modulePath: '${escapeForCodeString(r.modulePath)}',${filesStr}${r.parent ? `\n    parent: '${escapeForCodeString(r.parent)}',` : ''}${
-        r.statusCode ? `\n    statusCode: ${r.statusCode},` : ''
-      }
+    modulePath: '${escapeForCodeString(r.modulePath)}',${filesStr}${
+        r.parent ? `\n    parent: '${escapeForCodeString(r.parent)}',` : ''
+      }${r.statusCode ? `\n    statusCode: ${r.statusCode},` : ''}
   }`;
     })
     .join(',\n');
@@ -307,9 +315,17 @@ export function generateManifestCode(
     .map(
       ([status, route]) => {
         const filesStr = route.files
-          ? `, files: { ${Object.entries(route.files).map(([k, v]) => `${k}: '${escapeForCodeString(v!)}'`).join(', ')} }`
+          ? `, files: { ${
+            Object.entries(route.files).map(([k, v]) => `${k}: '${escapeForCodeString(v!)}'`).join(
+              ', ',
+            )
+          } }`
           : '';
-        return `  [${status}, { pattern: '${escapeForCodeString(route.pattern)}', type: '${escapeForCodeString(route.type)}', modulePath: '${escapeForCodeString(route.modulePath)}', statusCode: ${status}${filesStr} }]`;
+        return `  [${status}, { pattern: '${escapeForCodeString(route.pattern)}', type: '${
+          escapeForCodeString(route.type)
+        }', modulePath: '${
+          escapeForCodeString(route.modulePath)
+        }', statusCode: ${status}${filesStr} }]`;
       },
     )
     .join(',\n');
@@ -341,7 +357,11 @@ export function generateManifestCode(
   }
 
   const moduleLoadersCode = [...tsModulePaths]
-    .map((p) => `    '${escapeForCodeString(p)}': () => import('./${escapeForCodeString(p.replace(/^\.\//, ''))}'),`)
+    .map((p) =>
+      `    '${escapeForCodeString(p)}': () => import('./${
+        escapeForCodeString(p.replace(/^\.\//, ''))
+      }'),`
+    )
     .join('\n');
 
   return `/**

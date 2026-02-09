@@ -1,3 +1,7 @@
+```widget:nav
+{}
+```
+
 # Home
 
 [About](/about)

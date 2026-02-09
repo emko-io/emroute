@@ -1,0 +1,9 @@
+.widget-remote {
+  background: #f0f8ff;
+  padding: 1rem;
+  border-left: 3px solid #3498db;
+}
+
+.remote-title {
+  font-weight: bold;
+}

@@ -131,7 +131,7 @@ export class SsrHtmlRouter {
       // Skip wildcard route appearing as its own parent (prevents double-render)
       if (route === matched.route && routePattern !== matched.route.pattern) continue;
 
-      const { html, title } = await this.renderRouteContent(route, matched.params);
+      const { html, title } = await this.renderRouteContent(route, matched.params, pathname);
 
       if (title) {
         pageTitle = title;
@@ -154,6 +154,7 @@ export class SsrHtmlRouter {
   private async renderRouteContent(
     route: RouteConfig,
     params: RouteParams,
+    leafPathname?: string,
   ): Promise<{ html: string; title?: string }> {
     if (route.modulePath === DEFAULT_ROOT_ROUTE.modulePath) {
       return { html: '<router-slot></router-slot>' };
@@ -175,11 +176,12 @@ export class SsrHtmlRouter {
     html = await this.expandMarkdown(html);
 
     // Resolve <widget-*> tags: call getData() + renderHTML(), inject data-ssr
+    // Use the leaf pathname so widgets in parent layouts see the actual target route
     if (this.widgets) {
       html = await resolveWidgetTags(
         html,
         this.widgets,
-        route.pattern,
+        leafPathname ?? route.pattern,
         params,
         this.core.loadWidgetFiles.bind(this.core),
       );

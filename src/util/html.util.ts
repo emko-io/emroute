@@ -93,9 +93,12 @@ export async function resolveWidgetTags(
   registry: { get(name: string): WidgetLike | undefined },
   pathname?: string,
   routeParams?: Record<string, string>,
-  loadFiles?: (files: { html?: string; md?: string }) => Promise<{ html?: string; md?: string }>,
+  loadFiles?: (
+    files: { html?: string; md?: string; css?: string },
+  ) => Promise<{ html?: string; md?: string; css?: string }>,
 ): Promise<string> {
-  const pattern = /<widget-([a-z][a-z0-9-]*)(\s[^>]*?)\/>|<widget-([a-z][a-z0-9-]*)(\s[^>]*)?>([^]*?)<\/widget-\3>/gi;
+  const pattern =
+    /<widget-([a-z][a-z0-9-]*)(\s[^>]*?)\/>|<widget-([a-z][a-z0-9-]*)(\s[^>]*)?>([^]*?)<\/widget-\3>/gi;
   const matches = [...html.matchAll(pattern)];
 
   if (matches.length === 0) return html;
@@ -113,14 +116,16 @@ export async function resolveWidgetTags(
 
     try {
       // Build context with optional file loading
-      let files: { html?: string; md?: string } | undefined;
+      let files: { html?: string; md?: string; css?: string } | undefined;
       if (widget.files && loadFiles) {
         files = await loadFiles(widget.files);
       }
 
       const context: WidgetRouteContext | undefined = pathname
         ? { pathname, params: routeParams ?? {}, files }
-        : files ? { pathname: '', params: {}, files } : undefined;
+        : files
+        ? { pathname: '', params: {}, files }
+        : undefined;
 
       const data = await widget.getData({ params, context });
       const rendered = widget.renderHTML({ data, params, context });
@@ -175,12 +180,12 @@ function escapeAttr(value: string): string {
 export interface WidgetRouteContext {
   pathname: string;
   params: Record<string, string>;
-  files?: { html?: string; md?: string };
+  files?: { html?: string; md?: string; css?: string };
 }
 
 /** Minimal widget interface for resolveWidgetTags (avoids circular imports). */
 interface WidgetLike {
-  files?: { html?: string; md?: string };
+  files?: { html?: string; md?: string; css?: string };
   getData(args: { params: unknown; context?: WidgetRouteContext }): Promise<unknown>;
   renderHTML(args: { data: unknown; params: unknown; context?: WidgetRouteContext }): string;
 }

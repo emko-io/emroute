@@ -93,7 +93,7 @@ Deno.test('escapeHtml - complex HTML code example', () => {
 Deno.test('escapeHtml - HTML attributes example', () => {
   const input = 'onclick="alert(\'gotcha\')"';
   const result = escapeHtml(input);
-  assertEquals(result, "onclick=&quot;alert(&#39;gotcha&#39;)&quot;");
+  assertEquals(result, 'onclick=&quot;alert(&#39;gotcha&#39;)&quot;');
 });
 
 Deno.test('STATUS_MESSAGES - 404 status code', () => {

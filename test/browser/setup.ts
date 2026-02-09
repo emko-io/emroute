@@ -19,6 +19,7 @@ import { counterHtmWidget } from './fixtures/widgets/counter-htm/counter-htm.wid
 import { counterVanillaWidget } from './fixtures/widgets/counter-vanilla/counter-vanilla.widget.ts';
 import { fileWidget } from './fixtures/widgets/file-widget/file-widget.widget.ts';
 import { remoteWidget } from './fixtures/widgets/remote-widget/remote-widget.widget.ts';
+import { navWidget } from './fixtures/widgets/nav/nav.widget.ts';
 
 import { type Browser, chromium, type Page } from 'npm:playwright@1.50.1';
 
@@ -68,6 +69,7 @@ export async function startServer(options?: { watch?: boolean }): Promise<void> 
       if (route.files.ts) route.files.ts = stripPrefix(route.files.ts);
       if (route.files.html) route.files.html = stripPrefix(route.files.html);
       if (route.files.md) route.files.md = stripPrefix(route.files.md);
+      if (route.files.css) route.files.css = stripPrefix(route.files.css);
     }
   }
   for (const [_, route] of result.statusPages) {
@@ -76,6 +78,7 @@ export async function startServer(options?: { watch?: boolean }): Promise<void> 
       if (route.files.ts) route.files.ts = stripPrefix(route.files.ts);
       if (route.files.html) route.files.html = stripPrefix(route.files.html);
       if (route.files.md) route.files.md = stripPrefix(route.files.md);
+      if (route.files.css) route.files.css = stripPrefix(route.files.css);
     }
   }
   for (const boundary of result.errorBoundaries) {
@@ -129,6 +132,7 @@ export async function startServer(options?: { watch?: boolean }): Promise<void> 
   widgets.add(counterVanillaWidget);
   widgets.add(fileWidget);
   widgets.add(remoteWidget);
+  widgets.add(navWidget);
 
   // Create server-side emko-md renderer
   const wasmUrl = new URL(

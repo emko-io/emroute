@@ -112,7 +112,7 @@ function detectCollisions(
     const filePaths = Object.values(group.files).filter(Boolean);
     const hasIndex = filePaths.some((p) => p?.includes('/index.page.'));
     const hasFlat = filePaths.some(
-      (p) => p && !p.includes('/index.page.') && !p.includes('/'),
+      (p) => p && !p.includes('/index.page.'),
     );
 
     if (hasIndex && hasFlat) {
@@ -262,6 +262,11 @@ export async function generateRoutesManifest(
   };
 }
 
+/** Escape a string for use inside a single-quoted JS/TS string literal. */
+function escapeForCodeString(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
 /** Generate TypeScript manifest file */
 export function generateManifestCode(
   manifest: RoutesManifest,
@@ -273,15 +278,15 @@ export function generateManifestCode(
         ? `\n    files: { ${
           Object.entries(r.files)
             .filter(([_, v]) => v)
-            .map(([k, v]) => `${k}: '${v}'`)
+            .map(([k, v]) => `${k}: '${escapeForCodeString(v!)}'`)
             .join(', ')
         } },`
         : '';
 
       return `  {
-    pattern: '${r.pattern}',
-    type: '${r.type}',
-    modulePath: '${r.modulePath}',${filesStr}${r.parent ? `\n    parent: '${r.parent}',` : ''}${
+    pattern: '${escapeForCodeString(r.pattern)}',
+    type: '${escapeForCodeString(r.type)}',
+    modulePath: '${escapeForCodeString(r.modulePath)}',${filesStr}${r.parent ? `\n    parent: '${escapeForCodeString(r.parent)}',` : ''}${
         r.statusCode ? `\n    statusCode: ${r.statusCode},` : ''
       }
   }`;
@@ -292,8 +297,8 @@ export function generateManifestCode(
     .map(
       (e) =>
         `  {
-    pattern: '${e.pattern}',
-    modulePath: '${e.modulePath}',
+    pattern: '${escapeForCodeString(e.pattern)}',
+    modulePath: '${escapeForCodeString(e.modulePath)}',
   }`,
     )
     .join(',\n');
@@ -302,18 +307,18 @@ export function generateManifestCode(
     .map(
       ([status, route]) => {
         const filesStr = route.files
-          ? `, files: { ${Object.entries(route.files).map(([k, v]) => `${k}: '${v}'`).join(', ')} }`
+          ? `, files: { ${Object.entries(route.files).map(([k, v]) => `${k}: '${escapeForCodeString(v!)}'`).join(', ')} }`
           : '';
-        return `  [${status}, { pattern: '${route.pattern}', type: '${route.type}', modulePath: '${route.modulePath}', statusCode: ${status}${filesStr} }]`;
+        return `  [${status}, { pattern: '${escapeForCodeString(route.pattern)}', type: '${escapeForCodeString(route.type)}', modulePath: '${escapeForCodeString(route.modulePath)}', statusCode: ${status}${filesStr} }]`;
       },
     )
     .join(',\n');
 
   const errorHandlerCode = manifest.errorHandler
     ? `{
-  pattern: '${manifest.errorHandler.pattern}',
-  type: '${manifest.errorHandler.type}',
-  modulePath: '${manifest.errorHandler.modulePath}',
+  pattern: '${escapeForCodeString(manifest.errorHandler.pattern)}',
+  type: '${escapeForCodeString(manifest.errorHandler.type)}',
+  modulePath: '${escapeForCodeString(manifest.errorHandler.modulePath)}',
 }`
     : 'undefined';
 
@@ -336,7 +341,7 @@ export function generateManifestCode(
   }
 
   const moduleLoadersCode = [...tsModulePaths]
-    .map((p) => `    '${p}': () => import('./${p.replace(/^\.\//, '')}'),`)
+    .map((p) => `    '${escapeForCodeString(p)}': () => import('./${escapeForCodeString(p.replace(/^\.\//, ''))}'),`)
     .join('\n');
 
   return `/**
@@ -346,7 +351,7 @@ export function generateManifestCode(
  * Run: deno task routes:generate
  */
 
-import type { RoutesManifest } from '${importPath}';
+import type { RoutesManifest } from '${escapeForCodeString(importPath)}';
 
 export const routesManifest: RoutesManifest = {
   routes: [

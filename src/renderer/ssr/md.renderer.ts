@@ -136,13 +136,13 @@ export class SsrMdRouter {
       ? (await this.core.loadModule<{ default: PageComponent }>(files.ts)).default
       : defaultPageComponent;
 
-    const context = await this.core.buildPageContext(route, params);
+    const context = await this.core.buildComponentContext(route.pattern, route, params);
     const data = await component.getData({ params, context });
     let markdown = component.renderMarkdown({ data, params, context });
 
     // Resolve fenced widget blocks: call getData() + renderMarkdown()
     if (this.widgets) {
-      markdown = await this.resolveWidgets(markdown);
+      markdown = await this.resolveWidgets(markdown, route.pattern, params);
     }
 
     return markdown;
@@ -152,7 +152,11 @@ export class SsrMdRouter {
    * Resolve fenced widget blocks in markdown content.
    * Replaces ```widget:name blocks with rendered markdown output.
    */
-  private async resolveWidgets(markdown: string): Promise<string> {
+  private async resolveWidgets(
+    markdown: string,
+    pathname: string,
+    routeParams: RouteParams,
+  ): Promise<string> {
     const blocks = parseWidgetBlocks(markdown);
     if (blocks.length === 0) return markdown;
 
@@ -171,7 +175,8 @@ export class SsrMdRouter {
       }
 
       try {
-        const data = await widget.getData({ params: block.params });
+        const context = { pathname, params: routeParams };
+        const data = await widget.getData({ params: block.params, context });
         const rendered = widget.renderMarkdown({ data, params: block.params });
         replacements.set(block, rendered);
       } catch (e) {

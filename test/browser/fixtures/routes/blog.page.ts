@@ -1,4 +1,4 @@
-import { PageComponent, type PageContext } from '@emkodev/emroute';
+import { PageComponent, type ComponentContext } from '@emkodev/emroute';
 
 class BlogPage extends PageComponent {
   override readonly name = 'blog';
@@ -8,14 +8,14 @@ class BlogPage extends PageComponent {
   }
 
   override renderHTML(
-    { context }: { data: unknown; params: Record<string, string>; context?: PageContext },
+    { context }: { data: unknown; params: Record<string, string>; context?: ComponentContext },
   ) {
     const md = context?.files?.md ?? '';
     return `<mark-down>${md}</mark-down>\n<p class="blog-footer">Posts: 0</p>`;
   }
 
   override renderMarkdown(
-    { context }: { data: unknown; params: Record<string, string>; context?: PageContext },
+    { context }: { data: unknown; params: Record<string, string>; context?: ComponentContext },
   ) {
     return context?.files?.md ?? '';
   }

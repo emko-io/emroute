@@ -36,28 +36,25 @@ export class MarkdownElement extends HTMLElementBase {
    */
   static setRenderer(renderer: MarkdownRenderer): void {
     MarkdownElement.renderer = renderer;
-    MarkdownElement.rendererInitPromise = null;
+    MarkdownElement.rendererInitPromise = renderer.init ? renderer.init() : null;
   }
 
   /**
-   * Get the current renderer, initializing if needed.
+   * Get the current renderer, waiting for init if needed.
    */
   private static async getRenderer(): Promise<MarkdownRenderer> {
-    if (!MarkdownElement.renderer) {
+    const renderer = MarkdownElement.renderer;
+    if (!renderer) {
       throw new Error(
         'No markdown renderer configured. Call MarkdownElement.setRenderer() before using <mark-down> elements.',
       );
-    }
-
-    if (MarkdownElement.renderer.init && !MarkdownElement.rendererInitPromise) {
-      MarkdownElement.rendererInitPromise = MarkdownElement.renderer.init();
     }
 
     if (MarkdownElement.rendererInitPromise) {
       await MarkdownElement.rendererInitPromise;
     }
 
-    return MarkdownElement.renderer;
+    return renderer;
   }
 
   async connectedCallback(): Promise<void> {
@@ -72,20 +69,9 @@ export class MarkdownElement extends HTMLElementBase {
 
   private async loadContent(): Promise<void> {
     const src = this.getAttribute('src');
-    const dataSrc = this.getAttribute('data-src');
     const inlineContent = this.textContent?.trim();
 
-    if (dataSrc) {
-      // Base64-encoded markdown with possible custom elements (SSR mode)
-      try {
-        const binary = atob(dataSrc);
-        const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
-        const markdown = new TextDecoder().decode(bytes);
-        await this.renderContentWithElements(markdown);
-      } catch (e) {
-        this.showError(new Error(`Failed to decode data-src: ${e}`));
-      }
-    } else if (src) {
+    if (src) {
       // Explicit src attribute
       await this.loadFromSrc(src);
     } else if (inlineContent) {
@@ -185,50 +171,6 @@ export class MarkdownElement extends HTMLElementBase {
 
       // Process fenced widget blocks
       html = processFencedWidgets(html, (t) => this.decodeHtmlEntities(t));
-
-      this.innerHTML = html;
-    } catch (error) {
-      this.showError(error);
-    }
-  }
-
-  /**
-   * Render markdown that may contain pre-composed custom elements.
-   * Preserves custom element tags (like <widget-*>) during markdown rendering.
-   */
-  private async renderContentWithElements(markdown: string): Promise<void> {
-    try {
-      // Extract custom elements and replace with placeholders
-      // Use a pattern that won't be interpreted as markdown
-      const elements: string[] = [];
-      const placeholder = (i: number) => `XELEMENT${i}X`;
-
-      // Match custom elements: <tag-name ...>...</tag-name> or self-closing
-      const elementPattern =
-        /<(widget-[a-z][a-z0-9-]*|router-slot)([^>]*)>([\s\S]*?)<\/\1>|<(widget-[a-z][a-z0-9-]*)([^>]*)\/>/gi;
-
-      const markdownWithPlaceholders = markdown.replace(elementPattern, (match) => {
-        const index = elements.length;
-        elements.push(match);
-        return placeholder(index);
-      });
-
-      // Render markdown
-      const renderer = await MarkdownElement.getRenderer();
-      let html = renderer.render(markdownWithPlaceholders);
-
-      // Process any fenced blocks
-      html = processFencedSlots(html, (t) => this.decodeHtmlEntities(t));
-      html = processFencedWidgets(html, (t) => this.decodeHtmlEntities(t));
-
-      // Restore custom elements (they may be wrapped in <p> tags)
-      for (let i = 0; i < elements.length; i++) {
-        // Replace placeholder, handling possible <p> wrapper
-        html = html.replace(
-          new RegExp(`<p>${placeholder(i)}</p>|${placeholder(i)}`, 'g'),
-          elements[i],
-        );
-      }
 
       this.innerHTML = html;
     } catch (error) {

@@ -8,7 +8,7 @@
  *   <widget-page-title title="About Us"></widget-page-title>
  */
 
-import { Widget } from '../component/widget.component.ts';
+import { WidgetComponent } from '../component/widget.component.ts';
 
 interface PageTitleParams {
   title: string;
@@ -18,7 +18,7 @@ interface PageTitleData {
   title: string;
 }
 
-class PageTitleWidget extends Widget<PageTitleParams, PageTitleData> {
+class PageTitleWidget extends WidgetComponent<PageTitleParams, PageTitleData> {
   override readonly name = 'page-title';
 
   override getData(

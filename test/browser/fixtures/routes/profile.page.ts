@@ -1,4 +1,4 @@
-import { PageComponent, type PageContext } from '@emkodev/emroute';
+import { PageComponent, type ComponentContext } from '@emkodev/emroute';
 
 interface ProfileData {
   name: string;
@@ -21,7 +21,7 @@ class ProfilePage extends PageComponent<Record<string, string>, ProfileData> {
     { data, context }: {
       data: ProfileData | null;
       params: Record<string, string>;
-      context?: PageContext;
+      context?: ComponentContext;
     },
   ) {
     const template = context?.files?.html ?? '<h1>Profile</h1>';

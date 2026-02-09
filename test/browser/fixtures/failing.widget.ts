@@ -1,6 +1,6 @@
-import { Widget } from '@emkodev/emroute';
+import { WidgetComponent } from '@emkodev/emroute';
 
-class FailingWidget extends Widget {
+class FailingWidget extends WidgetComponent {
   override readonly name = 'failing';
 
   override async getData(): Promise<never> {

@@ -1,4 +1,4 @@
-import { PageComponent, type PageContext } from '@emkodev/emroute';
+import { PageComponent, type ComponentContext } from '@emkodev/emroute';
 
 class DocsPage extends PageComponent {
   override readonly name = 'docs';
@@ -8,7 +8,7 @@ class DocsPage extends PageComponent {
   }
 
   override renderHTML(
-    { params, context }: { data: unknown; params: Record<string, string>; context?: PageContext },
+    { params, context }: { data: unknown; params: Record<string, string>; context?: ComponentContext },
   ) {
     const template = context?.files?.html ?? '<h1>Docs</h1>';
     return template.replaceAll('{{topic}}', params.topic ?? 'general');

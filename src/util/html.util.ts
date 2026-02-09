@@ -14,7 +14,8 @@ export function escapeHtml(text: string): string {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 /**
@@ -22,6 +23,7 @@ export function escapeHtml(text: string): string {
  */
 export function unescapeHtml(text: string): string {
   return text
+    .replace(/&#39;/g, "'")
     .replace(/&quot;/g, '"')
     .replace(/&gt;/g, '>')
     .replace(/&lt;/g, '<')
@@ -89,16 +91,22 @@ export function processFencedWidgets(
 export async function resolveWidgetTags(
   html: string,
   registry: { get(name: string): WidgetLike | undefined },
+  pathname?: string,
+  routeParams?: Record<string, string>,
 ): Promise<string> {
-  const pattern = /<widget-([a-z][a-z0-9-]*)(\s[^>]*)?>([^]*?)<\/widget-\1>/gi;
+  const context: WidgetRouteContext | undefined = pathname
+    ? { pathname, params: routeParams ?? {} }
+    : undefined;
+  const pattern = /<widget-([a-z][a-z0-9-]*)(\s[^>]*?)\/>|<widget-([a-z][a-z0-9-]*)(\s[^>]*)?>([^]*?)<\/widget-\3>/gi;
   const matches = [...html.matchAll(pattern)];
 
   if (matches.length === 0) return html;
 
   // Resolve all widgets concurrently
   const replacements = await Promise.all(matches.map(async (match) => {
-    const widgetName = match[1];
-    const attrsString = match[2]?.trim() ?? '';
+    // Self-closing: groups 1,2. Paired: groups 3,4,5.
+    const widgetName = match[1] ?? match[3];
+    const attrsString = (match[1] ? match[2] : match[4])?.trim() ?? '';
     const widget = registry.get(widgetName);
 
     if (!widget) return match[0]; // no widget found — leave as-is
@@ -106,7 +114,7 @@ export async function resolveWidgetTags(
     const params = parseAttrsToParams(attrsString);
 
     try {
-      const data = await widget.getData({ params });
+      const data = await widget.getData({ params, context });
       const rendered = widget.renderHTML({ data, params });
       const ssrData = escapeAttr(JSON.stringify(data));
       const tagName = `widget-${widgetName}`;
@@ -155,10 +163,16 @@ function escapeAttr(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
 }
 
+/** Route context passed to widgets during SSR resolution. */
+export interface WidgetRouteContext {
+  pathname: string;
+  params: Record<string, string>;
+}
+
 /** Minimal widget interface for resolveWidgetTags (avoids circular imports). */
 interface WidgetLike {
-  getData(args: { params: Record<string, unknown> }): Promise<unknown>;
-  renderHTML(args: { data: unknown; params: Record<string, unknown> }): string;
+  getData(args: { params: unknown; context?: WidgetRouteContext }): Promise<unknown>;
+  renderHTML(args: { data: unknown; params: unknown }): string;
 }
 
 /**

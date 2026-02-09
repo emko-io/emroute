@@ -119,8 +119,8 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
     this.data = null;
     this.dataPromise = null;
     this.errorMessage = '';
+    this.signalReady();
     this.readyPromise = null;
-    this.readyResolve = null;
   }
 
   /**

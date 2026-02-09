@@ -166,7 +166,7 @@ export class SsrHtmlRouter {
       ? (await this.core.loadModule<{ default: PageComponent }>(tsModule)).default
       : defaultPageComponent;
 
-    const context = await this.core.buildPageContext(route, params);
+    const context = await this.core.buildComponentContext(route.pattern, route, params);
     const data = await component.getData({ params, context });
     let html = component.renderHTML({ data, params, context });
     const title = component.getTitle({ data, params, context });
@@ -176,7 +176,7 @@ export class SsrHtmlRouter {
 
     // Resolve <widget-*> tags: call getData() + renderHTML(), inject data-ssr
     if (this.widgets) {
-      html = await resolveWidgetTags(html, this.widgets);
+      html = await resolveWidgetTags(html, this.widgets, route.pattern, params);
     }
 
     return { html, title };

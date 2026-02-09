@@ -35,6 +35,7 @@ import { escapeHtml, STATUS_MESSAGES } from '../../util/html.util.ts';
 export class SpaHtmlRouter {
   private core: RouteCore;
   private slot: Element | null = null;
+  private abortController: AbortController | null = null;
 
   constructor(manifest: RoutesManifest) {
     this.core = new RouteCore(manifest);
@@ -52,6 +53,9 @@ export class SpaHtmlRouter {
       return;
     }
 
+    this.abortController = new AbortController();
+    const { signal } = this.abortController;
+
     // Listen for popstate (back/forward navigation)
     globalThis.addEventListener('popstate', (e) => {
       const state = e.state as RouterState | null;
@@ -62,7 +66,7 @@ export class SpaHtmlRouter {
           state: state ?? undefined,
         },
       );
-    });
+    }, { signal });
 
     // Intercept link clicks for SPA navigation
     document.addEventListener('click', (e) => {
@@ -84,7 +88,7 @@ export class SpaHtmlRouter {
 
       e.preventDefault();
       this.navigate(href);
-    });
+    }, { signal });
 
     // Check for SSR content — skip initial render if route matches
     const ssrRoute = this.slot.getAttribute('data-ssr-route');
@@ -113,6 +117,15 @@ export class SpaHtmlRouter {
     await this.handleNavigation(
       location.pathname + location.search + location.hash,
     );
+  }
+
+  /**
+   * Remove event listeners and release references.
+   */
+  dispose(): void {
+    this.abortController?.abort();
+    this.abortController = null;
+    this.slot = null;
   }
 
   /**
@@ -308,7 +321,7 @@ export class SpaHtmlRouter {
       ? (await this.core.loadModule<{ default: PageComponent }>(files.ts)).default
       : defaultPageComponent;
 
-    const context = await this.core.buildPageContext(route, params);
+    const context = await this.core.buildComponentContext(route.pattern, route, params);
     const data = await component.getData({ params, context });
     const html = component.renderHTML({ data, params, context });
     const title = component.getTitle({ data, params, context });
@@ -325,19 +338,20 @@ export class SpaHtmlRouter {
         return;
       }
 
+      const timeout = setTimeout(() => {
+        observer.disconnect();
+        resolve();
+      }, 5000);
+
       const observer = new MutationObserver(() => {
         if (element.children.length > 0) {
+          clearTimeout(timeout);
           observer.disconnect();
           resolve();
         }
       });
 
       observer.observe(element, { childList: true });
-
-      setTimeout(() => {
-        observer.disconnect();
-        resolve();
-      }, 5000);
     });
   }
 
@@ -358,7 +372,7 @@ export class SpaHtmlRouter {
         const component: PageComponent = statusPage.files?.ts
           ? (await this.core.loadModule<{ default: PageComponent }>(statusPage.files.ts)).default
           : defaultPageComponent;
-        const context = await this.core.buildPageContext(statusPage, {});
+        const context = await this.core.buildComponentContext(pathname, statusPage, {});
         const data = await component.getData({ params: {}, context });
         this.slot.innerHTML = component.renderHTML({ data, params: {}, context });
         this.updateTitle();

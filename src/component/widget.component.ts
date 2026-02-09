@@ -1,5 +1,5 @@
 /**
- * Widget — embeddable unit within page content.
+ * WidgetComponent — embeddable unit within page content.
  *
  * Everything reusable that is not a page is a Widget.
  * Widgets render across all contexts (HTML, Markdown, SPA) and are
@@ -10,5 +10,5 @@
 
 import { Component } from './abstract.component.ts';
 
-export abstract class Widget<TParams = unknown, TData = unknown>
+export abstract class WidgetComponent<TParams = unknown, TData = unknown>
   extends Component<TParams, TData> {}

@@ -5,7 +5,7 @@ import {
   PageComponent,
   RenderContext,
 } from '../../src/component/abstract.component.ts';
-import { Widget } from '../../src/component/widget.component.ts';
+import { WidgetComponent } from '../../src/component/widget.component.ts';
 
 // ============================================================================
 // Test Fixtures
@@ -603,7 +603,7 @@ Deno.test('ComponentManifestEntry - all fields are required except pattern', () 
 // Widget Tests
 // ============================================================================
 
-class TestWidget extends Widget<{ query: string }, { result: string }> {
+class TestWidget extends WidgetComponent<{ query: string }, { result: string }> {
   readonly name = 'test-widget';
 
   async getData(
@@ -620,7 +620,7 @@ class TestWidget extends Widget<{ query: string }, { result: string }> {
 Deno.test('Widget - extends Component', () => {
   const widget = new TestWidget();
   assertEquals(widget instanceof Component, true);
-  assertEquals(widget instanceof Widget, true);
+  assertEquals(widget instanceof WidgetComponent, true);
 });
 
 Deno.test('Widget - has name property', () => {
@@ -630,7 +630,7 @@ Deno.test('Widget - has name property', () => {
 
 Deno.test('Widget - extends Component', () => {
   const widget = new TestWidget();
-  assert(widget instanceof Widget);
+  assert(widget instanceof WidgetComponent);
 });
 
 Deno.test('Widget - getData works', async () => {

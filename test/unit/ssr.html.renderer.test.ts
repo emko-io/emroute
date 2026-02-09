@@ -925,9 +925,8 @@ Deno.test('SsrHtmlRouter - render() handles response when HTML file not in mock'
 
   try {
     const result = await router.render('http://localhost/failing');
-    // Fetch returns 404, but response.text() succeeds with "Not Found"
-    // Router processes it as a valid response, so it's a 200 with "Not Found" text
-    assertEquals(result.status, 200);
+    // Fetch returns 404, buildPageContext throws, router returns 500
+    assertEquals(result.status, 500);
   } finally {
     restore();
   }
@@ -949,9 +948,8 @@ Deno.test('SsrHtmlRouter - render() handles response when markdown file not in m
 
   try {
     const result = await router.render('http://localhost/missing-md');
-    // Fetch returns 404, but response.text() succeeds with "Not Found"
-    // Router processes it, encodes it, and returns 200
-    assertEquals(result.status, 200);
+    // Fetch returns 404, buildPageContext throws, router returns 500
+    assertEquals(result.status, 500);
   } finally {
     restore();
   }

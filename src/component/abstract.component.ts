@@ -15,12 +15,13 @@
 import { escapeHtml } from '../util/html.util.ts';
 
 /**
- * Context passed to page components during rendering.
- * Contains URL params, pre-loaded file content, and abort signal.
+ * Context passed to components during rendering.
+ * Contains route pathname, URL params, pre-loaded file content, and abort signal.
  */
-export interface PageContext {
+export interface ComponentContext {
+  pathname: string;
   params: Record<string, string>;
-  files: { html?: string; md?: string };
+  files?: { html?: string; md?: string };
   signal?: AbortSignal;
 }
 
@@ -49,7 +50,7 @@ export abstract class Component<TParams = unknown, TData = unknown> {
    * Fetch or compute data based on params.
    * Called server-side for SSR, client-side for SPA.
    */
-  abstract getData(args: { params: TParams; signal?: AbortSignal }): Promise<TData | null>;
+  abstract getData(args: { params: TParams; signal?: AbortSignal; context?: ComponentContext }): Promise<TData | null>;
 
   /**
    * Render as markdown.
@@ -137,7 +138,7 @@ export class PageComponent<
    * ```
    */
   override getData(
-    _args: { params: TParams; signal?: AbortSignal; context?: PageContext },
+    _args: { params: TParams; signal?: AbortSignal; context?: ComponentContext },
   ): Promise<TData | null> {
     return Promise.resolve(null);
   }
@@ -158,7 +159,7 @@ export class PageComponent<
    * ```
    */
   override renderHTML(
-    args: { data: TData | null; params: TParams; context?: PageContext },
+    args: { data: TData | null; params: TParams; context?: ComponentContext },
   ): string {
     const files = args.context?.files;
 
@@ -188,7 +189,7 @@ export class PageComponent<
    * ```
    */
   override renderMarkdown(
-    args: { data: TData | null; params: TParams; context?: PageContext },
+    args: { data: TData | null; params: TParams; context?: ComponentContext },
   ): string {
     const files = args.context?.files;
 
@@ -211,7 +212,7 @@ export class PageComponent<
    * ```
    */
   getTitle(
-    _args: { data: TData | null; params: TParams; context?: PageContext },
+    _args: { data: TData | null; params: TParams; context?: ComponentContext },
   ): string | undefined {
     return undefined;
   }

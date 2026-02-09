@@ -1,6 +1,6 @@
 import { assertEquals } from '@std/assert';
 import { DefaultPageComponent } from '../../src/component/page.component.ts';
-import { PageComponent, type PageContext } from '../../src/component/abstract.component.ts';
+import { PageComponent, type ComponentContext } from '../../src/component/abstract.component.ts';
 import { escapeHtml } from '../../src/util/html.util.ts';
 
 // ==============================================================================
@@ -29,7 +29,8 @@ Deno.test('getData - returns null by default', async () => {
 
 Deno.test('getData - accepts context parameter', async () => {
   const component = new DefaultPageComponent();
-  const context: PageContext = {
+  const context: ComponentContext = {
+    pathname: '/',
     params: {},
     files: { md: '# Test' },
   };
@@ -43,7 +44,8 @@ Deno.test('getData - accepts context parameter', async () => {
 
 Deno.test('renderMarkdown - returns md file content from context', () => {
   const component = new DefaultPageComponent();
-  const context: PageContext = {
+  const context: ComponentContext = {
+    pathname: '/',
     params: {},
     files: { md: '# About Us\n\nWelcome to our site.' },
   };
@@ -53,7 +55,8 @@ Deno.test('renderMarkdown - returns md file content from context', () => {
 
 Deno.test('renderMarkdown - returns router-slot when no md file', () => {
   const component = new DefaultPageComponent();
-  const context: PageContext = {
+  const context: ComponentContext = {
+    pathname: '/',
     params: {},
     files: {},
   };
@@ -69,7 +72,8 @@ Deno.test('renderMarkdown - returns router-slot when no context', () => {
 
 Deno.test('renderMarkdown - returns empty markdown file content', () => {
   const component = new DefaultPageComponent();
-  const context: PageContext = {
+  const context: ComponentContext = {
+    pathname: '/',
     params: {},
     files: { md: '' },
   };
@@ -81,7 +85,8 @@ Deno.test('renderMarkdown - returns empty markdown file content', () => {
 Deno.test('renderMarkdown - preserves special characters in md content', () => {
   const component = new DefaultPageComponent();
   const md = '# Code\n\n```\n<div>test & stuff</div>\n```';
-  const context: PageContext = {
+  const context: ComponentContext = {
+    pathname: '/',
     params: {},
     files: { md },
   };
@@ -106,7 +111,8 @@ Deno.test('renderHTML - returns router-slot with null data and no files', () => 
 Deno.test('renderHTML - returns html file from context', () => {
   const component = new DefaultPageComponent();
   const htmlContent = '<article><h1>Title</h1><p>Content</p></article>';
-  const context: PageContext = {
+  const context: ComponentContext = {
+    pathname: '/',
     params: {},
     files: { html: htmlContent },
   };
@@ -116,7 +122,8 @@ Deno.test('renderHTML - returns html file from context', () => {
 
 Deno.test('renderHTML - html file takes priority over md file', () => {
   const component = new DefaultPageComponent();
-  const context: PageContext = {
+  const context: ComponentContext = {
+    pathname: '/',
     params: {},
     files: {
       html: '<div>HTML content</div>',
@@ -134,7 +141,8 @@ Deno.test('renderHTML - html file takes priority over md file', () => {
 Deno.test('renderHTML - wraps md in <mark-down> when no html file', () => {
   const component = new DefaultPageComponent();
   const md = '# Heading';
-  const context: PageContext = {
+  const context: ComponentContext = {
+    pathname: '/',
     params: {},
     files: { md },
   };
@@ -145,7 +153,8 @@ Deno.test('renderHTML - wraps md in <mark-down> when no html file', () => {
 Deno.test('renderHTML - escapes special characters in md content', () => {
   const component = new DefaultPageComponent();
   const md = '# Test & Title <script>alert("xss")</script>';
-  const context: PageContext = {
+  const context: ComponentContext = {
+    pathname: '/',
     params: {},
     files: { md },
   };
@@ -162,7 +171,8 @@ Deno.test('renderHTML - escapes special characters in md content', () => {
 
 Deno.test('renderHTML - returns router-slot when no files in context', () => {
   const component = new DefaultPageComponent();
-  const context: PageContext = {
+  const context: ComponentContext = {
+    pathname: '/',
     params: {},
     files: {},
   };
@@ -182,7 +192,8 @@ Deno.test('renderHTML - returns router-slot when no context', () => {
 
 Deno.test('fallback - ts+html+md: renderHTML from html, renderMarkdown from md', () => {
   const component = new DefaultPageComponent();
-  const context: PageContext = {
+  const context: ComponentContext = {
+    pathname: '/',
     params: {},
     files: { html: '<div>HTML</div>', md: '# MD' },
   };
@@ -192,7 +203,8 @@ Deno.test('fallback - ts+html+md: renderHTML from html, renderMarkdown from md',
 
 Deno.test('fallback - ts+html+no-md: renderHTML from html, renderMarkdown is router-slot', () => {
   const component = new DefaultPageComponent();
-  const context: PageContext = {
+  const context: ComponentContext = {
+    pathname: '/',
     params: {},
     files: { html: '<div>HTML</div>' },
   };
@@ -206,7 +218,8 @@ Deno.test('fallback - ts+html+no-md: renderHTML from html, renderMarkdown is rou
 Deno.test('fallback - ts+no-html+md: renderHTML wraps md, renderMarkdown from md', () => {
   const component = new DefaultPageComponent();
   const md = '# Content';
-  const context: PageContext = {
+  const context: ComponentContext = {
+    pathname: '/',
     params: {},
     files: { md },
   };
@@ -219,7 +232,8 @@ Deno.test('fallback - ts+no-html+md: renderHTML wraps md, renderMarkdown from md
 
 Deno.test('fallback - ts+no-html+no-md: renderHTML is slot, renderMarkdown is slot', () => {
   const component = new DefaultPageComponent();
-  const context: PageContext = {
+  const context: ComponentContext = {
+    pathname: '/',
     params: {},
     files: {},
   };
@@ -263,7 +277,7 @@ Deno.test('default export - can call renderMarkdown', async () => {
   const { default: instance } = await import(
     '../../src/component/page.component.ts'
   );
-  const context: PageContext = { params: {}, files: { md: 'Test' } };
+  const context: ComponentContext = { pathname: '/', params: {}, files: { md: 'Test' } };
   const result = instance.renderMarkdown({ data: null, params: {}, context });
   assertEquals(result, 'Test');
 });
@@ -272,7 +286,7 @@ Deno.test('default export - can call renderHTML', async () => {
   const { default: instance } = await import(
     '../../src/component/page.component.ts'
   );
-  const context: PageContext = { params: {}, files: { md: 'Data' } };
+  const context: ComponentContext = { pathname: '/', params: {}, files: { md: 'Data' } };
   const result = instance.renderHTML({ data: null, params: {}, context });
   assertEquals(result, '<mark-down>Data</mark-down>\n<router-slot></router-slot>');
 });
@@ -284,7 +298,7 @@ Deno.test('default export - can call renderHTML', async () => {
 Deno.test('integration - full flow with md content only', async () => {
   const component = new DefaultPageComponent();
   const md = '# Welcome\n\n## Introduction\n\nHello world!';
-  const context: PageContext = { params: {}, files: { md } };
+  const context: ComponentContext = { pathname: '/', params: {}, files: { md } };
 
   const data = await component.getData({ params: {}, context });
   assertEquals(data, null);
@@ -300,7 +314,7 @@ Deno.test('integration - full flow with both html and md', async () => {
   const component = new DefaultPageComponent();
   const html = '<article><h1>Real Content</h1></article>';
   const md = '# Markdown';
-  const context: PageContext = { params: {}, files: { html, md } };
+  const context: ComponentContext = { pathname: '/', params: {}, files: { html, md } };
 
   const data = await component.getData({ params: {}, context });
 

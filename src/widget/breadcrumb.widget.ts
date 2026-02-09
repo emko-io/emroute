@@ -14,9 +14,10 @@
  *   ```
  */
 
-import { Widget } from '../component/widget.component.ts';
+import { WidgetComponent } from '../component/widget.component.ts';
 import { escapeHtml } from '../util/html.util.ts';
-import { SSR_HTML_PREFIX } from '../route/route.core.ts';
+import type { ComponentContext } from '../component/abstract.component.ts';
+import { SSR_HTML_PREFIX, SSR_MD_PREFIX } from '../route/route.core.ts';
 
 interface BreadcrumbParams {
   separator?: string;
@@ -32,26 +33,17 @@ interface BreadcrumbData {
   segments: BreadcrumbSegment[];
 }
 
-class BreadcrumbWidget extends Widget<BreadcrumbParams, BreadcrumbData> {
+class BreadcrumbWidget extends WidgetComponent<BreadcrumbParams, BreadcrumbData> {
   override readonly name = 'breadcrumb';
 
   override getData(
-    _args: { params: BreadcrumbParams; signal?: AbortSignal },
+    args: { params: BreadcrumbParams; signal?: AbortSignal; context?: ComponentContext },
   ): Promise<BreadcrumbData | null> {
-    if (typeof globalThis.location === 'undefined') {
-      return Promise.resolve({ segments: [] });
-    }
-
-    let pathname = location.pathname;
-
-    // Strip /html/ or /md/ prefix to get the route path
-    if (pathname.startsWith(SSR_HTML_PREFIX)) {
-      pathname = '/' + pathname.slice(SSR_HTML_PREFIX.length);
-    }
+    const pathname = args.context?.pathname ?? this.resolvePathname();
 
     const parts = pathname.split('/').filter(Boolean);
     const segments: BreadcrumbSegment[] = [
-      { label: 'Home', href: `${SSR_HTML_PREFIX}` },
+      { label: 'Home', href: SSR_HTML_PREFIX },
     ];
 
     let accumulated = '';
@@ -64,6 +56,18 @@ class BreadcrumbWidget extends Widget<BreadcrumbParams, BreadcrumbData> {
     }
 
     return Promise.resolve({ segments });
+  }
+
+  private resolvePathname(): string {
+    if (typeof globalThis.location === 'undefined') return '/';
+
+    let pathname = location.pathname;
+    if (pathname.startsWith(SSR_HTML_PREFIX)) {
+      pathname = '/' + pathname.slice(SSR_HTML_PREFIX.length);
+    } else if (pathname.startsWith(SSR_MD_PREFIX)) {
+      pathname = '/' + pathname.slice(SSR_MD_PREFIX.length);
+    }
+    return pathname;
   }
 
   override renderHTML(

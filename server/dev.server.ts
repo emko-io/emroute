@@ -18,6 +18,7 @@ import { generateManifestCode, generateRoutesManifest } from '../tool/route.gene
 import type { FileSystem } from '../tool/fs.type.ts';
 import type { ServerHandle, ServerRuntime, WatchHandle } from './server.type.ts';
 import type { WidgetRegistry } from '../src/widget/widget.registry.ts';
+import { escapeHtml } from '../src/util/html.util.ts';
 
 export interface DevServerConfig {
   /** Port to serve on */
@@ -130,7 +131,7 @@ async function buildSsrHtmlShell(
 
   // Replace <title> content if SSR returned a title
   if (title) {
-    html = html.replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`);
+    html = html.replace(/<title>[^<]*<\/title>/, `<title>${escapeHtml(title)}</title>`);
   }
 
   return html;
@@ -143,7 +144,7 @@ function buildFallbackHtmlShell(content: string, title: string): string {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>${title}</title>
+  <title>${escapeHtml(title)}</title>
 </head>
 <body>
 ${content}

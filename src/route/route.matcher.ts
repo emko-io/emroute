@@ -47,7 +47,9 @@ export class RouteMatcher {
    * Routes should be pre-sorted by specificity in the manifest.
    */
   constructor(manifest: RoutesManifest) {
-    this.errorBoundaries = manifest.errorBoundaries;
+    this.errorBoundaries = [...manifest.errorBoundaries].sort(
+      (a, b) => b.pattern.length - a.pattern.length,
+    );
     this.statusPages = manifest.statusPages;
     this.errorHandler = manifest.errorHandler;
 
@@ -88,12 +90,7 @@ export class RouteMatcher {
    * Searches from most specific to least specific.
    */
   findErrorBoundary(pathname: string): ErrorBoundary | undefined {
-    // Sort by pattern length (most specific first)
-    const sorted = [...this.errorBoundaries].sort(
-      (a, b) => b.pattern.length - a.pattern.length,
-    );
-
-    for (const boundary of sorted) {
+    for (const boundary of this.errorBoundaries) {
       const prefix = boundary.pattern.endsWith('/') ? boundary.pattern : boundary.pattern + '/';
       if (pathname === boundary.pattern || pathname.startsWith(prefix)) {
         return boundary;
@@ -138,7 +135,14 @@ export class RouteMatcher {
    * Extract params from URLPatternResult.
    */
   private extractParams(result: URLPatternResult): RouteParams {
-    return result.pathname.groups as RouteParams;
+    const groups = result.pathname.groups;
+    const params: RouteParams = {};
+    for (const [key, value] of Object.entries(groups)) {
+      if (value !== undefined) {
+        params[key] = value;
+      }
+    }
+    return params;
   }
 }
 

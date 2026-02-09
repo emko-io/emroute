@@ -16,7 +16,7 @@ import type {
   RouterEventListener,
   RoutesManifest,
 } from '../type/route.type.ts';
-import type { PageContext } from '../component/abstract.component.ts';
+import type { ComponentContext } from '../component/abstract.component.ts';
 import { RouteMatcher, toUrl } from './route.matcher.ts';
 export { toUrl } from './route.matcher.ts';
 
@@ -169,28 +169,34 @@ export class RouteCore {
   }
 
   /**
-   * Build a PageContext from a route's files and params.
+   * Build a ComponentContext from a route's files and params.
    * Fetches html/md file content as needed.
    */
-  async buildPageContext(route: RouteConfig, params: RouteParams): Promise<PageContext> {
+  async buildComponentContext(
+    pathname: string,
+    route: RouteConfig,
+    params: RouteParams,
+  ): Promise<ComponentContext> {
     const files: { html?: string; md?: string } = {};
 
     if (route.files?.html) {
       const htmlPath = this.toAbsolutePath(route.files.html);
       const response = await fetch(this.baseUrl + htmlPath);
-      if (response.ok) {
-        files.html = await response.text();
+      if (!response.ok) {
+        throw new Error(`Failed to fetch ${route.files.html}: ${response.status}`);
       }
+      files.html = await response.text();
     }
 
     if (route.files?.md) {
       const mdPath = this.toAbsolutePath(route.files.md);
       const response = await fetch(this.baseUrl + mdPath);
-      if (response.ok) {
-        files.md = await response.text();
+      if (!response.ok) {
+        throw new Error(`Failed to fetch ${route.files.md}: ${response.status}`);
       }
+      files.md = await response.text();
     }
 
-    return { params, files };
+    return { pathname, params, files };
   }
 }

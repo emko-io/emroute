@@ -8,7 +8,11 @@
  * Handles component trees, slots, and data fetching.
  */
 
-import type { Component, RenderContext } from '../../component/abstract.component.ts';
+import type {
+  Component,
+  ComponentContext,
+  RenderContext,
+} from '../../component/abstract.component.ts';
 
 /**
  * Render a component in the specified context.
@@ -17,7 +21,7 @@ export async function renderComponent<TParams, TData>(
   component: Component<TParams, TData>,
   params: TParams,
   context: RenderContext,
-  options?: { signal?: AbortSignal },
+  options?: { signal?: AbortSignal; componentContext?: ComponentContext },
 ): Promise<string> {
   // Validate params
   if (component.validateParams) {
@@ -30,12 +34,16 @@ export async function renderComponent<TParams, TData>(
   }
 
   try {
-    const data = await component.getData({ params, signal: options?.signal });
+    const data = await component.getData({
+      params,
+      signal: options?.signal,
+      context: options?.componentContext,
+    });
 
     if (context === 'markdown') {
-      return component.renderMarkdown({ data, params });
+      return component.renderMarkdown({ data, params, context: options?.componentContext });
     } else {
-      return component.renderHTML({ data, params });
+      return component.renderHTML({ data, params, context: options?.componentContext });
     }
   } catch (e) {
     return context === 'markdown'

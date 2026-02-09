@@ -76,6 +76,9 @@ export class SpaHtmlRouter {
       const href = link.getAttribute('href');
       if (!href) return;
 
+      // Skip modifier-key clicks (new tab, new window, download)
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+
       // Skip external links, downloads, and special targets
       if (
         link.hasAttribute('download') ||

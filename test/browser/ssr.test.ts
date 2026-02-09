@@ -138,7 +138,7 @@ Deno.test(
       const res = await fetch(baseUrl('/html/nonexistent'));
       assertEquals(res.status, 404);
       const html = await res.text();
-      assert(html.includes('Not Found'), 'should contain Not Found');
+      assert(html.includes('Oops'), 'should contain custom 404 page content');
     });
 
     // --- Widgets in HTML: SSR rendering ---
@@ -271,11 +271,11 @@ Deno.test(
 
     // --- .page.html ---
 
-    await t.step('.page.html falls back to router-slot placeholder', async () => {
+    await t.step('.page.html + .page.md returns markdown content', async () => {
       const res = await fetch(baseUrl('/md/about'));
       assertEquals(res.status, 200);
       const md = await res.text();
-      assert(md.includes('router-slot'), 'should contain router-slot fallback');
+      assert(md.includes('About (from markdown)'), 'should contain markdown file content');
     });
 
     // --- .page.ts ---
@@ -357,7 +357,7 @@ Deno.test(
       const res = await fetch(baseUrl('/md/nonexistent'));
       assertEquals(res.status, 404);
       const md = await res.text();
-      assert(md.includes('Not Found'), 'should contain Not Found');
+      assert(md.includes('Oops'), 'should contain custom 404 page content');
     });
 
     // --- Widgets in Markdown: SSR rendering ---

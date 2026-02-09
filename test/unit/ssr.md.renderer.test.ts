@@ -366,6 +366,82 @@ Deno.test('SsrMdRouter - renderStatusPage uses STATUS_MESSAGES', async () => {
   assertStringIncludes(result.markdown, 'Not Found');
 });
 
+Deno.test('SsrMdRouter - 404 with no status page returns fallback', async () => {
+  const manifest = createTestManifest([
+    createTestRoute({ pattern: '/about', modulePath: '/about.page.ts' }),
+  ]);
+  const router = new SsrMdRouter(manifest);
+
+  const result = await router.render('/nonexistent');
+
+  assertEquals(result.status, 404);
+  assertStringIncludes(result.markdown, 'Not Found');
+  assertStringIncludes(result.markdown, '/nonexistent');
+});
+
+Deno.test('SsrMdRouter - 404 with .md status page returns md content', async () => {
+  const restore = mockFetch({
+    '/404.md': '# Oops\n\nThis page does not exist.',
+  });
+
+  try {
+    const statusPage: RouteConfig = {
+      pattern: '/404',
+      type: 'error',
+      modulePath: '/404.page.ts',
+      files: { md: '/404.md' },
+    };
+
+    const manifest: RoutesManifest = {
+      routes: [
+        createTestRoute({ pattern: '/about', modulePath: '/about.page.ts' }),
+      ],
+      errorBoundaries: [],
+      statusPages: new Map([[404, statusPage]]),
+    };
+
+    const router = new SsrMdRouter(manifest);
+    const result = await router.render('/nonexistent');
+
+    assertEquals(result.status, 404);
+    assertStringIncludes(result.markdown, 'Oops');
+    assertStringIncludes(result.markdown, 'This page does not exist.');
+  } finally {
+    restore();
+  }
+});
+
+Deno.test('SsrMdRouter - 404 with html-only status page returns placeholder', async () => {
+  const restore = mockFetch({
+    '/404.html': '<h1>Not Found</h1><p>Gone.</p>',
+  });
+
+  try {
+    const statusPage: RouteConfig = {
+      pattern: '/404',
+      type: 'error',
+      modulePath: '/404.page.ts',
+      files: { html: '/404.html' },
+    };
+
+    const manifest: RoutesManifest = {
+      routes: [
+        createTestRoute({ pattern: '/about', modulePath: '/about.page.ts' }),
+      ],
+      errorBoundaries: [],
+      statusPages: new Map([[404, statusPage]]),
+    };
+
+    const router = new SsrMdRouter(manifest);
+    const result = await router.render('/nonexistent');
+
+    assertEquals(result.status, 404);
+    assertStringIncludes(result.markdown, 'router-slot');
+  } finally {
+    restore();
+  }
+});
+
 // ============================================================================
 // Error Page Markdown Generation Tests
 // ============================================================================

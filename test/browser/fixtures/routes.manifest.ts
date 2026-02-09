@@ -58,7 +58,7 @@ export const routesManifest: RoutesManifest = {
     pattern: '/about',
     type: 'page',
     modulePath: 'routes/about.page.html',
-    files: { css: 'routes/about.page.css', html: 'routes/about.page.html' },
+    files: { md: 'routes/about.page.md', css: 'routes/about.page.css', html: 'routes/about.page.html' },
   },
   {
     pattern: '/docs',
@@ -130,7 +130,7 @@ export const routesManifest: RoutesManifest = {
   ],
 
   statusPages: new Map([
-  [404, { pattern: '/404', type: 'page', modulePath: 'routes/404.page.html', statusCode: 404, files: { html: 'routes/404.page.html' } }]
+  [404, { pattern: '/404', type: 'page', modulePath: 'routes/404.page.html', statusCode: 404, files: { html: 'routes/404.page.html', md: 'routes/404.page.md' } }]
   ]),
 
   errorHandler: {

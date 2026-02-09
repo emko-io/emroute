@@ -9,23 +9,23 @@
  * Pages are NOT in this registry — they live in the routes manifest.
  */
 
-import type { Component } from '../component/abstract.component.ts';
+import type { WidgetComponent } from '../component/widget.component.ts';
 
 export class WidgetRegistry {
-  private widgets = new Map<string, Component>();
+  private widgets = new Map<string, WidgetComponent>();
 
   /** Register a widget by its name. */
-  add(widget: Component): void {
+  add(widget: WidgetComponent): void {
     this.widgets.set(widget.name, widget);
   }
 
   /** Look up a widget by name. */
-  get(name: string): Component | undefined {
+  get(name: string): WidgetComponent | undefined {
     return this.widgets.get(name);
   }
 
   /** Iterate all registered widgets. */
-  [Symbol.iterator](): IterableIterator<Component> {
+  [Symbol.iterator](): IterableIterator<WidgetComponent> {
     return this.widgets.values();
   }
 }

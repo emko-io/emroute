@@ -57,10 +57,14 @@ export class SsrMdRouter {
     const matched = this.core.match(matchUrl);
 
     if (!matched) {
-      return {
-        markdown: this.renderStatusPage(404, pathname),
-        status: 404,
-      };
+      const statusPage = this.core.matcher.getStatusPage(404);
+      if (statusPage) {
+        try {
+          const markdown = await this.renderRouteContent(statusPage, {}, pathname);
+          return { markdown, status: 404 };
+        } catch { /* fall through to inline fallback */ }
+      }
+      return { markdown: this.renderStatusPage(404, pathname), status: 404 };
     }
 
     // Handle redirect
@@ -80,15 +84,16 @@ export class SsrMdRouter {
       return { markdown, status: 200 };
     } catch (error) {
       if (error instanceof Response) {
-        return {
-          markdown: this.renderStatusPage(error.status, pathname),
-          status: error.status,
-        };
+        const statusPage = this.core.matcher.getStatusPage(error.status);
+        if (statusPage) {
+          try {
+            const markdown = await this.renderRouteContent(statusPage, {}, pathname);
+            return { markdown, status: error.status };
+          } catch { /* fall through to inline fallback */ }
+        }
+        return { markdown: this.renderStatusPage(error.status, pathname), status: error.status };
       }
-      return {
-        markdown: this.renderErrorPage(error, pathname),
-        status: 500,
-      };
+      return { markdown: this.renderErrorPage(error, pathname), status: 500 };
     }
   }
 

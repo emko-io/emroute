@@ -185,18 +185,23 @@ export async function generateRoutesManifest(
     const statusCode = parseStatusCode(filename);
     if (statusCode) {
       const fileType = getPageFileType(filename);
-      const files: RouteFiles = {};
       if (fileType) {
-        files[fileType] = filePath;
+        const existing = statusPages.get(statusCode);
+        if (existing) {
+          existing.files ??= {};
+          existing.files[fileType] = filePath;
+          existing.modulePath = getPrimaryModulePath(existing.files);
+        } else {
+          const files: RouteFiles = { [fileType]: filePath };
+          statusPages.set(statusCode, {
+            pattern: `/${statusCode}`,
+            type: 'page',
+            modulePath: filePath,
+            statusCode,
+            files,
+          });
+        }
       }
-      const statusRoute: RouteConfig = {
-        pattern: `/${statusCode}`,
-        type: 'page',
-        modulePath: filePath,
-        statusCode,
-        files,
-      };
-      statusPages.set(statusCode, statusRoute);
       continue;
     }
 

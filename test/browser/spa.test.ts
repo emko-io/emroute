@@ -264,10 +264,14 @@ Deno.test({ name: 'SPA renderer', sanitizeResources: false, sanitizeOps: false }
 
   await t.step('renders 404 for unknown routes', async () => {
     await page.goto(baseUrl('/nonexistent'));
-    await page.waitForSelector('router-slot h1', { timeout: 5000 });
+    await page.waitForSelector('router-slot section.error-page', { timeout: 5000 });
 
-    const heading = await page.textContent('router-slot h1');
-    assertEquals(heading, 'Not Found');
+    const heading = await page.textContent('router-slot section.error-page h1:first-child');
+    assertEquals(heading, '404');
+
+    // Markdown content from 404.page.md should also be rendered
+    const oops = await page.textContent('router-slot section.error-page mark-down h1');
+    assertEquals(oops, 'Oops');
   });
 
   // --- .page.ts + .page.html (template pattern) ---

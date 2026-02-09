@@ -74,10 +74,14 @@ export class SsrHtmlRouter {
     const matched = this.core.match(matchUrl);
 
     if (!matched) {
-      return {
-        html: this.renderStatusPage(404, pathname),
-        status: 404,
-      };
+      const statusPage = this.core.matcher.getStatusPage(404);
+      if (statusPage) {
+        try {
+          const { html, title } = await this.renderRouteContent(statusPage, {}, pathname);
+          return { html, status: 404, title };
+        } catch { /* fall through to inline fallback */ }
+      }
+      return { html: this.renderStatusPage(404, pathname), status: 404 };
     }
 
     // Handle redirect
@@ -97,15 +101,16 @@ export class SsrHtmlRouter {
       return { html, status: 200, title };
     } catch (error) {
       if (error instanceof Response) {
-        return {
-          html: this.renderStatusPage(error.status, pathname),
-          status: error.status,
-        };
+        const statusPage = this.core.matcher.getStatusPage(error.status);
+        if (statusPage) {
+          try {
+            const { html, title } = await this.renderRouteContent(statusPage, {}, pathname);
+            return { html, status: error.status, title };
+          } catch { /* fall through to inline fallback */ }
+        }
+        return { html: this.renderStatusPage(error.status, pathname), status: error.status };
       }
-      return {
-        html: this.renderErrorPage(error, pathname),
-        status: 500,
-      };
+      return { html: this.renderErrorPage(error, pathname), status: 500 };
     }
   }
 
@@ -141,7 +146,7 @@ export class SsrHtmlRouter {
         result = html;
       } else {
         // Inject into slot
-        result = result.replace(/<router-slot><\/router-slot>/, html);
+        result = result.replace(/<router-slot[^>]*><\/router-slot>/, html);
       }
     }
 

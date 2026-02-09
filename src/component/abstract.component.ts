@@ -77,7 +77,11 @@ export abstract class Component<TParams = unknown, TData = unknown> {
     }
     // Default: wrap markdown in a container
     // The actual markdown→HTML conversion happens at render time
-    const markdown = this.renderMarkdown({ data: args.data, params: args.params });
+    const markdown = this.renderMarkdown({
+      data: args.data,
+      params: args.params,
+      context: args.context,
+    });
     return `<div class="c-markdown" data-component="${this.name}" data-markdown>${
       escapeHtml(markdown)
     }</div>`;
@@ -172,7 +176,14 @@ export class PageComponent<
     const style = files?.css ? `<style>${files.css}</style>\n` : '';
 
     if (files?.html) {
-      return style + files.html;
+      let html = style + files.html;
+      if (files.md && html.includes('<mark-down></mark-down>')) {
+        html = html.replace(
+          '<mark-down></mark-down>',
+          `<mark-down>${escapeHtml(files.md)}</mark-down>`,
+        );
+      }
+      return html;
     }
 
     if (files?.md) {

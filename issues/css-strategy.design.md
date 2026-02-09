@@ -84,3 +84,11 @@ or push it proactively with HTTP/2.
 Shadow DOM rejected (ADR-0011). Light DOM rendering means convention-based
 scoping via custom element tag names. Per-route CSS composition proceeds as
 described above.
+
+---
+
+Resolved: Implemented .page.css and .widget.css companion file support.
+CSS files flow through the full pipeline: discovery → manifest → loading →
+rendering. SSR HTML output gets `<style>` tags prepended. Widgets declare
+CSS via `files.css` (local paths or absolute URLs). Per-route CSS composition
+and HTTP/2 push remain future enhancements.

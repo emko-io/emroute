@@ -462,20 +462,11 @@ export class SpaHtmlRouter {
   }
 
   /**
-   * Update document.title from first <h1> in slot.
+   * Update document.title from getTitle() result.
    */
   private updateTitle(pageTitle?: string): void {
     if (pageTitle) {
       document.title = pageTitle;
-      return;
-    }
-
-    if (!this.slot) return;
-
-    const title = this.slot.querySelector('title');
-    if (title?.textContent) {
-      document.title = title.textContent;
-      title.remove();
     }
   }
 

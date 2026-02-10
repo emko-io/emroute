@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://jsr.io/@emkodev/emroute/1.0.0/doc/logo-full.svg" alt="emroute" width="394" height="80">
+  <img src="https://jsr.io/@emkodev/emroute/1.0.1/doc/logo-full.png" alt="emroute" width="394" height="80">
 </p>
 
 <p align="center">
@@ -22,15 +22,15 @@ GET /md/projects/42       → plain Markdown
 ## How It Works
 
 <p align="center">
-  <img src="https://jsr.io/@emkodev/emroute/1.0.0/doc/diagram-tp.svg" alt="emroute architecture" width="480" height="480">
+  <img src="https://jsr.io/@emkodev/emroute/1.0.1/doc/diagram-tp.png" alt="emroute architecture" width="480" height="480">
 </p>
 
 One component, three rendering paths:
 
 <p align="center">
-  <img src="https://jsr.io/@emkodev/emroute/1.0.0/doc/diagram-flow-spa.svg" alt="SPA flow" width="320" height="320">
-  <img src="https://jsr.io/@emkodev/emroute/1.0.0/doc/diagram-flow-ssr-html.svg" alt="SSR HTML flow" width="320" height="320">
-  <img src="https://jsr.io/@emkodev/emroute/1.0.0/doc/diagram-flow-ssr-md.svg" alt="SSR Markdown flow" width="320" height="320">
+  <img src="https://jsr.io/@emkodev/emroute/1.0.1/doc/diagram-flow-spa.png" alt="SPA flow" width="320" height="320">
+  <img src="https://jsr.io/@emkodev/emroute/1.0.1/doc/diagram-flow-ssr-html.png" alt="SSR HTML flow" width="320" height="320">
+  <img src="https://jsr.io/@emkodev/emroute/1.0.1/doc/diagram-flow-ssr-md.png" alt="SSR Markdown flow" width="320" height="320">
 </p>
 
 The SPA and SSR HTML flows both call `renderHTML()` — same output, different

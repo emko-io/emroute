@@ -124,7 +124,7 @@ async function buildSsrHtmlShell(
   }
 
   // Inject SSR content into <router-slot>
-  const slotPattern = /<router-slot\b[^>]*>[\s\S]*?<\/router-slot>/;
+  const slotPattern = /<router-slot\b[^>]*>.*?<\/router-slot>/s;
   if (!slotPattern.test(html)) {
     return buildFallbackHtmlShell(content, title ?? 'eMroute App');
   }

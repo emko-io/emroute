@@ -36,6 +36,7 @@ export type {
 } from './type/widget.type.ts';
 
 export type { MarkdownRenderer } from './type/markdown.type.ts';
+export { type Logger, setLogger } from './type/logger.type.ts';
 
 // Components
 export {

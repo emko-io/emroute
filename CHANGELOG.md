@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-02-10
+
+### Changed
+
+- **Stable release** — promoted from beta.14 with no API changes.
+- Guide documents that `.page.html` companion files must be HTML fragments, not
+  full documents (`<!DOCTYPE>`, `<html>`, `<head>`, `<body>` are not allowed).
+- README image links updated to JSR-hosted URLs for registry rendering.
+
+## [1.0.0-beta.14] - 2026-02-10
+
+### Added
+
+- **Pluggable logger** — minimal `Logger` interface (`error`, `warn`) with
+  module-level no-op default. `setLogger(impl)` swaps in a real implementation
+  at startup. All silent SSR catch blocks now call `logger.error()`. Exported
+  from `@emkodev/emroute`.
+- **SSR error boundaries** — both SSR HTML and SSR Markdown renderers now
+  respect `findErrorBoundary()` and `getErrorHandler()` before falling back to
+  inline error pages. Consistent with the SPA error chain.
+- **SPA navigation race fix** — per-navigation `AbortController` cancels
+  in-flight navigations when a new one starts. Signal propagated through
+  `buildComponentContext` to `fetch()` calls and `getData()`.
+- **CLI exported** — `@emkodev/emroute/server/cli` sub-export added to
+  `deno.json`.
+
+### Fixed
+
+- `[^]*?` V8-specific regex in `widget-resolve.util.ts` replaced with `.*?`
+  - `/s` dotAll flag, consistent with the rest of the codebase.
+
 ## [1.0.0-beta.13] - 2026-02-10
 
 ### Added

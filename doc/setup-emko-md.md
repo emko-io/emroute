@@ -8,24 +8,39 @@ as HTML, you need a markdown renderer configured in two places:
 - **Server (SSR HTML)** — `markdownRenderer` option on the dev server so
   `/html/*` routes render markdown server-side.
 
+The built-in CLI (`jsr:@emkodev/emroute/server/cli`) from the
+[Quick Start](./quick-start.md) doesn't accept a markdown renderer — it starts
+a bare dev server. To wire in a renderer, you replace the CLI task with a
+custom `dev.ts` that calls `createDevServer` directly. Steps 3 and 4 below
+walk through this.
+
 This guide uses `@emkodev/emko-md`, a lightweight WASM-based markdown parser
 with zero JS dependencies.
 
-## 1. Install the package
+## 1. Install the packages
 
 ```bash
 deno add jsr:@emkodev/emko-md@^0.1.0-beta.2/parser
 ```
 
-This adds the import to your `deno.json`:
+Your `deno.json` imports should now include both emroute and emko-md. You also
+need the server sub-exports for the custom dev script:
 
 ```json
 {
   "imports": {
+    "@emkodev/emroute": "jsr:@emkodev/emroute@^1.0.0",
+    "@emkodev/emroute/spa": "jsr:@emkodev/emroute/spa",
+    "@emkodev/emroute/server": "jsr:@emkodev/emroute/server",
+    "@emkodev/emroute/server/deno": "jsr:@emkodev/emroute/server/deno",
     "@emkodev/emko-md/parser": "jsr:@emkodev/emko-md@0.1.0-beta.2/parser"
   }
 }
 ```
+
+> `deno add` may only add the root import. Add the `/spa`, `/server`, and
+> `/server/deno` sub-exports manually if they're missing — your application
+> code and dev script import from these paths.
 
 ## 2. Vendor the WASM binary
 
@@ -97,13 +112,16 @@ the first render. Subsequent calls to `render()` are synchronous.
 
 ## 4. Server-side renderer
 
-Configure the same parser in your dev server entry point:
+The built-in CLI doesn't support custom renderers, so you need a `dev.ts`
+script that calls `createDevServer` with the `markdownRenderer` option. This
+replaces the `jsr:@emkodev/emroute/server/cli` task from the Quick Start.
 
-```ts
+````ts
 // dev.ts
 import { AstRenderer, initParser, MarkdownParser } from '@emkodev/emko-md/parser';
 import { createDevServer } from '@emkodev/emroute/server';
 import { denoServerRuntime } from '@emkodev/emroute/server/deno';
+import { WidgetRegistry } from '@emkodev/emroute';
 
 const wasmPath = new URL(
   './assets/hypertext_parser_bg.0.1.0-beta.2.wasm',
@@ -114,13 +132,20 @@ await initParser({ module_or_path: wasmPath });
 const parser = new MarkdownParser();
 const astRenderer = new AstRenderer();
 
+// Register widgets so SSR can render them server-side.
+// Without this, <widget-*> tags in HTML and ```widget:*``` blocks in Markdown
+// are left unresolved.
+const widgets = new WidgetRegistry();
+// widgets.add(myWidget);
+
 await createDevServer(
   {
-    port: 3000,
+    port: 1420,
     entryPoint: 'main.ts',
     routesDir: './routes',
     watch: true,
     appRoot: '.',
+    widgets,
     markdownRenderer: {
       render(markdown: string): string {
         parser.set_text(markdown);
@@ -131,6 +156,17 @@ await createDevServer(
   },
   denoServerRuntime,
 );
+````
+
+Update the `dev` task in your `deno.json` to run this script instead of the
+CLI:
+
+```jsonc
+{
+  "tasks": {
+    "dev": "deno run --allow-net --allow-read --allow-write --allow-run --allow-env dev.ts"
+  }
+}
 ```
 
 On the server, `import.meta.url` resolves to a `file://` URL, so the WASM

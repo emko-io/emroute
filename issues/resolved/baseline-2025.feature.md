@@ -12,6 +12,18 @@ Audit of `src/` against Baseline 2025 web platform features (per MDN / web.dev).
 | `toSorted()` replacing `[...array].sort()` copy-to-sort           | `route.matcher.ts`                                                                        |
 | `matchAll().toArray()` replacing `[...matchAll()]` spread         | `widget-resolve.util.ts`                                                                  |
 
+## Applied (TypeScript / ES2021+ features)
+
+| Change                                                                        | Location(s)                                                      |
+| ----------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `lib` bumped from `es2020` to `esnext`                                        | `deno.json`                                                      |
+| `replaceAll()` replacing `.replace(/literal/g, ...)`                          | `html.util.ts`, `fenced-block.util.ts`, `widget-resolve.util.ts` |
+| `accessor` keyword replacing manual getter/setter + backing field             | `route.core.ts` (`currentRoute`)                                 |
+| `PromiseWithResolvers` single field replacing `readyPromise` + `readyResolve` | `element/component.element.ts`                                   |
+| Template literal type `` `widget-${string}` `` for `tagName`                  | `widget.type.ts` (`WidgetManifestEntry`)                         |
+| Named capture groups in fenced-block patterns                                 | `fenced-block.util.ts`                                           |
+| Removed dead `?? 0` fallback on `match.index` from `matchAll()`               | `widget.parser.ts`                                               |
+
 ## Not Applicable
 
 Evaluated but no matching code patterns found:
@@ -19,6 +31,7 @@ Evaluated but no matching code patterns found:
 - **`RegExp.escape()`** — no dynamic `RegExp` construction in `src/`
 - **`Error.cause`** — no error re-throwing with wrapping; catch blocks log, store strings, or pass through
 - **Iterator helpers on Map/Set** — `for...of` loops are plain iteration, no filter/map chains
+- **`satisfies` on `STATUS_MESSAGES`** — consumers index by arbitrary `number` (status codes); `as const satisfies` narrows the key type to `401 | 403 | 404 | 500` which breaks lookup by arbitrary status
 - **`using` / `await using`** — AbortControllers live as instance state across `connectedCallback`/`disconnectedCallback` (different scopes); `using` requires same-scope lifecycle
 - **Import attributes** — no JSON file imports; all `JSON.parse` calls parse runtime strings
 - **`Promise.try()`** — all code is already `async`; sync throws are already caught as rejections

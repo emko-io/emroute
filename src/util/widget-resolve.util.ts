@@ -27,7 +27,7 @@ export async function resolveWidgetTags(
   ) => Promise<{ html?: string; md?: string; css?: string }>,
 ): Promise<string> {
   const pattern =
-    /<widget-(?<name>[a-z][a-z0-9-]*)(?<attrs>\s[^>]*)?>(?<content>[^]*?)<\/widget-\k<name>>/gi;
+    /<widget-(?<name>[a-z][a-z0-9-]*)(?<attrs>\s[^>]*)?>(?<content>.*?)<\/widget-\k<name>>/gis;
   const matches = html.matchAll(pattern).toArray();
 
   if (matches.length === 0) return html;

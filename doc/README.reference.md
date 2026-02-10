@@ -13,7 +13,7 @@ A **framework-agnostic routing and component architecture** designed for triple-
 ## Installation
 
 ```typescript
-import { createRouter } from '@emkodev/emroute';
+import { PageComponent, WidgetComponent } from '@emkodev/emroute';
 ```
 
 ## Quick Start
@@ -32,7 +32,7 @@ MarkdownElement.setRenderer({
 });
 
 // Initialize router
-const router = await createRouter(manifest);
+const router = await createSpaHtmlRouter(manifest);
 ```
 
 ### SSR HTML (Server)

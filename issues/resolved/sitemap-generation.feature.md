@@ -21,11 +21,11 @@ manifest and a `baseUrl`.
 
 ### Implementation
 
-| File | Purpose |
-| --- | --- |
-| `tool/sitemap.generator.ts` | Core generator + types, exported as `@emkodev/emroute/sitemap` |
-| `test/unit/sitemap.generator.test.ts` | 13 unit tests |
-| `test/browser/print-sitemap.ts` | Manual test script against browser fixtures |
+| File                                  | Purpose                                                        |
+| ------------------------------------- | -------------------------------------------------------------- |
+| `tool/sitemap.generator.ts`           | Core generator + types, exported as `@emkodev/emroute/sitemap` |
+| `test/unit/sitemap.generator.test.ts` | 13 unit tests                                                  |
+| `test/browser/print-sitemap.ts`       | Manual test script against browser fixtures                    |
 
 ### Design
 

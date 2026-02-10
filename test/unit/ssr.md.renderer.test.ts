@@ -273,6 +273,211 @@ Deno.test('SsrMdRouter - render() error page includes pathname', async () => {
 });
 
 // ============================================================================
+// Error Boundary and Error Handler Tests
+// ============================================================================
+
+Deno.test('SsrMdRouter - render() uses root error handler on 500', async () => {
+  const routes = [
+    createTestRoute({
+      pattern: '/crash',
+      modulePath: '/crash.page.ts',
+      files: { ts: '/crash.page.ts' },
+    }),
+  ];
+  const manifest: RoutesManifest = {
+    routes,
+    errorBoundaries: [],
+    statusPages: new Map(),
+    errorHandler: {
+      pattern: '/',
+      type: 'error',
+      modulePath: '/index.error.ts',
+    },
+    moduleLoaders: {
+      '/crash.page.ts': () =>
+        Promise.resolve({
+          default: {
+            name: 'crash',
+            getData() {
+              throw new Error('boom');
+            },
+            renderHTML() {
+              return '';
+            },
+            renderMarkdown() {
+              return '';
+            },
+            renderError() {
+              return '';
+            },
+            renderMarkdownError() {
+              return '';
+            },
+          },
+        }),
+      '/index.error.ts': () =>
+        Promise.resolve({
+          default: {
+            name: 'root-error',
+            getData() {
+              return null;
+            },
+            renderHTML() {
+              return '';
+            },
+            renderMarkdown() {
+              return '# Custom Error';
+            },
+            renderError() {
+              return '';
+            },
+            renderMarkdownError() {
+              return '';
+            },
+          },
+        }),
+    },
+  };
+  const router = new SsrMdRouter(manifest);
+  const result = await router.render('/crash');
+  assertEquals(result.status, 500);
+  assertStringIncludes(result.markdown, 'Custom Error');
+});
+
+Deno.test('SsrMdRouter - render() uses scoped error boundary over root handler', async () => {
+  const routes = [
+    createTestRoute({
+      pattern: '/projects/:id',
+      modulePath: '/projects/[id].page.ts',
+      files: { ts: '/projects/[id].page.ts' },
+    }),
+  ];
+  const manifest: RoutesManifest = {
+    routes,
+    errorBoundaries: [
+      { pattern: '/projects', modulePath: '/projects/[id].error.ts' },
+    ],
+    statusPages: new Map(),
+    errorHandler: {
+      pattern: '/',
+      type: 'error',
+      modulePath: '/index.error.ts',
+    },
+    moduleLoaders: {
+      '/projects/[id].page.ts': () =>
+        Promise.resolve({
+          default: {
+            name: 'crash',
+            getData() {
+              throw new Error('boom');
+            },
+            renderHTML() {
+              return '';
+            },
+            renderMarkdown() {
+              return '';
+            },
+            renderError() {
+              return '';
+            },
+            renderMarkdownError() {
+              return '';
+            },
+          },
+        }),
+      '/projects/[id].error.ts': () =>
+        Promise.resolve({
+          default: {
+            name: 'scoped-error',
+            getData() {
+              return null;
+            },
+            renderHTML() {
+              return '';
+            },
+            renderMarkdown() {
+              return '# Project Error';
+            },
+            renderError() {
+              return '';
+            },
+            renderMarkdownError() {
+              return '';
+            },
+          },
+        }),
+      '/index.error.ts': () =>
+        Promise.resolve({
+          default: {
+            name: 'root-error',
+            getData() {
+              return null;
+            },
+            renderHTML() {
+              return '';
+            },
+            renderMarkdown() {
+              return '# Root Error';
+            },
+            renderError() {
+              return '';
+            },
+            renderMarkdownError() {
+              return '';
+            },
+          },
+        }),
+    },
+  };
+  const router = new SsrMdRouter(manifest);
+  const result = await router.render('/projects/42');
+  assertEquals(result.status, 500);
+  assertStringIncludes(result.markdown, 'Project Error');
+});
+
+Deno.test('SsrMdRouter - render() falls back to inline error when no handler exists', async () => {
+  const routes = [
+    createTestRoute({
+      pattern: '/crash',
+      modulePath: '/crash.page.ts',
+      files: { ts: '/crash.page.ts' },
+    }),
+  ];
+  const manifest: RoutesManifest = {
+    routes,
+    errorBoundaries: [],
+    statusPages: new Map(),
+    moduleLoaders: {
+      '/crash.page.ts': () =>
+        Promise.resolve({
+          default: {
+            name: 'crash',
+            getData() {
+              throw new Error('no handler');
+            },
+            renderHTML() {
+              return '';
+            },
+            renderMarkdown() {
+              return '';
+            },
+            renderError() {
+              return '';
+            },
+            renderMarkdownError() {
+              return '';
+            },
+          },
+        }),
+    },
+  };
+  const router = new SsrMdRouter(manifest);
+  const result = await router.render('/crash');
+  assertEquals(result.status, 500);
+  assertStringIncludes(result.markdown, 'Internal Server Error');
+});
+
+// ============================================================================
 // Markdown String Generation Tests
 // ============================================================================
 

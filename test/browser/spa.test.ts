@@ -211,9 +211,9 @@ Deno.test({ name: 'SPA renderer', sanitizeResources: false, sanitizeOps: false }
     await page.goto(baseUrl('/'));
     await page.waitForSelector('router-slot mark-down h1', { timeout: 5000 });
 
-    // deno-lint-ignore no-explicit-any
-    await page.evaluate(async () =>
-      await (globalThis as any).__testRouter.navigate('/about#section-1')
+    await page.evaluate(
+      // deno-lint-ignore no-explicit-any
+      async () => await (globalThis as any).__testRouter.navigate('/about#section-1'),
     );
     await page.waitForFunction(
       () => {
@@ -452,6 +452,45 @@ Deno.test({ name: 'SPA renderer', sanitizeResources: false, sanitizeOps: false }
     const widgetError = await page.waitForSelector('widget-failing .c-error', { timeout: 5000 });
     const errorText = await widgetError.textContent();
     assert(errorText?.includes('Widget data fetch failed'), 'widget should show its error');
+  });
+
+  await t.step('rapid sequential navigations render only the final destination', async () => {
+    await page.goto(baseUrl('/'));
+    await page.waitForSelector('router-slot mark-down h1', { timeout: 5000 });
+
+    // Fire multiple navigations without awaiting intermediate ones.
+    // Only the last navigation should render; earlier ones should be aborted
+    // by the per-navigation AbortController in SpaHtmlRouter.handleNavigation.
+    await page.evaluate(async () => {
+      // deno-lint-ignore no-explicit-any
+      const router = (globalThis as any).__testRouter;
+      // Fire-and-forget: these should be cancelled by the final navigate()
+      router.navigate('/projects/42');
+      router.navigate('/about');
+      // Only await the final navigation
+      await router.navigate('/docs');
+    });
+
+    await page.waitForFunction(
+      () => {
+        const h1 = document.querySelector('router-slot router-slot h1');
+        return h1?.textContent === 'Docs';
+      },
+      undefined,
+      { timeout: 5000 },
+    );
+
+    // The final route's content should be visible
+    const heading = await page.textContent('router-slot router-slot h1');
+    assertEquals(heading, 'Docs');
+    assertEquals(new URL(page.url()).pathname, '/docs');
+
+    // Content from earlier (aborted) navigations must not be present
+    const hasProject = await page.evaluate(() => {
+      const el = document.querySelector('router-slot router-slot router-slot .project-id');
+      return el !== null;
+    });
+    assertEquals(hasProject, false, 'aborted /projects/42 content should not remain');
   });
 
   await t.step('does not intercept external links', async () => {

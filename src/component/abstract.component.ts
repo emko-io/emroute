@@ -32,7 +32,8 @@ export interface ComponentContext extends RouteInfo {
 /**
  * Render context determines how components are rendered.
  */
-export type RenderContext = 'markdown' | 'html' | 'spa';
+const RENDER_CONTEXT = ['markdown', 'html', 'spa'] as const;
+export type RenderContext = (typeof RENDER_CONTEXT)[number];
 
 /**
  * Abstract base class for all components.
@@ -57,17 +58,21 @@ export abstract class Component<TParams = unknown, TData = unknown> {
    * Fetch or compute data based on params.
    * Called server-side for SSR, client-side for SPA.
    */
-  abstract getData(
-    args: { params: TParams; signal?: AbortSignal; context?: ComponentContext },
-  ): Promise<TData | null>;
+  abstract getData(args: {
+    params: TParams;
+    signal?: AbortSignal;
+    context?: ComponentContext;
+  }): Promise<TData | null>;
 
   /**
    * Render as markdown.
    * This is the canonical content representation.
    */
-  abstract renderMarkdown(
-    args: { data: TData | null; params: TParams; context?: ComponentContext },
-  ): string;
+  abstract renderMarkdown(args: {
+    data: TData | null;
+    params: TParams;
+    context?: ComponentContext;
+  }): string;
 
   /**
    * Render as HTML for browser context.
@@ -75,7 +80,11 @@ export abstract class Component<TParams = unknown, TData = unknown> {
    * Default implementation converts renderMarkdown() output to HTML.
    * Override for custom HTML rendering with rich styling/interactivity.
    */
-  renderHTML(args: { data: TData | null; params: TParams; context?: ComponentContext }): string {
+  renderHTML(args: {
+    data: TData | null;
+    params: TParams;
+    context?: ComponentContext;
+  }): string {
     if (args.data === null) {
       return `<div class="${CSS_LOADING}" data-component="${this.name}">Loading...</div>`;
     }

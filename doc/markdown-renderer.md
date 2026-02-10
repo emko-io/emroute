@@ -19,9 +19,9 @@ interface MarkdownRenderer {
 The output of `render()` is used in two contexts with different risk profiles:
 
 - **SSR (server-side):** Rendered HTML is served as a full document. The browser parses it normally, so `<script>` tags, event-handler attributes, and all markup will execute.
-- **SPA (browser):** Rendered HTML is assigned via `innerHTML`. Inline `<script>` tags are not executed per the HTML spec, but event-handler attributes (`onerror`, `onload`, etc.) still fire.
+- **SPA (browser):** Rendered HTML is assigned via `innerHTML`. Inline `<script>` tags are **not** executed (HTML spec §8.4 — scripts inserted via `innerHTML` don't run). However, event-handler attributes (`<img onerror="...">`, `<body onload="...">`) **do** fire, because the browser evaluates attribute event handlers when the element is inserted into the DOM.
 
-**Your renderer is responsible for sanitizing its output.** Most markdown parsers escape HTML by default. If you enable raw HTML passthrough (e.g. `html: true` in markdown-it), ensure you either trust your content source or sanitize the output before returning from `render()`.
+**Your renderer is responsible for sanitizing its output.** Most markdown parsers escape HTML by default. If you enable raw HTML passthrough (e.g. `html: true` in markdown-it), ensure you either trust your content source or sanitize the output before returning from `render()`. For untrusted content, strip event-handler attributes and dangerous elements at the renderer level — emroute does not sanitize renderer output.
 
 ---
 
@@ -293,14 +293,16 @@ MarkdownElement.setRenderer(markdownRenderer);
 4. **Lazy load** - Use dynamic imports if markdown isn't needed immediately
 
 ```typescript
-// Lazy load renderer
+// Lazy load renderer — use a closure, not `this`, since the renderer is a plain object
+let parse: (md: string) => string;
+
 MarkdownElement.setRenderer({
   async init() {
     const { marked } = await import('marked');
-    this._marked = marked;
+    parse = (md) => marked.parse(md, { async: false }) as string;
   },
   render(markdown: string): string {
-    return this._marked.parse(markdown, { async: false });
+    return parse(markdown);
   },
 });
 ```

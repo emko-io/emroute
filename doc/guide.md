@@ -66,6 +66,12 @@ is always a companion — it never creates a route on its own.
 | `name.page.md`   | Markdown content (available in context) |
 | `name.page.css`  | CSS styles (injected as `<style>` tag)  |
 
+`.page.html` files are **fragments**, not full documents. They must not contain
+`<!DOCTYPE>`, `<html>`, `<head>`, or `<body>` tags — the app's `index.html`
+provides the document shell, and page content is injected into its
+`<router-slot>`. Including document-level markup produces invalid nested HTML in
+SSR output.
+
 When a `.ts` component exists, it is the entry point. It receives companion
 file content via `context.files`:
 
@@ -357,10 +363,11 @@ without breaking the surrounding page.
 
 Three layers, from most specific to least:
 
-### 1. Component/Widget Errors
+### 1. Widget Errors (inline)
 
-When `getData()` or rendering throws, the component's `renderError()` method
-handles it inline. The rest of the page continues rendering.
+When a widget's `getData()` or rendering throws, the widget's `renderError()`
+method handles it inline. The rest of the page continues rendering. Page
+component errors skip this layer and bubble up to error boundaries.
 
 ### 2. Error Boundaries
 
@@ -424,8 +431,11 @@ import type { RedirectConfig } from '@emkodev/emroute';
 export default { to: '/about', status: 302 } satisfies RedirectConfig;
 ```
 
-In the SPA, this navigates client-side. In SSR, it returns the appropriate HTTP
-status with redirect headers.
+In the SPA, this navigates client-side. In SSR HTML, it returns a
+`<meta http-equiv="refresh">` tag with the configured status code. In SSR
+Markdown, it returns a plain-text `Redirect to: {url}` message with the status
+code. The SSR renderers set the HTTP status (301/302) but do not emit a
+`Location` header — your server layer can add one if needed.
 
 ## SPA Setup
 
@@ -563,10 +573,10 @@ const manifest: RoutesManifest = {
       files: { html: 'routes/404.page.html' },
     }],
   ]),
-  errorHandler: { pattern: '/', type: 'error', modulePath: 'routes/error.ts' },
+  errorHandler: { pattern: '/', type: 'error', modulePath: 'routes/index.error.ts' },
   moduleLoaders: {
     'routes/projects/[id].page.ts': () => import('./routes/projects/[id].page.ts'),
-    'routes/error.ts': () => import('./routes/error.ts'),
+    'routes/index.error.ts': () => import('./routes/index.error.ts'),
   },
 };
 ```

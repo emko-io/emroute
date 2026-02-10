@@ -18,7 +18,7 @@ export { createSpaHtmlRouter, SpaHtmlRouter } from './html.renderer.ts';
 export { ComponentElement, MarkdownElement, RouterSlot, WidgetRegistry };
 
 /** Default widget registry with built-in widgets. */
-export const builtInWidgets = new WidgetRegistry();
+export const builtInWidgets: WidgetRegistry = new WidgetRegistry();
 builtInWidgets.add(new PageTitleWidget());
 builtInWidgets.add(new BreadcrumbWidget());
 

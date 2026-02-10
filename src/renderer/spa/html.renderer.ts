@@ -40,6 +40,8 @@ export class SpaHtmlRouter {
   private core: RouteCore;
   private slot: Element | null = null;
   private abortController: AbortController | null = null;
+  /** Per-navigation controller — aborted when a newer navigation starts. */
+  private navigationController: AbortController | null = null;
 
   constructor(manifest: RoutesManifest) {
     this.core = new RouteCore(manifest);
@@ -131,6 +133,8 @@ export class SpaHtmlRouter {
    * Remove event listeners and release references.
    */
   dispose(): void {
+    this.navigationController?.abort();
+    this.navigationController = null;
     this.abortController?.abort();
     this.abortController = null;
     this.slot = null;
@@ -169,6 +173,9 @@ export class SpaHtmlRouter {
 
   /**
    * Handle navigation to a URL.
+   *
+   * Each call aborts the previous in-flight navigation so that only the
+   * most recently initiated navigation can mutate the DOM.
    */
   private async handleNavigation(
     url: string,
@@ -189,6 +196,12 @@ export class SpaHtmlRouter {
 
     const matchUrl = new URL(pathname + urlObj.search, location.origin);
 
+    // Cancel any in-flight navigation before starting this one
+    this.navigationController?.abort();
+    const navController = new AbortController();
+    this.navigationController = navController;
+    const { signal } = navController;
+
     try {
       const matched = this.core.match(matchUrl);
 
@@ -202,6 +215,7 @@ export class SpaHtmlRouter {
         const module = await this.core.loadModule<{ default: RedirectConfig }>(
           matched.route.modulePath,
         );
+        if (signal.aborted) return;
         assertSafeRedirect(module.default.to);
         this.navigate(module.default.to, { replace: true });
         return;
@@ -223,7 +237,9 @@ export class SpaHtmlRouter {
       // Render page
       this.core.currentRoute = matched;
       const routeInfo = this.core.toRouteInfo(matched, pathname);
-      await this.renderPage(routeInfo, matched);
+      await this.renderPage(routeInfo, matched, signal);
+
+      if (signal.aborted) return;
 
       // Emit navigate event
       this.core.emit({
@@ -241,6 +257,8 @@ export class SpaHtmlRouter {
         globalThis.scrollTo(0, options.state.scrollY);
       }
     } catch (error) {
+      // Silently discard errors from aborted navigations
+      if (signal.aborted) return;
       await this.handleError(error, pathname);
     }
   }
@@ -248,7 +266,11 @@ export class SpaHtmlRouter {
   /**
    * Render a matched page route with nested route support.
    */
-  private async renderPage(routeInfo: RouteInfo, matched: MatchedRoute): Promise<void> {
+  private async renderPage(
+    routeInfo: RouteInfo,
+    matched: MatchedRoute,
+    signal: AbortSignal,
+  ): Promise<void> {
     if (!this.slot) return;
 
     try {
@@ -258,6 +280,8 @@ export class SpaHtmlRouter {
       let pageTitle: string | undefined;
 
       for (let i = 0; i < hierarchy.length; i++) {
+        if (signal.aborted) return;
+
         const routePattern = hierarchy[i];
         const isLeaf = i === hierarchy.length - 1;
 
@@ -274,7 +298,9 @@ export class SpaHtmlRouter {
           continue;
         }
 
-        const { html, title } = await this.renderRouteContent(routeInfo, route);
+        const { html, title } = await this.renderRouteContent(routeInfo, route, signal);
+        if (signal.aborted) return;
+
         currentSlot.innerHTML = html;
 
         if (title) {
@@ -285,6 +311,7 @@ export class SpaHtmlRouter {
         const markDown = currentSlot.querySelector<HTMLElement>('mark-down');
         if (markDown) {
           await this.waitForMarkdownRender(markDown);
+          if (signal.aborted) return;
         }
 
         if (!isLeaf) {
@@ -295,6 +322,8 @@ export class SpaHtmlRouter {
         }
       }
 
+      if (signal.aborted) return;
+
       this.updateTitle(pageTitle);
 
       this.core.emit({
@@ -303,6 +332,7 @@ export class SpaHtmlRouter {
         params: routeInfo.params,
       });
     } catch (error) {
+      if (signal.aborted) return;
       if (error instanceof Response) {
         await this.renderStatusPage(error.status, routeInfo.pattern, error);
         return;
@@ -317,6 +347,7 @@ export class SpaHtmlRouter {
   private async renderRouteContent(
     routeInfo: RouteInfo,
     route: RouteConfig,
+    signal: AbortSignal,
   ): Promise<{ html: string; title?: string }> {
     if (route.modulePath === DEFAULT_ROOT_ROUTE.modulePath) {
       return { html: '<router-slot></router-slot>' };
@@ -328,8 +359,8 @@ export class SpaHtmlRouter {
       ? (await this.core.loadModule<{ default: PageComponent }>(files.ts)).default
       : defaultPageComponent;
 
-    const context = await this.core.buildComponentContext(routeInfo, route);
-    const data = await component.getData({ params: routeInfo.params, context });
+    const context = await this.core.buildComponentContext(routeInfo, route, signal);
+    const data = await component.getData({ params: routeInfo.params, signal, context });
     const html = component.renderHTML({ data, params: routeInfo.params, context });
     const title = component.getTitle({ data, params: routeInfo.params, context });
     return { html, title };

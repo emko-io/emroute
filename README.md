@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="doc/logo-full.svg" alt="emroute" width="394" height="80">
+  <img src="https://jsr.io/@emkodev/emroute/1.0.0/doc/logo-full.svg" alt="emroute" width="394" height="80">
 </p>
 
 <p align="center">
@@ -22,15 +22,15 @@ GET /md/projects/42       → plain Markdown
 ## How It Works
 
 <p align="center">
-  <img src="doc/diagram-tp.svg" alt="emroute architecture" width="480" height="480">
+  <img src="https://jsr.io/@emkodev/emroute/1.0.0/doc/diagram-tp.svg" alt="emroute architecture" width="480" height="480">
 </p>
 
 One component, three rendering paths:
 
 <p align="center">
-  <img src="doc/diagram-flow-spa.svg" alt="SPA flow" width="320" height="320">
-  <img src="doc/diagram-flow-ssr-html.svg" alt="SSR HTML flow" width="320" height="320">
-  <img src="doc/diagram-flow-ssr-md.svg" alt="SSR Markdown flow" width="320" height="320">
+  <img src="https://jsr.io/@emkodev/emroute/1.0.0/doc/diagram-flow-spa.svg" alt="SPA flow" width="320" height="320">
+  <img src="https://jsr.io/@emkodev/emroute/1.0.0/doc/diagram-flow-ssr-html.svg" alt="SSR HTML flow" width="320" height="320">
+  <img src="https://jsr.io/@emkodev/emroute/1.0.0/doc/diagram-flow-ssr-md.svg" alt="SSR Markdown flow" width="320" height="320">
 </p>
 
 The SPA and SSR HTML flows both call `renderHTML()` — same output, different
@@ -102,11 +102,14 @@ deno task dev             # start dev server
 deno task test            # run tests
 ```
 
-## Further Reading
+## Documentation
 
 - [Quick start](doc/quick-start.md) — three files, one command
-- [Consumer guide](doc/guide.md) — full API and usage documentation
-- [Architecture overview](doc/architecture.md)
-- [Setting up emko-md](doc/setup-emko-md.md) — WASM markdown renderer setup
-- [Markdown renderers](doc/markdown-renderer.md) — all supported renderers
+- [Consumer guide](doc/guide.md) — routing, components, widgets, error handling, SSR, dev server
+- [Markdown renderers](doc/markdown-renderer.md) — pluggable parser interface and setup examples
+- [Setting up emko-md](doc/setup-emko-md.md) — WASM markdown renderer with client + server config
+
+### For contributors and architects
+
+- [Architecture overview](doc/architecture.md) — design philosophy, component model, rendering pipeline
 - [Architectural decisions](doc/architecture/) — ADR-0001 through ADR-0011

@@ -34,9 +34,10 @@ routes/
     [id].page.html       # /projects/:id (HTML template)
     [id]/
       tasks.page.ts      # /projects/:id/tasks
-  _error.ts              # error boundary
-  _404.page.ts           # status page
-  _redirect.ts           # redirect
+    [id].error.ts        # error boundary for /projects/:id/*
+  404.page.html          # status page (not found)
+  index.error.ts         # root error handler
+  old-url.redirect.ts    # redirect
 ```
 
 A route is defined by one or more files sharing the same stem:

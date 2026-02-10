@@ -12,6 +12,7 @@ import type {
   RouteInfo,
   RoutesManifest,
 } from '../../type/route.type.ts';
+import { logger } from '../../type/logger.type.ts';
 import type { MarkdownRenderer } from '../../type/markdown.type.ts';
 import defaultPageComponent, { type PageComponent } from '../../component/page.component.ts';
 import {
@@ -79,7 +80,12 @@ export class SsrHtmlRouter {
           const ri: RouteInfo = { pathname, pattern: statusPage.pattern, params: {}, searchParams };
           const { html, title } = await this.renderRouteContent(ri, statusPage);
           return { html, status: 404, title };
-        } catch { /* fall through to inline fallback */ }
+        } catch (e) {
+          logger.error(
+            `[SSR HTML] Failed to render 404 status page for ${pathname}`,
+            e instanceof Error ? e : undefined,
+          );
+        }
       }
       return { html: this.renderStatusPage(404, pathname), status: 404 };
     }
@@ -115,11 +121,56 @@ export class SsrHtmlRouter {
             };
             const { html, title } = await this.renderRouteContent(ri, statusPage);
             return { html, status: error.status, title };
-          } catch { /* fall through to inline fallback */ }
+          } catch (e) {
+            logger.error(
+              `[SSR HTML] Failed to render ${error.status} status page for ${pathname}`,
+              e instanceof Error ? e : undefined,
+            );
+          }
         }
         return { html: this.renderStatusPage(error.status, pathname), status: error.status };
       }
-      console.error(`[SSR HTML] Error rendering ${pathname}:`, error);
+      logger.error(
+        `[SSR HTML] Error rendering ${pathname}:`,
+        error instanceof Error ? error : undefined,
+      );
+
+      const boundary = this.core.matcher.findErrorBoundary(pathname);
+      if (boundary) {
+        try {
+          const module = await this.core.loadModule<{ default: PageComponent }>(
+            boundary.modulePath,
+          );
+          const component = module.default;
+          const data = await component.getData({ params: {} });
+          const html = component.renderHTML({ data, params: {} });
+          return { html, status: 500 };
+        } catch (e) {
+          logger.error(
+            `[SSR HTML] Error boundary failed for ${pathname}`,
+            e instanceof Error ? e : undefined,
+          );
+        }
+      }
+
+      const errorHandler = this.core.matcher.getErrorHandler();
+      if (errorHandler) {
+        try {
+          const module = await this.core.loadModule<{ default: PageComponent }>(
+            errorHandler.modulePath,
+          );
+          const component = module.default;
+          const data = await component.getData({ params: {} });
+          const html = component.renderHTML({ data, params: {} });
+          return { html, status: 500 };
+        } catch (e) {
+          logger.error(
+            `[SSR HTML] Error handler failed for ${pathname}`,
+            e instanceof Error ? e : undefined,
+          );
+        }
+      }
+
       return { html: this.renderErrorPage(error, pathname), status: 500 };
     }
   }

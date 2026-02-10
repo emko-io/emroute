@@ -3,11 +3,11 @@
 emroute handles errors at three levels. Each level catches what the level below
 it cannot. When something breaks, the most specific handler wins.
 
-## Layer 1 — Component Errors (inline)
+## Layer 1 — Widget Errors (inline)
 
-Every component (page or widget) has built-in error rendering. When `getData()`
-or a render method throws, the error is caught and rendered inline. The rest of
-the page continues rendering normally.
+Every **widget** has built-in error rendering. When a widget's `getData()` or
+render method throws, the error is caught and rendered inline. The rest of the
+page continues rendering normally.
 
 **HTML context** — renders a `<div class="c-error">`:
 
@@ -21,8 +21,8 @@ the page continues rendering normally.
 > **Error** (`crypto-price`): fetch failed
 ```
 
-Override `renderError()` or `renderMarkdownError()` on any component to
-customize the output:
+Override `renderError()` or `renderMarkdownError()` on any widget to customize
+the output:
 
 ```ts
 class MyWidget extends WidgetComponent {
@@ -41,7 +41,10 @@ class MyWidget extends WidgetComponent {
 ```
 
 Widget errors are fully contained — a failing widget never takes down the page.
-Page component errors bubble up to the next layer.
+
+**Page component** errors are **not** caught inline. When a page's `getData()`
+or render method throws, the error bubbles up to the next layer (error
+boundary or root handler).
 
 ## Layer 2 — Error Boundaries (scoped)
 
@@ -158,10 +161,13 @@ fallback with the status message.
 When something goes wrong during navigation or rendering:
 
 ```
-1. Component.renderError()        →  inline error, page keeps rendering
-2. Scoped error boundary          →  replaces page content for that URL prefix
-3. Root error handler             →  replaces page content globally
-4. Built-in inline fallback       →  <h1>Error</h1><p>{message}</p>
+Widgets:
+1. Widget.renderError()           →  inline error, page keeps rendering
+
+Pages:
+1. Scoped error boundary          →  replaces page content for that URL prefix
+2. Root error handler             →  replaces page content globally
+3. Built-in inline fallback       →  <h1>Error</h1><p>{message}</p>
 ```
 
 For HTTP status conditions (thrown `Response` objects):
@@ -175,7 +181,7 @@ For HTTP status conditions (thrown `Response` objects):
 
 | File pattern             | Role               | Scope                     |
 | ------------------------ | ------------------ | ------------------------- |
-| `error.ts`               | Root error handler | All routes (global)       |
+| `index.error.ts`         | Root error handler | All routes (global)       |
 | `*.error.ts`             | Error boundary     | Routes under matched path |
 | `{code}.page.ts/html/md` | Status page        | Specific HTTP status code |
 

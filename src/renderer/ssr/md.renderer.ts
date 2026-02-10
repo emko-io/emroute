@@ -5,6 +5,7 @@
  * Generates Markdown strings for LLM consumption, text clients, curl.
  */
 
+import { logger } from '../../type/logger.type.ts';
 import type {
   MatchedRoute,
   RouteConfig,
@@ -68,7 +69,12 @@ export class SsrMdRouter {
           const ri: RouteInfo = { pathname, pattern: statusPage.pattern, params: {}, searchParams };
           const markdown = await this.renderRouteContent(ri, statusPage);
           return { markdown, status: 404 };
-        } catch { /* fall through to inline fallback */ }
+        } catch (e) {
+          logger.error(
+            `[SSR MD] Failed to render 404 status page for ${pathname}`,
+            e instanceof Error ? e : undefined,
+          );
+        }
       }
       return { markdown: this.renderStatusPage(404, pathname), status: 404 };
     }
@@ -103,11 +109,56 @@ export class SsrMdRouter {
             };
             const markdown = await this.renderRouteContent(ri, statusPage);
             return { markdown, status: error.status };
-          } catch { /* fall through to inline fallback */ }
+          } catch (e) {
+            logger.error(
+              `[SSR MD] Failed to render ${error.status} status page for ${pathname}`,
+              e instanceof Error ? e : undefined,
+            );
+          }
         }
         return { markdown: this.renderStatusPage(error.status, pathname), status: error.status };
       }
-      console.error(`[SSR MD] Error rendering ${pathname}:`, error);
+      logger.error(
+        `[SSR MD] Error rendering ${pathname}:`,
+        error instanceof Error ? error : undefined,
+      );
+
+      const boundary = this.core.matcher.findErrorBoundary(pathname);
+      if (boundary) {
+        try {
+          const module = await this.core.loadModule<{ default: PageComponent }>(
+            boundary.modulePath,
+          );
+          const component = module.default;
+          const data = await component.getData({ params: {} });
+          const markdown = component.renderMarkdown({ data, params: {} });
+          return { markdown, status: 500 };
+        } catch (e) {
+          logger.error(
+            `[SSR MD] Error boundary failed for ${pathname}`,
+            e instanceof Error ? e : undefined,
+          );
+        }
+      }
+
+      const errorHandler = this.core.matcher.getErrorHandler();
+      if (errorHandler) {
+        try {
+          const module = await this.core.loadModule<{ default: PageComponent }>(
+            errorHandler.modulePath,
+          );
+          const component = module.default;
+          const data = await component.getData({ params: {} });
+          const markdown = component.renderMarkdown({ data, params: {} });
+          return { markdown, status: 500 };
+        } catch (e) {
+          logger.error(
+            `[SSR MD] Error handler failed for ${pathname}`,
+            e instanceof Error ? e : undefined,
+          );
+        }
+      }
+
       return { markdown: this.renderErrorPage(error, pathname), status: 500 };
     }
   }

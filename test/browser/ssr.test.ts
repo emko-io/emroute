@@ -239,12 +239,11 @@ Deno.test(
 
     // --- Error: getData throws ---
 
-    await t.step('getData() throw returns 500 with error', async () => {
+    await t.step('getData() throw returns 500 with root error handler', async () => {
       const res = await fetch(baseUrl('/html/crash'));
       assertEquals(res.status, 500);
       const html = await res.text();
-      assert(html.includes('Error'), 'should contain error heading');
-      assert(html.includes('Simulated crash'), 'should contain error message');
+      assert(html.includes('Something Went Wrong'), 'should render root error handler');
     });
 
     await stopServer();
@@ -406,11 +405,11 @@ Deno.test(
 
     // --- Error: getData throws ---
 
-    await t.step('getData() throw returns 500 with error', async () => {
+    await t.step('getData() throw returns 500 with root error handler', async () => {
       const res = await fetch(baseUrl('/md/crash'));
       assertEquals(res.status, 500);
       const md = await res.text();
-      assert(md.includes('Internal Server Error'), 'should contain generic error heading');
+      assert(md.includes('Something Went Wrong'), 'should render root error handler');
     });
 
     await stopServer();

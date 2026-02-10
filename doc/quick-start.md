@@ -7,8 +7,33 @@ Three files, one command.
 ```bash
 mkdir my-app && cd my-app
 deno init
-deno add jsr:@emkodev/emroute@^1.0.0-beta.5
+deno add jsr:@emkodev/emroute
 ```
+
+This adds emroute to your `deno.json` imports:
+
+```json
+{
+  "imports": {
+    "@emkodev/emroute": "jsr:@emkodev/emroute@^1.0.0"
+  }
+}
+```
+
+While you're in `deno.json`, add a dev task:
+
+```jsonc
+{
+  "imports": { ... },
+  "tasks": {
+    "dev": "deno run --allow-net --allow-read --allow-write --allow-run --allow-env jsr:@emkodev/emroute/server/cli"
+  }
+}
+```
+
+> The task runs the CLI directly from JSR. The `deno add` import is used by your
+> application code (`main.ts`), while the task invokes the dev server as a
+> standalone tool.
 
 ## 2. Create the files
 
@@ -45,28 +70,30 @@ import { routesManifest } from './routes.manifest.ts';
 await createSpaHtmlRouter(routesManifest);
 ```
 
+> **Note:** You don't need to create `routes.manifest.ts` — the dev server
+> auto-generates it from your `routes/` directory on startup.
+
 ## 3. Run it
 
 ```bash
-deno run --allow-net --allow-read --allow-write --allow-run --allow-env \
-  jsr:@emkodev/emroute@^1.0.0-beta.5/server/cli.deno.ts
+deno task dev
 ```
 
-Or add a task to `deno.json`:
+The dev server will:
 
-```jsonc
-{
-  "tasks": {
-    "dev": "deno run --allow-net --allow-read --allow-write --allow-run --allow-env -c deno.json main.ts"
-  }
-}
-```
+1. Scan your `routes/` directory
+2. Generate `routes.manifest.ts` (written to your project root)
+3. Bundle `main.ts` with `deno bundle --watch`
+4. Start an HTTP server on port 1420
+5. Watch for route changes and regenerate automatically
 
 ## 4. Open it
 
-- `http://localhost:1420/` — SPA (browser)
-- `http://localhost:1420/html/` — server-rendered HTML
-- `http://localhost:1420/md/` — plain markdown
+Once the dev server starts (look for `Scanned ./routes/` in the console), visit:
+
+- `http://localhost:1420/` — SPA (interactive, client-side navigation)
+- `http://localhost:1420/html/` — pre-rendered server HTML
+- `http://localhost:1420/md/` — plain markdown (great for curl, LLMs, scripts)
 
 ## Next steps
 

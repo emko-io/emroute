@@ -1,5 +1,3 @@
-/// <reference lib="deno.ns" />
-
 /**
  * Deno CLI Entry Point for Dev Server
  *

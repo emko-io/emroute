@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0-beta.13] - 2026-02-10
+
+### Added
+
+- **Sitemap generation** — opt-in `@emkodev/emroute/sitemap` submodule generates
+  sitemap.xml from a `RoutesManifest`. Static routes are included directly with
+  `/html/` prefix for SSR rendering; dynamic routes are expanded via optional
+  async enumerators or excluded. Supports per-route and default `lastmod`,
+  `changefreq`, `priority` per the sitemaps.org protocol.
+
 ## [1.0.0-beta.12] - 2026-02-10
 
 ### Changed

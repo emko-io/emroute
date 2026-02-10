@@ -1,6 +1,6 @@
 {
   "name": "@emkodev/emroute",
-  "version": "1.0.0-beta.12",
+  "version": "1.0.0-beta.13",
   "description": "File-based router with triple rendering (SPA, SSR HTML, SSR Markdown). Zero dependencies.",
   "license": "BSD-3-Clause",
   "author": "emko.dev",
@@ -29,6 +29,7 @@
     "./ssr/md": "./src/renderer/ssr/md.renderer.ts",
     "./generator": "./tool/route.generator.ts",
     "./widget-generator": "./tool/widget.generator.ts",
+    "./sitemap": "./tool/sitemap.generator.ts",
     "./server": "./server/dev.server.ts",
     "./server/deno": "./server/server.deno.ts",
     "./server/types": "./server/server.type.ts"

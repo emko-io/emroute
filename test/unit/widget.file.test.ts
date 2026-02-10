@@ -479,9 +479,9 @@ Deno.test('resolveWidgetTags - loads files for file-backed widget', async () => 
   const widget = new FileBackedWidget();
   const registry = { get: (name: string) => name === 'file-backed' ? widget : undefined };
 
-  const loadFiles = (files: { html?: string; md?: string }) => {
+  const loadFiles = (_name: string, declared?: { html?: string; md?: string }) => {
     const result: { html?: string; md?: string } = {};
-    if (files.html) result.html = '<div>Loaded HTML</div>';
+    if (declared?.html) result.html = '<div>Loaded HTML</div>';
     return Promise.resolve(result);
   };
 
@@ -492,20 +492,23 @@ Deno.test('resolveWidgetTags - loads files for file-backed widget', async () => 
   assertStringIncludes(result, 'data-ssr');
 });
 
-Deno.test('resolveWidgetTags - does not call loadFiles for widget without files', async () => {
+Deno.test('resolveWidgetTags - calls loadFiles for widget without declared files', async () => {
   const widget = new NoFilesWidget();
   const registry = { get: (name: string) => name === 'no-files' ? widget : undefined };
 
-  let loadFilesCalled = false;
-  const loadFiles = () => {
-    loadFilesCalled = true;
+  let receivedName = '';
+  let receivedDeclared: unknown = 'not-called';
+  const loadFiles = (name: string, declared?: { html?: string; md?: string; css?: string }) => {
+    receivedName = name;
+    receivedDeclared = declared;
     return Promise.resolve({});
   };
 
   const html = '<widget-no-files></widget-no-files>';
   const result = await resolveWidgetTags(html, registry, testRouteInfo, loadFiles);
 
-  assertEquals(loadFilesCalled, false);
+  assertEquals(receivedName, 'no-files');
+  assertEquals(receivedDeclared, undefined);
   assertStringIncludes(result, '<span>42</span>');
 });
 
@@ -789,10 +792,10 @@ Deno.test('resolveWidgetTags - loads css for css-backed widget', async () => {
   const widget = new CssWidget();
   const registry = { get: (name: string) => name === 'css-widget' ? widget : undefined };
 
-  const loadFiles = (files: { html?: string; md?: string; css?: string }) => {
+  const loadFiles = (_name: string, declared?: { html?: string; md?: string; css?: string }) => {
     const result: { html?: string; md?: string; css?: string } = {};
-    if (files.html) result.html = '<div>CSS Widget HTML</div>';
-    if (files.css) result.css = '.css-widget { color: blue; }';
+    if (declared?.html) result.html = '<div>CSS Widget HTML</div>';
+    if (declared?.css) result.css = '.css-widget { color: blue; }';
     return Promise.resolve(result);
   };
 

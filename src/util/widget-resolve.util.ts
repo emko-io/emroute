@@ -21,7 +21,8 @@ export async function resolveWidgetTags(
   registry: { get(name: string): Component | undefined },
   routeInfo: RouteInfo,
   loadFiles?: (
-    files: { html?: string; md?: string; css?: string },
+    widgetName: string,
+    declaredFiles?: { html?: string; md?: string; css?: string },
   ) => Promise<{ html?: string; md?: string; css?: string }>,
 ): Promise<string> {
   const pattern = /<widget-([a-z][a-z0-9-]*)(\s[^>]*)?>([^]*?)<\/widget-\1>/gi;
@@ -42,8 +43,8 @@ export async function resolveWidgetTags(
     try {
       // Build context with optional file loading
       let files: { html?: string; md?: string; css?: string } | undefined;
-      if (widget.files && loadFiles) {
-        files = await loadFiles(widget.files);
+      if (loadFiles) {
+        files = await loadFiles(widgetName, widget.files);
       }
 
       const context = { ...routeInfo, files };

@@ -1,5 +1,7 @@
 # Widget Companion File Auto-Discovery + SPA Context Passing
 
+**Status**: Complete — implemented in beta.9, verified with 545 unit + 62 browser tests.
+
 ## Problem
 
 Two gaps in how widgets handle companion files compared to pages:
@@ -201,19 +203,23 @@ In `connectedCallback`, before `loadData()`:
 const files = await this.loadFiles();
 if (signal?.aborted) return;
 
-// ComponentContext extends RouteInfo — provide stub RouteInfo for now.
-// Full RouteInfo (pathname, pattern, searchParams) will come from the
-// router once ComponentElement is wired to receive it.
+// Always create context so all widgets have access to route info.
+// Uses real browser location for pathname/searchParams.
 this.context = {
-  pathname: '',
+  pathname: globalThis.location?.pathname ?? '/',
   pattern: '',
   params: {},
-  searchParams: new URLSearchParams(),
-  files,
+  searchParams: new URLSearchParams(globalThis.location?.search ?? ''),
+  files: (files.html || files.md || files.css) ? files : undefined,
 };
 ```
 
 Pass `this.context` to both `getData()` and `renderHTML()` / `renderError()`.
+
+**Implementation note**: An earlier version used `pathname: ''` and only created
+context when files existed. This caused a regression — widgets like nav that
+check `context?.pathname ?? '/'` got an empty string instead of the fallback.
+Fixed by using `globalThis.location?.pathname` and always creating context.
 
 **Error handling**: individual file fetch failures return `undefined` for that
 key (same as SSR `loadWidgetFiles` behavior). The widget still renders — it
@@ -282,19 +288,12 @@ const discoveredFiles = await discoverWidgetFiles(
 );
 ```
 
-The loadFiles callback passed to `resolveWidgetTags` (and used directly by
-the md renderer) now merges discovered + declared files:
-
-```typescript
-const loadFiles = (name: string, declared?: WidgetFiles) => {
-  const discovered = discoveredFiles.get(name) ?? {};
-  const merged = { ...discovered, ...declared };
-  if (!merged.html && !merged.md && !merged.css) {
-    return Promise.resolve({});
-  }
-  return core.loadWidgetFiles(merged);
-};
-```
+**Implementation note**: Rather than merging in the callback, the implementation
+adds `widgetFiles?: Record<string, WidgetFiles>` to `SsrHtmlRouterOptions`,
+`SsrMdRouterOptions`, and `DevServerConfig`. Each SSR renderer stores the map
+and merges internally: `const files = this.widgetFiles[name] ?? declared`. The
+dev server pipes the config through to both renderers. This keeps the merge
+logic encapsulated in the renderers rather than exposed in setup code.
 
 Also generate the widget files manifest for the SPA bundle:
 
@@ -312,13 +311,15 @@ the same in their SPA entry point)
 import { widgetFiles } from './widget-files.manifest.ts';
 
 for (const widget of widgets) {
-  const files = widgetFiles[widget.name];
-  const merged = files
-    ? { ...files, ...widget.files } // declared wins over discovered
-    : widget.files;
-  ComponentElement.register(widget, merged);
+  ComponentElement.register(widget, widgetFiles[widget.name]);
 }
 ```
+
+**Implementation note**: No manual merge needed in main.ts — the
+`discoverWidgetFiles()` function already produces merged results (discovered
+fills gaps, explicit wins per key). The manifest contains final merged paths.
+`ComponentElement.loadFiles()` uses `effectiveFiles ?? component.files` as
+fallback for widgets not in the manifest.
 
 ### 10. Remove manual `files` from convention-following widgets
 
@@ -335,8 +336,9 @@ ComponentElement → context → renderHTML() → `<style>` injection.
 
 ### 12. Export from package
 
-**File**: `src/index.ts` — export `discoverWidgetFiles` and
-`generateWidgetFilesManifestCode`.
+**File**: `deno.json` — added `"./widget-generator": "./tool/widget.generator.ts"`
+sub-export (same pattern as `"./generator"` for route generator). Importable as
+`@emkodev/emroute/widget-generator`.
 
 ## Dependencies
 

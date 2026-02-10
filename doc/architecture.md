@@ -94,15 +94,27 @@ Each level renders its content, and the next level's output replaces the `<route
 - **SSR HTML**: string replacement — replace `<router-slot></router-slot>` in the parent string
 - **SSR Markdown**: concatenation — join sections with `---` separators
 
-## ComponentContext
+## RouteInfo and ComponentContext
 
-The router loads file content before calling the component. The component receives a `ComponentContext`:
+Every navigation produces a `RouteInfo` — an immutable snapshot of the matched route, built once and shared across the entire render pipeline:
 
 ```typescript
-interface ComponentContext {
-  pathname: string;
-  params: Record<string, string>;
-  files?: { html?: string; md?: string; css?: string };
+type RouteParams = Readonly<Record<string, string>>;
+
+interface RouteInfo {
+  readonly pathname: string; // actual URL path: /projects/123
+  readonly pattern: string; // route pattern: /projects/:id
+  readonly params: RouteParams;
+  readonly searchParams: URLSearchParams;
+}
+```
+
+The router loads file content before calling the component. The component receives a `ComponentContext` that extends `RouteInfo` with pre-loaded file content:
+
+```typescript
+interface ComponentContext extends RouteInfo {
+  readonly files?: Readonly<{ html?: string; md?: string; css?: string }>;
+  readonly signal?: AbortSignal;
 }
 ```
 

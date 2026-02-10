@@ -80,7 +80,7 @@ emroute/
 │   ├── slot.component.ts         # <router-slot> custom element
 │   ├── markdown.element.ts      # <mark-down> element
 │   │
-│   ├── abstract.component.ts    # Component, PageComponent, PageContext
+│   ├── abstract.component.ts    # Component, PageComponent, ComponentContext
 │   ├── widget.component.ts      # Widget (extends Component, widget- tag prefix)
 │   ├── component.element.ts     # ComponentElement custom element (unified, with AbortSignal)
 │   ├── component.renderer.ts    # Component rendering utilities

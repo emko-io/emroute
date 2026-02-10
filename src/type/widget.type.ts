@@ -43,6 +43,9 @@ export interface WidgetManifestEntry {
 
   /** Custom element tag name (widget-{name}) */
   tagName: string;
+
+  /** Discovered/declared companion file paths (html, md, css) */
+  files?: { html?: string; md?: string; css?: string };
 }
 
 /**

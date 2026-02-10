@@ -12,7 +12,7 @@ class ProjectPage extends PageComponent<{ id: string }> {
   readonly name = 'project';
 
   override renderHTML(
-    { params, context }: { data: unknown; params: { id: string }; context?: PageContext },
+    { params, context }: { data: unknown; params: { id: string }; context?: ComponentContext },
   ): string {
     const template = context?.files?.html ?? '';
     return template
@@ -50,7 +50,7 @@ override `renderHTML` for data-driven replacements:
 
 ```typescript
 // In PageComponent base class
-override renderHTML({ data, params, context }: { data: TData | null; params: TParams; context?: PageContext }): string {
+override renderHTML({ data, params, context }: { data: TData | null; params: TParams; context?: ComponentContext }): string {
   let html = context?.files?.html;
   if (!html) return super.renderHTML({ data, params, context });
 

@@ -53,6 +53,9 @@ export interface DevServerConfig {
 
   /** Widget registry for server-side widget rendering */
   widgets?: WidgetRegistry;
+
+  /** Discovered widget file paths (from discoverWidgetFiles), keyed by widget name */
+  widgetFiles?: Record<string, { html?: string; md?: string; css?: string }>;
 }
 
 /** Create module loaders for server-side SSR imports */
@@ -273,9 +276,14 @@ export async function createDevServer(
 
   // Initialize SSR routers
   const baseUrl = `http://localhost:${port}`;
-  const { markdownRenderer, widgets } = config;
-  let ssrHtmlRouter = new SsrHtmlRouter(routesManifest, { baseUrl, markdownRenderer, widgets });
-  let ssrMdRouter = new SsrMdRouter(routesManifest, { baseUrl, widgets });
+  const { markdownRenderer, widgets, widgetFiles } = config;
+  let ssrHtmlRouter = new SsrHtmlRouter(routesManifest, {
+    baseUrl,
+    markdownRenderer,
+    widgets,
+    widgetFiles,
+  });
+  let ssrMdRouter = new SsrMdRouter(routesManifest, { baseUrl, widgets, widgetFiles });
 
   // Regenerate manifest, write file, and update SSR routers
   async function regenerateRoutes(): Promise<void> {
@@ -290,8 +298,13 @@ export async function createDevServer(
     const code = generateManifestCode(result, '@emkodev/eMroute');
     await runtime.writeTextFile(`${appRoot}/routes.manifest.ts`, code);
 
-    ssrHtmlRouter = new SsrHtmlRouter(routesManifest, { baseUrl, markdownRenderer, widgets });
-    ssrMdRouter = new SsrMdRouter(routesManifest, { baseUrl, widgets });
+    ssrHtmlRouter = new SsrHtmlRouter(routesManifest, {
+      baseUrl,
+      markdownRenderer,
+      widgets,
+      widgetFiles,
+    });
+    ssrMdRouter = new SsrMdRouter(routesManifest, { baseUrl, widgets, widgetFiles });
 
     console.log(`Routes regenerated: ${result.routes.length} routes`);
   }

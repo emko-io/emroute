@@ -29,6 +29,8 @@ const ROUTER_SLOT_BLOCK = '```\nrouter-slot\n```';
 export interface SsrMdRouterOptions extends RouteCoreOptions {
   /** Widget registry for server-side widget rendering */
   widgets?: WidgetRegistry;
+  /** Discovered widget file paths (from discoverWidgetFiles), keyed by widget name */
+  widgetFiles?: Record<string, { html?: string; md?: string; css?: string }>;
 }
 
 /**
@@ -37,10 +39,12 @@ export interface SsrMdRouterOptions extends RouteCoreOptions {
 export class SsrMdRouter {
   private core: RouteCore;
   private widgets: WidgetRegistry | null;
+  private widgetFiles: Record<string, { html?: string; md?: string; css?: string }>;
 
   constructor(manifest: RoutesManifest, options: SsrMdRouterOptions = {}) {
     this.core = new RouteCore(manifest, options);
     this.widgets = options.widgets ?? null;
+    this.widgetFiles = options.widgetFiles ?? {};
   }
 
   /**
@@ -194,10 +198,11 @@ export class SsrMdRouter {
       }
 
       try {
-        // Load widget files if declared
+        // Load widget files: discovered (merged) first, then declared fallback
         let files: { html?: string; md?: string } | undefined;
-        if (widget.files) {
-          files = await this.core.loadWidgetFiles(widget.files);
+        const filePaths = this.widgetFiles[block.widgetName] ?? widget.files;
+        if (filePaths) {
+          files = await this.core.loadWidgetFiles(filePaths);
         }
 
         const context = { ...routeInfo, files };

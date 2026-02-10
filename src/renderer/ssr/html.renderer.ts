@@ -33,6 +33,8 @@ export interface SsrHtmlRouterOptions extends RouteCoreOptions {
   markdownRenderer?: MarkdownRenderer;
   /** Widget registry for server-side widget rendering */
   widgets?: WidgetRegistry;
+  /** Discovered widget file paths (from discoverWidgetFiles), keyed by widget name */
+  widgetFiles?: Record<string, { html?: string; md?: string; css?: string }>;
 }
 
 /**
@@ -43,11 +45,13 @@ export class SsrHtmlRouter {
   private markdownRenderer: MarkdownRenderer | null;
   private markdownReady: Promise<void> | null = null;
   private widgets: WidgetRegistry | null;
+  private widgetFiles: Record<string, { html?: string; md?: string; css?: string }>;
 
   constructor(manifest: RoutesManifest, options: SsrHtmlRouterOptions = {}) {
     this.core = new RouteCore(manifest, options);
     this.markdownRenderer = options.markdownRenderer ?? null;
     this.widgets = options.widgets ?? null;
+    this.widgetFiles = options.widgetFiles ?? {};
 
     if (this.markdownRenderer?.init) {
       this.markdownReady = this.markdownRenderer.init();
@@ -193,7 +197,10 @@ export class SsrHtmlRouter {
         html,
         this.widgets,
         routeInfo,
-        this.core.loadWidgetFiles.bind(this.core),
+        (name, declared) => {
+          const files = this.widgetFiles[name] ?? declared;
+          return files ? this.core.loadWidgetFiles(files) : Promise.resolve({});
+        },
       );
     }
 

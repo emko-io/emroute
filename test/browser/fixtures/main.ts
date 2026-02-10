@@ -1,5 +1,6 @@
 import { ComponentElement, createSpaHtmlRouter, WidgetRegistry } from '@emkodev/emroute/spa';
 import { routesManifest } from './routes.manifest.ts';
+import { widgetFiles } from './widget-files.manifest.ts';
 import failingWidget from './widgets/failing/failing.widget.ts';
 import { greetingWidget } from './widgets/greeting/greeting.widget.ts';
 import { infoCardWidget } from './widgets/info-card/info-card.widget.ts';
@@ -36,7 +37,7 @@ widgets.add(contentTabWidget);
 widgets.add(codeBlockWidget);
 
 for (const widget of widgets) {
-  ComponentElement.register(widget);
+  ComponentElement.register(widget, widgetFiles[widget.name]);
 }
 
 const router = await createSpaHtmlRouter(routesManifest);

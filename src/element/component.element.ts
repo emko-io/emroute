@@ -5,22 +5,30 @@
  * Handles:
  * - SSR hydration (data-ssr attribute)
  * - Client-side data fetching with AbortSignal
+ * - Companion file loading (html, md, css) with caching
  * - Loading/error states
  */
 
-import type { Component } from '../component/abstract.component.ts';
+import type { Component, ComponentContext } from '../component/abstract.component.ts';
 import { DATA_SSR_ATTR, HTMLElementBase } from '../util/html.util.ts';
 
 const COMPONENT_STATES = ['idle', 'loading', 'ready', 'error'] as const;
 type ComponentState = (typeof COMPONENT_STATES)[number];
 
+type WidgetFiles = { html?: string; md?: string; css?: string };
+
 /**
  * Custom element that renders a Component in the browser.
  */
 export class ComponentElement<TParams, TData> extends HTMLElementBase {
+  /** Shared file content cache — deduplicates fetches across all widget instances. */
+  private static fileCache = new Map<string, Promise<string | undefined>>();
+
   private component: Component<TParams, TData>;
+  private effectiveFiles?: WidgetFiles;
   private params: TParams | null = null;
   private data: TData | null = null;
+  private context: ComponentContext | undefined;
   private state: ComponentState = 'idle';
   private errorMessage = '';
   private readyPromise: Promise<void> | null = null;
@@ -30,15 +38,21 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
   /** Promise that resolves with fetched data (available after loadData starts) */
   dataPromise: Promise<TData | null> | null = null;
 
-  constructor(component: Component<TParams, TData>) {
+  constructor(component: Component<TParams, TData>, files?: WidgetFiles) {
     super();
     this.component = component;
+    this.effectiveFiles = files;
   }
 
   /**
    * Register a widget as a custom element: `widget-{name}`.
+   * Optional `files` parameter provides discovered file paths without mutating
+   * the component instance.
    */
-  static register<TP, TD>(component: Component<TP, TD>): void {
+  static register<TP, TD>(
+    component: Component<TP, TD>,
+    files?: WidgetFiles,
+  ): void {
     const tagName = `widget-${component.name}`;
 
     if (!globalThis.customElements || customElements.get(tagName)) {
@@ -47,7 +61,7 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
 
     const BoundElement = class extends ComponentElement<TP, TD> {
       constructor() {
-        super(component);
+        super(component, files);
       }
     };
 
@@ -72,6 +86,7 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
 
   async connectedCallback(): Promise<void> {
     this.abortController = new AbortController();
+    const signal = this.abortController.signal;
 
     // Parse params from element attributes
     const params: Record<string, unknown> = {};
@@ -94,6 +109,18 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
         return;
       }
     }
+
+    // Load companion files (html, md, css) if declared
+    const files = await this.loadFiles();
+    if (signal.aborted) return;
+
+    this.context = {
+      pathname: globalThis.location?.pathname ?? '/',
+      pattern: '',
+      params: {},
+      searchParams: new URLSearchParams(globalThis.location?.search ?? ''),
+      files: (files.html || files.md || files.css) ? files : undefined,
+    };
 
     // Hydrate from SSR: DOM is already correct, just restore state
     const ssrAttr = this.getAttribute(DATA_SSR_ATTR);
@@ -118,6 +145,7 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
     this.abortController = null;
     this.state = 'idle';
     this.data = null;
+    this.context = undefined;
     this.dataPromise = null;
     this.errorMessage = '';
     this.signalReady();
@@ -137,6 +165,44 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
     await this.loadData();
   }
 
+  /**
+   * Fetch a single file by path, with caching.
+   * Absolute URLs (http/https) pass through; relative paths get '/' prefix.
+   */
+  private static loadFile(path: string): Promise<string | undefined> {
+    const cached = ComponentElement.fileCache.get(path);
+    if (cached) return cached;
+
+    const url = path.startsWith('http://') || path.startsWith('https://')
+      ? path
+      : (path.startsWith('/') ? path : '/' + path);
+
+    const promise = fetch(url).then(
+      (res) => res.ok ? res.text() : undefined,
+      () => undefined,
+    );
+
+    ComponentElement.fileCache.set(path, promise);
+    return promise;
+  }
+
+  /**
+   * Load all companion files for this widget instance.
+   * Uses effectiveFiles (from registration) falling back to component.files.
+   */
+  private async loadFiles(): Promise<{ html?: string; md?: string; css?: string }> {
+    const filePaths = this.effectiveFiles ?? this.component.files;
+    if (!filePaths) return {};
+
+    const [html, md, css] = await Promise.all([
+      filePaths.html ? ComponentElement.loadFile(filePaths.html) : undefined,
+      filePaths.md ? ComponentElement.loadFile(filePaths.md) : undefined,
+      filePaths.css ? ComponentElement.loadFile(filePaths.css) : undefined,
+    ]);
+
+    return { html, md, css };
+  }
+
   private async loadData(): Promise<void> {
     if (this.params === null) return;
 
@@ -146,7 +212,11 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
     this.render();
 
     try {
-      const promise = this.component.getData({ params: this.params, signal });
+      const promise = this.component.getData({
+        params: this.params,
+        signal,
+        context: this.context,
+      });
       this.dataPromise = promise;
       this.data = await promise;
 
@@ -197,6 +267,7 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
     this.innerHTML = this.component.renderHTML({
       data: this.state === 'ready' ? this.data : null,
       params: this.params,
+      context: this.context,
     });
   }
 }

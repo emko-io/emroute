@@ -172,7 +172,7 @@ class ProfilePage extends PageComponent<Record<string, string>, ProfileData> {
   override renderHTML({ data, context }: {
     data: ProfileData | null;
     params: Record<string, string>;
-    context?: ComponentContext;
+    context?: ComponentContext; // extends RouteInfo (pathname, pattern, params, searchParams)
   }) {
     const template = context?.files?.html ?? '<h1>Profile</h1>';
     if (!data) return template;
@@ -207,7 +207,7 @@ class BlogPage extends PageComponent {
   override renderHTML({ context }: {
     data: unknown;
     params: Record<string, string>;
-    context?: ComponentContext;
+    context?: ComponentContext; // extends RouteInfo (pathname, pattern, params, searchParams)
   }) {
     const md = context?.files?.md ?? '';
     return `<mark-down>${md}</mark-down>\n<p class="blog-footer">Posts: 0</p>`;
@@ -216,7 +216,7 @@ class BlogPage extends PageComponent {
   override renderMarkdown({ context }: {
     data: unknown;
     params: Record<string, string>;
-    context?: ComponentContext;
+    context?: ComponentContext; // extends RouteInfo
   }) {
     return context?.files?.md ?? '';
   }

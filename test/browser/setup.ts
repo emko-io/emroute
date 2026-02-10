@@ -8,6 +8,10 @@
 import { createDevServer, type DevServer } from '../../server/dev.server.ts';
 import { denoServerRuntime } from '../../server/server.deno.ts';
 import { generateManifestCode, generateRoutesManifest } from '../../tool/route.generator.ts';
+import {
+  discoverWidgetFiles,
+  generateWidgetFilesManifestCode,
+} from '../../tool/widget.generator.ts';
 import type { FileSystem } from '../../tool/fs.type.ts';
 import { WidgetRegistry } from '../../src/widget/widget.registry.ts';
 import type { MarkdownRenderer } from '../../src/type/markdown.type.ts';
@@ -150,6 +154,16 @@ export async function startServer(options?: { watch?: boolean }): Promise<void> 
   widgets.add(contentTabWidget);
   widgets.add(codeBlockWidget);
 
+  // Discover widget companion files and generate SPA manifest
+  const discoveredFiles = await discoverWidgetFiles(
+    `${FIXTURES_DIR}/widgets`,
+    widgets,
+    fs,
+    'widgets',
+  );
+  const widgetManifestCode = generateWidgetFilesManifestCode(discoveredFiles);
+  await Deno.writeTextFile(`${FIXTURES_DIR}/widget-files.manifest.ts`, widgetManifestCode);
+
   // Create server-side emko-md renderer
   const wasmUrl = new URL(
     './fixtures/assets/hypertext_parser_bg.0.1.0-beta.2.wasm',
@@ -166,6 +180,12 @@ export async function startServer(options?: { watch?: boolean }): Promise<void> 
     },
   };
 
+  // Convert discovery map to record for SSR renderers
+  const widgetFilesRecord: Record<string, { html?: string; md?: string; css?: string }> = {};
+  for (const [name, files] of discoveredFiles) {
+    widgetFilesRecord[name] = files;
+  }
+
   server = await createDevServer(
     {
       port: PORT,
@@ -174,6 +194,7 @@ export async function startServer(options?: { watch?: boolean }): Promise<void> 
       appRoot: FIXTURES_DIR,
       watch: options?.watch ?? false,
       widgets,
+      widgetFiles: widgetFilesRecord,
       markdownRenderer,
     },
     denoServerRuntime,

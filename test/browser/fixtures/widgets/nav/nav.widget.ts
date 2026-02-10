@@ -20,9 +20,6 @@ interface NavData {
 
 class NavWidget extends WidgetComponent<Record<string, unknown>, NavData> {
   override readonly name = 'nav';
-  override readonly files = {
-    css: 'widgets/nav/nav.widget.css',
-  };
 
   override getData(
     args: { params: Record<string, unknown>; context?: ComponentContext },

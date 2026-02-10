@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0-beta.10] - 2026-02-10
+
+### Added
+
+- **Widget companion file auto-discovery** — `discoverWidgetFiles()` scans
+  `{widgetsDir}/{name}/{name}.widget.{html,md,css}` and merges per-key with
+  explicit `widget.files` (explicit wins, discovered fills gaps); no widget
+  mutation
+- **Widget files manifest generation** — `generateWidgetFilesManifestCode()`
+  produces a plain TypeScript data module for SPA bundles
+- **SPA widget context** — `ComponentElement` now loads companion files via
+  static cache, builds `ComponentContext` with real `location.pathname`, and
+  passes it to `getData()` and `renderHTML()`; widgets in SPA mode now receive
+  route info and file content
+- **`ComponentElement.register()` accepts optional `files`** — discovered file
+  paths can be passed at registration time without mutating widget instances
+- **`widgetFiles` option on SSR renderers and dev server** — `SsrHtmlRouter`,
+  `SsrMdRouter`, and `DevServerConfig` accept a `widgetFiles` record; SSR
+  renderers merge discovered + declared files internally
+- `@emkodev/emroute/widget-generator` sub-export in `deno.json`
+- `files` field on `WidgetManifestEntry` type
+
+### Breaking
+
+- **`resolveWidgetTags` callback signature changed** — `loadFiles` callback
+  now receives `(widgetName: string, declaredFiles?)` instead of `(files)`;
+  guard changed from `if (widget.files && loadFiles)` to `if (loadFiles)` so
+  auto-discovered widgets without declared files are also resolved
+
+### Changed
+
+- Nav widget and file-widget test fixtures no longer declare manual `files` —
+  companion files are auto-discovered
+- Removed `.site-nav` CSS workaround from test fixture `index.html` — nav CSS
+  now loads via `ComponentElement` context in SPA mode
+- Test suite: 545 unit tests, 62 browser test steps
+
 ## [1.0.0-beta.9] - 2026-02-10
 
 ### Breaking

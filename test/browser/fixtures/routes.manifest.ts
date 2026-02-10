@@ -17,6 +17,20 @@ export const routesManifest: RoutesManifest = {
     parent: '/projects/:id',
   },
   {
+    pattern: '/articles/:slug/comment',
+    type: 'page',
+    modulePath: 'routes/articles/[slug]/comment.page.ts',
+    files: { ts: 'routes/articles/[slug]/comment.page.ts' },
+    parent: '/articles/:slug',
+  },
+  {
+    pattern: '/articles/:slug/related',
+    type: 'page',
+    modulePath: 'routes/articles/[slug]/related.page.ts',
+    files: { ts: 'routes/articles/[slug]/related.page.ts' },
+    parent: '/articles/:slug',
+  },
+  {
     pattern: '/vanilla/counter',
     type: 'page',
     modulePath: 'routes/vanilla/counter.page.md',
@@ -29,6 +43,13 @@ export const routesManifest: RoutesManifest = {
     modulePath: 'routes/projects/[id].page.ts',
     files: { ts: 'routes/projects/[id].page.ts' },
     parent: '/projects',
+  },
+  {
+    pattern: '/articles/:slug',
+    type: 'page',
+    modulePath: 'routes/articles/[slug].page.ts',
+    files: { css: 'routes/articles/[slug].page.css', html: 'routes/articles/[slug].page.html', ts: 'routes/articles/[slug].page.ts' },
+    parent: '/articles',
   },
   {
     pattern: '/preact',
@@ -55,10 +76,22 @@ export const routesManifest: RoutesManifest = {
     files: { md: 'routes/projects.page.md' },
   },
   {
+    pattern: '/articles',
+    type: 'page',
+    modulePath: 'routes/articles.page.ts',
+    files: { html: 'routes/articles.page.html', ts: 'routes/articles.page.ts' },
+  },
+  {
     pattern: '/about',
     type: 'page',
     modulePath: 'routes/about.page.html',
     files: { md: 'routes/about.page.md', css: 'routes/about.page.css', html: 'routes/about.page.html' },
+  },
+  {
+    pattern: '/dashboard',
+    type: 'page',
+    modulePath: 'routes/dashboard.page.ts',
+    files: { html: 'routes/dashboard.page.html', ts: 'routes/dashboard.page.ts' },
   },
   {
     pattern: '/docs',
@@ -83,6 +116,12 @@ export const routesManifest: RoutesManifest = {
     type: 'page',
     modulePath: 'routes/blog.page.ts',
     files: { md: 'routes/blog.page.md', ts: 'routes/blog.page.ts' },
+  },
+  {
+    pattern: '/guide',
+    type: 'page',
+    modulePath: 'routes/guide.page.md',
+    files: { md: 'routes/guide.page.md' },
   },
   {
     pattern: '/widget-files-md',
@@ -141,8 +180,13 @@ export const routesManifest: RoutesManifest = {
 
   moduleLoaders: {
     'routes/projects/[id]/tasks.page.ts': () => import('./routes/projects/[id]/tasks.page.ts'),
+    'routes/articles/[slug]/comment.page.ts': () => import('./routes/articles/[slug]/comment.page.ts'),
+    'routes/articles/[slug]/related.page.ts': () => import('./routes/articles/[slug]/related.page.ts'),
     'routes/projects/[id].page.ts': () => import('./routes/projects/[id].page.ts'),
+    'routes/articles/[slug].page.ts': () => import('./routes/articles/[slug].page.ts'),
     'routes/profile.page.ts': () => import('./routes/profile.page.ts'),
+    'routes/articles.page.ts': () => import('./routes/articles.page.ts'),
+    'routes/dashboard.page.ts': () => import('./routes/dashboard.page.ts'),
     'routes/docs.page.ts': () => import('./routes/docs.page.ts'),
     'routes/crash.page.ts': () => import('./routes/crash.page.ts'),
     'routes/blog.page.ts': () => import('./routes/blog.page.ts'),

@@ -9,8 +9,8 @@ interface ProfileData {
 class ProfilePage extends PageComponent<Record<string, string>, ProfileData> {
   override readonly name = 'profile';
 
-  override async getData() {
-    return { name: 'Alice', role: 'Engineer', bio: 'Builds things.' };
+  override getData() {
+    return Promise.resolve({ name: 'Alice', role: 'Engineer', bio: 'Builds things.' });
   }
 
   override getTitle({ data }: { data: ProfileData | null }) {

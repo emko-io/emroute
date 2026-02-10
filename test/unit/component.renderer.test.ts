@@ -5,7 +5,7 @@ import {
   renderComponent,
   replaceComponentBlocks,
 } from '../../src/renderer/component/component.renderer.ts';
-import { Component, type RenderContext } from '../../src/component/abstract.component.ts';
+import { Component } from '../../src/component/abstract.component.ts';
 
 /**
  * Mock component for testing
@@ -13,8 +13,8 @@ import { Component, type RenderContext } from '../../src/component/abstract.comp
 class MockComponent extends Component<{ title: string }, { content: string }> {
   readonly name = 'test-component';
 
-  async getData({ params }: { params: { title: string } }) {
-    return { content: `Content from ${params.title}` };
+  getData({ params }: { params: { title: string } }) {
+    return Promise.resolve({ content: `Content from ${params.title}` });
   }
 
   renderMarkdown({ data }: { data: { content: string } | null }) {
@@ -35,8 +35,8 @@ class MockComponent extends Component<{ title: string }, { content: string }> {
 class ValidatingComponent extends Component<{ value: number }, { result: number }> {
   readonly name = 'validating-component';
 
-  async getData({ params }: { params: { value: number } }) {
-    return { result: params.value * 2 };
+  getData({ params }: { params: { value: number } }) {
+    return Promise.resolve({ result: params.value * 2 });
   }
 
   renderMarkdown({ data }: { data: { result: number } | null }) {
@@ -57,8 +57,8 @@ class ValidatingComponent extends Component<{ value: number }, { result: number 
 class ErrorThrowingComponent extends Component<unknown, unknown> {
   readonly name = 'error-component';
 
-  async getData() {
-    throw new Error('Data fetch failed');
+  getData() {
+    return Promise.reject(new Error('Data fetch failed'));
   }
 
   renderMarkdown() {
@@ -156,8 +156,8 @@ Deno.test('renderComponent - handles non-Error exceptions in markdown context', 
   class StringThrowingComponent extends Component<unknown, unknown> {
     readonly name = 'string-error-component';
 
-    async getData() {
-      throw 'Plain string error';
+    getData() {
+      return Promise.reject('Plain string error');
     }
 
     renderMarkdown() {

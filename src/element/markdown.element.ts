@@ -10,14 +10,11 @@
  * - Fenced widgets: ```widget:name\n{params}``` becomes <widget-name>
  */
 
-import {
-  escapeHtml,
-  HTMLElementBase,
-  processFencedSlots,
-  processFencedWidgets,
-} from '../util/html.util.ts';
+import { escapeHtml, HTMLElementBase } from '../util/html.util.ts';
+import { processFencedSlots, processFencedWidgets } from '../util/fenced-block.util.ts';
+import { CSS_ERROR } from '../component/abstract.component.ts';
 import type { MarkdownRenderer } from '../type/markdown.type.ts';
-import { SSR_HTML_PREFIX, SSR_MD_PREFIX } from '../route/route.core.ts';
+import { stripSsrPrefix } from '../route/route.core.ts';
 
 export class MarkdownElement extends HTMLElementBase {
   private static renderer: MarkdownRenderer | null = null;
@@ -98,9 +95,7 @@ export class MarkdownElement extends HTMLElementBase {
    * - / → /routes/index.page.md
    */
   private deriveMarkdownPath(): string | null {
-    const pathname = location.pathname
-      .replace(new RegExp(`^${SSR_MD_PREFIX}`), '/')
-      .replace(new RegExp(`^${SSR_HTML_PREFIX}`), '/');
+    const pathname = stripSsrPrefix(location.pathname);
 
     if (pathname === '/') {
       return '/routes/index.page.md';
@@ -189,11 +184,7 @@ export class MarkdownElement extends HTMLElementBase {
 
   private showError(error: unknown): void {
     const message = error instanceof Error ? error.message : String(error);
-    this.innerHTML = `
-      <div style="padding: 1rem; background: #fee; border: 1px solid #fcc; border-radius: 4px; color: #c00;">
-        <strong>Markdown Error:</strong> ${escapeHtml(message)}
-      </div>
-    `;
+    this.innerHTML = `<div class="${CSS_ERROR}">Markdown Error: ${escapeHtml(message)}</div>`;
   }
 }
 

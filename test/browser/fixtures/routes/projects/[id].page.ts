@@ -3,8 +3,8 @@ import { PageComponent } from '@emkodev/emroute';
 class ProjectPage extends PageComponent<{ id: string }, { name: string }> {
   override readonly name = 'project';
 
-  override async getData({ params }: { params: { id: string } }) {
-    return { name: `Project ${params.id}` };
+  override getData({ params }: { params: { id: string } }) {
+    return Promise.resolve({ name: `Project ${params.id}` });
   }
 
   override renderHTML({ data, params }: {

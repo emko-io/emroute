@@ -17,7 +17,7 @@ import {
   DEFAULT_ROOT_ROUTE,
   RouteCore,
   type RouteCoreOptions,
-  SSR_MD_PREFIX,
+  stripSsrPrefix,
   toUrl,
 } from '../../route/route.core.ts';
 import { STATUS_MESSAGES } from '../../util/html.util.ts';
@@ -51,11 +51,9 @@ export class SsrMdRouter {
     const urlObj = toUrl(url);
     let pathname = urlObj.pathname;
 
-    if (pathname.startsWith(SSR_MD_PREFIX)) {
-      pathname = '/' + pathname.slice(SSR_MD_PREFIX.length);
-    }
+    pathname = stripSsrPrefix(pathname);
 
-    const matchUrl = toUrl(pathname);
+    const matchUrl = toUrl(pathname + urlObj.search);
     const matched = this.core.match(matchUrl);
 
     if (!matched) {
@@ -120,7 +118,12 @@ export class SsrMdRouter {
       // Skip wildcard route appearing as its own parent (prevents double-render)
       if (route === matched.route && routePattern !== matched.route.pattern) continue;
 
-      const markdown = await this.renderRouteContent(route, matched.params, pathname);
+      const markdown = await this.renderRouteContent(
+        route,
+        matched.params,
+        pathname,
+        matched.searchParams,
+      );
       if (markdown) {
         parts.push(markdown);
       }
@@ -136,6 +139,7 @@ export class SsrMdRouter {
     route: RouteConfig,
     params: RouteParams,
     leafPathname?: string,
+    searchParams?: URLSearchParams,
   ): Promise<string> {
     if (route.modulePath === DEFAULT_ROOT_ROUTE.modulePath) {
       return '';
@@ -147,7 +151,12 @@ export class SsrMdRouter {
       ? (await this.core.loadModule<{ default: PageComponent }>(files.ts)).default
       : defaultPageComponent;
 
-    const context = await this.core.buildComponentContext(route.pattern, route, params);
+    const context = await this.core.buildComponentContext(
+      route.pattern,
+      route,
+      params,
+      searchParams,
+    );
     const data = await component.getData({ params, context });
     let markdown = component.renderMarkdown({ data, params, context });
 

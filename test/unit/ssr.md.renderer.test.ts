@@ -169,7 +169,7 @@ Deno.test('SsrMdRouter - render() 404 includes path in markdown', async () => {
 // Redirect Route Tests
 // ============================================================================
 
-Deno.test('SsrMdRouter - render() handles redirect routes', async () => {
+Deno.test('SsrMdRouter - render() handles redirect routes', () => {
   const routes = [
     createTestRoute({
       pattern: '/old-path',
@@ -179,7 +179,7 @@ Deno.test('SsrMdRouter - render() handles redirect routes', async () => {
   ];
 
   const manifest = createTestManifest(routes);
-  const router = new SsrMdRouter(manifest);
+  const _router = new SsrMdRouter(manifest);
 
   // Just verify the redirect route type is recognized
   assertEquals(routes[0].type, 'redirect');

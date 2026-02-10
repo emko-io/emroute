@@ -42,8 +42,8 @@ const STYLES = `<style>
 class CounterVanillaWidget extends WidgetComponent<{ start?: string }, CounterData> {
   override readonly name = 'counter-vanilla';
 
-  override async getData({ params }: { params: { start?: string } }) {
-    return { initial: parseInt(params.start ?? '0', 10) };
+  override getData({ params }: { params: { start?: string } }) {
+    return Promise.resolve({ initial: parseInt(params.start ?? '0', 10) });
   }
 
   override renderHTML({ data }: { data: CounterData | null; params: { start?: string } }) {

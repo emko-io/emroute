@@ -3,8 +3,8 @@ import { PageComponent } from '@emkodev/emroute';
 class TasksPage extends PageComponent<{ id: string }, { tasks: string[] }> {
   override readonly name = 'tasks';
 
-  override async getData({ params }: { params: { id: string } }) {
-    return { tasks: [`Task A for ${params.id}`, `Task B for ${params.id}`] };
+  override getData({ params }: { params: { id: string } }) {
+    return Promise.resolve({ tasks: [`Task A for ${params.id}`, `Task B for ${params.id}`] });
   }
 
   override renderHTML({ data, params }: {

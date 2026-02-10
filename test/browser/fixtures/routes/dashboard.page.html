@@ -1,0 +1,19 @@
+<section style="max-width: 900px; margin: 0 auto; padding: 0 1.5rem">
+  <h1>Dashboard</h1>
+  <div
+    class="dashboard-stats"
+    style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 2rem"
+  >
+    {{statCards}}
+  </div>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem">
+    <div style="padding: 1.25rem; border: 1px solid #e2e8f0; border-radius: 8px">
+      <h2 style="font-size: 1.1rem; margin-bottom: 0.75rem">Recent Articles</h2>
+      <widget-recent-article></widget-recent-article>
+    </div>
+    <div style="padding: 1.25rem; border: 1px solid #e2e8f0; border-radius: 8px">
+      <h2 style="font-size: 1.1rem; margin-bottom: 0.75rem">Popular Tags</h2>
+      <widget-tag-cloud></widget-tag-cloud>
+    </div>
+  </div>
+</section>

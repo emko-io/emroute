@@ -19,17 +19,12 @@ import {
   DEFAULT_ROOT_ROUTE,
   RouteCore,
   type RouteCoreOptions,
-  SSR_HTML_PREFIX,
+  stripSsrPrefix,
   toUrl,
 } from '../../route/route.core.ts';
-import {
-  escapeHtml,
-  processFencedSlots,
-  processFencedWidgets,
-  resolveWidgetTags,
-  STATUS_MESSAGES,
-  unescapeHtml,
-} from '../../util/html.util.ts';
+import { escapeHtml, STATUS_MESSAGES, unescapeHtml } from '../../util/html.util.ts';
+import { processFencedSlots, processFencedWidgets } from '../../util/fenced-block.util.ts';
+import { resolveWidgetTags } from '../../util/widget-resolve.util.ts';
 import type { WidgetRegistry } from '../../widget/widget.registry.ts';
 
 /** Options for SSR HTML Router */
@@ -66,11 +61,9 @@ export class SsrHtmlRouter {
     const urlObj = toUrl(url);
     let pathname = urlObj.pathname;
 
-    if (pathname.startsWith(SSR_HTML_PREFIX)) {
-      pathname = '/' + pathname.slice(SSR_HTML_PREFIX.length);
-    }
+    pathname = stripSsrPrefix(pathname);
 
-    const matchUrl = toUrl(pathname);
+    const matchUrl = toUrl(pathname + urlObj.search);
     const matched = this.core.match(matchUrl);
 
     if (!matched) {
@@ -136,7 +129,12 @@ export class SsrHtmlRouter {
       // Skip wildcard route appearing as its own parent (prevents double-render)
       if (route === matched.route && routePattern !== matched.route.pattern) continue;
 
-      const { html, title } = await this.renderRouteContent(route, matched.params, pathname);
+      const { html, title } = await this.renderRouteContent(
+        route,
+        matched.params,
+        pathname,
+        matched.searchParams,
+      );
 
       if (title) {
         pageTitle = title;
@@ -160,6 +158,7 @@ export class SsrHtmlRouter {
     route: RouteConfig,
     params: RouteParams,
     leafPathname?: string,
+    searchParams?: URLSearchParams,
   ): Promise<{ html: string; title?: string }> {
     if (route.modulePath === DEFAULT_ROOT_ROUTE.modulePath) {
       return { html: '<router-slot></router-slot>' };
@@ -172,7 +171,12 @@ export class SsrHtmlRouter {
       ? (await this.core.loadModule<{ default: PageComponent }>(tsModule)).default
       : defaultPageComponent;
 
-    const context = await this.core.buildComponentContext(route.pattern, route, params);
+    const context = await this.core.buildComponentContext(
+      route.pattern,
+      route,
+      params,
+      searchParams,
+    );
     const data = await component.getData({ params, context });
     let html = component.renderHTML({ data, params, context });
     const title = component.getTitle({ data, params, context });

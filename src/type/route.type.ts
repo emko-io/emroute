@@ -61,6 +61,9 @@ export interface MatchedRoute {
   /** Extracted URL parameters */
   params: RouteParams;
 
+  /** Query string parameters from the matched URL */
+  searchParams?: URLSearchParams;
+
   /** The URLPatternResult from matching */
   patternResult?: URLPatternResult;
 }

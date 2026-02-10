@@ -17,10 +17,10 @@ import { WidgetComponent } from '../../src/component/widget.component.ts';
 class TestComponent extends Component<{ title: string }, { content: string }> {
   readonly name = 'test-component';
 
-  async getData(
+  getData(
     { params }: { params: { title: string }; signal?: AbortSignal },
   ): Promise<{ content: string }> {
-    return { content: params.title };
+    return Promise.resolve({ content: params.title });
   }
 
   renderMarkdown({ data }: { data: { content: string }; params: { title: string } }): string {
@@ -41,10 +41,10 @@ class ValidatedComponent extends Component<{ required: string }, string> {
     return undefined;
   }
 
-  async getData(
+  getData(
     _args: { params: { required: string }; signal?: AbortSignal },
   ): Promise<string> {
-    return 'test data';
+    return Promise.resolve('test data');
   }
 
   renderMarkdown(_args: { data: string; params: { required: string } }): string {
@@ -58,10 +58,10 @@ class ValidatedComponent extends Component<{ required: string }, string> {
 class CustomHTMLComponent extends Component<null, string> {
   readonly name = 'custom-html';
 
-  async getData(
+  getData(
     _args: { params: null; signal?: AbortSignal },
   ): Promise<string> {
-    return 'custom data';
+    return Promise.resolve('custom data');
   }
 
   renderMarkdown({ data }: { data: string; params: null }): string {
@@ -86,10 +86,10 @@ class TestPageComponent extends PageComponent<
   override readonly name = 'test-page';
   override readonly pattern = '/posts/:id';
 
-  override async getData(
+  override getData(
     { params }: Parameters<PageComponent<{ id: string }, { title: string }>['getData']>[0],
   ): Promise<{ title: string }> {
-    return { title: `Post ${params.id}` };
+    return Promise.resolve({ title: `Post ${params.id}` });
   }
 
   override renderMarkdown(
@@ -459,8 +459,8 @@ Deno.test('Component - name with empty string fails type checking but stores emp
   class EmptyNameComponent extends Component<null, null> {
     readonly name = '';
 
-    async getData(_args: { params: null; signal?: AbortSignal }): Promise<null> {
-      return null;
+    getData(_args: { params: null; signal?: AbortSignal }): Promise<null> {
+      return Promise.resolve(null);
     }
 
     renderMarkdown(_args: { data: null; params: null }): string {
@@ -543,10 +543,10 @@ Deno.test('PageComponent - pattern with complex route segments', () => {
     override readonly name = 'complex-page';
     override readonly pattern = '/api/v1/users/:id/posts/:postId/comments/:commentId';
 
-    override async getData(
+    override getData(
       _args: Parameters<PageComponent['getData']>[0],
     ): Promise<unknown> {
-      return {};
+      return Promise.resolve({});
     }
 
     override renderMarkdown(_args: Parameters<PageComponent['renderMarkdown']>[0]): string {
@@ -606,10 +606,10 @@ Deno.test('ComponentManifestEntry - all fields are required except pattern', () 
 class TestWidget extends WidgetComponent<{ query: string }, { result: string }> {
   readonly name = 'test-widget';
 
-  async getData(
+  getData(
     { params }: { params: { query: string }; signal?: AbortSignal },
   ): Promise<{ result: string }> {
-    return { result: `Result for ${params.query}` };
+    return Promise.resolve({ result: `Result for ${params.query}` });
   }
 
   override renderMarkdown(

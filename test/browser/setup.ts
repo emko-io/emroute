@@ -20,6 +20,14 @@ import { counterVanillaWidget } from './fixtures/widgets/counter-vanilla/counter
 import { fileWidget } from './fixtures/widgets/file-widget/file-widget.widget.ts';
 import { remoteWidget } from './fixtures/widgets/remote-widget/remote-widget.widget.ts';
 import { navWidget } from './fixtures/widgets/nav/nav.widget.ts';
+import { heroBannerWidget } from './fixtures/widgets/hero-banner/hero-banner.widget.ts';
+import { articleCardWidget } from './fixtures/widgets/article-card/article-card.widget.ts';
+import { statCardWidget } from './fixtures/widgets/stat-card/stat-card.widget.ts';
+import { recentArticleWidget } from './fixtures/widgets/recent-article/recent-article.widget.ts';
+import { tagCloudWidget } from './fixtures/widgets/tag-cloud/tag-cloud.widget.ts';
+import { searchFilterWidget } from './fixtures/widgets/search-filter/search-filter.widget.ts';
+import { contentTabWidget } from './fixtures/widgets/content-tab/content-tab.widget.ts';
+import { codeBlockWidget } from './fixtures/widgets/code-block/code-block.widget.ts';
 
 import { type Browser, chromium, type Page } from 'npm:playwright@1.50.1';
 
@@ -133,6 +141,14 @@ export async function startServer(options?: { watch?: boolean }): Promise<void> 
   widgets.add(fileWidget);
   widgets.add(remoteWidget);
   widgets.add(navWidget);
+  widgets.add(heroBannerWidget);
+  widgets.add(articleCardWidget);
+  widgets.add(statCardWidget);
+  widgets.add(recentArticleWidget);
+  widgets.add(tagCloudWidget);
+  widgets.add(searchFilterWidget);
+  widgets.add(contentTabWidget);
+  widgets.add(codeBlockWidget);
 
   // Create server-side emko-md renderer
   const wasmUrl = new URL(

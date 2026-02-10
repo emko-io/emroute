@@ -34,7 +34,6 @@ import type {
   RoutesManifest,
 } from '../src/type/route.type.ts';
 import type { FileSystem } from './fs.type.ts';
-import { FileSystemError } from './fs.type.ts';
 
 /** Walk directory recursively and collect files */
 async function* walkDirectory(fs: FileSystem, dir: string): AsyncGenerator<string> {

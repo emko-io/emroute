@@ -29,12 +29,12 @@ interface GreetingData {
 class GreetingWidget extends WidgetComponent<{ name?: string }, GreetingData> {
   override readonly name = 'greeting';
 
-  override async getData({ params }: { params: { name?: string } }) {
+  override getData({ params }: { params: { name?: string } }) {
     const name = params.name ?? 'World';
-    return {
+    return Promise.resolve({
       message: `Hello, ${name}!`,
       timestamp: Date.now(),
-    };
+    });
   }
 
   override renderHTML({ data }: { data: GreetingData | null; params: { name?: string } }) {

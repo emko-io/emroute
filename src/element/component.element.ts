@@ -9,9 +9,10 @@
  */
 
 import type { Component } from '../component/abstract.component.ts';
-import { HTMLElementBase } from '../util/html.util.ts';
+import { DATA_SSR_ATTR, HTMLElementBase } from '../util/html.util.ts';
 
-type ComponentState = 'idle' | 'loading' | 'ready' | 'error';
+const COMPONENT_STATES = ['idle', 'loading', 'ready', 'error'] as const;
+type ComponentState = (typeof COMPONENT_STATES)[number];
 
 /**
  * Custom element that renders a Component in the browser.
@@ -75,7 +76,7 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
     // Parse params from element attributes
     const params: Record<string, unknown> = {};
     for (const attr of this.attributes) {
-      if (attr.name === 'data-ssr') continue;
+      if (attr.name === DATA_SSR_ATTR) continue;
       const key = attr.name.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
       try {
         params[key] = JSON.parse(attr.value);
@@ -95,12 +96,12 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
     }
 
     // Hydrate from SSR: DOM is already correct, just restore state
-    const ssrAttr = this.getAttribute('data-ssr');
+    const ssrAttr = this.getAttribute(DATA_SSR_ATTR);
     if (ssrAttr) {
       try {
         this.data = JSON.parse(ssrAttr);
         this.state = 'ready';
-        this.removeAttribute('data-ssr');
+        this.removeAttribute(DATA_SSR_ATTR);
         this.signalReady();
         return;
       } catch {

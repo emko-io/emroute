@@ -47,7 +47,7 @@ Deno.test(
 
       // The SSR-rendered timestamp should still be in the DOM — the SPA
       // should NOT have called handleNavigation() which would replace innerHTML.
-      const ssrTimestamp = await page.evaluate(async () => {
+      const _ssrTimestamp = await page.evaluate(async () => {
         // Fetch the SSR response to get the server-rendered timestamp
         const res = await fetch('/html/hydration');
         const html = await res.text();

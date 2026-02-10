@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0-beta.7] - 2026-02-10
+
+### Fixed
+
+- Query string parameters now preserved through all three renderers — added
+  `searchParams` to `MatchedRoute` and `ComponentContext`, threaded through SPA,
+  SSR HTML, and SSR MD `renderRouteContent` paths
+- `buildComponentContext` fetches companion files (html, md, css) in parallel
+  via `Promise.all` instead of sequentially
+- `loadWidgetFiles` fetches widget files in parallel via `Promise.all`
+- `MarkdownElement` error display uses `c-error` CSS class instead of inline
+  styles, consistent with `abstract.component.ts` error rendering
+
+### Changed
+
+- Split `html.util.ts` into three focused modules: core HTML utilities remain in
+  `html.util.ts`, fenced block processing moves to `fenced-block.util.ts`, and
+  SSR widget tag resolution moves to `widget-resolve.util.ts`
+- Centralized SSR prefix stripping into `stripSsrPrefix()` utility — replaces 7
+  duplicated inline implementations across renderers, elements, and dev server
+- Extracted magic strings and numbers to named constants: `DATA_SSR_ATTR`,
+  `CSS_LOADING`, `CSS_MARKDOWN`, `CSS_ERROR`, `MARKDOWN_RENDER_TIMEOUT`,
+  `BUNDLE_WARMUP_DELAY`, `WATCH_DEBOUNCE_DELAY`, `DATA_ROUTER_SLOT_ATTR`,
+  `DEFAULT_HTML_SEPARATOR`, `DEFAULT_MD_SEPARATOR`
+- `resolveWidgetTags` uses `Component` and `ComponentContext` types directly,
+  eliminating ad-hoc `WidgetLike` and `WidgetRouteContext` interfaces
+- Deleted dead `src/route/router.ts` backward-compatibility shim
+- `DATA_SSR_ATTR`, `CSS_ERROR`, `stripSsrPrefix` exported from public API
+- Removed obsolete `<title>` element extraction test from SPA browser suite
+- Test fixture app expanded with article, dashboard, and guide routes plus 8 new
+  widget fixtures; 536 unit tests, 60 browser test steps
+
 ## [1.0.0-beta.6] - 2026-02-10
 
 ### Fixed

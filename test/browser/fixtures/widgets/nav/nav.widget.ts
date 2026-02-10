@@ -32,7 +32,10 @@ class NavWidget extends WidgetComponent<Record<string, unknown>, NavData> {
     const links: NavLink[] = [
       { label: 'Home', href: '/', active: false },
       { label: 'About', href: '/about', active: false },
+      { label: 'Articles', href: '/articles', active: false },
       { label: 'Projects', href: '/projects', active: false },
+      { label: 'Dashboard', href: '/dashboard', active: false },
+      { label: 'Guide', href: '/guide', active: false },
       { label: 'Blog', href: '/blog', active: false },
       { label: 'Profile', href: '/profile', active: false },
       { label: 'Docs', href: '/docs', active: false },

@@ -64,6 +64,7 @@ export {
   RouteCore,
   SSR_HTML_PREFIX,
   SSR_MD_PREFIX,
+  stripSsrPrefix,
 } from './route/route.core.ts';
 
 // Component/widget rendering
@@ -77,4 +78,4 @@ export {
 export { parseWidgetBlocks, replaceWidgetBlocks } from './widget/widget.parser.ts';
 
 // Utils
-export { escapeHtml, STATUS_MESSAGES } from './util/html.util.ts';
+export { DATA_SSR_ATTR, escapeHtml, STATUS_MESSAGES } from './util/html.util.ts';

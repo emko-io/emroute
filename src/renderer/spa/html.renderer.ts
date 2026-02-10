@@ -26,8 +26,11 @@ import {
   RouteCore,
   SSR_HTML_PREFIX,
   SSR_MD_PREFIX,
+  stripSsrPrefix,
 } from '../../route/route.core.ts';
 import { escapeHtml, STATUS_MESSAGES } from '../../util/html.util.ts';
+
+const MARKDOWN_RENDER_TIMEOUT = 5000;
 
 /**
  * SPA Router for browser-based HTML rendering.
@@ -100,10 +103,7 @@ export class SpaHtmlRouter {
     // Check for SSR content — skip initial render if route matches
     const ssrRoute = this.slot.getAttribute('data-ssr-route');
     if (ssrRoute) {
-      let currentPath = location.pathname;
-      if (currentPath.startsWith(SSR_HTML_PREFIX)) {
-        currentPath = '/' + currentPath.slice(SSR_HTML_PREFIX.length);
-      }
+      const currentPath = stripSsrPrefix(location.pathname);
 
       if (currentPath === ssrRoute || currentPath === ssrRoute + '/') {
         // Adopt SSR content: set internal state without re-rendering
@@ -183,12 +183,10 @@ export class SpaHtmlRouter {
       return;
     }
 
-    // Strip /html/ prefix if present (explicit HTML mode)
-    if (pathname.startsWith(SSR_HTML_PREFIX)) {
-      pathname = '/' + pathname.slice(SSR_HTML_PREFIX.length);
-    }
+    // Strip /html/ or /md/ prefix if present
+    pathname = stripSsrPrefix(pathname);
 
-    const matchUrl = new URL(pathname, location.origin);
+    const matchUrl = new URL(pathname + urlObj.search, location.origin);
 
     try {
       const matched = this.core.match(matchUrl);
@@ -274,7 +272,11 @@ export class SpaHtmlRouter {
           continue;
         }
 
-        const { html, title } = await this.renderRouteContent(route, matched.params);
+        const { html, title } = await this.renderRouteContent(
+          route,
+          matched.params,
+          matched.searchParams,
+        );
         currentSlot.innerHTML = html;
 
         if (title) {
@@ -317,6 +319,7 @@ export class SpaHtmlRouter {
   private async renderRouteContent(
     route: RouteConfig,
     params: RouteParams,
+    searchParams?: URLSearchParams,
   ): Promise<{ html: string; title?: string }> {
     if (route.modulePath === DEFAULT_ROOT_ROUTE.modulePath) {
       return { html: '<router-slot></router-slot>' };
@@ -328,7 +331,12 @@ export class SpaHtmlRouter {
       ? (await this.core.loadModule<{ default: PageComponent }>(files.ts)).default
       : defaultPageComponent;
 
-    const context = await this.core.buildComponentContext(route.pattern, route, params);
+    const context = await this.core.buildComponentContext(
+      route.pattern,
+      route,
+      params,
+      searchParams,
+    );
     const data = await component.getData({ params, context });
     const html = component.renderHTML({ data, params, context });
     const title = component.getTitle({ data, params, context });
@@ -348,7 +356,7 @@ export class SpaHtmlRouter {
       const timeout = setTimeout(() => {
         observer.disconnect();
         resolve();
-      }, 5000);
+      }, MARKDOWN_RENDER_TIMEOUT);
 
       const observer = new MutationObserver(() => {
         if (element.children.length > 0) {
@@ -368,7 +376,7 @@ export class SpaHtmlRouter {
   private async renderStatusPage(
     status: number,
     pathname: string,
-    response?: Response,
+    _response?: Response,
   ): Promise<void> {
     if (!this.slot) return;
 

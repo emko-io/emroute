@@ -24,13 +24,15 @@
 
 import { HTMLElementBase } from '../util/html.util.ts';
 
+const DATA_ROUTER_SLOT_ATTR = 'data-router-slot';
+
 /**
  * Router slot web component.
  * Serves as the mounting point for page content.
  */
 export class RouterSlot extends HTMLElementBase {
   connectedCallback(): void {
-    this.setAttribute('data-router-slot', 'true');
+    this.setAttribute(DATA_ROUTER_SLOT_ATTR, 'true');
 
     if (!this.style.display) {
       this.style.display = 'contents';

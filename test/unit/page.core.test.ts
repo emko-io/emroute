@@ -132,8 +132,8 @@ Deno.test('ts override — renderHTML uses inline content, ignores files', async
   class InlinePage extends PageComponent<{ id: string }, { name: string }> {
     override readonly name = 'project';
 
-    override async getData({ params }: { params: { id: string } }) {
-      return { name: `Project ${params.id}` };
+    override getData({ params }: { params: { id: string } }) {
+      return Promise.resolve({ name: `Project ${params.id}` });
     }
 
     override renderHTML({ data, params }: {
@@ -221,10 +221,10 @@ Deno.test('ts template — renderHTML replaces {{slots}} from getData', async ()
   class ProfilePage extends PageComponent<Record<string, string>, ProfileData> {
     override readonly name = 'profile';
 
-    override async getData(
+    override getData(
       _args: { params: Record<string, string>; context?: ComponentContext },
     ) {
-      return { name: 'Alice', role: 'Engineer', bio: 'Builds things.' };
+      return Promise.resolve({ name: 'Alice', role: 'Engineer', bio: 'Builds things.' });
     }
 
     override renderHTML(

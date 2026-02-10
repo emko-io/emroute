@@ -1,5 +1,6 @@
 import { assertEquals } from '@std/assert';
-import { escapeHtml, parseAttrsToParams, STATUS_MESSAGES } from '../../src/util/html.util.ts';
+import { escapeHtml, STATUS_MESSAGES } from '../../src/util/html.util.ts';
+import { parseAttrsToParams } from '../../src/util/widget-resolve.util.ts';
 
 Deno.test('escapeHtml - basic ampersand', () => {
   const result = escapeHtml('Hello & goodbye');

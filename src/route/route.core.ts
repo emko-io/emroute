@@ -26,6 +26,17 @@ export const SSR_HTML_PREFIX = '/html/';
 /** SSR prefix for Markdown rendering (e.g. /md/about → /about) */
 export const SSR_MD_PREFIX = '/md/';
 
+/** Strip /html/ or /md/ prefix from a pathname, returning the bare route path. */
+export function stripSsrPrefix(pathname: string): string {
+  if (pathname.startsWith(SSR_HTML_PREFIX)) {
+    return '/' + pathname.slice(SSR_HTML_PREFIX.length);
+  }
+  if (pathname.startsWith(SSR_MD_PREFIX)) {
+    return '/' + pathname.slice(SSR_MD_PREFIX.length);
+  }
+  return pathname;
+}
+
 /** Default root route - renders a slot for child routes */
 export const DEFAULT_ROOT_ROUTE: RouteConfig = {
   pattern: '/',
@@ -103,7 +114,7 @@ export class RouteCore {
 
     const urlObj = toUrl(url);
     if (urlObj.pathname === '/') {
-      return { route: DEFAULT_ROOT_ROUTE, params: {} };
+      return { route: DEFAULT_ROOT_ROUTE, params: {}, searchParams: urlObj.searchParams };
     }
 
     return undefined;
@@ -177,8 +188,6 @@ export class RouteCore {
   async loadWidgetFiles(
     widgetFiles: { html?: string; md?: string; css?: string },
   ): Promise<{ html?: string; md?: string; css?: string }> {
-    const result: { html?: string; md?: string; css?: string } = {};
-
     const load = async (path: string): Promise<string | undefined> => {
       const cached = this.widgetFileCache.get(path);
       if (cached !== undefined) return cached;
@@ -206,19 +215,13 @@ export class RouteCore {
       }
     };
 
-    if (widgetFiles.html) {
-      result.html = await load(widgetFiles.html);
-    }
+    const [html, md, css] = await Promise.all([
+      widgetFiles.html ? load(widgetFiles.html) : undefined,
+      widgetFiles.md ? load(widgetFiles.md) : undefined,
+      widgetFiles.css ? load(widgetFiles.css) : undefined,
+    ]);
 
-    if (widgetFiles.md) {
-      result.md = await load(widgetFiles.md);
-    }
-
-    if (widgetFiles.css) {
-      result.css = await load(widgetFiles.css);
-    }
-
-    return result;
+    return { html, md, css };
   }
 
   /**
@@ -229,36 +232,24 @@ export class RouteCore {
     pathname: string,
     route: RouteConfig,
     params: RouteParams,
+    searchParams?: URLSearchParams,
   ): Promise<ComponentContext> {
-    const files: { html?: string; md?: string; css?: string } = {};
-
-    if (route.files?.html) {
-      const htmlPath = this.toAbsolutePath(route.files.html);
-      const response = await fetch(this.baseUrl + htmlPath);
+    const fetchFile = async (filePath: string): Promise<string> => {
+      const url = this.baseUrl + this.toAbsolutePath(filePath);
+      const response = await fetch(url);
       if (!response.ok) {
-        throw new Error(`Failed to fetch ${route.files.html}: ${response.status}`);
+        throw new Error(`Failed to fetch ${filePath}: ${response.status}`);
       }
-      files.html = await response.text();
-    }
+      return response.text();
+    };
 
-    if (route.files?.md) {
-      const mdPath = this.toAbsolutePath(route.files.md);
-      const response = await fetch(this.baseUrl + mdPath);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch ${route.files.md}: ${response.status}`);
-      }
-      files.md = await response.text();
-    }
+    const rf = route.files;
+    const [html, md, css] = await Promise.all([
+      rf?.html ? fetchFile(rf.html) : undefined,
+      rf?.md ? fetchFile(rf.md) : undefined,
+      rf?.css ? fetchFile(rf.css) : undefined,
+    ]);
 
-    if (route.files?.css) {
-      const cssPath = this.toAbsolutePath(route.files.css);
-      const response = await fetch(this.baseUrl + cssPath);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch ${route.files.css}: ${response.status}`);
-      }
-      files.css = await response.text();
-    }
-
-    return { pathname, params, files };
+    return { pathname, params, searchParams, files: { html, md, css } };
   }
 }

@@ -34,16 +34,16 @@ class InfoCardWidget extends WidgetComponent<
 > {
   override readonly name = 'info-card';
 
-  override async getData({
+  override getData({
     params,
   }: {
     params: { title: string; description?: string; badge?: string };
   }) {
-    return {
+    return Promise.resolve({
       title: params.title,
       description: params.description ?? 'No description provided.',
       badge: params.badge ?? 'info',
-    };
+    });
   }
 
   override renderHTML({

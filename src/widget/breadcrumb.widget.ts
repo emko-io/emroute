@@ -17,7 +17,10 @@
 import { WidgetComponent } from '../component/widget.component.ts';
 import { escapeHtml } from '../util/html.util.ts';
 import type { ComponentContext } from '../component/abstract.component.ts';
-import { SSR_HTML_PREFIX, SSR_MD_PREFIX } from '../route/route.core.ts';
+import { SSR_HTML_PREFIX, stripSsrPrefix } from '../route/route.core.ts';
+
+const DEFAULT_HTML_SEPARATOR = ' \u203A ';
+const DEFAULT_MD_SEPARATOR = ' > ';
 
 interface BreadcrumbParams {
   separator?: string;
@@ -61,13 +64,7 @@ class BreadcrumbWidget extends WidgetComponent<BreadcrumbParams, BreadcrumbData>
   private resolvePathname(): string {
     if (typeof globalThis.location === 'undefined') return '/';
 
-    let pathname = location.pathname;
-    if (pathname.startsWith(SSR_HTML_PREFIX)) {
-      pathname = '/' + pathname.slice(SSR_HTML_PREFIX.length);
-    } else if (pathname.startsWith(SSR_MD_PREFIX)) {
-      pathname = '/' + pathname.slice(SSR_MD_PREFIX.length);
-    }
-    return pathname;
+    return stripSsrPrefix(location.pathname);
   }
 
   override renderHTML(
@@ -75,7 +72,7 @@ class BreadcrumbWidget extends WidgetComponent<BreadcrumbParams, BreadcrumbData>
   ): string {
     if (!args.data || args.data.segments.length === 0) return '';
 
-    const sep = args.params.separator ?? ' \u203A ';
+    const sep = args.params.separator ?? DEFAULT_HTML_SEPARATOR;
     const segments = args.data.segments;
 
     const items = segments.map((seg, i) => {
@@ -94,7 +91,7 @@ class BreadcrumbWidget extends WidgetComponent<BreadcrumbParams, BreadcrumbData>
   ): string {
     if (!args.data || args.data.segments.length === 0) return '';
 
-    const sep = args.params.separator ?? ' > ';
+    const sep = args.params.separator ?? DEFAULT_MD_SEPARATOR;
     return args.data.segments
       .map((seg, i, arr) =>
         i === arr.length - 1 ? `**${seg.label}**` : `[${seg.label}](${seg.href})`

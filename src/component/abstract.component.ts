@@ -14,6 +14,10 @@
 
 import { escapeHtml } from '../util/html.util.ts';
 
+const CSS_LOADING = 'c-loading';
+const CSS_MARKDOWN = 'c-markdown';
+export const CSS_ERROR = 'c-error';
+
 /**
  * Context passed to components during rendering.
  * Contains route pathname, URL params, pre-loaded file content, and abort signal.
@@ -21,6 +25,7 @@ import { escapeHtml } from '../util/html.util.ts';
 export interface ComponentContext {
   pathname: string;
   params: Record<string, string>;
+  searchParams?: URLSearchParams;
   files?: { html?: string; md?: string; css?: string };
   signal?: AbortSignal;
 }
@@ -73,7 +78,7 @@ export abstract class Component<TParams = unknown, TData = unknown> {
    */
   renderHTML(args: { data: TData | null; params: TParams; context?: ComponentContext }): string {
     if (args.data === null) {
-      return `<div class="c-loading" data-component="${this.name}">Loading...</div>`;
+      return `<div class="${CSS_LOADING}" data-component="${this.name}">Loading...</div>`;
     }
     // Default: wrap markdown in a container
     // The actual markdown→HTML conversion happens at render time
@@ -82,7 +87,7 @@ export abstract class Component<TParams = unknown, TData = unknown> {
       params: args.params,
       context: args.context,
     });
-    return `<div class="c-markdown" data-component="${this.name}" data-markdown>${
+    return `<div class="${CSS_MARKDOWN}" data-component="${this.name}" data-markdown>${
       escapeHtml(markdown)
     }</div>`;
   }
@@ -108,7 +113,9 @@ export abstract class Component<TParams = unknown, TData = unknown> {
    */
   renderError(args: { error: unknown; params: TParams }): string {
     const msg = args.error instanceof Error ? args.error.message : String(args.error);
-    return `<div class="c-error" data-component="${this.name}">Error: ${escapeHtml(msg)}</div>`;
+    return `<div class="${CSS_ERROR}" data-component="${this.name}">Error: ${
+      escapeHtml(msg)
+    }</div>`;
   }
 
   /**

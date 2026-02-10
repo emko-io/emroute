@@ -1,0 +1,19 @@
+<article style="max-width: 800px; margin: 0 auto; padding: 0 1.5rem">
+  <header style="margin-bottom: 2rem">
+    <h1 style="margin-bottom: 0.5rem">{{title}}</h1>
+    <div style="color: #64748b; font-size: 0.9rem; margin-bottom: 0.75rem">
+      By <strong>{{author}}</strong> &middot; {{date}} &middot; {{readTime}} min read
+    </div>
+    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap">{{tags}}</div>
+  </header>
+  <div class="article-body">{{content}}</div>
+  <nav
+    style="margin-top: 2rem; padding: 1rem 0; border-top: 1px solid #e2e8f0; display: flex; gap: 1.5rem"
+  >
+    <a href="/articles/{{slug}}/comment" style="color: #3b82f6; font-weight: 500">Comments</a>
+    <a href="/articles/{{slug}}/related" style="color: #3b82f6; font-weight: 500"
+    >Related Articles</a>
+    <a href="/articles" style="color: #64748b; margin-left: auto">Back to Articles</a>
+  </nav>
+  <router-slot></router-slot>
+</article>

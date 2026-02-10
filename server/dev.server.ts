@@ -9,7 +9,7 @@
  * - Watches for route file changes and regenerates manifest
  */
 
-import { SSR_HTML_PREFIX, SSR_MD_PREFIX } from '../src/route/route.core.ts';
+import { SSR_HTML_PREFIX, SSR_MD_PREFIX, stripSsrPrefix } from '../src/route/route.core.ts';
 import { SsrHtmlRouter } from '../src/renderer/ssr/html.renderer.ts';
 import { SsrMdRouter } from '../src/renderer/ssr/md.renderer.ts';
 import type { RoutesManifest } from '../src/type/route.type.ts';
@@ -159,6 +159,8 @@ function isFileRequest(pathname: string): boolean {
 }
 
 const BUNDLE_DIR = '.build';
+const BUNDLE_WARMUP_DELAY = 2000;
+const WATCH_DEBOUNCE_DELAY = 100;
 
 export interface DevServer {
   handle: ServerHandle;
@@ -254,7 +256,7 @@ export async function createDevServer(
   }).spawn();
 
   // Give the initial bundle a moment to complete
-  await new Promise((resolve) => setTimeout(resolve, 2000));
+  await new Promise((resolve) => setTimeout(resolve, BUNDLE_WARMUP_DELAY));
 
   /** Resolve file path from app root */
   function resolveFilePath(pathname: string): string {
@@ -290,9 +292,7 @@ export async function createDevServer(
         const result = await ssrHtmlRouter.render(pathname);
         const ssrTitle = result.title ?? title;
         // Strip /html/ prefix for the route path SPA will compare against
-        const ssrRoute = pathname.startsWith(SSR_HTML_PREFIX)
-          ? '/' + pathname.slice(SSR_HTML_PREFIX.length)
-          : pathname;
+        const ssrRoute = stripSsrPrefix(pathname);
         const shell = await buildSsrHtmlShell(
           runtime,
           indexPath,
@@ -428,7 +428,7 @@ export async function createDevServer(
         } catch (e) {
           console.error('Failed to regenerate routes:', e);
         }
-      }, 100);
+      }, WATCH_DEBOUNCE_DELAY);
     });
 
     console.log(`  Watching ${routesDir}/ for changes`);

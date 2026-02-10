@@ -8,9 +8,9 @@ class HydrationPage extends PageComponent<
 > {
   override readonly name = 'hydration';
 
-  override async getData() {
+  override getData() {
     getDataCallCount++;
-    return { callCount: getDataCallCount, timestamp: Date.now() };
+    return Promise.resolve({ callCount: getDataCallCount, timestamp: Date.now() });
   }
 
   override getTitle() {

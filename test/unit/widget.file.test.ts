@@ -13,7 +13,7 @@ import { assertEquals, assertStringIncludes } from '@std/assert';
 import { RouteCore } from '../../src/route/route.core.ts';
 import { WidgetComponent } from '../../src/component/widget.component.ts';
 import type { ComponentContext } from '../../src/component/abstract.component.ts';
-import { resolveWidgetTags } from '../../src/util/html.util.ts';
+import { resolveWidgetTags } from '../../src/util/widget-resolve.util.ts';
 import { SsrHtmlRouter } from '../../src/renderer/ssr/html.renderer.ts';
 import { SsrMdRouter } from '../../src/renderer/ssr/md.renderer.ts';
 import { WidgetRegistry } from '../../src/widget/widget.registry.ts';
@@ -155,15 +155,6 @@ class CustomRenderWidget extends WidgetComponent<Record<string, unknown>, { name
     },
   ): string {
     return `Hello, ${args.data?.name}!`;
-  }
-}
-
-class AbsoluteUrlWidget extends WidgetComponent<Record<string, unknown>, null> {
-  override readonly name = 'cdn-widget';
-  override readonly files = { html: 'https://cdn.example.com/widgets/info.html' };
-
-  override getData(): Promise<null> {
-    return Promise.resolve(null);
   }
 }
 
@@ -479,10 +470,10 @@ Deno.test('resolveWidgetTags - loads files for file-backed widget', async () => 
   const widget = new FileBackedWidget();
   const registry = { get: (name: string) => name === 'file-backed' ? widget : undefined };
 
-  const loadFiles = async (files: { html?: string; md?: string }) => {
+  const loadFiles = (files: { html?: string; md?: string }) => {
     const result: { html?: string; md?: string } = {};
     if (files.html) result.html = '<div>Loaded HTML</div>';
-    return result;
+    return Promise.resolve(result);
   };
 
   const html = '<widget-file-backed></widget-file-backed>';
@@ -497,9 +488,9 @@ Deno.test('resolveWidgetTags - does not call loadFiles for widget without files'
   const registry = { get: (name: string) => name === 'no-files' ? widget : undefined };
 
   let loadFilesCalled = false;
-  const loadFiles = async () => {
+  const loadFiles = () => {
     loadFilesCalled = true;
-    return {};
+    return Promise.resolve({});
   };
 
   const html = '<widget-no-files></widget-no-files>';
@@ -513,9 +504,10 @@ Deno.test('resolveWidgetTags - passes files in context to renderHTML', async () 
   const widget = new CustomRenderWidget();
   const registry = { get: (name: string) => name === 'custom-render' ? widget : undefined };
 
-  const loadFiles = async () => ({
-    html: '<h2>Template: {{name}}</h2>',
-  });
+  const loadFiles = () =>
+    Promise.resolve({
+      html: '<h2>Template: {{name}}</h2>',
+    });
 
   const html = '<widget-custom-render></widget-custom-render>';
   const result = await resolveWidgetTags(html, registry, '/test', {}, loadFiles);
@@ -537,9 +529,10 @@ Deno.test('resolveWidgetTags - self-closing tag is not resolved', async () => {
   const widget = new FileBackedWidget();
   const registry = { get: (name: string) => name === 'file-backed' ? widget : undefined };
 
-  const loadFiles = async () => ({
-    html: '<p>Self-closing loaded</p>',
-  });
+  const loadFiles = () =>
+    Promise.resolve({
+      html: '<p>Self-closing loaded</p>',
+    });
 
   const html = '<widget-file-backed />';
   const result = await resolveWidgetTags(html, registry, '/test', {}, loadFiles);
@@ -803,11 +796,11 @@ Deno.test('resolveWidgetTags - loads css for css-backed widget', async () => {
   const widget = new CssWidget();
   const registry = { get: (name: string) => name === 'css-widget' ? widget : undefined };
 
-  const loadFiles = async (files: { html?: string; md?: string; css?: string }) => {
+  const loadFiles = (files: { html?: string; md?: string; css?: string }) => {
     const result: { html?: string; md?: string; css?: string } = {};
     if (files.html) result.html = '<div>CSS Widget HTML</div>';
     if (files.css) result.css = '.css-widget { color: blue; }';
-    return result;
+    return Promise.resolve(result);
   };
 
   const html = '<widget-css-widget></widget-css-widget>';

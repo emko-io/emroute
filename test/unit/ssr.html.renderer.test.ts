@@ -52,7 +52,7 @@ function createTestRoute(overrides?: Partial<RouteConfig>): RouteConfig {
 function mockFetch(contentMap: Record<string, string>) {
   const originalFetch = globalThis.fetch as typeof fetch;
 
-  globalThis.fetch = (async (input: string | URL | Request): Promise<Response> => {
+  globalThis.fetch = ((input: string | URL | Request): Promise<Response> => {
     let url: string;
     if (typeof input === 'string') {
       url = input;
@@ -65,12 +65,12 @@ function mockFetch(contentMap: Record<string, string>) {
     // Check if content is in our mock map
     for (const [key, content] of Object.entries(contentMap)) {
       if (url.includes(key)) {
-        return new Response(content, { status: 200 });
+        return Promise.resolve(new Response(content, { status: 200 }));
       }
     }
 
     // Return 404 for unmocked URLs
-    return new Response('Not Found', { status: 404 });
+    return Promise.resolve(new Response('Not Found', { status: 404 }));
   }) as typeof fetch;
 
   return () => {
@@ -300,7 +300,7 @@ Deno.test('SsrHtmlRouter - constructor supports redirect route type', () => {
   assertEquals(router instanceof SsrHtmlRouter, true);
 });
 
-Deno.test('SsrHtmlRouter - render() redirect HTML contains meta refresh pattern', async () => {
+Deno.test('SsrHtmlRouter - render() redirect HTML contains meta refresh pattern', () => {
   // Create a mock redirect by testing what the render function should produce
   const testHtml = '<meta http-equiv="refresh" content="0;url=/new-path">';
   assertEquals(testHtml.includes('http-equiv="refresh"'), true);

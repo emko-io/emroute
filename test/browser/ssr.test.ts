@@ -36,7 +36,7 @@ Deno.test(
         !html.includes('<mark-down>'),
         'should expand <mark-down> when renderer is configured',
       );
-      assert(html.includes('Home'), 'should contain rendered heading');
+      assert(html.includes('emroute'), 'should contain rendered heading');
     });
 
     // --- .page.html ---
@@ -268,7 +268,7 @@ Deno.test(
         'text/markdown; charset=utf-8; variant=CommonMark',
       );
       const md = await res.text();
-      assert(md.includes('# Home'), 'should contain markdown heading');
+      assert(md.includes('# emroute'), 'should contain markdown heading');
       assert(md.includes('[About](/about)'), 'should contain markdown link');
     });
 

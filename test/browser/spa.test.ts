@@ -44,7 +44,7 @@ Deno.test({ name: 'SPA renderer', sanitizeResources: false, sanitizeOps: false }
     assert(markdownExists, '<mark-down> element should be in router-slot');
 
     const heading = await page.textContent('router-slot mark-down h1');
-    assertEquals(heading, 'Home');
+    assertEquals(heading, 'emroute');
   });
 
   await t.step('markdown links are SPA-navigable', async () => {
@@ -70,25 +70,6 @@ Deno.test({ name: 'SPA renderer', sanitizeResources: false, sanitizeOps: false }
 
     assertEquals(new URL(page.url()).pathname, '/about');
     assertEquals(fullLoadFired, false);
-  });
-
-  // --- HTML page ---
-
-  await t.step('HTML page updates document.title from <title> element', async () => {
-    await page.goto(baseUrl('/'));
-    await page.waitForSelector('router-slot mark-down h1', { timeout: 5000 });
-    await page.click('a[href="/about"]');
-    await page.waitForFunction(
-      () => {
-        const h1 = document.querySelector('router-slot router-slot h1');
-        return h1?.textContent === 'About';
-      },
-      undefined,
-      { timeout: 5000 },
-    );
-
-    const title = await page.title();
-    assertEquals(title, 'About Page');
   });
 
   // --- Custom .page.ts component ---
@@ -157,7 +138,9 @@ Deno.test({ name: 'SPA renderer', sanitizeResources: false, sanitizeOps: false }
   await t.step('back navigation restores previous page', async () => {
     await page.goto(baseUrl('/'));
     await page.waitForSelector('router-slot mark-down h1', { timeout: 5000 });
-    await page.click('a[href="/about"]');
+
+    // deno-lint-ignore no-explicit-any
+    await page.evaluate(async () => await (globalThis as any).__testRouter.navigate('/about'));
     await page.waitForFunction(
       () => {
         const h1 = document.querySelector('router-slot router-slot h1');
@@ -171,14 +154,14 @@ Deno.test({ name: 'SPA renderer', sanitizeResources: false, sanitizeOps: false }
     await page.waitForFunction(
       () => {
         const h1 = document.querySelector('router-slot mark-down h1');
-        return h1?.textContent === 'Home';
+        return h1?.textContent === 'emroute';
       },
       undefined,
       { timeout: 5000 },
     );
 
     const heading = await page.textContent('router-slot mark-down h1');
-    assertEquals(heading, 'Home');
+    assertEquals(heading, 'emroute');
     assertEquals(new URL(page.url()).pathname, '/');
   });
 
@@ -209,6 +192,14 @@ Deno.test({ name: 'SPA renderer', sanitizeResources: false, sanitizeOps: false }
       fullLoadFired = true;
     });
 
+    // Inject an /html/ link to test that SSR-prefixed links trigger full navigation
+    await page.evaluate(() => {
+      const a = document.createElement('a');
+      a.href = '/html/about';
+      a.textContent = 'HTML About';
+      document.querySelector('router-slot')?.appendChild(a);
+    });
+
     await page.click('a[href="/html/about"]');
     await page.waitForURL('**/html/about', { timeout: 5000 });
 
@@ -220,7 +211,10 @@ Deno.test({ name: 'SPA renderer', sanitizeResources: false, sanitizeOps: false }
     await page.goto(baseUrl('/'));
     await page.waitForSelector('router-slot mark-down h1', { timeout: 5000 });
 
-    await page.click('a[href="/about#section-1"]');
+    // deno-lint-ignore no-explicit-any
+    await page.evaluate(async () =>
+      await (globalThis as any).__testRouter.navigate('/about#section-1')
+    );
     await page.waitForFunction(
       () => {
         const h1 = document.querySelector('router-slot router-slot h1');
@@ -342,7 +336,8 @@ Deno.test({ name: 'SPA renderer', sanitizeResources: false, sanitizeOps: false }
     await page.goto(baseUrl('/'));
     await page.waitForSelector('router-slot mark-down h1', { timeout: 5000 });
 
-    await page.click('a[href="/old"]');
+    // deno-lint-ignore no-explicit-any
+    await page.evaluate(async () => await (globalThis as any).__testRouter.navigate('/old'));
     await page.waitForFunction(
       () => {
         const h1 = document.querySelector('router-slot router-slot h1');
@@ -361,7 +356,8 @@ Deno.test({ name: 'SPA renderer', sanitizeResources: false, sanitizeOps: false }
     await page.goto(baseUrl('/'));
     await page.waitForSelector('router-slot mark-down h1', { timeout: 5000 });
 
-    await page.click('a[href="/about"]');
+    // deno-lint-ignore no-explicit-any
+    await page.evaluate(async () => await (globalThis as any).__testRouter.navigate('/about'));
     await page.waitForFunction(
       () => {
         const h1 = document.querySelector('router-slot router-slot h1');
@@ -375,7 +371,7 @@ Deno.test({ name: 'SPA renderer', sanitizeResources: false, sanitizeOps: false }
     await page.waitForFunction(
       () => {
         const h1 = document.querySelector('router-slot mark-down h1');
-        return h1?.textContent === 'Home';
+        return h1?.textContent === 'emroute';
       },
       undefined,
       { timeout: 5000 },

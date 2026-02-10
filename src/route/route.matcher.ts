@@ -71,12 +71,15 @@ export class RouteMatcher {
   match(url: URL | string): MatchedRoute | undefined {
     const urlObj = toUrl(url);
 
+    const searchParams = urlObj.searchParams;
+
     for (const { route, pattern } of this.compiledRoutes) {
       const result = pattern.exec(urlObj);
       if (result) {
         return {
           route,
           params: this.extractParams(result),
+          searchParams,
           patternResult: result,
         };
       }

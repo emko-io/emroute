@@ -298,7 +298,7 @@ mechanism moves elsewhere.
 
 ---
 
-## 11. `parseAttrsToParams` only handles double-quoted attributes
+## 11. ~~`parseAttrsToParams` only handles double-quoted attributes~~ — RESOLVED
 
 **File:** `src/util/html.util.ts:158`
 
@@ -316,9 +316,14 @@ inconsistent with how browsers parse HTML.
 **Breaking:** Attributes previously ignored will now be parsed and passed as
 params, potentially changing widget behavior.
 
+**Resolution:** Extended the regex to
+`/([a-z][a-z0-9-]*)(?:="([^"]*)"|='([^']*)'|=([^\s>]+))?/gi` — handles
+double-quoted, single-quoted, unquoted, and boolean attributes. Function
+exported for direct testing. Fixed in v1.0.0-beta.6.
+
 ---
 
-## 12. `resolveWidgetTags` self-closing syntax diverges from HTML spec
+## 12. ~~`resolveWidgetTags` self-closing syntax diverges from HTML spec~~ — RESOLVED
 
 **File:** `src/util/html.util.ts:101`
 
@@ -341,6 +346,10 @@ tags), or document it clearly and add matching behavior in the browser
 hydration path.
 
 **Breaking:** SSR output changes for self-closing widget tags.
+
+**Resolution:** Removed the self-closing alternative from the regex. Only
+paired tags (`<widget-foo></widget-foo>`) are now resolved, aligning SSR
+behavior with the HTML spec. Fixed in v1.0.0-beta.6.
 
 ---
 

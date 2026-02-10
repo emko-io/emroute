@@ -1,4 +1,4 @@
-# SSR Markdown renderer should use RFC 7763 Content-Type
+# ~~SSR Markdown renderer should use RFC 7763 Content-Type~~ — RESOLVED
 
 ## Current behavior
 
@@ -21,4 +21,8 @@ and the `variant` parameter communicates which markdown dialect is in use.
 
 ## Location
 
-`src/renderer/ssr/md.renderer.ts` — response content-type header.
+`server/dev.server.ts` — response content-type header.
+
+**Resolution:** Changed Content-Type to
+`text/markdown; charset=utf-8; variant=CommonMark` in `server/dev.server.ts`.
+Fixed in v1.0.0-beta.6.

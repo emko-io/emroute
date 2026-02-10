@@ -1,10 +1,6 @@
 # SPA router intercepts SSR links
 
-## Problem
-
-Two related issues with how SSR and SPA handle navigation links.
-
-### 1. SPA intercepts SSR links
+## 1. ~~SPA intercepts SSR links~~ — RESOLVED
 
 When an SSR HTML page (`/html/*`) is loaded, the SPA JavaScript bundle
 initializes and starts intercepting all internal link clicks — including
@@ -23,10 +19,12 @@ explicitly requests an SSR page load.
 
 **Location:** `src/renderer/spa/html.renderer.ts` — click handler.
 
-**Fix:** Add a guard to skip interception when the href starts with
-`/html/` or `/md/`.
+**Resolution:** Added a guard in the click handler that checks
+`link.pathname` against `SSR_HTML_PREFIX` and `SSR_MD_PREFIX`. Links to
+`/html/` or `/md/` paths now skip SPA interception and trigger full page
+navigation. Fixed in v1.0.0-beta.6.
 
-### 2. Widget links should be context-aware
+## 2. Widget links should be context-aware — OPEN (design)
 
 Widgets (nav, breadcrumbs, etc.) generate links, but the correct href
 depends on how the page was loaded:

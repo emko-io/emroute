@@ -31,20 +31,29 @@ explicit `files` (including absolute URLs) serve as overrides, and SPA
 SPA router (`src/renderer/spa/html.renderer.ts`):
 
 ```
-context = await this.core.buildComponentContext(route.pattern, route, params)
+context = await this.core.buildComponentContext(routeInfo, route)
 → fetches route.files.{html,md,css} via HTTP
+→ returns { ...routeInfo, files: { html, md, css } }
 → passes context to component.getData() and component.renderHTML()
 ```
 
 ## How Widgets Work Today
 
-SSR: `loadWidgetFiles()` in `route.core.ts` reads `widget.files` paths
-(supports both relative and absolute URLs), fetches content, caches it.
-`resolveWidgetTags()` in `widget-resolve.util.ts` builds a `ComponentContext`
-and passes it to `widget.getData()` and `widget.renderHTML()`.
+SSR: `resolveWidgetTags()` in `widget-resolve.util.ts` receives a `RouteInfo`
+and an optional `loadFiles` callback. For each widget tag, if `widget.files`
+is truthy **and** `loadFiles` is provided, it calls `loadFiles(widget.files)`
+to fetch content, then builds context via `{ ...routeInfo, files }` and passes
+it to `widget.getData()` and `widget.renderHTML()`.
+
+`RouteCore.loadWidgetFiles()` handles the actual fetching with caching,
+supporting both relative paths and absolute URLs.
 
 SPA: `ComponentElement` calls `renderHTML({ data, params })` — no context, no
 files. `widget.files` is completely ignored client-side.
+
+**Critical gap for auto-discovery**: `resolveWidgetTags` guards file loading
+with `if (widget.files && loadFiles)`. Widgets that don't declare `files` (the
+ones that would benefit most from auto-discovery) never trigger the callback.
 
 ## Changes
 
@@ -125,28 +134,83 @@ export const widgetFiles: Record<string, { html?: string; md?: string; css?: str
 This is a plain data module — no imports, no side effects. The SPA entry point
 imports it and passes file paths to `ComponentElement` at registration time.
 
-### 4. ComponentElement loads files and passes context
+### 4. Change `resolveWidgetTags` loadFiles callback signature
+
+**File**: `src/util/widget-resolve.util.ts`
+
+Current signature:
+
+```typescript
+loadFiles?: (
+  files: { html?: string; md?: string; css?: string },
+) => Promise<{ html?: string; md?: string; css?: string }>
+```
+
+Current guard: `if (widget.files && loadFiles)` — skips widgets with no
+declared `files`, blocking auto-discovery.
+
+New signature — callback receives widget name and declared files:
+
+```typescript
+loadFiles?: (
+  widgetName: string,
+  declaredFiles?: { html?: string; md?: string; css?: string },
+) => Promise<{ html?: string; md?: string; css?: string }>
+```
+
+New guard: `if (loadFiles)` — always called when a callback is provided.
+The callback is responsible for merging discovered + declared files and
+returning empty `{}` when there's nothing to load.
+
+Call site change:
+
+```typescript
+// Before:
+if (widget.files && loadFiles) {
+  files = await loadFiles(widget.files);
+}
+
+// After:
+if (loadFiles) {
+  files = await loadFiles(widgetName, widget.files);
+}
+```
+
+This is a breaking change to the `resolveWidgetTags` API. Both SSR renderers
+(`html.renderer.ts`, `md.renderer.ts`) must update their callbacks.
+
+### 5. ComponentElement loads files and passes context
 
 **File**: `src/element/component.element.ts`
 
-Reuse `RouteCore.loadWidgetFiles()` logic instead of duplicating it. Extract
-the file-loading concern into a static helper on `ComponentElement`:
+Extract file-loading into a static helper on `ComponentElement`:
 
 - `private static fileCache = new Map<string, Promise<string | undefined>>()`
 - `private static loadFile(path: string): Promise<string | undefined>` — single
   file fetch with URL resolution (absolute URLs pass through, relative paths
   get `'/' +` prefix). Returns cached promise to deduplicate concurrent
   requests for the same path.
-- `private async loadFiles(): Promise<WidgetFiles>` — reads
-  `this.component.files`, calls `loadFile` for each, returns loaded content.
-  If `this.component.files` is undefined, returns `{}` immediately.
+- `private async loadFiles(): Promise<WidgetFiles>` — reads effective files
+  (from registration, falling back to `this.component.files`), calls
+  `loadFile` for each, returns loaded content. If no files, returns `{}`
+  immediately.
 
 In `connectedCallback`, before `loadData()`:
 
 ```typescript
 const files = await this.loadFiles();
 if (signal?.aborted) return;
-this.context = { pathname: '', params: {}, files };
+
+// ComponentContext extends RouteInfo — provide stub RouteInfo for now.
+// Full RouteInfo (pathname, pattern, searchParams) will come from the
+// router once ComponentElement is wired to receive it.
+this.context = {
+  pathname: '',
+  pattern: '',
+  params: {},
+  searchParams: new URLSearchParams(),
+  files,
+};
 ```
 
 Pass `this.context` to both `getData()` and `renderHTML()` / `renderError()`.
@@ -159,25 +223,25 @@ just won't have that file's content. Warn via `console.warn`.
 pattern as the existing `loadData()`. `loadFile` itself is not abortable (the
 cached promise is shared across mounts), but we bail before touching DOM.
 
-**Note**: `ComponentContext` shape in SPA is incomplete — `pathname` and
-`searchParams` require the context rework (happening in parallel). For now,
-pass `pathname: ''` and omit `searchParams`. Once the context rework lands,
-`ComponentElement` will receive the current pathname from the router.
+**Note**: `ComponentContext extends RouteInfo`. The `RouteInfo` interface
+(`pathname`, `pattern`, `params`, `searchParams`) already exists. The remaining
+gap is that `ComponentElement` doesn't receive `RouteInfo` from the SPA router.
+For now, stub values are used. Wiring `RouteInfo` into `ComponentElement` is a
+separate task (tracked in `context-aware-widget-links.design.md`).
 
-### 5. `Component.files` stays `readonly`
+### 6. `Component.files` stays `readonly`
 
 No change to `src/component/abstract.component.ts`. The `files` property
 remains `readonly` on the class — widget instances are not mutated.
 
 Instead, the discovery result flows through data:
 
-- **SSR**: `discoverWidgetFiles()` returns a `Map`. The server passes this map
-  to `resolveWidgetTags()` (or the setup code merges it with
-  `widget.files` before calling `loadWidgetFiles`).
+- **SSR**: `discoverWidgetFiles()` returns a `Map`. The `loadFiles` callback
+  merges discovered files with declared files per-widget (see step 7).
 - **SPA**: the generated manifest is imported as data. `ComponentElement`
-  receives file paths at registration time (see step 6).
+  receives file paths at registration time (see step 8).
 
-### 6. ComponentElement accepts file paths at registration
+### 7. ComponentElement accepts file paths at registration
 
 **File**: `src/element/component.element.ts`
 
@@ -199,14 +263,14 @@ mutating the widget instance:
 // effectiveFiles = files ?? component.files
 ```
 
-### 7. Server-side integration
+### 8. Server-side integration
 
 **File**: `test/browser/setup.ts` (test harness example — real apps do the same
 in their server setup)
 
 After generating the routes manifest, call `discoverWidgetFiles()` to get
-the file map. Then update `resolveWidgetTags` call site to merge discovered
-files with widget-declared files:
+the file map. Update the `loadFiles` callbacks in both SSR renderers to use
+the new `(widgetName, declaredFiles?)` signature:
 
 ```typescript
 const fs = createFs();
@@ -216,12 +280,18 @@ const discoveredFiles = await discoverWidgetFiles(
   fs,
   'widgets',
 );
+```
 
-// Pass a loadFiles callback that merges discovered + declared files
-const loadFiles = (widget: Component) => {
-  const declared = widget.files ?? {};
-  const discovered = discoveredFiles.get(widget.name) ?? {};
+The loadFiles callback passed to `resolveWidgetTags` (and used directly by
+the md renderer) now merges discovered + declared files:
+
+```typescript
+const loadFiles = (name: string, declared?: WidgetFiles) => {
+  const discovered = discoveredFiles.get(name) ?? {};
   const merged = { ...discovered, ...declared };
+  if (!merged.html && !merged.md && !merged.css) {
+    return Promise.resolve({});
+  }
   return core.loadWidgetFiles(merged);
 };
 ```
@@ -233,7 +303,7 @@ const manifestCode = generateWidgetFilesManifestCode(discoveredFiles);
 await Deno.writeTextFile(`${FIXTURES_DIR}/widget-files.manifest.ts`, manifestCode);
 ```
 
-### 8. SPA integration
+### 9. SPA integration
 
 **File**: `test/browser/fixtures/main.ts` (test harness example — real apps do
 the same in their SPA entry point)
@@ -250,32 +320,34 @@ for (const widget of widgets) {
 }
 ```
 
-### 9. Remove manual `files` from convention-following widgets
+### 10. Remove manual `files` from convention-following widgets
 
 - `widgets/nav/nav.widget.ts` — remove `override readonly files`
 - `widgets/file-widget/file-widget.widget.ts` — remove `override readonly files`
 - `widgets/remote-widget/remote-widget.widget.ts` — **keep** (absolute URLs)
 
-### 10. Remove nav CSS workaround
+### 11. Remove nav CSS workaround
 
 **File**: `test/browser/fixtures/index.html`
 
 Remove `.site-nav` CSS rules from global `<style>`. Nav CSS now loads via
 ComponentElement → context → renderHTML() → `<style>` injection.
 
-### 11. Export from package
+### 12. Export from package
 
 **File**: `src/index.ts` — export `discoverWidgetFiles` and
 `generateWidgetFilesManifestCode`.
 
 ## Dependencies
 
-- **Steps 1–3, 5–6, 9–11**: Independent of other work.
-- **Step 4 (ComponentElement context)**: partially blocked by the **context
-  rework** (parallel effort). The file-loading and `context.files` part can
-  land now with `pathname: ''` as a placeholder. Full `ComponentContext`
-  population (pathname, searchParams) will be completed when the context
-  rework merges.
+- **Steps 1–3, 6–7, 10–12**: Independent of other work.
+- **Step 4 (resolveWidgetTags signature change)**: Breaking change to internal
+  API. Both SSR renderers must be updated in the same commit.
+- **Step 5 (ComponentElement context)**: `RouteInfo` already exists and
+  `ComponentContext extends RouteInfo`. The file-loading and `context.files`
+  part can land now with stub `RouteInfo` values. Wiring real `RouteInfo` from
+  the SPA router into `ComponentElement` is tracked separately in
+  `context-aware-widget-links.design.md`.
 
 ## Verification
 
@@ -287,3 +359,5 @@ ComponentElement → context → renderHTML() → `<style>` injection.
 6. Remote widget: absolute URL files still work (explicit override)
 7. `nav.widget.ts` and `file-widget.widget.ts` have no manual `files`
 8. `Component.files` is still `readonly` — no widget instances mutated
+9. Widgets with no declared `files` still get auto-discovered companion files
+   in SSR (the new `loadFiles` callback fires regardless of `widget.files`)

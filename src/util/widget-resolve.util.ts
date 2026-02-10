@@ -5,7 +5,8 @@
  * Calls getData() + renderHTML() on widgets and injects SSR hydration data.
  */
 
-import type { Component, ComponentContext } from '../component/abstract.component.ts';
+import type { Component } from '../component/abstract.component.ts';
+import type { RouteInfo } from '../type/route.type.ts';
 import { DATA_SSR_ATTR } from './html.util.ts';
 
 /**
@@ -18,8 +19,7 @@ import { DATA_SSR_ATTR } from './html.util.ts';
 export async function resolveWidgetTags(
   html: string,
   registry: { get(name: string): Component | undefined },
-  pathname?: string,
-  routeParams?: Record<string, string>,
+  routeInfo: RouteInfo,
   loadFiles?: (
     files: { html?: string; md?: string; css?: string },
   ) => Promise<{ html?: string; md?: string; css?: string }>,
@@ -46,11 +46,7 @@ export async function resolveWidgetTags(
         files = await loadFiles(widget.files);
       }
 
-      const context: ComponentContext | undefined = pathname
-        ? { pathname, params: routeParams ?? {}, files }
-        : files
-        ? { pathname: '', params: {}, files }
-        : undefined;
+      const context = { ...routeInfo, files };
 
       const data = await widget.getData({ params, context });
       const rendered = widget.renderHTML({ data, params, context });

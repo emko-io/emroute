@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0-beta.9] - 2026-02-10
+
+### Breaking
+
+- **`ComponentContext` now extends `RouteInfo`** — requires `pattern` and
+  `searchParams` fields; `pathname` now carries the actual URL path
+  (`/projects/123`) instead of the route pattern (use `context.pattern` for the
+  old behavior)
+- **`RouteParams` is now `Readonly<Record<string, string>>`** — prevents
+  accidental mutation of route parameters
+- **`MatchedRoute` fields are now `readonly`**
+
+### Added
+
+- `RouteInfo` interface — immutable route context (pathname, pattern, params,
+  searchParams) built once per navigation and shared across the entire render
+  pipeline without decomposition
+- `RouteCore.toRouteInfo()` — builds a `RouteInfo` from a `MatchedRoute` and
+  resolved pathname
+- `RouteInfo` exported from public API (`@emkodev/emroute`)
+
+### Changed
+
+- `buildComponentContext` signature simplified from 4 positional args to 2
+  structured args (`routeInfo: RouteInfo`, `route: RouteConfig`)
+- `resolveWidgetTags` takes `routeInfo: RouteInfo` instead of individual
+  `pathname`/`routeParams` arguments
+- All three renderers (SPA, SSR HTML, SSR MD) build `routeInfo` once after
+  matching and pass it through the pipeline — eliminates destructure-and-
+  reassemble anti-pattern
+- Widget context construction simplified to `{ ...routeInfo, files }` instead
+  of ad-hoc object assembly
+- Test suite: 545 unit tests, 61 browser test steps
+
 ## [1.0.0-beta.8] - 2026-02-10
 
 ### Breaking

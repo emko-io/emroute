@@ -220,6 +220,13 @@ export interface DevServer {
   bundleProcess?: { kill(): void };
 }
 
+/**
+ * Create a development server. Not intended for production use.
+ *
+ * Uses permissive CORS (`*`), does not set a Content-Security-Policy,
+ * and binds to all interfaces. For production, deploy your own HTTP
+ * server and use the SSR renderers directly.
+ */
 export async function createDevServer(
   config: DevServerConfig,
   runtime: ServerRuntime,
@@ -467,6 +474,7 @@ export async function createDevServer(
     return response;
   });
 
+  console.warn('This is a development server. Do not use in production.');
   console.log(`Development server running at http://localhost:${port}/`);
   console.log(`  SPA: http://localhost:${port}/`);
   console.log(`  SSR HTML: http://localhost:${port}${SSR_HTML_PREFIX}*`);

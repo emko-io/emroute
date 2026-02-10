@@ -31,6 +31,13 @@ export const routesManifest: RoutesManifest = {
     parent: '/articles/:slug',
   },
   {
+    pattern: '/projects/broken',
+    type: 'page',
+    modulePath: 'routes/projects/broken.page.ts',
+    files: { ts: 'routes/projects/broken.page.ts' },
+    parent: '/projects',
+  },
+  {
     pattern: '/vanilla/counter',
     type: 'page',
     modulePath: 'routes/vanilla/counter.page.md',
@@ -175,13 +182,14 @@ export const routesManifest: RoutesManifest = {
   errorHandler: {
   pattern: '/',
   type: 'error',
-  modulePath: 'routes/error.ts',
+  modulePath: 'routes/index.error.ts',
 },
 
   moduleLoaders: {
     'routes/projects/[id]/tasks.page.ts': () => import('./routes/projects/[id]/tasks.page.ts'),
     'routes/articles/[slug]/comment.page.ts': () => import('./routes/articles/[slug]/comment.page.ts'),
     'routes/articles/[slug]/related.page.ts': () => import('./routes/articles/[slug]/related.page.ts'),
+    'routes/projects/broken.page.ts': () => import('./routes/projects/broken.page.ts'),
     'routes/projects/[id].page.ts': () => import('./routes/projects/[id].page.ts'),
     'routes/articles/[slug].page.ts': () => import('./routes/articles/[slug].page.ts'),
     'routes/profile.page.ts': () => import('./routes/profile.page.ts'),
@@ -193,6 +201,6 @@ export const routesManifest: RoutesManifest = {
     'routes/hydration.page.ts': () => import('./routes/hydration.page.ts'),
     'routes/old.redirect.ts': () => import('./routes/old.redirect.ts'),
     'routes/projects/[id].error.ts': () => import('./routes/projects/[id].error.ts'),
-    'routes/error.ts': () => import('./routes/error.ts'),
+    'routes/index.error.ts': () => import('./routes/index.error.ts'),
   },
 };

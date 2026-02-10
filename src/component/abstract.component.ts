@@ -12,6 +12,7 @@
  * - renderMarkdown() → converted to HTML via markdown renderer
  */
 
+import type { RouteInfo } from '../type/route.type.ts';
 import { escapeHtml } from '../util/html.util.ts';
 
 const CSS_LOADING = 'c-loading';
@@ -20,14 +21,12 @@ export const CSS_ERROR = 'c-error';
 
 /**
  * Context passed to components during rendering.
- * Contains route pathname, URL params, pre-loaded file content, and abort signal.
+ * Extends RouteInfo (pathname, pattern, params, searchParams)
+ * with pre-loaded file content and an abort signal.
  */
-export interface ComponentContext {
-  pathname: string;
-  params: Record<string, string>;
-  searchParams?: URLSearchParams;
-  files?: { html?: string; md?: string; css?: string };
-  signal?: AbortSignal;
+export interface ComponentContext extends RouteInfo {
+  readonly files?: Readonly<{ html?: string; md?: string; css?: string }>;
+  readonly signal?: AbortSignal;
 }
 
 /**

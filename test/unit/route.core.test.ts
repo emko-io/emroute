@@ -15,6 +15,7 @@ import { DEFAULT_ROOT_ROUTE, RouteCore } from '../../src/route/route.core.ts';
 import type {
   MatchedRoute,
   RouteConfig,
+  RouteInfo,
   RouterEvent,
   RoutesManifest,
 } from '../../src/type/route.type.ts';
@@ -615,4 +616,66 @@ Deno.test('RouteCore - getParams reflects current route changes', () => {
 
   router.currentRoute = null;
   assertEquals(router.getParams(), {});
+});
+
+// ==============================================================================
+// toRouteInfo() Tests
+// ==============================================================================
+
+Deno.test('RouteCore - toRouteInfo builds RouteInfo from matched route', () => {
+  const routes = [
+    createTestRoute({ pattern: '/projects/:id', modulePath: '/projects/[id].page.ts' }),
+  ];
+  const router = new RouteCore(createTestManifest(routes));
+
+  const matched = router.match('http://localhost/projects/42')!;
+  const routeInfo: RouteInfo = router.toRouteInfo(matched, '/projects/42');
+
+  assertEquals(routeInfo.pathname, '/projects/42');
+  assertEquals(routeInfo.pattern, '/projects/:id');
+  assertEquals(routeInfo.params, { id: '42' });
+  assertEquals(routeInfo.searchParams.toString(), '');
+});
+
+Deno.test('RouteCore - toRouteInfo preserves searchParams from matched route', () => {
+  const routes = [
+    createTestRoute({ pattern: '/search', modulePath: '/search.page.ts' }),
+  ];
+  const router = new RouteCore(createTestManifest(routes));
+
+  const url = new URL('http://localhost/search?q=hello&page=2');
+  const matched = router.match(url)!;
+  const routeInfo: RouteInfo = router.toRouteInfo(matched, '/search');
+
+  assertEquals(routeInfo.pathname, '/search');
+  assertEquals(routeInfo.pattern, '/search');
+  assertEquals(routeInfo.searchParams.get('q'), 'hello');
+  assertEquals(routeInfo.searchParams.get('page'), '2');
+});
+
+Deno.test('RouteCore - toRouteInfo defaults searchParams to empty when absent', () => {
+  const router = new RouteCore(createTestManifest());
+
+  const matched: MatchedRoute = {
+    route: createTestRoute({ pattern: '/about' }),
+    params: {},
+    patternResult: {} as URLPatternResult,
+  };
+  const routeInfo: RouteInfo = router.toRouteInfo(matched, '/about');
+
+  assertEquals(routeInfo.searchParams.toString(), '');
+});
+
+Deno.test('RouteCore - toRouteInfo pathname is the resolved path, not the pattern', () => {
+  const routes = [
+    createTestRoute({ pattern: '/users/:id/posts', modulePath: '/users/[id]/posts.page.ts' }),
+  ];
+  const router = new RouteCore(createTestManifest(routes));
+
+  const matched = router.match('http://localhost/users/99/posts')!;
+  const routeInfo: RouteInfo = router.toRouteInfo(matched, '/users/99/posts');
+
+  assertEquals(routeInfo.pathname, '/users/99/posts');
+  assertEquals(routeInfo.pattern, '/users/:id/posts');
+  assertEquals(routeInfo.params.id, '99');
 });

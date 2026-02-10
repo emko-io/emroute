@@ -16,6 +16,23 @@ import { type ComponentContext } from '../../src/component/abstract.component.ts
 import { PageComponent } from '../../src/component/page.component.ts';
 import { escapeHtml } from '../../src/util/html.util.ts';
 
+/** Build a test ComponentContext with sensible defaults. */
+function testContext(overrides: {
+  pathname?: string;
+  pattern?: string;
+  params?: Record<string, string>;
+  files?: ComponentContext['files'];
+} = {}): ComponentContext {
+  const pathname = overrides.pathname ?? '/';
+  return {
+    pathname,
+    pattern: overrides.pattern ?? pathname,
+    params: overrides.params ?? {},
+    searchParams: new URLSearchParams(),
+    files: overrides.files,
+  };
+}
+
 // =============================================================================
 // 1. .page.md only
 // =============================================================================
@@ -23,7 +40,7 @@ import { escapeHtml } from '../../src/util/html.util.ts';
 Deno.test('md only — renderHTML wraps content in <mark-down>', () => {
   const page = new PageComponent();
   const md = '# Welcome\n\nHello world.';
-  const context: ComponentContext = { pathname: '/', params: {}, files: { md } };
+  const context = testContext({ files: { md } });
 
   const html = page.renderHTML({ data: null, params: {}, context });
   assertEquals(html, `<mark-down>${escapeHtml(md)}</mark-down>\n<router-slot></router-slot>`);
@@ -32,7 +49,7 @@ Deno.test('md only — renderHTML wraps content in <mark-down>', () => {
 Deno.test('md only — renderMarkdown returns raw md content', () => {
   const page = new PageComponent();
   const md = '# Welcome\n\nHello world.';
-  const context: ComponentContext = { pathname: '/', params: {}, files: { md } };
+  const context = testContext({ files: { md } });
 
   const result = page.renderMarkdown({ data: null, params: {}, context });
   assertEquals(result, md);
@@ -41,7 +58,7 @@ Deno.test('md only — renderMarkdown returns raw md content', () => {
 Deno.test('md only — renderHTML escapes HTML in markdown content', () => {
   const page = new PageComponent();
   const md = '# Title <script>alert("xss")</script>';
-  const context: ComponentContext = { pathname: '/', params: {}, files: { md } };
+  const context = testContext({ files: { md } });
 
   const html = page.renderHTML({ data: null, params: {}, context });
   assertEquals(html.includes('<script>'), false);
@@ -56,11 +73,7 @@ Deno.test('html+md — renderHTML injects md into empty <mark-down> tag', () => 
   const page = new PageComponent();
   const htmlFile = '<h1>About</h1>\n<mark-down></mark-down>\n<footer>End</footer>';
   const md = '# Details\n\nMore info here.';
-  const context: ComponentContext = {
-    pathname: '/about',
-    params: {},
-    files: { html: htmlFile, md },
-  };
+  const context = testContext({ pathname: '/about', files: { html: htmlFile, md } });
 
   const html = page.renderHTML({ data: null, params: {}, context });
   assertEquals(html.includes('<mark-down></mark-down>'), false);
@@ -73,11 +86,7 @@ Deno.test('html+md — renderHTML preserves HTML without <mark-down> tag', () =>
   const page = new PageComponent();
   const htmlFile = '<h1>About</h1>\n<p>Static content only.</p>';
   const md = '# Ignored markdown';
-  const context: ComponentContext = {
-    pathname: '/about',
-    params: {},
-    files: { html: htmlFile, md },
-  };
+  const context = testContext({ pathname: '/about', files: { html: htmlFile, md } });
 
   const html = page.renderHTML({ data: null, params: {}, context });
   assertEquals(html, htmlFile);
@@ -87,7 +96,7 @@ Deno.test('html+md — renderHTML escapes md injected into <mark-down>', () => {
   const page = new PageComponent();
   const htmlFile = '<section><mark-down></mark-down></section>';
   const md = '<img onerror="alert(1)">';
-  const context: ComponentContext = { pathname: '/', params: {}, files: { html: htmlFile, md } };
+  const context = testContext({ files: { html: htmlFile, md } });
 
   const html = page.renderHTML({ data: null, params: {}, context });
   assertEquals(html.includes('<img onerror'), false);
@@ -98,11 +107,7 @@ Deno.test('html+md — renderMarkdown returns md content (ignores html)', () => 
   const page = new PageComponent();
   const htmlFile = '<h1>About</h1>\n<mark-down></mark-down>';
   const md = '# About\n\nMarkdown content.';
-  const context: ComponentContext = {
-    pathname: '/about',
-    params: {},
-    files: { html: htmlFile, md },
-  };
+  const context = testContext({ pathname: '/about', files: { html: htmlFile, md } });
 
   const result = page.renderMarkdown({ data: null, params: {}, context });
   assertEquals(result, md);
@@ -113,11 +118,7 @@ Deno.test('html+md+css — style prepended, md injected into <mark-down>', () =>
   const htmlFile = '<h1>Styled</h1>\n<mark-down></mark-down>';
   const md = '# Content';
   const css = '.page { color: red; }';
-  const context: ComponentContext = {
-    pathname: '/',
-    params: {},
-    files: { html: htmlFile, md, css },
-  };
+  const context = testContext({ files: { html: htmlFile, md, css } });
 
   const html = page.renderHTML({ data: null, params: {}, context });
   assertEquals(html.startsWith('<style>.page { color: red; }</style>'), true);
@@ -156,11 +157,12 @@ Deno.test('ts override — renderHTML uses inline content, ignores files', async
   }
 
   const page = new InlinePage();
-  const context: ComponentContext = {
+  const context = testContext({
     pathname: '/projects/42',
+    pattern: '/projects/:id',
     params: { id: '42' },
     files: { html: '<h1>IGNORED</h1>', md: '# IGNORED' },
-  };
+  });
 
   const data = await page.getData({ params: { id: '42' } });
   const html = page.renderHTML({ data, params: { id: '42' }, context });
@@ -198,11 +200,7 @@ Deno.test('ts template — renderHTML replaces {{slots}} from params', () => {
 
   const page = new DocsPage();
   const htmlFile = '<h1>Docs</h1>\n<p class="topic">Topic: {{topic}}</p>';
-  const context: ComponentContext = {
-    pathname: '/docs',
-    params: {},
-    files: { html: htmlFile },
-  };
+  const context = testContext({ pathname: '/docs', files: { html: htmlFile } });
 
   const html = page.renderHTML({ data: null, params: {}, context });
   assertEquals(html, '<h1>Docs</h1>\n<p class="topic">Topic: general</p>');
@@ -257,11 +255,7 @@ Deno.test('ts template — renderHTML replaces {{slots}} from getData', async ()
   const page = new ProfilePage();
   const htmlFile =
     '<h1>{{name}}</h1>\n<p class="role">Role: {{role}}</p>\n<p class="bio">{{bio}}</p>';
-  const context: ComponentContext = {
-    pathname: '/profile',
-    params: {},
-    files: { html: htmlFile },
-  };
+  const context = testContext({ pathname: '/profile', files: { html: htmlFile } });
 
   const data = await page.getData({ params: {}, context });
 
@@ -296,7 +290,7 @@ Deno.test('ts template — falls back to inline default when no html file', () =
   }
 
   const page = new DocsPage();
-  const context: ComponentContext = { pathname: '/docs', params: {}, files: {} };
+  const context = testContext({ pathname: '/docs', files: {} });
 
   const html = page.renderHTML({ data: null, params: {}, context });
   assertEquals(html, '<h1>Docs</h1>');
@@ -322,7 +316,7 @@ Deno.test('ts template — renderHTML with md in context via <mark-down>', () =>
 
   const page = new BlogPage();
   const md = '# Blog\n\nWelcome to the blog.';
-  const context: ComponentContext = { pathname: '/blog', params: {}, files: { md } };
+  const context = testContext({ pathname: '/blog', files: { md } });
 
   const html = page.renderHTML({ data: null, params: {}, context });
   assertEquals(html, `<mark-down>${md}</mark-down>\n<p class="blog-footer">Posts: 0</p>`);

@@ -20,6 +20,7 @@ export type {
   RouteConfig,
   RouteFiles,
   RouteFileType,
+  RouteInfo,
   RouteParams,
   RouterEvent,
   RouterEventListener,

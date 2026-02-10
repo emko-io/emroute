@@ -9,7 +9,7 @@
 import type {
   MatchedRoute,
   RouteConfig,
-  RouteParams,
+  RouteInfo,
   RoutesManifest,
 } from '../../type/route.type.ts';
 import type { MarkdownRenderer } from '../../type/markdown.type.ts';
@@ -66,11 +66,14 @@ export class SsrHtmlRouter {
     const matchUrl = toUrl(pathname + urlObj.search);
     const matched = this.core.match(matchUrl);
 
+    const searchParams = urlObj.searchParams ?? new URLSearchParams();
+
     if (!matched) {
       const statusPage = this.core.matcher.getStatusPage(404);
       if (statusPage) {
         try {
-          const { html, title } = await this.renderRouteContent(statusPage, {}, pathname);
+          const ri: RouteInfo = { pathname, pattern: statusPage.pattern, params: {}, searchParams };
+          const { html, title } = await this.renderRouteContent(ri, statusPage);
           return { html, status: 404, title };
         } catch { /* fall through to inline fallback */ }
       }
@@ -90,15 +93,23 @@ export class SsrHtmlRouter {
       };
     }
 
+    const routeInfo = this.core.toRouteInfo(matched, pathname);
+
     try {
-      const { html, title } = await this.renderPage(matched);
+      const { html, title } = await this.renderPage(routeInfo, matched);
       return { html, status: 200, title };
     } catch (error) {
       if (error instanceof Response) {
         const statusPage = this.core.matcher.getStatusPage(error.status);
         if (statusPage) {
           try {
-            const { html, title } = await this.renderRouteContent(statusPage, {}, pathname);
+            const ri: RouteInfo = {
+              pathname,
+              pattern: statusPage.pattern,
+              params: {},
+              searchParams,
+            };
+            const { html, title } = await this.renderRouteContent(ri, statusPage);
             return { html, status: error.status, title };
           } catch { /* fall through to inline fallback */ }
         }
@@ -112,9 +123,11 @@ export class SsrHtmlRouter {
   /**
    * Render a matched page to HTML.
    */
-  private async renderPage(matched: MatchedRoute): Promise<{ html: string; title?: string }> {
-    const pathname = matched.route.pattern;
-    const hierarchy = this.core.buildRouteHierarchy(pathname);
+  private async renderPage(
+    routeInfo: RouteInfo,
+    matched: MatchedRoute,
+  ): Promise<{ html: string; title?: string }> {
+    const hierarchy = this.core.buildRouteHierarchy(routeInfo.pattern);
 
     let result = '';
     let pageTitle: string | undefined;
@@ -131,12 +144,7 @@ export class SsrHtmlRouter {
       // Skip wildcard route appearing as its own parent (prevents double-render)
       if (route === matched.route && routePattern !== matched.route.pattern) continue;
 
-      const { html, title } = await this.renderRouteContent(
-        route,
-        matched.params,
-        pathname,
-        matched.searchParams,
-      );
+      const { html, title } = await this.renderRouteContent(routeInfo, route);
 
       if (title) {
         pageTitle = title;
@@ -157,10 +165,8 @@ export class SsrHtmlRouter {
    * Render a single route's content.
    */
   private async renderRouteContent(
+    routeInfo: RouteInfo,
     route: RouteConfig,
-    params: RouteParams,
-    leafPathname?: string,
-    searchParams?: URLSearchParams,
   ): Promise<{ html: string; title?: string }> {
     if (route.modulePath === DEFAULT_ROOT_ROUTE.modulePath) {
       return { html: '<router-slot></router-slot>' };
@@ -173,27 +179,20 @@ export class SsrHtmlRouter {
       ? (await this.core.loadModule<{ default: PageComponent }>(tsModule)).default
       : defaultPageComponent;
 
-    const context = await this.core.buildComponentContext(
-      route.pattern,
-      route,
-      params,
-      searchParams,
-    );
-    const data = await component.getData({ params, context });
-    let html = component.renderHTML({ data, params, context });
-    const title = component.getTitle({ data, params, context });
+    const context = await this.core.buildComponentContext(routeInfo, route);
+    const data = await component.getData({ params: routeInfo.params, context });
+    let html = component.renderHTML({ data, params: routeInfo.params, context });
+    const title = component.getTitle({ data, params: routeInfo.params, context });
 
     // Expand <mark-down> tags server-side
     html = await this.expandMarkdown(html);
 
     // Resolve <widget-*> tags: call getData() + renderHTML(), inject data-ssr
-    // Use the leaf pathname so widgets in parent layouts see the actual target route
     if (this.widgets) {
       html = await resolveWidgetTags(
         html,
         this.widgets,
-        leafPathname ?? route.pattern,
-        params,
+        routeInfo,
         this.core.loadWidgetFiles.bind(this.core),
       );
     }

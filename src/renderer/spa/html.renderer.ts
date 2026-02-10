@@ -15,6 +15,7 @@ import type {
   NavigateOptions,
   RedirectConfig,
   RouteConfig,
+  RouteInfo,
   RouteParams,
   RouterState,
   RoutesManifest,
@@ -221,7 +222,8 @@ export class SpaHtmlRouter {
 
       // Render page
       this.core.currentRoute = matched;
-      await this.renderPage(matched);
+      const routeInfo = this.core.toRouteInfo(matched, pathname);
+      await this.renderPage(routeInfo, matched);
 
       // Emit navigate event
       this.core.emit({
@@ -246,12 +248,11 @@ export class SpaHtmlRouter {
   /**
    * Render a matched page route with nested route support.
    */
-  private async renderPage(matched: MatchedRoute): Promise<void> {
+  private async renderPage(routeInfo: RouteInfo, matched: MatchedRoute): Promise<void> {
     if (!this.slot) return;
 
     try {
-      const pathname = matched.route.pattern;
-      const hierarchy = this.core.buildRouteHierarchy(pathname);
+      const hierarchy = this.core.buildRouteHierarchy(routeInfo.pattern);
 
       let currentSlot: Element = this.slot;
       let pageTitle: string | undefined;
@@ -273,11 +274,7 @@ export class SpaHtmlRouter {
           continue;
         }
 
-        const { html, title } = await this.renderRouteContent(
-          route,
-          matched.params,
-          matched.searchParams,
-        );
+        const { html, title } = await this.renderRouteContent(routeInfo, route);
         currentSlot.innerHTML = html;
 
         if (title) {
@@ -302,12 +299,12 @@ export class SpaHtmlRouter {
 
       this.core.emit({
         type: 'load',
-        pathname: matched.route.pattern,
-        params: matched.params,
+        pathname: routeInfo.pattern,
+        params: routeInfo.params,
       });
     } catch (error) {
       if (error instanceof Response) {
-        await this.renderStatusPage(error.status, matched.route.pattern, error);
+        await this.renderStatusPage(error.status, routeInfo.pattern, error);
         return;
       }
       throw error;
@@ -318,9 +315,8 @@ export class SpaHtmlRouter {
    * Render a single route's content.
    */
   private async renderRouteContent(
+    routeInfo: RouteInfo,
     route: RouteConfig,
-    params: RouteParams,
-    searchParams?: URLSearchParams,
   ): Promise<{ html: string; title?: string }> {
     if (route.modulePath === DEFAULT_ROOT_ROUTE.modulePath) {
       return { html: '<router-slot></router-slot>' };
@@ -332,15 +328,10 @@ export class SpaHtmlRouter {
       ? (await this.core.loadModule<{ default: PageComponent }>(files.ts)).default
       : defaultPageComponent;
 
-    const context = await this.core.buildComponentContext(
-      route.pattern,
-      route,
-      params,
-      searchParams,
-    );
-    const data = await component.getData({ params, context });
-    const html = component.renderHTML({ data, params, context });
-    const title = component.getTitle({ data, params, context });
+    const context = await this.core.buildComponentContext(routeInfo, route);
+    const data = await component.getData({ params: routeInfo.params, context });
+    const html = component.renderHTML({ data, params: routeInfo.params, context });
+    const title = component.getTitle({ data, params: routeInfo.params, context });
     return { html, title };
   }
 
@@ -388,7 +379,13 @@ export class SpaHtmlRouter {
         const component: PageComponent = statusPage.files?.ts
           ? (await this.core.loadModule<{ default: PageComponent }>(statusPage.files.ts)).default
           : defaultPageComponent;
-        const context = await this.core.buildComponentContext(pathname, statusPage, {});
+        const ri: RouteInfo = {
+          pathname,
+          pattern: statusPage.pattern,
+          params: {},
+          searchParams: new URLSearchParams(),
+        };
+        const context = await this.core.buildComponentContext(ri, statusPage);
         const data = await component.getData({ params: {}, context });
         this.slot.innerHTML = component.renderHTML({ data, params: {}, context });
         this.updateTitle();

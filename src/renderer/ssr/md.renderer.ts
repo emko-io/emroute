@@ -8,7 +8,7 @@
 import type {
   MatchedRoute,
   RouteConfig,
-  RouteParams,
+  RouteInfo,
   RoutesManifest,
 } from '../../type/route.type.ts';
 import defaultPageComponent, { type PageComponent } from '../../component/page.component.ts';
@@ -55,11 +55,14 @@ export class SsrMdRouter {
     const matchUrl = toUrl(pathname + urlObj.search);
     const matched = this.core.match(matchUrl);
 
+    const searchParams = urlObj.searchParams ?? new URLSearchParams();
+
     if (!matched) {
       const statusPage = this.core.matcher.getStatusPage(404);
       if (statusPage) {
         try {
-          const markdown = await this.renderRouteContent(statusPage, {}, pathname);
+          const ri: RouteInfo = { pathname, pattern: statusPage.pattern, params: {}, searchParams };
+          const markdown = await this.renderRouteContent(ri, statusPage);
           return { markdown, status: 404 };
         } catch { /* fall through to inline fallback */ }
       }
@@ -78,15 +81,23 @@ export class SsrMdRouter {
       };
     }
 
+    const routeInfo = this.core.toRouteInfo(matched, pathname);
+
     try {
-      const markdown = await this.renderPage(matched);
+      const markdown = await this.renderPage(routeInfo, matched);
       return { markdown, status: 200 };
     } catch (error) {
       if (error instanceof Response) {
         const statusPage = this.core.matcher.getStatusPage(error.status);
         if (statusPage) {
           try {
-            const markdown = await this.renderRouteContent(statusPage, {}, pathname);
+            const ri: RouteInfo = {
+              pathname,
+              pattern: statusPage.pattern,
+              params: {},
+              searchParams,
+            };
+            const markdown = await this.renderRouteContent(ri, statusPage);
             return { markdown, status: error.status };
           } catch { /* fall through to inline fallback */ }
         }
@@ -100,9 +111,8 @@ export class SsrMdRouter {
   /**
    * Render a matched page to Markdown.
    */
-  private async renderPage(matched: MatchedRoute): Promise<string> {
-    const pathname = matched.route.pattern;
-    const hierarchy = this.core.buildRouteHierarchy(pathname);
+  private async renderPage(routeInfo: RouteInfo, matched: MatchedRoute): Promise<string> {
+    const hierarchy = this.core.buildRouteHierarchy(routeInfo.pattern);
 
     const parts: string[] = [];
 
@@ -118,12 +128,7 @@ export class SsrMdRouter {
       // Skip wildcard route appearing as its own parent (prevents double-render)
       if (route === matched.route && routePattern !== matched.route.pattern) continue;
 
-      const markdown = await this.renderRouteContent(
-        route,
-        matched.params,
-        pathname,
-        matched.searchParams,
-      );
+      const markdown = await this.renderRouteContent(routeInfo, route);
       if (markdown) {
         parts.push(markdown);
       }
@@ -136,10 +141,8 @@ export class SsrMdRouter {
    * Render a single route's content to Markdown.
    */
   private async renderRouteContent(
+    routeInfo: RouteInfo,
     route: RouteConfig,
-    params: RouteParams,
-    leafPathname?: string,
-    searchParams?: URLSearchParams,
   ): Promise<string> {
     if (route.modulePath === DEFAULT_ROOT_ROUTE.modulePath) {
       return '';
@@ -151,18 +154,13 @@ export class SsrMdRouter {
       ? (await this.core.loadModule<{ default: PageComponent }>(files.ts)).default
       : defaultPageComponent;
 
-    const context = await this.core.buildComponentContext(
-      route.pattern,
-      route,
-      params,
-      searchParams,
-    );
-    const data = await component.getData({ params, context });
-    let markdown = component.renderMarkdown({ data, params, context });
+    const context = await this.core.buildComponentContext(routeInfo, route);
+    const data = await component.getData({ params: routeInfo.params, context });
+    let markdown = component.renderMarkdown({ data, params: routeInfo.params, context });
 
     // Resolve fenced widget blocks: call getData() + renderMarkdown()
     if (this.widgets) {
-      markdown = await this.resolveWidgets(markdown, leafPathname ?? route.pattern, params);
+      markdown = await this.resolveWidgets(markdown, routeInfo);
     }
 
     if (markdown === ROUTER_SLOT_BLOCK) return '';
@@ -176,8 +174,7 @@ export class SsrMdRouter {
    */
   private async resolveWidgets(
     markdown: string,
-    pathname: string,
-    routeParams: RouteParams,
+    routeInfo: RouteInfo,
   ): Promise<string> {
     const blocks = parseWidgetBlocks(markdown);
     if (blocks.length === 0) return markdown;
@@ -203,7 +200,7 @@ export class SsrMdRouter {
           files = await this.core.loadWidgetFiles(widget.files);
         }
 
-        const context = { pathname, params: routeParams, files };
+        const context = { ...routeInfo, files };
         const data = await widget.getData({ params: block.params, context });
         const rendered = widget.renderMarkdown({ data, params: block.params, context });
         replacements.set(block, rendered);

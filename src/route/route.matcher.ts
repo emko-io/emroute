@@ -139,7 +139,7 @@ export class RouteMatcher {
    */
   private extractParams(result: URLPatternResult): RouteParams {
     const groups = result.pathname.groups;
-    const params: RouteParams = {};
+    const params: Record<string, string> = {};
     for (const [key, value] of Object.entries(groups)) {
       if (value !== undefined) {
         params[key] = value;

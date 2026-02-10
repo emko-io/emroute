@@ -17,7 +17,7 @@ import { resolveWidgetTags } from '../../src/util/widget-resolve.util.ts';
 import { SsrHtmlRouter } from '../../src/renderer/ssr/html.renderer.ts';
 import { SsrMdRouter } from '../../src/renderer/ssr/md.renderer.ts';
 import { WidgetRegistry } from '../../src/widget/widget.registry.ts';
-import type { RoutesManifest } from '../../src/type/route.type.ts';
+import type { RouteInfo, RoutesManifest } from '../../src/type/route.type.ts';
 
 // ============================================================================
 // Test Helpers
@@ -42,6 +42,27 @@ function mockFetch(responses: Record<string, string>) {
 
   return () => {
     globalThis.fetch = originalFetch;
+  };
+}
+
+/** Reusable RouteInfo for resolveWidgetTags calls. */
+const testRouteInfo: RouteInfo = {
+  pathname: '/test',
+  pattern: '/test',
+  params: {},
+  searchParams: new URLSearchParams(),
+};
+
+/** Build a test ComponentContext with sensible defaults. */
+function testContext(
+  files?: ComponentContext['files'],
+): ComponentContext {
+  return {
+    pathname: '/',
+    pattern: '/',
+    params: {},
+    searchParams: new URLSearchParams(),
+    ...(files !== undefined ? { files } : {}),
   };
 }
 
@@ -324,7 +345,7 @@ Deno.test('WidgetComponent - renderHTML uses html file from context', () => {
   const result = widget.renderHTML({
     data: { title: 'Hello' },
     params: {},
-    context: { pathname: '/', params: {}, files: { html: '<div>From File</div>' } },
+    context: testContext({ html: '<div>From File</div>' }),
   });
 
   assertEquals(result, '<div>From File</div>');
@@ -335,7 +356,7 @@ Deno.test('WidgetComponent - renderHTML uses md file wrapped in mark-down when n
   const result = widget.renderHTML({
     data: { title: 'Markdown Widget' },
     params: {},
-    context: { pathname: '/', params: {}, files: { md: '# Widget MD' } },
+    context: testContext({ md: '# Widget MD' }),
   });
 
   assertStringIncludes(result, '<mark-down>');
@@ -348,11 +369,7 @@ Deno.test('WidgetComponent - renderHTML prefers html file over md file', () => {
   const result = widget.renderHTML({
     data: { title: 'Both' },
     params: {},
-    context: {
-      pathname: '/',
-      params: {},
-      files: { html: '<div>HTML wins</div>', md: '# MD loses' },
-    },
+    context: testContext({ html: '<div>HTML wins</div>', md: '# MD loses' }),
   });
 
   assertEquals(result, '<div>HTML wins</div>');
@@ -373,7 +390,7 @@ Deno.test('WidgetComponent - renderHTML falls back to base Component when contex
   const result = widget.renderHTML({
     data: { title: 'Hello' },
     params: {},
-    context: { pathname: '/', params: {} },
+    context: testContext(),
   });
 
   assertStringIncludes(result, 'data-markdown');
@@ -384,7 +401,7 @@ Deno.test('WidgetComponent - renderMarkdown uses md file from context', () => {
   const result = widget.renderMarkdown({
     data: { title: 'Markdown Widget' },
     params: {},
-    context: { pathname: '/', params: {}, files: { md: '# Widget Content' } },
+    context: testContext({ md: '# Widget Content' }),
   });
 
   assertEquals(result, '# Widget Content');
@@ -405,7 +422,7 @@ Deno.test('WidgetComponent - renderMarkdown returns empty string when context ha
   const result = widget.renderMarkdown({
     data: { title: 'Both' },
     params: {},
-    context: { pathname: '/', params: {}, files: { html: '<div>HTML only</div>' } },
+    context: testContext({ html: '<div>HTML only</div>' }),
   });
 
   assertEquals(result, '');
@@ -426,11 +443,7 @@ Deno.test('WidgetComponent - custom render with files uses context.files as temp
   const result = widget.renderHTML({
     data: { name: 'World' },
     params: {},
-    context: {
-      pathname: '/',
-      params: {},
-      files: { html: '<h1>Hello, {{name}}!</h1>' },
-    },
+    context: testContext({ html: '<h1>Hello, {{name}}!</h1>' }),
   });
 
   assertEquals(result, '<h1>Hello, World!</h1>');
@@ -451,11 +464,7 @@ Deno.test('WidgetComponent - renderHTML escapes md content in mark-down tag', ()
   const result = widget.renderHTML({
     data: { title: 'Test' },
     params: {},
-    context: {
-      pathname: '/',
-      params: {},
-      files: { md: '# <script>alert("xss")</script>' },
-    },
+    context: testContext({ md: '# <script>alert("xss")</script>' }),
   });
 
   assertStringIncludes(result, '&lt;script&gt;');
@@ -477,7 +486,7 @@ Deno.test('resolveWidgetTags - loads files for file-backed widget', async () => 
   };
 
   const html = '<widget-file-backed></widget-file-backed>';
-  const result = await resolveWidgetTags(html, registry, '/test', {}, loadFiles);
+  const result = await resolveWidgetTags(html, registry, testRouteInfo, loadFiles);
 
   assertStringIncludes(result, '<div>Loaded HTML</div>');
   assertStringIncludes(result, 'data-ssr');
@@ -494,7 +503,7 @@ Deno.test('resolveWidgetTags - does not call loadFiles for widget without files'
   };
 
   const html = '<widget-no-files></widget-no-files>';
-  const result = await resolveWidgetTags(html, registry, '/test', {}, loadFiles);
+  const result = await resolveWidgetTags(html, registry, testRouteInfo, loadFiles);
 
   assertEquals(loadFilesCalled, false);
   assertStringIncludes(result, '<span>42</span>');
@@ -510,7 +519,7 @@ Deno.test('resolveWidgetTags - passes files in context to renderHTML', async () 
     });
 
   const html = '<widget-custom-render></widget-custom-render>';
-  const result = await resolveWidgetTags(html, registry, '/test', {}, loadFiles);
+  const result = await resolveWidgetTags(html, registry, testRouteInfo, loadFiles);
 
   assertStringIncludes(result, '<h2>Template: World</h2>');
 });
@@ -520,7 +529,7 @@ Deno.test('resolveWidgetTags - works without loadFiles callback', async () => {
   const registry = { get: (name: string) => name === 'no-files' ? widget : undefined };
 
   const html = '<widget-no-files></widget-no-files>';
-  const result = await resolveWidgetTags(html, registry, '/test', {});
+  const result = await resolveWidgetTags(html, registry, testRouteInfo);
 
   assertStringIncludes(result, '<span>42</span>');
 });
@@ -535,7 +544,7 @@ Deno.test('resolveWidgetTags - self-closing tag is not resolved', async () => {
     });
 
   const html = '<widget-file-backed />';
-  const result = await resolveWidgetTags(html, registry, '/test', {}, loadFiles);
+  const result = await resolveWidgetTags(html, registry, testRouteInfo, loadFiles);
 
   assertEquals(result, '<widget-file-backed />');
 });
@@ -720,11 +729,7 @@ Deno.test('WidgetComponent - renderHTML prepends style tag when css file in cont
   const result = widget.renderHTML({
     data: { title: 'Styled' },
     params: {},
-    context: {
-      pathname: '/',
-      params: {},
-      files: { html: '<div>Content</div>', css: '.widget { color: red; }' },
-    },
+    context: testContext({ html: '<div>Content</div>', css: '.widget { color: red; }' }),
   });
 
   assertStringIncludes(result, '<style>.widget { color: red; }</style>');
@@ -737,11 +742,7 @@ Deno.test('WidgetComponent - renderHTML prepends style tag with md fallback', ()
   const result = widget.renderHTML({
     data: null,
     params: {},
-    context: {
-      pathname: '/',
-      params: {},
-      files: { md: '# Styled MD', css: '.md { font-size: 14px; }' },
-    },
+    context: testContext({ md: '# Styled MD', css: '.md { font-size: 14px; }' }),
   });
 
   assertStringIncludes(result, '<style>.md { font-size: 14px; }</style>');
@@ -753,11 +754,7 @@ Deno.test('WidgetComponent - renderHTML prepends style tag with base default fal
   const result = widget.renderHTML({
     data: null,
     params: {},
-    context: {
-      pathname: '/',
-      params: {},
-      files: { css: '.base { margin: 0; }' },
-    },
+    context: testContext({ css: '.base { margin: 0; }' }),
   });
 
   assertStringIncludes(result, '<style>.base { margin: 0; }</style>');
@@ -769,7 +766,7 @@ Deno.test('WidgetComponent - renderHTML no style tag when no css in context', ()
   const result = widget.renderHTML({
     data: { title: 'Hello' },
     params: {},
-    context: { pathname: '/', params: {}, files: { html: '<div>No CSS</div>' } },
+    context: testContext({ html: '<div>No CSS</div>' }),
   });
 
   assertEquals(result.includes('<style>'), false);
@@ -781,11 +778,7 @@ Deno.test('WidgetComponent - renderMarkdown ignores css file', () => {
   const result = widget.renderMarkdown({
     data: { title: 'Styled' },
     params: {},
-    context: {
-      pathname: '/',
-      params: {},
-      files: { md: '# Content', css: '.widget { color: red; }' },
-    },
+    context: testContext({ md: '# Content', css: '.widget { color: red; }' }),
   });
 
   assertEquals(result, '# Content');
@@ -804,7 +797,7 @@ Deno.test('resolveWidgetTags - loads css for css-backed widget', async () => {
   };
 
   const html = '<widget-css-widget></widget-css-widget>';
-  const result = await resolveWidgetTags(html, registry, '/test', {}, loadFiles);
+  const result = await resolveWidgetTags(html, registry, testRouteInfo, loadFiles);
 
   assertStringIncludes(result, '<style>.css-widget { color: blue; }</style>');
   assertStringIncludes(result, '<div>CSS Widget HTML</div>');

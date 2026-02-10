@@ -6,7 +6,22 @@
  */
 
 /** Parameters extracted from URL patterns */
-export type RouteParams = Record<string, string>;
+export type RouteParams = Readonly<Record<string, string>>;
+
+/** Immutable route context built once per navigation, shared across the render pipeline. */
+export interface RouteInfo {
+  /** Actual URL path (e.g., '/projects/123') */
+  readonly pathname: string;
+
+  /** Matched route pattern (e.g., '/projects/:id') */
+  readonly pattern: string;
+
+  /** URL parameters extracted by the router */
+  readonly params: RouteParams;
+
+  /** Query string parameters */
+  readonly searchParams: URLSearchParams;
+}
 
 /** Supported file patterns in file-based routing */
 export type RouteFileType = 'page' | 'error' | 'redirect';
@@ -56,16 +71,16 @@ export interface RouteConfig {
 /** Result of matching a URL against routes */
 export interface MatchedRoute {
   /** The matched route configuration */
-  route: RouteConfig;
+  readonly route: RouteConfig;
 
   /** Extracted URL parameters */
-  params: RouteParams;
+  readonly params: RouteParams;
 
   /** Query string parameters from the matched URL */
-  searchParams?: URLSearchParams;
+  readonly searchParams?: URLSearchParams;
 
   /** The URLPatternResult from matching */
-  patternResult?: URLPatternResult;
+  readonly patternResult?: URLPatternResult;
 }
 
 /** Error boundary configuration */

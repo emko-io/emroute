@@ -11,6 +11,7 @@
 import type {
   MatchedRoute,
   RouteConfig,
+  RouteInfo,
   RouteParams,
   RouterEvent,
   RouterEventListener,
@@ -233,14 +234,24 @@ export class RouteCore {
   }
 
   /**
-   * Build a ComponentContext from a route's files and params.
-   * Fetches html/md/css file content as needed.
+   * Build a RouteInfo from a matched route and the resolved URL pathname.
+   * Called once per navigation; the result is reused across the route hierarchy.
+   */
+  toRouteInfo(matched: MatchedRoute, pathname: string): RouteInfo {
+    return {
+      pathname,
+      pattern: matched.route.pattern,
+      params: matched.params,
+      searchParams: matched.searchParams ?? new URLSearchParams(),
+    };
+  }
+
+  /**
+   * Build a ComponentContext by extending RouteInfo with loaded file contents.
    */
   async buildComponentContext(
-    pathname: string,
+    routeInfo: RouteInfo,
     route: RouteConfig,
-    params: RouteParams,
-    searchParams?: URLSearchParams,
   ): Promise<ComponentContext> {
     const fetchFile = async (filePath: string): Promise<string> => {
       const url = this.baseUrl + this.toAbsolutePath(filePath);
@@ -258,6 +269,6 @@ export class RouteCore {
       rf?.css ? fetchFile(rf.css) : undefined,
     ]);
 
-    return { pathname, params, searchParams, files: { html, md, css } };
+    return { ...routeInfo, files: { html, md, css } };
   }
 }

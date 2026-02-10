@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0-beta.11] - 2026-02-10
+
+### Changed
+
+- **Baseline 2025 modernization** — adopt modern JS features across `src/`:
+  - Replace `[\s\S]*?` with dotAll `/s` flag in regex patterns
+  - Add named capture groups (`(?<name>...)`) with `match.groups` access
+  - Use `Promise.withResolvers()` instead of manual promise/resolve fields
+  - Use `toSorted()` instead of `[...array].sort()` copy-to-sort
+  - Use `matchAll().toArray()` instead of `[...matchAll()]` spread
+
 ## [1.0.0-beta.10] - 2026-02-10
 
 ### Added

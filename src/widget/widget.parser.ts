@@ -15,7 +15,7 @@ import type { ParsedWidgetBlock } from '../type/widget.type.ts';
  * Pattern to match widget fenced code blocks.
  * Captures: widget name, params content
  */
-const WIDGET_PATTERN = /```widget:([a-z][a-z0-9-]*)\n([\s\S]*?)```/g;
+const WIDGET_PATTERN = /```widget:(?<name>[a-z][a-z0-9-]*)\n(?<params>.*?)```/gs;
 
 /**
  * Parse all widget blocks from markdown content.
@@ -28,8 +28,8 @@ export function parseWidgetBlocks(markdown: string): ParsedWidgetBlock[] {
 
   for (const match of markdown.matchAll(WIDGET_PATTERN)) {
     const fullMatch = match[0];
-    const widgetName = match[1];
-    const paramsJson = match[2].trim();
+    const { name: widgetName, params: paramsRaw } = match.groups!;
+    const paramsJson = paramsRaw.trim();
     const startIndex = match.index ?? 0;
 
     const block: ParsedWidgetBlock = {

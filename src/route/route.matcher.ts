@@ -47,7 +47,7 @@ export class RouteMatcher {
    * Routes should be pre-sorted by specificity in the manifest.
    */
   constructor(manifest: RoutesManifest) {
-    this.errorBoundaries = [...manifest.errorBoundaries].sort(
+    this.errorBoundaries = manifest.errorBoundaries.toSorted(
       (a, b) => b.pattern.length - a.pattern.length,
     );
     this.statusPages = manifest.statusPages;
@@ -175,7 +175,7 @@ export function filePathToPattern(filePath: string): string {
   pattern = pattern.replace(/\/index$/, '').replace(/^index$/, '');
 
   // Convert [param] to :param
-  pattern = pattern.replace(/\[([^\]]+)\]/g, ':$1');
+  pattern = pattern.replace(/\[(?<param>[^\]]+)\]/g, ':$<param>');
 
   // Ensure leading slash
   pattern = '/' + pattern;
@@ -228,7 +228,7 @@ export function getPageFileType(
  * Non-wildcards before wildcards, static before dynamic, longer paths first.
  */
 export function sortRoutesBySpecificity(routes: RouteConfig[]): RouteConfig[] {
-  return [...routes].sort((a, b) => {
+  return routes.toSorted((a, b) => {
     const aSegments = a.pattern.split('/').filter(Boolean);
     const bSegments = b.pattern.split('/').filter(Boolean);
 

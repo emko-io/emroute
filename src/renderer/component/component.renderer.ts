@@ -65,7 +65,7 @@ export interface ParsedComponentBlock {
   endIndex: number;
 }
 
-const COMPONENT_PATTERN = /```component:([a-z][a-z0-9-]*)\n([\s\S]*?)```/g;
+const COMPONENT_PATTERN = /```component:(?<name>[a-z][a-z0-9-]*)\n(?<params>.*?)```/gs;
 
 export function parseComponentBlocks(markdown: string): ParsedComponentBlock[] {
   const blocks: ParsedComponentBlock[] = [];
@@ -75,8 +75,8 @@ export function parseComponentBlocks(markdown: string): ParsedComponentBlock[] {
   let match: RegExpExecArray | null;
   while ((match = COMPONENT_PATTERN.exec(markdown)) !== null) {
     const fullMatch = match[0];
-    const componentName = match[1];
-    const paramsJson = match[2].trim();
+    const { name: componentName, params: paramsRaw } = match.groups!;
+    const paramsJson = paramsRaw.trim();
 
     const block: ParsedComponentBlock = {
       fullMatch,

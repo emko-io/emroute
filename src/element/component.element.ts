@@ -77,9 +77,9 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
       return Promise.resolve();
     }
     if (!this.readyPromise) {
-      this.readyPromise = new Promise((resolve) => {
-        this.readyResolve = resolve;
-      });
+      const { promise, resolve } = Promise.withResolvers<void>();
+      this.readyPromise = promise;
+      this.readyResolve = resolve;
     }
     return this.readyPromise;
   }

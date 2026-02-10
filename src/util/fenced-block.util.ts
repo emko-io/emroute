@@ -12,7 +12,7 @@ type UnescapeHtml = (text: string) => string;
  */
 export function processFencedSlots(html: string, unescape: UnescapeHtml): string {
   const pattern =
-    /<pre><code (?:data-language|class)="(?:language-)?router-slot">([\s\S]*?)<\/code><\/pre>/gi;
+    /<pre><code (?:data-language|class)="(?:language-)?router-slot">(.*?)<\/code><\/pre>/gis;
 
   return html.replace(pattern, (_match, content) => {
     return `<router-slot>${unescape(content.trim())}</router-slot>`;
@@ -27,7 +27,7 @@ export function processFencedWidgets(
   unescape: UnescapeHtml,
 ): string {
   const pattern =
-    /<pre><code (?:data-language|class)="(?:language-)?widget:([a-z][a-z0-9-]*)">([\s\S]*?)<\/code><\/pre>/gi;
+    /<pre><code (?:data-language|class)="(?:language-)?widget:([a-z][a-z0-9-]*)">(.*?)<\/code><\/pre>/gis;
 
   return html.replace(pattern, (_match, widgetName, paramsJson) => {
     const decoded = unescape(paramsJson.trim());

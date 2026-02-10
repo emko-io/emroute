@@ -25,15 +25,16 @@ export async function resolveWidgetTags(
     declaredFiles?: { html?: string; md?: string; css?: string },
   ) => Promise<{ html?: string; md?: string; css?: string }>,
 ): Promise<string> {
-  const pattern = /<widget-([a-z][a-z0-9-]*)(\s[^>]*)?>([^]*?)<\/widget-\1>/gi;
-  const matches = [...html.matchAll(pattern)];
+  const pattern =
+    /<widget-(?<name>[a-z][a-z0-9-]*)(?<attrs>\s[^>]*)?>(?<content>[^]*?)<\/widget-\k<name>>/gi;
+  const matches = html.matchAll(pattern).toArray();
 
   if (matches.length === 0) return html;
 
   // Resolve all widgets concurrently
   const replacements = await Promise.all(matches.map(async (match) => {
-    const widgetName = match[1];
-    const attrsString = match[2]?.trim() ?? '';
+    const widgetName = match.groups!.name;
+    const attrsString = match.groups!.attrs?.trim() ?? '';
     const widget = registry.get(widgetName);
 
     if (!widget) return match[0]; // no widget found — leave as-is
@@ -77,12 +78,13 @@ export function parseAttrsToParams(attrsString: string): Record<string, unknown>
   const params: Record<string, unknown> = {};
   if (!attrsString) return params;
 
-  const attrPattern = /([a-z][a-z0-9-]*)(?:="([^"]*)"|='([^']*)'|=([^\s>]+))?/gi;
+  const attrPattern =
+    /(?<attr>[a-z][a-z0-9-]*)(?:="(?<dq>[^"]*)"|='(?<sq>[^']*)'|=(?<uq>[^\s>]+))?/gi;
   for (const match of attrsString.matchAll(attrPattern)) {
-    const attrName = match[1];
+    const { attr: attrName, dq, sq, uq } = match.groups!;
     if (attrName === DATA_SSR_ATTR) continue;
     const key = attrName.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
-    const rawValue = match[2] ?? match[3] ?? match[4];
+    const rawValue = dq ?? sq ?? uq;
     if (rawValue === undefined) {
       params[key] = '';
       continue;

@@ -6,6 +6,7 @@
  */
 
 import type { Component } from '../component/abstract.component.ts';
+import { logger } from '../type/logger.type.ts';
 import type { RouteInfo } from '../type/route.type.ts';
 import { DATA_SSR_ATTR } from './html.util.ts';
 
@@ -56,7 +57,11 @@ export async function resolveWidgetTags(
       const tagName = `widget-${widgetName}`;
       const attrs = attrsString ? ` ${attrsString}` : '';
       return `<${tagName}${attrs} ${DATA_SSR_ATTR}="${ssrData}">${rendered}</${tagName}>`;
-    } catch {
+    } catch (e) {
+      logger.error(
+        `[SSR HTML] Widget "${widgetName}" render failed`,
+        e instanceof Error ? e : undefined,
+      );
       return match[0]; // render failed — leave as-is
     }
   }));
@@ -89,7 +94,7 @@ export function parseAttrsToParams(attrsString: string): Record<string, unknown>
       params[key] = '';
       continue;
     }
-    const raw = rawValue.replace(/&amp;/g, '&').replace(/&quot;/g, '"');
+    const raw = rawValue.replaceAll('&amp;', '&').replaceAll('&quot;', '"');
     try {
       params[key] = JSON.parse(raw);
     } catch {
@@ -102,5 +107,5 @@ export function parseAttrsToParams(attrsString: string): Record<string, unknown>
 
 /** Escape a value for use in an HTML attribute. */
 function escapeAttr(value: string): string {
-  return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+  return value.replaceAll('&', '&amp;').replaceAll('"', '&quot;');
 }

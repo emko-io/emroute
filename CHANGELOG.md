@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0-beta.12] - 2026-02-10
+
+### Changed
+
+- **TypeScript lib bumped to `esnext`** — enables full ES2024+ type support
+- `ComponentElement` deferred ready pattern uses single `PromiseWithResolvers`
+  field instead of separate `readyPromise` + `readyResolve` fields
+- `escapeHtml`, `unescapeHtml`, `escapeAttr` use `replaceAll()` instead of
+  regex-global for literal string replacements
+- `RouteCore.currentRoute` uses `accessor` keyword instead of manual
+  getter/setter + backing field
+- Named regex capture groups added to fenced-block patterns
+- `WidgetManifestEntry.tagName` typed as `` `widget-${string}` `` template
+  literal instead of plain `string`
+- Removed dead `?? 0` fallback on `match.index` in `parseWidgetBlocks`
+
 ## [1.0.0-beta.11] - 2026-02-10
 
 ### Changed

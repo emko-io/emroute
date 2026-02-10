@@ -30,7 +30,7 @@ export function parseWidgetBlocks(markdown: string): ParsedWidgetBlock[] {
     const fullMatch = match[0];
     const { name: widgetName, params: paramsRaw } = match.groups!;
     const paramsJson = paramsRaw.trim();
-    const startIndex = match.index ?? 0;
+    const startIndex = match.index;
 
     const block: ParsedWidgetBlock = {
       fullMatch,

@@ -68,7 +68,7 @@ export class RouteCore {
   private moduleCache: Map<string, unknown> = new Map();
   private widgetFileCache: Map<string, string> = new Map();
   private moduleLoaders: Record<string, () => Promise<unknown>>;
-  private _currentRoute: MatchedRoute | null = null;
+  accessor currentRoute: MatchedRoute | null = null;
   private baseUrl: string;
 
   constructor(manifest: RoutesManifest, options: RouteCoreOptions = {}) {
@@ -77,19 +77,11 @@ export class RouteCore {
     this.moduleLoaders = manifest.moduleLoaders ?? {};
   }
 
-  get currentRoute(): MatchedRoute | null {
-    return this._currentRoute;
-  }
-
-  set currentRoute(route: MatchedRoute | null) {
-    this._currentRoute = route;
-  }
-
   /**
    * Get current route parameters.
    */
   getParams(): RouteParams {
-    return this._currentRoute?.params ?? {};
+    return this.currentRoute?.params ?? {};
   }
 
   /**
@@ -248,14 +240,17 @@ export class RouteCore {
 
   /**
    * Build a ComponentContext by extending RouteInfo with loaded file contents.
+   * When a signal is provided it is forwarded to fetch() calls and included
+   * in the returned context so that getData() can observe cancellation.
    */
   async buildComponentContext(
     routeInfo: RouteInfo,
     route: RouteConfig,
+    signal?: AbortSignal,
   ): Promise<ComponentContext> {
     const fetchFile = async (filePath: string): Promise<string> => {
       const url = this.baseUrl + this.toAbsolutePath(filePath);
-      const response = await fetch(url);
+      const response = await fetch(url, signal ? { signal } : undefined);
       if (!response.ok) {
         throw new Error(`Failed to fetch ${filePath}: ${response.status}`);
       }
@@ -269,6 +264,6 @@ export class RouteCore {
       rf?.css ? fetchFile(rf.css) : undefined,
     ]);
 
-    return { ...routeInfo, files: { html, md, css } };
+    return { ...routeInfo, files: { html, md, css }, signal };
   }
 }

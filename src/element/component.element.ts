@@ -31,8 +31,7 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
   private context: ComponentContext | undefined;
   private state: ComponentState = 'idle';
   private errorMessage = '';
-  private readyPromise: Promise<void> | null = null;
-  private readyResolve: (() => void) | null = null;
+  private deferred: PromiseWithResolvers<void> | null = null;
   private abortController: AbortController | null = null;
 
   /** Promise that resolves with fetched data (available after loadData starts) */
@@ -76,12 +75,8 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
     if (this.state === 'ready') {
       return Promise.resolve();
     }
-    if (!this.readyPromise) {
-      const { promise, resolve } = Promise.withResolvers<void>();
-      this.readyPromise = promise;
-      this.readyResolve = resolve;
-    }
-    return this.readyPromise;
+    this.deferred ??= Promise.withResolvers<void>();
+    return this.deferred.promise;
   }
 
   async connectedCallback(): Promise<void> {
@@ -149,7 +144,7 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
     this.dataPromise = null;
     this.errorMessage = '';
     this.signalReady();
-    this.readyPromise = null;
+    this.deferred = null;
   }
 
   /**
@@ -244,10 +239,8 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
   }
 
   private signalReady(): void {
-    if (this.readyResolve) {
-      this.readyResolve();
-      this.readyResolve = null;
-    }
+    this.deferred?.resolve();
+    this.deferred = null;
   }
 
   private render(): void {

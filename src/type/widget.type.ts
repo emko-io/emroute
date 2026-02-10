@@ -31,6 +31,9 @@ export interface ParsedWidgetBlock {
   endIndex: number;
 }
 
+/** Custom element tag name for widgets: `widget-{name}` */
+export type WidgetTagName = `widget-${string}`;
+
 /**
  * Widget manifest entry for code generation.
  */
@@ -42,7 +45,7 @@ export interface WidgetManifestEntry {
   modulePath: string;
 
   /** Custom element tag name (widget-{name}) */
-  tagName: string;
+  tagName: WidgetTagName;
 
   /** Discovered/declared companion file paths (html, md, css) */
   files?: { html?: string; md?: string; css?: string };

@@ -12,7 +12,7 @@ type UnescapeHtml = (text: string) => string;
  */
 export function processFencedSlots(html: string, unescape: UnescapeHtml): string {
   const pattern =
-    /<pre><code (?:data-language|class)="(?:language-)?router-slot">(.*?)<\/code><\/pre>/gis;
+    /<pre><code (?:data-language|class)="(?:language-)?router-slot">(?<content>.*?)<\/code><\/pre>/gis;
 
   return html.replace(pattern, (_match, content) => {
     return `<router-slot>${unescape(content.trim())}</router-slot>`;
@@ -27,7 +27,7 @@ export function processFencedWidgets(
   unescape: UnescapeHtml,
 ): string {
   const pattern =
-    /<pre><code (?:data-language|class)="(?:language-)?widget:([a-z][a-z0-9-]*)">(.*?)<\/code><\/pre>/gis;
+    /<pre><code (?:data-language|class)="(?:language-)?widget:(?<name>[a-z][a-z0-9-]*)">(?<params>.*?)<\/code><\/pre>/gis;
 
   return html.replace(pattern, (_match, widgetName, paramsJson) => {
     const decoded = unescape(paramsJson.trim());
@@ -48,7 +48,7 @@ export function processFencedWidgets(
       .map(([key, value]) => {
         const attrName = key.replace(/([A-Z])/g, '-$1').toLowerCase();
         const attrValue = typeof value === 'string' ? value : JSON.stringify(value);
-        return `${attrName}="${attrValue.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"`;
+        return `${attrName}="${attrValue.replaceAll('&', '&amp;').replaceAll('"', '&quot;')}"`;
       })
       .join(' ');
 

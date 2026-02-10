@@ -410,8 +410,7 @@ Deno.test(
       const res = await fetch(baseUrl('/md/crash'));
       assertEquals(res.status, 500);
       const md = await res.text();
-      assert(md.includes('Error'), 'should contain error heading');
-      assert(md.includes('Simulated crash'), 'should contain error message');
+      assert(md.includes('Internal Server Error'), 'should contain generic error heading');
     });
 
     await stopServer();

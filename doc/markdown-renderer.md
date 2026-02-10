@@ -14,6 +14,17 @@ interface MarkdownRenderer {
 }
 ```
 
+## Security
+
+The output of `render()` is used in two contexts with different risk profiles:
+
+- **SSR (server-side):** Rendered HTML is served as a full document. The browser parses it normally, so `<script>` tags, event-handler attributes, and all markup will execute.
+- **SPA (browser):** Rendered HTML is assigned via `innerHTML`. Inline `<script>` tags are not executed per the HTML spec, but event-handler attributes (`onerror`, `onload`, etc.) still fire.
+
+**Your renderer is responsible for sanitizing its output.** Most markdown parsers escape HTML by default. If you enable raw HTML passthrough (e.g. `html: true` in markdown-it), ensure you either trust your content source or sanitize the output before returning from `render()`.
+
+---
+
 ## Setup
 
 Call `MarkdownElement.setRenderer()` **before** any `<mark-down>` elements are connected:

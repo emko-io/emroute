@@ -12,16 +12,16 @@ import type {
   RouteParams,
   RoutesManifest,
 } from '../../type/route.type.ts';
-import type { PageComponent } from '../../component/abstract.component.ts';
 import type { MarkdownRenderer } from '../../type/markdown.type.ts';
-import { default as defaultPageComponent } from '../../component/page.component.ts';
+import defaultPageComponent, { type PageComponent } from '../../component/page.component.ts';
 import {
+  assertSafeRedirect,
   DEFAULT_ROOT_ROUTE,
   RouteCore,
   type RouteCoreOptions,
   stripSsrPrefix,
-  toUrl,
 } from '../../route/route.core.ts';
+import { toUrl } from '../../route/route.matcher.ts';
 import { escapeHtml, STATUS_MESSAGES, unescapeHtml } from '../../util/html.util.ts';
 import { processFencedSlots, processFencedWidgets } from '../../util/fenced-block.util.ts';
 import { resolveWidgetTags } from '../../util/widget-resolve.util.ts';
@@ -83,6 +83,7 @@ export class SsrHtmlRouter {
         matched.route.modulePath,
       );
       const redirectConfig = module.default;
+      assertSafeRedirect(redirectConfig.to);
       return {
         html: `<meta http-equiv="refresh" content="0;url=${escapeHtml(redirectConfig.to)}">`,
         status: redirectConfig.status ?? 301,
@@ -103,6 +104,7 @@ export class SsrHtmlRouter {
         }
         return { html: this.renderStatusPage(error.status, pathname), status: error.status };
       }
+      console.error(`[SSR HTML] Error rendering ${pathname}:`, error);
       return { html: this.renderErrorPage(error, pathname), status: 500 };
     }
   }

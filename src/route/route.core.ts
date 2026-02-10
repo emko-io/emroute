@@ -18,7 +18,6 @@ import type {
 } from '../type/route.type.ts';
 import type { ComponentContext } from '../component/abstract.component.ts';
 import { RouteMatcher, toUrl } from './route.matcher.ts';
-export { toUrl } from './route.matcher.ts';
 
 /** SSR prefix for HTML rendering (e.g. /html/about → /about) */
 export const SSR_HTML_PREFIX = '/html/';
@@ -35,6 +34,15 @@ export function stripSsrPrefix(pathname: string): string {
     return '/' + pathname.slice(SSR_MD_PREFIX.length);
   }
   return pathname;
+}
+
+const BLOCKED_PROTOCOLS = /^(javascript|data|vbscript):/i;
+
+/** Throw if a redirect URL uses a dangerous protocol. */
+export function assertSafeRedirect(url: string): void {
+  if (BLOCKED_PROTOCOLS.test(url.trim())) {
+    throw new Error(`Unsafe redirect URL blocked: ${url}`);
+  }
 }
 
 /** Default root route - renders a slot for child routes */

@@ -39,8 +39,3 @@ export class RouterSlot extends HTMLElementBase {
     }
   }
 }
-
-// Register the custom element (browser only)
-if (globalThis.customElements && !customElements.get('router-slot')) {
-  customElements.define('router-slot', RouterSlot);
-}

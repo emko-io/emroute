@@ -1,8 +1,7 @@
 /**
  * @emkodev/emroute
  *
- * Universal module — works in both browser and server.
- * Contains types, component base classes, route matching, and utilities.
+ * Public API — types, component base classes, and utilities for consumer code.
  *
  * For environment-specific code, use sub-exports:
  *   @emkodev/emroute/spa        — Browser: SPA router + custom elements
@@ -42,40 +41,12 @@ export {
   Component,
   type ComponentContext,
   type ComponentManifestEntry,
-  PageComponent,
   type RenderContext,
 } from './component/abstract.component.ts';
 
+export { PageComponent } from './component/page.component.ts';
 export { WidgetComponent } from './component/widget.component.ts';
 export { WidgetRegistry } from './widget/widget.registry.ts';
-export { DefaultPageComponent } from './component/page.component.ts';
-
-// Route matching
-export {
-  filePathToPattern,
-  getPageFileType,
-  getRouteType,
-  RouteMatcher,
-  sortRoutesBySpecificity,
-} from './route/route.matcher.ts';
-
-export {
-  DEFAULT_ROOT_ROUTE,
-  RouteCore,
-  SSR_HTML_PREFIX,
-  SSR_MD_PREFIX,
-  stripSsrPrefix,
-} from './route/route.core.ts';
-
-// Component/widget rendering
-export {
-  parseComponentBlocks,
-  type ParsedComponentBlock,
-  renderComponent,
-  replaceComponentBlocks,
-} from './renderer/component/component.renderer.ts';
-
-export { parseWidgetBlocks, replaceWidgetBlocks } from './widget/widget.parser.ts';
 
 // Utils
-export { DATA_SSR_ATTR, escapeHtml, STATUS_MESSAGES } from './util/html.util.ts';
+export { escapeHtml } from './util/html.util.ts';

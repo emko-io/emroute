@@ -12,8 +12,8 @@
  */
 
 import { assertEquals } from '@std/assert';
-import { type ComponentContext, PageComponent } from '../../src/component/abstract.component.ts';
-import { DefaultPageComponent } from '../../src/component/page.component.ts';
+import { type ComponentContext } from '../../src/component/abstract.component.ts';
+import { PageComponent } from '../../src/component/page.component.ts';
 import { escapeHtml } from '../../src/util/html.util.ts';
 
 // =============================================================================
@@ -21,7 +21,7 @@ import { escapeHtml } from '../../src/util/html.util.ts';
 // =============================================================================
 
 Deno.test('md only — renderHTML wraps content in <mark-down>', () => {
-  const page = new DefaultPageComponent();
+  const page = new PageComponent();
   const md = '# Welcome\n\nHello world.';
   const context: ComponentContext = { pathname: '/', params: {}, files: { md } };
 
@@ -30,7 +30,7 @@ Deno.test('md only — renderHTML wraps content in <mark-down>', () => {
 });
 
 Deno.test('md only — renderMarkdown returns raw md content', () => {
-  const page = new DefaultPageComponent();
+  const page = new PageComponent();
   const md = '# Welcome\n\nHello world.';
   const context: ComponentContext = { pathname: '/', params: {}, files: { md } };
 
@@ -39,7 +39,7 @@ Deno.test('md only — renderMarkdown returns raw md content', () => {
 });
 
 Deno.test('md only — renderHTML escapes HTML in markdown content', () => {
-  const page = new DefaultPageComponent();
+  const page = new PageComponent();
   const md = '# Title <script>alert("xss")</script>';
   const context: ComponentContext = { pathname: '/', params: {}, files: { md } };
 
@@ -53,7 +53,7 @@ Deno.test('md only — renderHTML escapes HTML in markdown content', () => {
 // =============================================================================
 
 Deno.test('html+md — renderHTML injects md into empty <mark-down> tag', () => {
-  const page = new DefaultPageComponent();
+  const page = new PageComponent();
   const htmlFile = '<h1>About</h1>\n<mark-down></mark-down>\n<footer>End</footer>';
   const md = '# Details\n\nMore info here.';
   const context: ComponentContext = {
@@ -70,7 +70,7 @@ Deno.test('html+md — renderHTML injects md into empty <mark-down> tag', () => 
 });
 
 Deno.test('html+md — renderHTML preserves HTML without <mark-down> tag', () => {
-  const page = new DefaultPageComponent();
+  const page = new PageComponent();
   const htmlFile = '<h1>About</h1>\n<p>Static content only.</p>';
   const md = '# Ignored markdown';
   const context: ComponentContext = {
@@ -84,7 +84,7 @@ Deno.test('html+md — renderHTML preserves HTML without <mark-down> tag', () =>
 });
 
 Deno.test('html+md — renderHTML escapes md injected into <mark-down>', () => {
-  const page = new DefaultPageComponent();
+  const page = new PageComponent();
   const htmlFile = '<section><mark-down></mark-down></section>';
   const md = '<img onerror="alert(1)">';
   const context: ComponentContext = { pathname: '/', params: {}, files: { html: htmlFile, md } };
@@ -95,7 +95,7 @@ Deno.test('html+md — renderHTML escapes md injected into <mark-down>', () => {
 });
 
 Deno.test('html+md — renderMarkdown returns md content (ignores html)', () => {
-  const page = new DefaultPageComponent();
+  const page = new PageComponent();
   const htmlFile = '<h1>About</h1>\n<mark-down></mark-down>';
   const md = '# About\n\nMarkdown content.';
   const context: ComponentContext = {
@@ -109,7 +109,7 @@ Deno.test('html+md — renderMarkdown returns md content (ignores html)', () => 
 });
 
 Deno.test('html+md+css — style prepended, md injected into <mark-down>', () => {
-  const page = new DefaultPageComponent();
+  const page = new PageComponent();
   const htmlFile = '<h1>Styled</h1>\n<mark-down></mark-down>';
   const md = '# Content';
   const css = '.page { color: red; }';

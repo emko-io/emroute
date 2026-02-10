@@ -18,7 +18,7 @@ interface PageTitleData {
   title: string;
 }
 
-class PageTitleWidget extends WidgetComponent<PageTitleParams, PageTitleData> {
+export class PageTitleWidget extends WidgetComponent<PageTitleParams, PageTitleData> {
   override readonly name = 'page-title';
 
   override getData(
@@ -50,5 +50,3 @@ class PageTitleWidget extends WidgetComponent<PageTitleParams, PageTitleData> {
     return undefined;
   }
 }
-
-export const pageTitleWidget = new PageTitleWidget();

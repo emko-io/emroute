@@ -19,9 +19,9 @@ import type {
   RouterState,
   RoutesManifest,
 } from '../../type/route.type.ts';
-import type { PageComponent } from '../../component/abstract.component.ts';
-import { default as defaultPageComponent } from '../../component/page.component.ts';
+import defaultPageComponent, { type PageComponent } from '../../component/page.component.ts';
 import {
+  assertSafeRedirect,
   DEFAULT_ROOT_ROUTE,
   RouteCore,
   SSR_HTML_PREFIX,
@@ -201,6 +201,7 @@ export class SpaHtmlRouter {
         const module = await this.core.loadModule<{ default: RedirectConfig }>(
           matched.route.modulePath,
         );
+        assertSafeRedirect(module.default.to);
         this.navigate(module.default.to, { replace: true });
         return;
       }

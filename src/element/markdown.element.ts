@@ -187,7 +187,3 @@ export class MarkdownElement extends HTMLElementBase {
     this.innerHTML = `<div class="${CSS_ERROR}">Markdown Error: ${escapeHtml(message)}</div>`;
   }
 }
-
-if (globalThis.customElements) {
-  customElements.define('mark-down', MarkdownElement);
-}

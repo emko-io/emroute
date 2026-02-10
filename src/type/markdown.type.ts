@@ -13,6 +13,9 @@ export interface MarkdownRenderer {
 
   /**
    * Render markdown to HTML.
+   *
+   * **Security:** Output is assigned to `innerHTML` — the renderer must
+   * sanitize dangerous markup. See `doc/markdown-renderer.md`.
    */
   render(markdown: string): string;
 }

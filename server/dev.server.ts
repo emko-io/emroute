@@ -158,9 +158,61 @@ function isFileRequest(pathname: string): boolean {
   return lastSegment.includes('.');
 }
 
+const STATIC_EXTENSIONS = new Set([
+  '.html',
+  '.css',
+  '.js',
+  '.mjs',
+  '.json',
+  '.md',
+  '.txt',
+  '.wasm',
+  '.map',
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.gif',
+  '.svg',
+  '.ico',
+  '.webp',
+  '.avif',
+  '.woff',
+  '.woff2',
+  '.ttf',
+  '.otf',
+  '.eot',
+  '.mp4',
+  '.webm',
+  '.ogg',
+  '.mp3',
+  '.wav',
+  '.pdf',
+]);
+
+function isAllowedStaticFile(pathname: string): boolean {
+  const dot = pathname.lastIndexOf('.');
+  if (dot === -1) return false;
+  return STATIC_EXTENSIONS.has(pathname.slice(dot).toLowerCase());
+}
+
 const BUNDLE_DIR = '.build';
 const BUNDLE_WARMUP_DELAY = 2000;
 const WATCH_DEBOUNCE_DELAY = 100;
+
+/**
+ * Resolve a URL pathname to a safe filesystem path within the given root.
+ * Returns null if the resolved path escapes the root (path traversal).
+ */
+function safePath(root: string, pathname: string): string | null {
+  // Decode percent-encoded sequences so %2e%2e/... can't bypass the check
+  const decoded = decodeURIComponent(pathname);
+  // Collapse any /../ sequences via URL resolution, then take the pathname
+  const normalized = new URL(decoded, 'file:///').pathname;
+  const resolved = root + normalized;
+  // The resolved path must start with root + '/' (or equal root exactly)
+  if (resolved !== root && !resolved.startsWith(root + '/')) return null;
+  return resolved;
+}
 
 export interface DevServer {
   handle: ServerHandle;
@@ -258,9 +310,11 @@ export async function createDevServer(
   // Give the initial bundle a moment to complete
   await new Promise((resolve) => setTimeout(resolve, BUNDLE_WARMUP_DELAY));
 
-  /** Resolve file path from app root */
-  function resolveFilePath(pathname: string): string {
-    return appRoot + pathname;
+  /** Resolve file path safely from app root; returns 403 on traversal */
+  function resolveFilePathOrForbid(pathname: string): string | Response {
+    const resolved = safePath(appRoot, pathname);
+    if (!resolved) return new Response('Forbidden', { status: 403 });
+    return resolved;
   }
 
   const indexPath = `${appRoot}/${spaRoot}`;
@@ -282,7 +336,7 @@ export async function createDevServer(
         });
       } catch (e) {
         console.error(`[MD] Error rendering ${pathname}:`, e);
-        return new Response(`Error: ${e}`, { status: 500 });
+        return new Response('Internal Server Error', { status: 500 });
       }
     }
 
@@ -309,7 +363,7 @@ export async function createDevServer(
         });
       } catch (e) {
         console.error(`[HTML] Error rendering ${pathname}:`, e);
-        return new Response(`Error: ${e}`, { status: 500 });
+        return new Response('Internal Server Error', { status: 500 });
       }
     }
 
@@ -355,21 +409,28 @@ export async function createDevServer(
     }
 
     // Try build output first (for bundled JS)
-    const buildPath = BUNDLE_DIR + pathname;
-    const buildResponse = await runtime.serveStaticFile(req, buildPath);
-    if (buildResponse.status === 200) {
-      const body = await buildResponse.text();
-      return new Response(body, {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/javascript; charset=utf-8',
-          'Access-Control-Allow-Origin': '*',
-        },
-      });
+    const buildPath = safePath(BUNDLE_DIR, pathname);
+    if (buildPath) {
+      const buildResponse = await runtime.serveStaticFile(req, buildPath);
+      if (buildResponse.status === 200) {
+        const body = await buildResponse.text();
+        return new Response(body, {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/javascript; charset=utf-8',
+            'Access-Control-Allow-Origin': '*',
+          },
+        });
+      }
     }
 
     // Serve static files from app root / monorepo
-    const filePath = resolveFilePath(pathname);
+    if (!isAllowedStaticFile(pathname)) {
+      return new Response('Not Found', { status: 404 });
+    }
+    const filePathResult = resolveFilePathOrForbid(pathname);
+    if (filePathResult instanceof Response) return filePathResult;
+    const filePath = filePathResult;
     const response = await runtime.serveStaticFile(req, filePath);
 
     // Markdown as text
@@ -399,7 +460,12 @@ export async function createDevServer(
     return response;
   }
 
-  const handle = runtime.serve(port, handleRequest);
+  const handle = runtime.serve(port, async (req) => {
+    const response = await handleRequest(req);
+    response.headers.set('X-Content-Type-Options', 'nosniff');
+    response.headers.set('X-Frame-Options', 'DENY');
+    return response;
+  });
 
   console.log(`Development server running at http://localhost:${port}/`);
   console.log(`  SPA: http://localhost:${port}/`);

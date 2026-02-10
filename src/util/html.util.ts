@@ -18,7 +18,8 @@ export function escapeHtml(text: string): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+    .replace(/'/g, '&#39;')
+    .replace(/`/g, '&#96;');
 }
 
 /**
@@ -26,6 +27,7 @@ export function escapeHtml(text: string): string {
  */
 export function unescapeHtml(text: string): string {
   return text
+    .replace(/&#96;/g, '`')
     .replace(/&#39;/g, "'")
     .replace(/&quot;/g, '"')
     .replace(/&gt;/g, '>')

@@ -2,9 +2,9 @@ import { assert, assertEquals } from '@std/assert';
 import {
   Component,
   ComponentManifestEntry,
-  PageComponent,
   RenderContext,
 } from '../../src/component/abstract.component.ts';
+import { PageComponent } from '../../src/component/page.component.ts';
 import { WidgetComponent } from '../../src/component/widget.component.ts';
 
 // ============================================================================

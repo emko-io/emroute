@@ -36,7 +36,7 @@ interface BreadcrumbData {
   segments: BreadcrumbSegment[];
 }
 
-class BreadcrumbWidget extends WidgetComponent<BreadcrumbParams, BreadcrumbData> {
+export class BreadcrumbWidget extends WidgetComponent<BreadcrumbParams, BreadcrumbData> {
   override readonly name = 'breadcrumb';
 
   override getData(
@@ -99,5 +99,3 @@ class BreadcrumbWidget extends WidgetComponent<BreadcrumbParams, BreadcrumbData>
       .join(sep);
   }
 }
-
-export const breadcrumbWidget = new BreadcrumbWidget();

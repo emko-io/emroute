@@ -11,15 +11,14 @@ import type {
   RouteParams,
   RoutesManifest,
 } from '../../type/route.type.ts';
-import type { PageComponent } from '../../component/abstract.component.ts';
-import { default as defaultPageComponent } from '../../component/page.component.ts';
+import defaultPageComponent, { type PageComponent } from '../../component/page.component.ts';
 import {
   DEFAULT_ROOT_ROUTE,
   RouteCore,
   type RouteCoreOptions,
   stripSsrPrefix,
-  toUrl,
 } from '../../route/route.core.ts';
+import { toUrl } from '../../route/route.matcher.ts';
 import { STATUS_MESSAGES } from '../../util/html.util.ts';
 import { parseWidgetBlocks, replaceWidgetBlocks } from '../../widget/widget.parser.ts';
 import type { WidgetRegistry } from '../../widget/widget.registry.ts';
@@ -93,6 +92,7 @@ export class SsrMdRouter {
         }
         return { markdown: this.renderStatusPage(error.status, pathname), status: error.status };
       }
+      console.error(`[SSR MD] Error rendering ${pathname}:`, error);
       return { markdown: this.renderErrorPage(error, pathname), status: 500 };
     }
   }
@@ -225,9 +225,8 @@ export class SsrMdRouter {
   /**
    * Render an error page as Markdown.
    */
-  private renderErrorPage(error: unknown, pathname: string): string {
-    const message = error instanceof Error ? error.message : String(error);
-    return `# Error\n\nPath: \`${pathname}\`\n\n${message}`;
+  private renderErrorPage(_error: unknown, pathname: string): string {
+    return `# Internal Server Error\n\nPath: \`${pathname}\``;
   }
 }
 

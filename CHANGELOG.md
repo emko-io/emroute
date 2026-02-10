@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0-beta.8] - 2026-02-10
+
+### Fixed
+
+- **Path traversal in dev server** — `safePath()` normalizes and validates
+  all static file paths against their root directory; returns 403 on escape
+- **Error response information leak** — dev server, SSR HTML, and SSR MD
+  renderers now return generic error messages; stack traces logged server-side
+  only
+- **Open redirect via dangerous protocols** — `assertSafeRedirect()` blocks
+  `javascript:`, `data:`, and `vbscript:` URLs in redirect configs (both SSR
+  and SPA)
+- **`escapeHtml` missing backtick** — added `` ` `` → `&#96;` escape and
+  matching `unescapeHtml` reverse to keep the markdown SSR pipeline intact
+
+### Changed
+
+- Dev server static file serving restricted to an allowlist of safe extensions
+  (`.html`, `.js`, `.css`, `.wasm`, images, fonts, media, etc.)
+- Dev server responses include `X-Content-Type-Options: nosniff` and
+  `X-Frame-Options: DENY` headers
+- `MarkdownRenderer.render()` JSDoc documents that output is set via
+  `innerHTML` and renderer must sanitize; `doc/markdown-renderer.md` expanded
+  with security section covering SSR vs SPA risk profiles
+- `toUrl` re-exported from `route.matcher.ts` directly instead of via
+  `route.core.ts` for better tree-shaking
+- `PageComponent` consolidated into `page.component.ts` (moved from
+  `abstract.component.ts`)
+
 ## [1.0.0-beta.7] - 2026-02-10
 
 ### Fixed

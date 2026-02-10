@@ -267,7 +267,7 @@ invisible.
 
 ---
 
-## 10. `PageTitleWidget` has render-time side effect, is no-op in SSR
+## 10. ~~`PageTitleWidget` has render-time side effect, is no-op in SSR~~ — WONT FIX
 
 **File:** `src/widget/page-title.widget.ts:30–37`
 
@@ -290,11 +290,11 @@ Two problems:
    string. There is no mechanism for a widget to communicate a title to
    the SSR renderer (unlike `PageComponent.getTitle()`).
 
-**Fix:** Add a `getTitle()` or metadata protocol to widgets; move title
-setting to the router/host layer.
-
-**Breaking:** Widget contract changes — renderHTML becomes pure, title
-mechanism moves elsewhere.
+**Resolution:** Not fixing. Widgets are inherently side-effectful — they
+render into the DOM, fetch data, manage lifecycle. Setting `document.title`
+is a natural widget responsibility in SPA mode. The SSR HTML renderer
+already handles titles via `PageComponent.getTitle()` and `<title>` tag
+injection in the shell.
 
 ---
 

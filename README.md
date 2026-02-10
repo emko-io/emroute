@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://jsr.io/@emkodev/emroute/1.0.1/doc/logo-full.png" alt="emroute" width="394" height="80">
+  <img src="https://jsr.io/@emkodev/emroute/1.0.2/doc/logo-full.png" alt="emroute" width="394" height="80">
 </p>
 
 <p align="center">
@@ -22,15 +22,15 @@ GET /md/projects/42       → plain Markdown
 ## How It Works
 
 <p align="center">
-  <img src="https://jsr.io/@emkodev/emroute/1.0.1/doc/diagram-tp.png" alt="emroute architecture" width="480" height="480">
+  <img src="https://jsr.io/@emkodev/emroute/1.0.2/doc/diagram-tp.png" alt="emroute architecture" width="480" height="480">
 </p>
 
 One component, three rendering paths:
 
 <p align="center">
-  <img src="https://jsr.io/@emkodev/emroute/1.0.1/doc/diagram-flow-spa.png" alt="SPA flow" width="320" height="320">
-  <img src="https://jsr.io/@emkodev/emroute/1.0.1/doc/diagram-flow-ssr-html.png" alt="SSR HTML flow" width="320" height="320">
-  <img src="https://jsr.io/@emkodev/emroute/1.0.1/doc/diagram-flow-ssr-md.png" alt="SSR Markdown flow" width="320" height="320">
+  <img src="https://jsr.io/@emkodev/emroute/1.0.2/doc/diagram-flow-spa.png" alt="SPA flow" width="320" height="320">
+  <img src="https://jsr.io/@emkodev/emroute/1.0.2/doc/diagram-flow-ssr-html.png" alt="SSR HTML flow" width="320" height="320">
+  <img src="https://jsr.io/@emkodev/emroute/1.0.2/doc/diagram-flow-ssr-md.png" alt="SSR Markdown flow" width="320" height="320">
 </p>
 
 The SPA and SSR HTML flows both call `renderHTML()` — same output, different
@@ -90,7 +90,7 @@ export default new ProjectPage();
 - **Widgets** — interactive islands with their own data lifecycle, error handling, and optional file companions (`.html`, `.md`, `.css`)
 - **SSR hydration** — server-rendered HTML adopted by the SPA without re-rendering
 - **Error boundaries** — scoped error handlers per route prefix, plus status pages (`404.page.html`) and a root fallback
-- **Native APIs only** — URLPattern, custom elements, History API. No framework runtime, no virtual DOM, no build-time magic
+- **Zero dependencies** — native APIs only (URLPattern, custom elements, History API). No framework runtime, no virtual DOM, no build-time magic
 - **Redirects** — declarative `.redirect.ts` files with 301/302 support
 
 ## Getting Started

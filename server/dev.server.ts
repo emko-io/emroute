@@ -255,7 +255,7 @@ export async function createDevServer(
     routesManifest.moduleLoaders = createServerModuleLoaders(routesManifest, appRoot, runtime);
 
     // Write manifest file so the bundle can import it
-    const code = generateManifestCode(result, '@emkodev/eMroute');
+    const code = generateManifestCode(result, '@emkodev/emroute');
     await runtime.writeTextFile(`${appRoot}/routes.manifest.ts`, code);
 
     console.log(`Scanned ${routesDir}/`);
@@ -295,7 +295,7 @@ export async function createDevServer(
     routesManifest.moduleLoaders = createServerModuleLoaders(routesManifest, appRoot, runtime);
 
     // Write manifest file — deno bundle --watch will pick up the change
-    const code = generateManifestCode(result, '@emkodev/eMroute');
+    const code = generateManifestCode(result, '@emkodev/emroute');
     await runtime.writeTextFile(`${appRoot}/routes.manifest.ts`, code);
 
     ssrHtmlRouter = new SsrHtmlRouter(routesManifest, {

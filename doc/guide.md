@@ -329,6 +329,56 @@ them. Use widgets in HTML or Markdown:
 ```
 ````
 
+The JSON body is optional — omit it when the widget takes no parameters:
+
+````md
+```widget:nav
+```
+````
+
+JSON keys become HTML attributes: `{"coin": "bitcoin"}` is equivalent to
+`<widget-crypto-price coin="bitcoin">`.
+
+### Registering Widgets
+
+Widgets must be registered in **both** the SPA entry point and the SSR server.
+Without SPA registration, `<widget-*>` tags appear as empty elements in the
+browser.
+
+**SPA (main.ts):**
+
+```ts
+import { ComponentElement, createSpaHtmlRouter, WidgetRegistry } from '@emkodev/emroute/spa';
+import { routesManifest } from './routes.manifest.ts';
+import cryptoPrice from './widgets/crypto-price.widget.ts';
+
+const widgets = new WidgetRegistry();
+widgets.add(cryptoPrice);
+
+// Define <widget-*> custom elements in the browser
+for (const widget of widgets) {
+  ComponentElement.register(widget);
+}
+
+const router = await createSpaHtmlRouter(routesManifest);
+```
+
+**SSR (dev.ts):**
+
+```ts
+import { WidgetRegistry } from '@emkodev/emroute';
+import cryptoPrice from './widgets/crypto-price.widget.ts';
+
+const widgets = new WidgetRegistry();
+widgets.add(cryptoPrice);
+
+await createDevServer({ ..., widgets }, denoServerRuntime);
+```
+
+The SSR registry resolves widgets server-side for `/html/*` and `/md/*` routes.
+The SPA registry defines custom elements so the browser can render and hydrate
+them. Both use the same widget instances — you just register them in two places.
+
 ### Widget Files
 
 Widgets can declare companion files (`.html`, `.md`, `.css`) that get loaded

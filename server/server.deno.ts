@@ -2,7 +2,6 @@
  * Deno Server Runtime Implementation
  */
 
-import { serveFile } from 'jsr:@std/http@1.0.10/file-server';
 import type {
   DirEntry,
   FileStat,
@@ -12,6 +11,37 @@ import type {
   WatchHandle,
 } from './server.type.ts';
 import { ServerRuntimeError } from './server.type.ts';
+
+const CONTENT_TYPES: Record<string, string> = {
+  '.html': 'text/html; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'application/javascript; charset=utf-8',
+  '.mjs': 'application/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.md': 'text/plain; charset=utf-8',
+  '.txt': 'text/plain; charset=utf-8',
+  '.wasm': 'application/wasm',
+  '.map': 'application/json; charset=utf-8',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon',
+  '.webp': 'image/webp',
+  '.avif': 'image/avif',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf',
+  '.otf': 'font/otf',
+  '.eot': 'application/vnd.ms-fontobject',
+  '.mp4': 'video/mp4',
+  '.webm': 'video/webm',
+  '.ogg': 'audio/ogg',
+  '.mp3': 'audio/mpeg',
+  '.wav': 'audio/wav',
+  '.pdf': 'application/pdf',
+};
 
 export const denoServerRuntime: ServerRuntime = {
   serve(port: number, handler: (req: Request) => Promise<Response>): ServerHandle {
@@ -98,8 +128,20 @@ export const denoServerRuntime: ServerRuntime = {
     }
   },
 
-  async serveStaticFile(req: Request, path: string): Promise<Response> {
-    return await serveFile(req, path);
+  async serveStaticFile(_req: Request, path: string): Promise<Response> {
+    try {
+      const body = await Deno.readFile(path);
+      const ext = path.slice(path.lastIndexOf('.')).toLowerCase();
+      return new Response(body, {
+        status: 200,
+        headers: { 'Content-Type': CONTENT_TYPES[ext] ?? 'application/octet-stream' },
+      });
+    } catch (error) {
+      if (error instanceof Deno.errors.NotFound) {
+        return new Response('Not Found', { status: 404 });
+      }
+      throw error;
+    }
   },
 
   async mkdir(path: string, options?: { recursive?: boolean }): Promise<void> {

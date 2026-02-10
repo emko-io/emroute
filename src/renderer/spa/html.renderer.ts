@@ -89,6 +89,10 @@ export class SpaHtmlRouter {
         return;
       }
 
+      if (link.pathname.startsWith(SSR_HTML_PREFIX) || link.pathname.startsWith(SSR_MD_PREFIX)) {
+        return;
+      }
+
       e.preventDefault();
       this.navigate(href);
     }, { signal });

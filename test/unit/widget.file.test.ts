@@ -533,7 +533,7 @@ Deno.test('resolveWidgetTags - works without loadFiles callback', async () => {
   assertStringIncludes(result, '<span>42</span>');
 });
 
-Deno.test('resolveWidgetTags - self-closing tag with file-backed widget', async () => {
+Deno.test('resolveWidgetTags - self-closing tag is not resolved', async () => {
   const widget = new FileBackedWidget();
   const registry = { get: (name: string) => name === 'file-backed' ? widget : undefined };
 
@@ -544,7 +544,7 @@ Deno.test('resolveWidgetTags - self-closing tag with file-backed widget', async 
   const html = '<widget-file-backed />';
   const result = await resolveWidgetTags(html, registry, '/test', {}, loadFiles);
 
-  assertStringIncludes(result, '<p>Self-closing loaded</p>');
+  assertEquals(result, '<widget-file-backed />');
 });
 
 // ============================================================================

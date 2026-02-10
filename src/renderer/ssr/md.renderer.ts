@@ -24,6 +24,8 @@ import { STATUS_MESSAGES } from '../../util/html.util.ts';
 import { parseWidgetBlocks, replaceWidgetBlocks } from '../../widget/widget.parser.ts';
 import type { WidgetRegistry } from '../../widget/widget.registry.ts';
 
+const ROUTER_SLOT_BLOCK = '```\nrouter-slot\n```';
+
 /** Options for SSR Markdown Router */
 export interface SsrMdRouterOptions extends RouteCoreOptions {
   /** Widget registry for server-side widget rendering */
@@ -153,6 +155,8 @@ export class SsrMdRouter {
     if (this.widgets) {
       markdown = await this.resolveWidgets(markdown, leafPathname ?? route.pattern, params);
     }
+
+    if (markdown === ROUTER_SLOT_BLOCK) return '';
 
     return markdown;
   }

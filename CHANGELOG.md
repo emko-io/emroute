@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0-beta.6] - 2026-02-10
+
+### Fixed
+
+- `parseAttrsToParams` now handles single-quoted (`attr='value'`), unquoted
+  (`attr=value`), and boolean (`disabled`) attributes — previously only
+  double-quoted attributes were parsed, causing SSR/SPA data mismatch
+- `resolveWidgetTags` no longer matches self-closing syntax (`<widget-foo />`),
+  aligning SSR with the HTML spec where self-closing custom elements are
+  invalid — only paired tags (`<widget-foo></widget-foo>`) are resolved
+- SPA click handler no longer intercepts `/html/` and `/md/` links — these
+  SSR prefixes now trigger full page navigation as intended
+- `PageComponent.renderHTML` injects `.md` content into empty
+  `<mark-down></mark-down>` tags when both `.html` and `.md` files exist
+- SSR Markdown renderer strips unsubstituted `router-slot` placeholders from
+  leaf pages instead of emitting useless fenced code blocks
+
+### Changed
+
+- SSR Markdown Content-Type changed from `text/plain; charset=utf-8` to
+  `text/markdown; charset=utf-8; variant=CommonMark` per RFC 7763
+- `parseAttrsToParams` is now exported for direct use and testing
+- Test suite expanded: 536 unit tests, 61 browser test steps
+
 ## [1.0.0-beta.5] - 2026-02-09
 
 ### Added

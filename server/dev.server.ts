@@ -274,7 +274,7 @@ export async function createDevServer(
         return new Response(markdown, {
           status,
           headers: {
-            'Content-Type': 'text/plain; charset=utf-8',
+            'Content-Type': 'text/markdown; charset=utf-8; variant=CommonMark',
             'Access-Control-Allow-Origin': '*',
           },
         });

@@ -411,7 +411,7 @@ Deno.test('SsrMdRouter - 404 with .md status page returns md content', async () 
   }
 });
 
-Deno.test('SsrMdRouter - 404 with html-only status page returns placeholder', async () => {
+Deno.test('SsrMdRouter - 404 with html-only status page strips router-slot', async () => {
   const restore = mockFetch({
     '/404.html': '<h1>Not Found</h1><p>Gone.</p>',
   });
@@ -436,7 +436,7 @@ Deno.test('SsrMdRouter - 404 with html-only status page returns placeholder', as
     const result = await router.render('/nonexistent');
 
     assertEquals(result.status, 404);
-    assertStringIncludes(result.markdown, 'router-slot');
+    assertEquals(result.markdown, '');
   } finally {
     restore();
   }
@@ -509,7 +509,7 @@ Deno.test('SsrMdRouter - handles route with no content files', async () => {
   const result = await router.render('/empty');
 
   assertEquals(result.status, 200);
-  assertStringIncludes(result.markdown, 'router-slot');
+  assertEquals(result.markdown, '');
 });
 
 // ============================================================================

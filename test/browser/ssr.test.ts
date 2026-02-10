@@ -263,7 +263,10 @@ Deno.test(
     await t.step('.page.md returns raw markdown content', async () => {
       const res = await fetch(baseUrl('/md/'));
       assertEquals(res.status, 200);
-      assertEquals(res.headers.get('content-type'), 'text/plain; charset=utf-8');
+      assertEquals(
+        res.headers.get('content-type'),
+        'text/markdown; charset=utf-8; variant=CommonMark',
+      );
       const md = await res.text();
       assert(md.includes('# Home'), 'should contain markdown heading');
       assert(md.includes('[About](/about)'), 'should contain markdown link');

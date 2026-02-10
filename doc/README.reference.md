@@ -95,7 +95,7 @@ emroute/
 │   └── route.generator.ts       # Routes manifest generator
 │
 └── test/
-    └── unit/                    # 478 unit tests
+    └── unit/                    # 536 unit tests
 ```
 
 ## API

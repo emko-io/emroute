@@ -1,5 +1,5 @@
 import { assertEquals } from '@std/assert';
-import { escapeHtml, STATUS_MESSAGES } from '../../src/util/html.util.ts';
+import { escapeHtml, parseAttrsToParams, STATUS_MESSAGES } from '../../src/util/html.util.ts';
 
 Deno.test('escapeHtml - basic ampersand', () => {
   const result = escapeHtml('Hello & goodbye');
@@ -145,4 +145,71 @@ Deno.test('STATUS_MESSAGES - all messages are non-empty', () => {
   Object.values(STATUS_MESSAGES).forEach((message) => {
     assertEquals(message.length > 0, true);
   });
+});
+
+// =============================================================================
+// parseAttrsToParams
+// =============================================================================
+
+Deno.test('parseAttrsToParams - double-quoted attribute', () => {
+  assertEquals(parseAttrsToParams('coin="bitcoin"'), { coin: 'bitcoin' });
+});
+
+Deno.test('parseAttrsToParams - single-quoted attribute', () => {
+  assertEquals(parseAttrsToParams("coin='bitcoin'"), { coin: 'bitcoin' });
+});
+
+Deno.test('parseAttrsToParams - unquoted attribute', () => {
+  assertEquals(parseAttrsToParams('coin=bitcoin'), { coin: 'bitcoin' });
+});
+
+Deno.test('parseAttrsToParams - boolean attribute', () => {
+  assertEquals(parseAttrsToParams('disabled'), { disabled: '' });
+});
+
+Deno.test('parseAttrsToParams - mixed attribute styles', () => {
+  assertEquals(
+    parseAttrsToParams('coin="bitcoin" name=\'test\' count=42 disabled'),
+    { coin: 'bitcoin', name: 'test', count: 42, disabled: '' },
+  );
+});
+
+Deno.test('parseAttrsToParams - kebab-case to camelCase', () => {
+  assertEquals(parseAttrsToParams("my-attr='hello'"), { myAttr: 'hello' });
+});
+
+Deno.test('parseAttrsToParams - empty string', () => {
+  assertEquals(parseAttrsToParams(''), {});
+});
+
+Deno.test('parseAttrsToParams - data-ssr is skipped', () => {
+  assertEquals(parseAttrsToParams('coin="bitcoin" data-ssr="ignored"'), { coin: 'bitcoin' });
+});
+
+Deno.test('parseAttrsToParams - JSON value in double quotes', () => {
+  assertEquals(parseAttrsToParams('count="42"'), { count: 42 });
+});
+
+Deno.test('parseAttrsToParams - JSON value in single quotes', () => {
+  assertEquals(parseAttrsToParams("active='true'"), { active: true });
+});
+
+Deno.test('parseAttrsToParams - unquoted numeric value', () => {
+  assertEquals(parseAttrsToParams('count=42'), { count: 42 });
+});
+
+Deno.test('parseAttrsToParams - multiple boolean attributes', () => {
+  assertEquals(parseAttrsToParams('disabled hidden readonly'), {
+    disabled: '',
+    hidden: '',
+    readonly: '',
+  });
+});
+
+Deno.test('parseAttrsToParams - HTML entity decoding in double quotes', () => {
+  assertEquals(parseAttrsToParams('text="hello &amp; goodbye"'), { text: 'hello & goodbye' });
+});
+
+Deno.test('parseAttrsToParams - HTML entity decoding in single quotes', () => {
+  assertEquals(parseAttrsToParams("text='hello &amp; goodbye'"), { text: 'hello & goodbye' });
 });

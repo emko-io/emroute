@@ -200,20 +200,19 @@ Deno.test({ name: 'SPA renderer', sanitizeResources: false, sanitizeOps: false }
     assertEquals(new URL(page.url()).pathname, '/about');
   });
 
-  await t.step('/html/ prefix stripped for SPA matching', async () => {
+  await t.step('/html/ link triggers full navigation, not SPA', async () => {
     await page.goto(baseUrl('/'));
     await page.waitForSelector('router-slot mark-down h1', { timeout: 5000 });
 
-    await page.click('a[href="/html/about"]');
-    await page.waitForFunction(
-      () => {
-        const h1 = document.querySelector('router-slot router-slot h1');
-        return h1?.textContent === 'About';
-      },
-      undefined,
-      { timeout: 5000 },
-    );
+    let fullLoadFired = false;
+    page.on('load', () => {
+      fullLoadFired = true;
+    });
 
+    await page.click('a[href="/html/about"]');
+    await page.waitForURL('**/html/about', { timeout: 5000 });
+
+    assertEquals(fullLoadFired, true);
     assert(page.url().includes('/html/about'));
   });
 

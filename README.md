@@ -49,7 +49,7 @@ routes/
     [id]/
       tasks.page.ts          → /projects/:id/tasks
   404.page.html              → not found
-  error.ts                   → root error handler
+  index.error.ts             → root error handler
 ```
 
 A route can be a `.md` file, an `.html` template, a `.ts` component, or a

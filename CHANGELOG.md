@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.0-beta.8] - 2026-02-10
 
+### Breaking
+
+- **Root error handler renamed** — `routes/error.ts` is now
+  `routes/index.error.ts` to follow the `{name}.{kind}.ts` naming convention;
+  bare `error.ts` at the routes root is no longer recognized
+
+### Added
+
+- `doc/error-handling.md` — consumer-facing documentation for the three-layer
+  error handling architecture (inline errors, scoped boundaries, root handler,
+  status pages)
+- `issues/pending/ssr-error-boundary.issue.md` — tracks SSR renderers ignoring
+  error boundaries (known gap, blocked by route context rework)
+
 ### Fixed
 
 - **Path traversal in dev server** — `safePath()` normalizes and validates

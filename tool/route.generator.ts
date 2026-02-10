@@ -13,7 +13,7 @@
  * - 404.page.ts → Not found (status 404)
  * - 401.page.ts → Unauthorized (status 401)
  * - 403.page.ts → Forbidden (status 403)
- * - error.ts → Generic error handler
+ * - index.error.ts → Root error handler
  *
  * File precedence per route:
  * - .ts exists → TypeScript render() has full control
@@ -155,8 +155,8 @@ export async function generateRoutesManifest(
     const relativePath = filePath.replace(`${routesDir}/`, '');
     const filename = relativePath.split('/').pop() ?? '';
 
-    // Handle generic error handler (special case - error.ts at root)
-    if (filename === 'error.ts' && relativePath === 'error.ts') {
+    // Handle root error handler (index.error.ts at routes root)
+    if (filename === 'index.error.ts' && relativePath === 'index.error.ts') {
       errorHandler = {
         pattern: '/',
         type: 'error',

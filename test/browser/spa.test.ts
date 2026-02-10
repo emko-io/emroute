@@ -14,7 +14,7 @@
  * - Nested dynamic routes (/projects/:id/tasks)
  * - Redirects (.redirect.ts)
  * - Error boundaries (.error.ts)
- * - Root error handler (error.ts)
+ * - Root error handler (index.error.ts)
  */
 
 import { assert, assertEquals } from '@std/assert';
@@ -265,6 +265,28 @@ Deno.test({ name: 'SPA renderer', sanitizeResources: false, sanitizeOps: false }
     // Markdown content from 404.page.md should also be rendered
     const oops = await page.textContent('router-slot section.error-page mark-down h1');
     assertEquals(oops, 'Oops');
+  });
+
+  await t.step('scoped error boundary catches errors under its prefix', async () => {
+    await page.goto(baseUrl('/projects/broken'));
+    await page.waitForSelector('router-slot h1', { timeout: 5000 });
+
+    const heading = await page.textContent('router-slot h1');
+    assertEquals(heading, 'Project Error');
+
+    const msg = await page.textContent('router-slot .error-msg');
+    assertEquals(msg, 'Something went wrong with this project.');
+  });
+
+  await t.step('root error handler catches errors without a scoped boundary', async () => {
+    await page.goto(baseUrl('/crash'));
+    await page.waitForSelector('router-slot h1', { timeout: 5000 });
+
+    const heading = await page.textContent('router-slot h1');
+    assertEquals(heading, 'Something Went Wrong');
+
+    const msg = await page.textContent('router-slot .root-error');
+    assertEquals(msg, 'An unexpected error occurred.');
   });
 
   // --- .page.ts + .page.html (template pattern) ---

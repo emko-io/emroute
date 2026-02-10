@@ -205,3 +205,73 @@ Deno.test('generator - nested css companion file', async () => {
   assertEquals(result.routes[0].files?.ts, 'routes/projects/[id].page.ts');
   assertEquals(result.routes[0].files?.css, 'routes/projects/[id].page.css');
 });
+
+// ============================================================================
+// Error Handling
+// ============================================================================
+
+Deno.test('generator - index.error.ts at root becomes errorHandler', async () => {
+  const fs = createMockFs([
+    'routes/index.page.md',
+    'routes/index.error.ts',
+  ]);
+  const result = await generateRoutesManifest('routes', fs);
+
+  assertEquals(result.errorHandler?.pattern, '/');
+  assertEquals(result.errorHandler?.type, 'error');
+  assertEquals(result.errorHandler?.modulePath, 'routes/index.error.ts');
+  assertEquals(result.errorBoundaries.length, 0);
+});
+
+Deno.test('generator - scoped .error.ts becomes error boundary', async () => {
+  const fs = createMockFs([
+    'routes/projects/[id].page.ts',
+    'routes/projects/[id].error.ts',
+  ]);
+  const result = await generateRoutesManifest('routes', fs);
+
+  assertEquals(result.errorBoundaries.length, 1);
+  assertEquals(result.errorBoundaries[0].pattern, '/projects');
+  assertEquals(result.errorBoundaries[0].modulePath, 'routes/projects/[id].error.ts');
+  assertEquals(result.errorHandler, undefined);
+});
+
+Deno.test('generator - root error handler and scoped boundary coexist', async () => {
+  const fs = createMockFs([
+    'routes/index.error.ts',
+    'routes/projects/[id].error.ts',
+    'routes/projects/[id].page.ts',
+  ]);
+  const result = await generateRoutesManifest('routes', fs);
+
+  assertEquals(result.errorHandler?.modulePath, 'routes/index.error.ts');
+  assertEquals(result.errorBoundaries.length, 1);
+  assertEquals(result.errorBoundaries[0].pattern, '/projects');
+});
+
+Deno.test('generator - bare error.ts at root is ignored (not a route)', async () => {
+  const fs = createMockFs([
+    'routes/index.page.md',
+    'routes/error.ts',
+  ]);
+  const result = await generateRoutesManifest('routes', fs);
+
+  assertEquals(result.errorHandler, undefined);
+  assertEquals(result.errorBoundaries.length, 0);
+  assertEquals(result.routes.length, 1);
+});
+
+Deno.test('generator - status pages are registered by code', async () => {
+  const fs = createMockFs([
+    'routes/index.page.md',
+    'routes/404.page.html',
+    'routes/401.page.ts',
+  ]);
+  const result = await generateRoutesManifest('routes', fs);
+
+  assertEquals(result.statusPages.size, 2);
+  assertEquals(result.statusPages.get(404)?.statusCode, 404);
+  assertEquals(result.statusPages.get(404)?.files?.html, 'routes/404.page.html');
+  assertEquals(result.statusPages.get(401)?.statusCode, 401);
+  assertEquals(result.statusPages.get(401)?.files?.ts, 'routes/401.page.ts');
+});

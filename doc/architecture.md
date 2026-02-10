@@ -158,10 +158,10 @@ Error boundaries catch rendering failures within a route subtree:
 routes/
   projects/
     [id].error.ts   # catches errors in /projects/:id and children
-  error.ts          # root-level catch-all
+  index.error.ts    # root-level catch-all
 ```
 
-An error boundary receives the error and the route that failed, and produces an error page. The root `error.ts` is the last resort.
+An error boundary receives the error and the route that failed, and produces an error page. The root `index.error.ts` is the last resort.
 
 ## Widgets (Islands)
 

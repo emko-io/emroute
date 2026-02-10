@@ -387,10 +387,11 @@ This catches errors for any route under `/projects/:id/*`.
 
 ### 3. Root Error Handler
 
-A `error.ts` at the routes root catches everything not caught by a boundary:
+An `index.error.ts` at the routes root catches everything not caught by a
+boundary:
 
 ```ts
-// routes/error.ts
+// routes/index.error.ts
 class RootErrorHandler extends PageComponent {
   override readonly name = 'root-error';
 

@@ -90,6 +90,7 @@ export default new ProjectPage();
 - **Widgets** — interactive islands with their own data lifecycle, error handling, and optional file companions (`.html`, `.md`, `.css`). Auto-discovered from a `widgets/` directory or registered manually
 - **SSR hydration** — server-rendered HTML adopted by the SPA without re-rendering
 - **Error boundaries** — scoped error handlers per route prefix, plus status pages (`404.page.html`) and a root fallback
+- **Extensible context** — inject app-level services (RPC clients, auth, feature flags) into every component via `extendContext` on the router. Type-safe access through module augmentation or a per-component generic
 - **Zero dependencies** — native APIs only (URLPattern, custom elements, History API). No framework runtime, no virtual DOM, no build-time magic
 - **Pluggable markdown** — `<mark-down>` custom element with a swappable parser interface; bring your own renderer
 - **Redirects** — declarative `.redirect.ts` files with 301/302 support

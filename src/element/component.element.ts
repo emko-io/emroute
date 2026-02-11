@@ -9,7 +9,11 @@
  * - Loading/error states
  */
 
-import type { Component, ComponentContext } from '../component/abstract.component.ts';
+import type {
+  Component,
+  ComponentContext,
+  ContextProvider,
+} from '../component/abstract.component.ts';
 import { DATA_SSR_ATTR, HTMLElementBase } from '../util/html.util.ts';
 
 const COMPONENT_STATES = ['idle', 'loading', 'ready', 'error'] as const;
@@ -23,6 +27,14 @@ type WidgetFiles = { html?: string; md?: string; css?: string };
 export class ComponentElement<TParams, TData> extends HTMLElementBase {
   /** Shared file content cache — deduplicates fetches across all widget instances. */
   private static fileCache = new Map<string, Promise<string | undefined>>();
+
+  /** App-level context provider set once during router initialization. */
+  private static extendContext: ContextProvider | undefined;
+
+  /** Register (or clear) the context provider that enriches every widget's ComponentContext. */
+  static setContextProvider(provider: ContextProvider | undefined): void {
+    ComponentElement.extendContext = provider;
+  }
 
   private component: Component<TParams, TData>;
   private effectiveFiles?: WidgetFiles;
@@ -136,13 +148,14 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
     const files = await this.loadFiles();
     if (signal.aborted) return;
 
-    this.context = {
+    const base: ComponentContext = {
       pathname: globalThis.location?.pathname ?? '/',
       pattern: '',
       params: {},
       searchParams: new URLSearchParams(globalThis.location?.search ?? ''),
       files: (files.html || files.md || files.css) ? files : undefined,
     };
+    this.context = ComponentElement.extendContext ? ComponentElement.extendContext(base) : base;
 
     // Hydrate from SSR: DOM is already correct, just restore state
     const ssrAttr = this.getAttribute(DATA_SSR_ATTR);

@@ -252,6 +252,7 @@ export class SsrHtmlRouter {
           const files = this.widgetFiles[name] ?? declared;
           return files ? this.core.loadWidgetFiles(files) : Promise.resolve({});
         },
+        this.core.contextProvider,
       );
     }
 

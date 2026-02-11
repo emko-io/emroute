@@ -12,11 +12,14 @@
  * - renderMarkdown: md file → ''
  */
 
-import { Component } from './abstract.component.ts';
+import { Component, type ComponentContext } from './abstract.component.ts';
 import { escapeHtml } from '../util/html.util.ts';
 
-export abstract class WidgetComponent<TParams = unknown, TData = unknown>
-  extends Component<TParams, TData> {
+export abstract class WidgetComponent<
+  TParams = unknown,
+  TData = unknown,
+  TContext extends ComponentContext = ComponentContext,
+> extends Component<TParams, TData, TContext> {
   /**
    * Render widget as HTML.
    *

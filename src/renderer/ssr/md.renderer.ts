@@ -256,7 +256,10 @@ export class SsrMdRouter {
           files = await this.core.loadWidgetFiles(filePaths);
         }
 
-        const context = { ...routeInfo, files };
+        const baseContext = { ...routeInfo, files };
+        const context = this.core.contextProvider
+          ? this.core.contextProvider(baseContext)
+          : baseContext;
         const data = await widget.getData({ params: block.params, context });
         const rendered = widget.renderMarkdown({ data, params: block.params, context });
         replacements.set(block, rendered);

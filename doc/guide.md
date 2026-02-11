@@ -423,6 +423,70 @@ prepends `<style>` tags when a CSS file is declared.
 Widget errors are contained — a failing widget renders its error state inline
 without breaking the surrounding page.
 
+## Extending Context
+
+By default, `ComponentContext` carries route info, pre-loaded files, and an
+abort signal. You can inject app-level services (RPC clients, auth, feature
+flags) so every component can access them from `getData` and render methods.
+
+### 1. Register a context provider
+
+Pass `extendContext` when creating any router. The callback receives the base
+context and returns an enriched version. Always spread `base` to preserve
+routing, file, and signal data:
+
+```ts
+// Browser (SPA)
+import { createSpaHtmlRouter } from '@emkodev/emroute/spa';
+
+await createSpaHtmlRouter(routesManifest, {
+  extendContext: (base) => ({ ...base, rpc: myRpcClient }),
+});
+
+// Server (SSR)
+import { createSsrHtmlRouter } from '@emkodev/emroute/ssr/html';
+
+const htmlRouter = createSsrHtmlRouter(manifest, {
+  widgets,
+  extendContext: (base) => ({ ...base, rpc: myRpcClient }),
+});
+```
+
+The provider runs synchronously for every context construction — pages and
+widgets alike.
+
+### 2. Access custom properties in components
+
+TypeScript needs to know about the extra properties. Two options:
+
+**Module augmentation** (app-wide, zero per-component boilerplate):
+
+```ts
+declare module '@emkodev/emroute' {
+  interface ComponentContext {
+    rpc: RpcClient;
+  }
+}
+```
+
+**Third generic** (explicit per-component):
+
+```ts
+interface AppContext extends ComponentContext {
+  rpc: RpcClient;
+}
+
+class ProjectPage extends PageComponent<{ id: string }, ProjectData, AppContext> {
+  override async getData({ context }: this['DataArgs']) {
+    return context!.rpc.getProject(this.params.id);
+  }
+}
+```
+
+Both approaches work with `PageComponent`, `WidgetComponent`, and the base
+`Component` class. The third generic defaults to `ComponentContext`, so existing
+code is unaffected.
+
 ## Error Handling
 
 Three layers, from most specific to least:
@@ -528,7 +592,9 @@ MarkdownElement.setRenderer({
   render: (md) => myMarkdownLib.render(md),
 });
 
-await createSpaHtmlRouter(routesManifest);
+await createSpaHtmlRouter(routesManifest, {
+  // extendContext: (base) => ({ ...base, rpc: myRpcClient }),
+});
 ```
 
 > **When do you need a markdown renderer?** Only in the SPA (browser). SSR

@@ -20,7 +20,9 @@ import type {
   RouterState,
   RoutesManifest,
 } from '../../type/route.type.ts';
+import type { ContextProvider } from '../../component/abstract.component.ts';
 import defaultPageComponent, { type PageComponent } from '../../component/page.component.ts';
+import { ComponentElement } from '../../element/component.element.ts';
 import {
   assertSafeRedirect,
   DEFAULT_ROOT_ROUTE,
@@ -30,6 +32,12 @@ import {
   stripSsrPrefix,
 } from '../../route/route.core.ts';
 import { escapeHtml, STATUS_MESSAGES } from '../../util/html.util.ts';
+
+/** Options for SPA HTML Router */
+export interface SpaHtmlRouterOptions {
+  /** Enriches every ComponentContext with app-level services before it reaches components. */
+  extendContext?: ContextProvider;
+}
 
 const MARKDOWN_RENDER_TIMEOUT = 5000;
 
@@ -43,8 +51,11 @@ export class SpaHtmlRouter {
   /** Per-navigation controller — aborted when a newer navigation starts. */
   private navigationController: AbortController | null = null;
 
-  constructor(manifest: RoutesManifest) {
-    this.core = new RouteCore(manifest);
+  constructor(manifest: RoutesManifest, options?: SpaHtmlRouterOptions) {
+    this.core = new RouteCore(manifest, { extendContext: options?.extendContext });
+    if (options?.extendContext) {
+      ComponentElement.setContextProvider(options.extendContext);
+    }
   }
 
   /**
@@ -138,6 +149,7 @@ export class SpaHtmlRouter {
     this.abortController?.abort();
     this.abortController = null;
     this.slot = null;
+    ComponentElement.setContextProvider(undefined);
   }
 
   /**
@@ -529,13 +541,14 @@ export class SpaHtmlRouter {
  */
 export async function createSpaHtmlRouter(
   manifest: RoutesManifest,
+  options?: SpaHtmlRouterOptions,
 ): Promise<SpaHtmlRouter> {
   const g = globalThis as Record<string, unknown>;
   if (g.__emroute_router) {
     console.warn('eMroute: SPA router already initialized. Remove duplicate <script> tags.');
     return g.__emroute_router as SpaHtmlRouter;
   }
-  const router = new SpaHtmlRouter(manifest);
+  const router = new SpaHtmlRouter(manifest, options);
   await router.initialize();
   g.__emroute_router = router;
   return router;

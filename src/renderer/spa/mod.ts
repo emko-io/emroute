@@ -14,7 +14,7 @@ import { WidgetRegistry } from '../../widget/widget.registry.ts';
 import { PageTitleWidget } from '../../widget/page-title.widget.ts';
 import { BreadcrumbWidget } from '../../widget/breadcrumb.widget.ts';
 
-export { createSpaHtmlRouter, SpaHtmlRouter } from './html.renderer.ts';
+export { createSpaHtmlRouter, SpaHtmlRouter, type SpaHtmlRouterOptions } from './html.renderer.ts';
 export { ComponentElement, MarkdownElement, RouterSlot, WidgetRegistry };
 export type { SpaMode, WidgetsManifest } from '../../type/widget.type.ts';
 

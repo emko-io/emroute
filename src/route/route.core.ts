@@ -17,7 +17,7 @@ import type {
   RouterEventListener,
   RoutesManifest,
 } from '../type/route.type.ts';
-import type { ComponentContext } from '../component/abstract.component.ts';
+import type { ComponentContext, ContextProvider } from '../component/abstract.component.ts';
 import { RouteMatcher, toUrl } from './route.matcher.ts';
 
 /** SSR prefix for HTML rendering (e.g. /html/about → /about) */
@@ -57,6 +57,8 @@ export const DEFAULT_ROOT_ROUTE: RouteConfig = {
 export interface RouteCoreOptions {
   /** Base URL for fetching files (e.g., 'http://myserver:8080') */
   baseUrl?: string;
+  /** Enriches every ComponentContext with app-level services before it reaches components. */
+  extendContext?: ContextProvider;
 }
 
 /**
@@ -64,6 +66,8 @@ export interface RouteCoreOptions {
  */
 export class RouteCore {
   readonly matcher: RouteMatcher;
+  /** Registered context provider (if any). Exposed so renderers can apply it to inline contexts. */
+  readonly contextProvider: ContextProvider | undefined;
   private listeners: Set<RouterEventListener> = new Set();
   private moduleCache: Map<string, unknown> = new Map();
   private widgetFileCache: Map<string, string> = new Map();
@@ -74,6 +78,7 @@ export class RouteCore {
   constructor(manifest: RoutesManifest, options: RouteCoreOptions = {}) {
     this.matcher = new RouteMatcher(manifest);
     this.baseUrl = options.baseUrl ?? '';
+    this.contextProvider = options.extendContext;
     this.moduleLoaders = manifest.moduleLoaders ?? {};
   }
 
@@ -264,6 +269,7 @@ export class RouteCore {
       rf?.css ? fetchFile(rf.css) : undefined,
     ]);
 
-    return { ...routeInfo, files: { html, md, css }, signal };
+    const base: ComponentContext = { ...routeInfo, files: { html, md, css }, signal };
+    return this.contextProvider ? this.contextProvider(base) : base;
   }
 }

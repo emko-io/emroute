@@ -121,6 +121,10 @@ interface ComponentContext extends RouteInfo {
 
 The component never fetches its own files. The router does that once, passes the context, and the component decides how to use it. This keeps components pure and testable.
 
+### Extending ComponentContext
+
+Consumers can inject app-level services into every `ComponentContext` via the `extendContext` option on any router. The router calls this callback after building the base context (route info + files + signal), and the enriched context flows to all `getData` and render methods — both pages and widgets. See the [Extending Context](../doc/guide.md#extending-context) section of the consumer guide for usage.
+
 ## Markdown Rendering
 
 Markdown content flows through different paths depending on the renderer:

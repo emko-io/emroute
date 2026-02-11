@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-02-11
+
+### Added
+
+- **Extensible component context** — `extendContext` option on all routers
+  (`createSpaHtmlRouter`, `SsrHtmlRouter`, `SsrMdRouter`) accepts a
+  `ContextProvider` callback that enriches every `ComponentContext` with
+  app-level services before it reaches components. Works for both pages and
+  widgets across all three rendering contexts (SPA, SSR HTML, SSR Markdown).
+- **`TContext` generic on Component** — third type parameter
+  (`Component<TParams, TData, TContext>`) defaults to `ComponentContext`.
+  Consumers can narrow context types per-component or use module augmentation
+  for app-wide typing.
+- **`ContextProvider` type** exported from `@emkodev/emroute`.
+- **`SpaHtmlRouterOptions`** exported from `@emkodev/emroute/spa`.
+- **`ComponentElement.setContextProvider()`** — static method for browser-side
+  context enrichment, called automatically by `createSpaHtmlRouter`.
+
+### Fixed
+
+- `SpaHtmlRouter.dispose()` now clears the static context provider on
+  `ComponentElement`, preventing stale providers from persisting across
+  router re-creation (e.g., during HMR or tests).
+
+### Changed
+
+- Test suite: 576 unit tests, 86 browser test steps.
+
 ## [1.1.0] - 2026-02-11
 
 ### Added

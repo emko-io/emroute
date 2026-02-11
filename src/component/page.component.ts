@@ -9,13 +9,14 @@
  * - getData: no-op (returns null)
  */
 
-import { Component } from './abstract.component.ts';
+import { Component, type ComponentContext } from './abstract.component.ts';
 import { escapeHtml } from '../util/html.util.ts';
 
 export class PageComponent<
   TParams extends Record<string, string> = Record<string, string>,
   TData = unknown,
-> extends Component<TParams, TData> {
+  TContext extends ComponentContext = ComponentContext,
+> extends Component<TParams, TData, TContext> {
   override readonly name: string = 'page';
 
   /** Route pattern this page handles (optional — set by subclasses) */

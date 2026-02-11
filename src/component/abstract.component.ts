@@ -23,11 +23,38 @@ export const CSS_ERROR = 'c-error';
  * Context passed to components during rendering.
  * Extends RouteInfo (pathname, pattern, params, searchParams)
  * with pre-loaded file content and an abort signal.
+ *
+ * Consumers can extend this interface via module augmentation
+ * to add app-level services (RPC clients, auth, feature flags, etc.).
  */
 export interface ComponentContext extends RouteInfo {
   readonly files?: Readonly<{ html?: string; md?: string; css?: string }>;
   readonly signal?: AbortSignal;
 }
+
+/**
+ * Callback that enriches the base ComponentContext with app-level services.
+ * Registered once at router creation; called for every context construction.
+ *
+ * **1. Register** — always spread `base` to preserve routing/file/signal data:
+ * ```ts
+ * createSpaHtmlRouter(manifest, {
+ *   extendContext: (base) => ({ ...base, rpc: myRpcClient }),
+ * });
+ * ```
+ *
+ * **2. Access** — expose custom properties to components via module augmentation:
+ * ```ts
+ * declare module '@emkodev/emroute' {
+ *   interface ComponentContext { rpc: RpcClient; }
+ * }
+ * ```
+ * or per-component via the third generic:
+ * ```ts
+ * class MyPage extends PageComponent<Params, Data, AppContext> {}
+ * ```
+ */
+export type ContextProvider = (base: ComponentContext) => ComponentContext;
 
 /**
  * Render context determines how components are rendered.
@@ -46,20 +73,28 @@ export type RenderContext = (typeof RENDER_CONTEXT)[number];
  * Optional override:
  * - renderHTML(): custom HTML rendering (defaults to markdown→HTML conversion)
  * - validateParams(): params validation
+ *
+ * @typeParam TContext — custom context shape; defaults to ComponentContext.
+ *   Use with `extendContext` on the router to inject app-level services.
+ *   See {@link ContextProvider} for details.
  */
-export abstract class Component<TParams = unknown, TData = unknown> {
+export abstract class Component<
+  TParams = unknown,
+  TData = unknown,
+  TContext extends ComponentContext = ComponentContext,
+> {
   /** Type carrier for getData args — use as `this['DataArgs']` in overrides. */
   declare readonly DataArgs: {
     params: TParams;
     signal?: AbortSignal;
-    context?: ComponentContext;
+    context?: TContext;
   };
 
   /** Type carrier for render args — use as `this['RenderArgs']` in overrides. */
   declare readonly RenderArgs: {
     data: TData | null;
     params: TParams;
-    context?: ComponentContext;
+    context?: TContext;
   };
 
   /** Unique name in kebab-case. Used for custom element: `<widget-{name}>` */

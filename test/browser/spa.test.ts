@@ -493,6 +493,30 @@ Deno.test({ name: 'SPA renderer', sanitizeResources: false, sanitizeOps: false }
     assertEquals(hasProject, false, 'aborted /projects/42 content should not remain');
   });
 
+  // --- Element reference ---
+
+  await t.step('widget has element reference during getData and renderHTML', async () => {
+    await page.goto(baseUrl('/mixed-widgets'));
+    await page.waitForSelector('widget-element-ref .element-ref-result', { timeout: 5000 });
+
+    const result = await page.evaluate(() => {
+      const el = document.querySelector('widget-element-ref .element-ref-result');
+      return {
+        getData: el?.getAttribute('data-get-data'),
+        render: el?.getAttribute('data-render'),
+        tag: el?.getAttribute('data-tag'),
+      };
+    });
+
+    assertEquals(result.getData, 'true', 'this.element should be set during getData');
+    assertEquals(result.render, 'true', 'this.element should be set during renderHTML');
+    assertEquals(
+      result.tag,
+      'widget-element-ref',
+      'this.element should be the host custom element',
+    );
+  });
+
   await t.step('does not intercept external links', async () => {
     await page.goto(baseUrl('/'));
     await page.waitForSelector('router-slot mark-down h1', { timeout: 5000 });

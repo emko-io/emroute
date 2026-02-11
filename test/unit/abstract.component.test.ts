@@ -669,3 +669,58 @@ Deno.test('Widget - inherits renderMarkdownError from Component', () => {
   assertEquals(result.includes('test-widget'), true);
   assertEquals(result.includes('not found'), true);
 });
+
+// ============================================================================
+// Element Reference Tests
+// ============================================================================
+
+Deno.test('Component - element is undefined by default (SSR)', () => {
+  const component = new TestComponent();
+  assertEquals(component.element, undefined);
+});
+
+Deno.test('Component - element is undefined during getData (SSR)', async () => {
+  let elementDuringGetData: HTMLElement | undefined = 'sentinel' as unknown as undefined;
+
+  class SpyComponent extends Component<null, null> {
+    readonly name = 'spy';
+    getData(_args: this['DataArgs']): Promise<null> {
+      elementDuringGetData = this.element;
+      return Promise.resolve(null);
+    }
+    renderMarkdown(): string {
+      return '';
+    }
+  }
+
+  const component = new SpyComponent();
+  await component.getData({ params: null });
+  assertEquals(elementDuringGetData, undefined);
+});
+
+Deno.test('Component - element is undefined during renderHTML (SSR)', () => {
+  let elementDuringRender: HTMLElement | undefined = 'sentinel' as unknown as undefined;
+
+  class SpyComponent extends Component<null, string> {
+    readonly name = 'spy';
+    getData(): Promise<string> {
+      return Promise.resolve('data');
+    }
+    renderMarkdown(): string {
+      return '';
+    }
+    override renderHTML(args: this['RenderArgs']): string {
+      elementDuringRender = this.element;
+      return super.renderHTML(args);
+    }
+  }
+
+  const component = new SpyComponent();
+  component.renderHTML({ data: 'data', params: null });
+  assertEquals(elementDuringRender, undefined);
+});
+
+Deno.test('Widget - element is undefined by default (SSR)', () => {
+  const widget = new TestWidget();
+  assertEquals(widget.element, undefined);
+});

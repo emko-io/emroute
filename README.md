@@ -87,7 +87,7 @@ export default new ProjectPage();
 - **File-based routing** with dynamic segments (`[id]`), catch-all directories, and nested layouts via `<router-slot>`
 - **Triple rendering** — SPA, SSR HTML, SSR Markdown from one component
 - **Companion files** — `.page.html`, `.page.md`, `.page.css` loaded automatically and passed through context
-- **Widgets** — interactive islands with their own data lifecycle, error handling, and optional file companions (`.html`, `.md`, `.css`). Auto-discovered from a `widgets/` directory or registered manually
+- **Widgets** — interactive islands with their own data lifecycle, error handling, and optional file companions (`.html`, `.md`, `.css`). Auto-discovered from a `widgets/` directory or registered manually. `this.element` gives opt-in DOM access in the browser
 - **SSR hydration** — server-rendered HTML adopted by the SPA without re-rendering
 - **Error boundaries** — scoped error handlers per route prefix, plus status pages (`404.page.html`) and a root fallback
 - **Extensible context** — inject app-level services (RPC clients, auth, feature flags) into every component via `extendContext` on the router. Type-safe access through module augmentation or a per-component generic

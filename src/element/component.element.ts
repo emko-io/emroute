@@ -119,6 +119,7 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
   }
 
   async connectedCallback(): Promise<void> {
+    this.component.element = this;
     this.abortController = new AbortController();
     const signal = this.abortController.signal;
 
@@ -176,6 +177,7 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
 
   disconnectedCallback(): void {
     this.component.destroy?.();
+    this.component.element = undefined;
     this.abortController?.abort();
     this.abortController = null;
     this.state = 'idle';

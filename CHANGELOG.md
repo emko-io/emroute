@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-02-11
+
+### Added
+
+- **`element` property on Component** — optional `HTMLElement` reference set by
+  `ComponentElement` when the widget connects in the browser. Available in
+  `getData()`, `renderHTML()`, `destroy()`, and any other method during the
+  browser lifecycle. Stays `undefined` on the server (SSR/Markdown), preserving
+  isomorphic safety. Cleared on disconnect.
+
+### Changed
+
+- Test suite: 580 unit tests, 87 browser test steps.
+
 ## [1.2.0] - 2026-02-11
 
 ### Added

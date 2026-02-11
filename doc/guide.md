@@ -423,6 +423,43 @@ prepends `<style>` tags when a CSS file is declared.
 Widget errors are contained — a failing widget renders its error state inline
 without breaking the surrounding page.
 
+### Host Element Reference
+
+In the browser, `this.element` gives a widget access to its host custom element
+(`<widget-{name}>`). The reference is set before `getData()` and available
+throughout the component's lifecycle. On the server, `this.element` is
+`undefined`.
+
+```ts
+class CounterWidget extends WidgetComponent<{ start?: string }, { count: number }> {
+  override readonly name = 'counter';
+
+  override getData({ params }: this['DataArgs']) {
+    return Promise.resolve({ count: parseInt(params.start ?? '0', 10) });
+  }
+
+  override renderHTML({ data }: this['RenderArgs']) {
+    if (!data) return '';
+    return `<button class="dec">-</button>
+<span class="count">${data.count}</span>
+<button class="inc">+</button>`;
+  }
+
+  override renderMarkdown({ data }: this['RenderArgs']) {
+    return data ? `Counter: ${data.count}` : '';
+  }
+
+  override destroy() {
+    // Cleanup: this.element is still available here
+  }
+}
+```
+
+Use `this.element` to attach event listeners, query rendered children, integrate
+third-party libraries, or perform any imperative DOM work after rendering.
+Components that don't need DOM access simply ignore the property — it's
+opt-in by nature.
+
 ## Extending Context
 
 By default, `ComponentContext` carries route info, pre-loaded files, and an

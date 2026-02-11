@@ -100,6 +100,9 @@ export abstract class Component<
   /** Unique name in kebab-case. Used for custom element: `<widget-{name}>` */
   abstract readonly name: string;
 
+  /** Host element reference, set by ComponentElement in the browser. */
+  element?: HTMLElement;
+
   /** Associated file paths for pre-loaded content (html, md, css). */
   readonly files?: { html?: string; md?: string; css?: string };
 

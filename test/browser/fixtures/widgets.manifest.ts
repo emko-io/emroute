@@ -34,6 +34,11 @@ export const widgetsManifest: WidgetsManifest = {
       tagName: 'widget-counter-vanilla',
     },
     {
+      name: 'element-ref',
+      modulePath: 'widgets/element-ref/element-ref.widget.ts',
+      tagName: 'widget-element-ref',
+    },
+    {
       name: 'failing',
       modulePath: 'widgets/failing/failing.widget.ts',
       tagName: 'widget-failing',
@@ -111,6 +116,8 @@ export const widgetsManifest: WidgetsManifest = {
       import('./widgets/counter-htm/counter-htm.widget.ts'),
     'widgets/counter-vanilla/counter-vanilla.widget.ts': () =>
       import('./widgets/counter-vanilla/counter-vanilla.widget.ts'),
+    'widgets/element-ref/element-ref.widget.ts': () =>
+      import('./widgets/element-ref/element-ref.widget.ts'),
     'widgets/failing/failing.widget.ts': () => import('./widgets/failing/failing.widget.ts'),
     'widgets/file-widget/file-widget.widget.ts': () =>
       import('./widgets/file-widget/file-widget.widget.ts'),

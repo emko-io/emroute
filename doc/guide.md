@@ -469,6 +469,27 @@ exported `scopeWidgetCss(css, widgetName)` utility for the same effect.
 paint entirely; visible widgets render normally. Override per-widget with CSS
 if needed (`widget-nav { content-visibility: visible; }`).
 
+**Container queries:** All widget elements have `container-type: inline-size`
+set by default. Widget CSS can use `@container` queries to respond to the
+widget's own width:
+
+```css
+/* in greeting.widget.css */
+.greeting {
+  font-size: 1rem;
+}
+
+@container (min-width: 600px) {
+  .greeting {
+    font-size: 1.25rem;
+    display: flex;
+    gap: 1rem;
+  }
+}
+```
+
+No opt-in needed — every widget is a container out of the box.
+
 Widget errors are contained — a failing widget renders its error state inline
 without breaking the surrounding page.
 

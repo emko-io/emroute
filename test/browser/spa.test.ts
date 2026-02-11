@@ -525,15 +525,18 @@ Deno.test({ name: 'SPA renderer', sanitizeResources: false, sanitizeOps: false }
     assertEquals(message, 'Hello, Lazy!');
   });
 
-  await t.step('widget element has content-visibility: auto', async () => {
+  await t.step('widget element has content-visibility and container-type', async () => {
     await page.goto(baseUrl('/mixed-widgets'));
     await page.waitForSelector('widget-greeting .greeting-message', { timeout: 5000 });
 
-    const cv = await page.evaluate(() => {
+    const styles = await page.evaluate(() => {
       const el = document.querySelector('widget-greeting');
-      return el ? getComputedStyle(el).contentVisibility : null;
+      if (!el) return null;
+      const s = getComputedStyle(el);
+      return { contentVisibility: s.contentVisibility, containerType: s.containerType };
     });
-    assertEquals(cv, 'auto');
+    assertEquals(styles?.contentVisibility, 'auto');
+    assertEquals(styles?.containerType, 'inline-size');
   });
 
   await t.step('lazy attribute is not parsed as a widget param', async () => {

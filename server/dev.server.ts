@@ -221,6 +221,7 @@ function buildSpaHtml(title: string, scriptTag: string, styleTag = ''): string {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${escapeHtml(title)}</title>${styleLink}
+  <style>@view-transition { navigation: auto; }</style>
 </head>
 <body>
   <router-slot></router-slot>

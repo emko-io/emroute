@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://jsr.io/@emkodev/emroute/1.3.3/doc/logo-full.png" alt="emroute" width="394" height="80">
+  <img src="doc/logo-full.png" alt="emroute" width="394" height="80">
 </p>
 
 <p align="center">
@@ -22,15 +22,15 @@ GET /md/projects/42       → plain Markdown
 ## How It Works
 
 <p align="center">
-  <img src="https://jsr.io/@emkodev/emroute/1.3.3/doc/diagram-full.png" alt="emroute architecture" width="480" height="480">
+  <img src="doc/diagram-full.png" alt="emroute architecture" width="480" height="480">
 </p>
 
 One component, three rendering paths:
 
 <p align="center">
-  <img src="https://jsr.io/@emkodev/emroute/1.3.3/doc/diagram-flow-spa.png" alt="SPA flow" width="320" height="320">
-  <img src="https://jsr.io/@emkodev/emroute/1.3.3/doc/diagram-flow-ssr-html.png" alt="SSR HTML flow" width="320" height="320">
-  <img src="https://jsr.io/@emkodev/emroute/1.3.3/doc/diagram-flow-ssr-md.png" alt="SSR Markdown flow" width="320" height="320">
+  <img src="doc/diagram-flow-spa.png" alt="SPA flow" width="320" height="320">
+  <img src="doc/diagram-flow-ssr-html.png" alt="SSR HTML flow" width="320" height="320">
+  <img src="doc/diagram-flow-ssr-md.png" alt="SSR Markdown flow" width="320" height="320">
 </p>
 
 The SPA and SSR HTML flows both call `renderHTML()` — same output, different
@@ -89,7 +89,7 @@ export default new ProjectPage();
 - **Companion files** — `.page.html`, `.page.md`, `.page.css` loaded automatically and passed through context
 - **Widgets** — interactive islands with their own data lifecycle, error handling, and optional file companions (`.html`, `.md`, `.css`). Auto-discovered from a `widgets/` directory or registered manually. `this.element` gives opt-in DOM access in the browser. `<widget-foo lazy>` defers loading until visible via `IntersectionObserver`
 - **View Transitions** — SPA route changes animate via `document.startViewTransition()`. Progressive enhancement with CSS-only customization
-- **Scoped CSS** — companion `.widget.css` files auto-wrapped in `@scope (widget-{name}) { ... }`. All widget elements get `content-visibility: auto` for off-screen rendering optimization
+- **Scoped CSS** — companion `.widget.css` files auto-wrapped in `@scope (widget-{name}) { ... }`. All widget elements get `content-visibility: auto` and `container-type: inline-size` — use `@container` queries in widget CSS out of the box
 - **SSR hydration** — server-rendered HTML adopted by the SPA without re-rendering
 - **Error boundaries** — scoped error handlers per route prefix, plus status pages (`404.page.html`) and a root fallback
 - **Extensible context** — inject app-level services (RPC clients, auth, feature flags) into every component via `extendContext` on the router. Type-safe access through module augmentation or a per-component generic
@@ -120,3 +120,5 @@ deno task test            # run tests
 
 - [Architecture overview](doc/architecture.md) — design philosophy, component model, rendering pipeline
 - [Architectural decisions](doc/architecture/) — ADR-0001 through ADR-0011
+
+<img src="doc/logo-full.png" alt="emroute" width="197" height="40">

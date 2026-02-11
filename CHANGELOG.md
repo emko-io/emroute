@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.4] - 2026-02-11
+
+### Added
+
+- **Container queries on all widget elements** — `ComponentElement` sets
+  `container-type: inline-size` on every widget custom element. Widget CSS can
+  use `@container` queries to respond to the widget's own width instead of the
+  viewport. Works out of the box — no opt-in needed.
+- **Cross-document view transitions** — generated HTML shell includes
+  `@view-transition { navigation: auto; }` for animated SSR route transitions.
+  Consumer-provided `index.html` can add the same rule to opt in.
+
 ## [1.3.3] - 2026-02-11
 
 ### Added

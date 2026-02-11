@@ -9,7 +9,7 @@
  * - getData: no-op (returns null)
  */
 
-import { Component, type ComponentContext } from './abstract.component.ts';
+import { Component } from './abstract.component.ts';
 import { escapeHtml } from '../util/html.util.ts';
 
 export class PageComponent<
@@ -27,13 +27,13 @@ export class PageComponent<
    *
    * @example
    * ```ts
-   * override getData({ params, context }: Parameters<PageComponent['getData']>[0]) {
+   * override getData({ params, context }: this['DataArgs']) {
    *   return fetch(`/api/${params.id}`, { signal: context?.signal });
    * }
    * ```
    */
   override getData(
-    _args: { params: TParams; signal?: AbortSignal; context?: ComponentContext },
+    _args: this['DataArgs'],
   ): Promise<TData | null> {
     return Promise.resolve(null);
   }
@@ -48,13 +48,13 @@ export class PageComponent<
    *
    * @example
    * ```ts
-   * override renderHTML({ data, params, context }: Parameters<PageComponent['renderHTML']>[0]) {
+   * override renderHTML({ data, params, context }: this['RenderArgs']) {
    *   return `<h1>${params.id}</h1><p>${context?.files?.html ?? ''}</p>`;
    * }
    * ```
    */
   override renderHTML(
-    args: { data: TData | null; params: TParams; context?: ComponentContext },
+    args: this['RenderArgs'],
   ): string {
     const files = args.context?.files;
     const style = files?.css ? `<style>${files.css}</style>\n` : '';
@@ -86,13 +86,13 @@ export class PageComponent<
    *
    * @example
    * ```ts
-   * override renderMarkdown({ data, params, context }: Parameters<PageComponent['renderMarkdown']>[0]) {
+   * override renderMarkdown({ data, params, context }: this['RenderArgs']) {
    *   return `# ${params.id}\n\n${context?.files?.md ?? ''}`;
    * }
    * ```
    */
   override renderMarkdown(
-    args: { data: TData | null; params: TParams; context?: ComponentContext },
+    args: this['RenderArgs'],
   ): string {
     const files = args.context?.files;
 
@@ -109,13 +109,13 @@ export class PageComponent<
    *
    * @example
    * ```ts
-   * override getTitle({ data, params }: Parameters<PageComponent['getTitle']>[0]) {
+   * override getTitle({ data, params }: this['RenderArgs']) {
    *   return `Project ${params.id}`;
    * }
    * ```
    */
   getTitle(
-    _args: { data: TData | null; params: TParams; context?: ComponentContext },
+    _args: this['RenderArgs'],
   ): string | undefined {
     return undefined;
   }

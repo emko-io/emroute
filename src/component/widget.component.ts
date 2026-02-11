@@ -12,7 +12,7 @@
  * - renderMarkdown: md file → ''
  */
 
-import { Component, type ComponentContext } from './abstract.component.ts';
+import { Component } from './abstract.component.ts';
 import { escapeHtml } from '../util/html.util.ts';
 
 export abstract class WidgetComponent<TParams = unknown, TData = unknown>
@@ -24,9 +24,16 @@ export abstract class WidgetComponent<TParams = unknown, TData = unknown>
    * 1. html file content from context
    * 2. md file content wrapped in `<mark-down>`
    * 3. base Component default (markdown→HTML conversion)
+   *
+   * @example
+   * ```ts
+   * override renderHTML({ data, params }: this['RenderArgs']) {
+   *   return `<span>${params.coin}: $${data?.price}</span>`;
+   * }
+   * ```
    */
   override renderHTML(
-    args: { data: TData | null; params: TParams; context?: ComponentContext },
+    args: this['RenderArgs'],
   ): string {
     const files = args.context?.files;
     const style = files?.css ? `<style>${files.css}</style>\n` : '';
@@ -52,9 +59,16 @@ export abstract class WidgetComponent<TParams = unknown, TData = unknown>
    * Fallback chain:
    * 1. md file content from context
    * 2. empty string
+   *
+   * @example
+   * ```ts
+   * override renderMarkdown({ data, params }: this['RenderArgs']) {
+   *   return `**${params.coin}**: $${data?.price}`;
+   * }
+   * ```
    */
   override renderMarkdown(
-    args: { data: TData | null; params: TParams; context?: ComponentContext },
+    args: this['RenderArgs'],
   ): string {
     const files = args.context?.files;
 

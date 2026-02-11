@@ -76,7 +76,7 @@ When a `.ts` component exists, it is the entry point. It receives companion
 file content via `context.files`:
 
 ```ts
-override renderHTML({ data, context }) {
+override renderHTML({ data, context }: this['RenderArgs']) {
   const template = context?.files?.html ?? '<h1>Fallback</h1>';
   return template.replaceAll('{{name}}', data.name);
 }
@@ -86,7 +86,7 @@ When all three files exist, the `.ts` component can combine them — use the
 `.html` as a layout shell and embed the `.md` via `<mark-down>`:
 
 ```ts
-override renderHTML({ data, context }) {
+override renderHTML({ data, context }: this['RenderArgs']) {
   const html = context?.files?.html ?? '';
   const md = context?.files?.md ?? '';
   return html.replace('{{content}}', `<mark-down>${md}</mark-down>`);
@@ -108,27 +108,21 @@ import { PageComponent } from '@emkodev/emroute';
 class ProjectPage extends PageComponent<{ id: string }, { name: string }> {
   override readonly name = 'project';
 
-  override async getData({ params }: { params: { id: string } }) {
+  override async getData({ params }: this['DataArgs']) {
     return { name: `Project ${params.id}` };
   }
 
-  override renderHTML({ data, params }: {
-    data: { name: string } | null;
-    params: { id: string };
-  }) {
+  override renderHTML({ data, params }: this['RenderArgs']) {
     if (!data) return '<p>Loading...</p>';
     return `<h1>${data.name}</h1><p>ID: ${params.id}</p><router-slot></router-slot>`;
   }
 
-  override renderMarkdown({ data }: {
-    data: { name: string } | null;
-    params: { id: string };
-  }) {
+  override renderMarkdown({ data }: this['RenderArgs']) {
     if (!data) return '';
     return `# ${data.name}`;
   }
 
-  override getTitle({ data }: { data: { name: string } | null }) {
+  override getTitle({ data }: this['RenderArgs']) {
     return data?.name ?? 'Project';
   }
 }
@@ -171,15 +165,11 @@ class ProfilePage extends PageComponent<Record<string, string>, ProfileData> {
     return { name: 'Alice', role: 'Engineer', bio: 'Builds things.' };
   }
 
-  override getTitle({ data }: { data: ProfileData | null }) {
+  override getTitle({ data }: this['RenderArgs']) {
     return data ? `${data.name} — Profile` : 'Profile';
   }
 
-  override renderHTML({ data, context }: {
-    data: ProfileData | null;
-    params: Record<string, string>;
-    context?: ComponentContext; // extends RouteInfo (pathname, pattern, params, searchParams)
-  }) {
+  override renderHTML({ data, context }: this['RenderArgs']) {
     const template = context?.files?.html ?? '<h1>Profile</h1>';
     if (!data) return template;
     return template
@@ -210,20 +200,12 @@ Welcome to the blog.
 class BlogPage extends PageComponent {
   override readonly name = 'blog';
 
-  override renderHTML({ context }: {
-    data: unknown;
-    params: Record<string, string>;
-    context?: ComponentContext; // extends RouteInfo (pathname, pattern, params, searchParams)
-  }) {
+  override renderHTML({ context }: this['RenderArgs']) {
     const md = context?.files?.md ?? '';
     return `<mark-down>${md}</mark-down>\n<p class="blog-footer">Posts: 0</p>`;
   }
 
-  override renderMarkdown({ context }: {
-    data: unknown;
-    params: Record<string, string>;
-    context?: ComponentContext; // extends RouteInfo
-  }) {
+  override renderMarkdown({ context }: this['RenderArgs']) {
     return context?.files?.md ?? '';
   }
 }
@@ -247,7 +229,7 @@ The parent component must include a `<router-slot>` for the child to render
 into:
 
 ```ts
-override renderHTML({ data, params }) {
+override renderHTML({ data, params }: this['RenderArgs']) {
   return `<h1>${data.name}</h1><router-slot></router-slot>`;
 }
 ```
@@ -292,16 +274,16 @@ import { WidgetComponent } from '@emkodev/emroute';
 class CryptoPrice extends WidgetComponent<{ coin: string }, { price: number }> {
   override readonly name = 'crypto-price';
 
-  override async getData({ params, signal }) {
+  override async getData({ params, signal }: this['DataArgs']) {
     const res = await fetch(`/api/crypto/${params.coin}`, { signal });
     return res.json();
   }
 
-  override renderMarkdown({ data, params }) {
+  override renderMarkdown({ data, params }: this['RenderArgs']) {
     return data ? `**${params.coin}**: $${data.price}` : '';
   }
 
-  override renderHTML({ data, params }) {
+  override renderHTML({ data, params }: this['RenderArgs']) {
     return data
       ? `<span class="price">${params.coin}: $${data.price}</span>`
       : `<span>Loading...</span>`;
@@ -393,7 +375,7 @@ class NavWidget extends WidgetComponent<Record<string, unknown>, NavData> {
     css: 'widgets/nav/nav.widget.css',
   };
 
-  override renderHTML({ data, context }) {
+  override renderHTML({ data, context }: this['RenderArgs']) {
     const style = context?.files?.css ? `<style>${context.files.css}</style>` : '';
     const html = context?.files?.html ?? '<nav>Loading...</nav>';
     return style + html;

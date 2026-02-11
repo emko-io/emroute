@@ -146,7 +146,7 @@ the desired status code. The router catches it and renders the matching status
 page:
 
 ```ts
-override async getData({ params }) {
+override async getData({ params }: this['DataArgs']) {
   const res = await fetch(`/api/projects/${params.id}`);
   if (!res.ok) throw new Response(null, { status: res.status });
   return res.json();

@@ -130,11 +130,11 @@ class MyComponent extends Component<MyParams, MyData> {
     return fetch(`/api/data?id=${params.id}`, { signal }).then((r) => r.json());
   }
 
-  renderMarkdown({ data, params }: { data: MyData; params: MyParams }): string {
+  renderMarkdown({ data, params }: this['RenderArgs']): string {
     return `# ${data.title}\n\n${data.content}`;
   }
 
-  override renderHTML({ data, params }: { data: MyData | null; params: MyParams }): string {
+  override renderHTML({ data, params }: this['RenderArgs']): string {
     if (!data) return '<div class="loading">Loading...</div>';
     return `<article><h1>${data.title}</h1><p>${data.content}</p></article>`;
   }
@@ -155,16 +155,16 @@ import { ComponentElement, Widget } from '@emkodev/emroute';
 class StockWidget extends Widget<{ symbol: string }, { price: number }> {
   readonly name = 'stock-price';
 
-  async getData({ params, signal }: { params: { symbol: string }; signal?: AbortSignal }) {
+  async getData({ params, signal }: this['DataArgs']) {
     return { price: await fetchStockPrice(params.symbol, signal) };
   }
 
-  renderMarkdown({ data, params }: { data: { price: number }; params: { symbol: string } }) {
+  renderMarkdown({ data, params }: this['RenderArgs']) {
     return `**${params.symbol}**: $${data.price}`;
   }
 
   override renderHTML(
-    { data, params }: { data: { price: number } | null; params: { symbol: string } },
+    { data, params }: this['RenderArgs'],
   ) {
     if (!data) return '<span>Loading...</span>';
     return `<span class="stock">${params.symbol}: $${data.price}</span>`;
@@ -247,7 +247,7 @@ class ProjectPage extends PageComponent<{ id: string }> {
   override readonly name = 'project';
 
   override renderHTML(
-    { params, context }: Parameters<PageComponent<{ id: string }>['renderHTML']>[0],
+    { params, context }: this['RenderArgs'],
   ) {
     const template = context?.files?.html ?? '<router-slot></router-slot>';
     return template.replaceAll('{{id}}', params.id);

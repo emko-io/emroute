@@ -48,6 +48,20 @@ export type RenderContext = (typeof RENDER_CONTEXT)[number];
  * - validateParams(): params validation
  */
 export abstract class Component<TParams = unknown, TData = unknown> {
+  /** Type carrier for getData args — use as `this['DataArgs']` in overrides. */
+  declare readonly DataArgs: {
+    params: TParams;
+    signal?: AbortSignal;
+    context?: ComponentContext;
+  };
+
+  /** Type carrier for render args — use as `this['RenderArgs']` in overrides. */
+  declare readonly RenderArgs: {
+    data: TData | null;
+    params: TParams;
+    context?: ComponentContext;
+  };
+
   /** Unique name in kebab-case. Used for custom element: `<widget-{name}>` */
   abstract readonly name: string;
 
@@ -57,22 +71,29 @@ export abstract class Component<TParams = unknown, TData = unknown> {
   /**
    * Fetch or compute data based on params.
    * Called server-side for SSR, client-side for SPA.
+   *
+   * @example
+   * ```ts
+   * override async getData({ params, signal }: this['DataArgs']) {
+   *   const res = await fetch(`/api/${params.id}`, { signal });
+   *   return res.json();
+   * }
+   * ```
    */
-  abstract getData(args: {
-    params: TParams;
-    signal?: AbortSignal;
-    context?: ComponentContext;
-  }): Promise<TData | null>;
+  abstract getData(args: this['DataArgs']): Promise<TData | null>;
 
   /**
    * Render as markdown.
    * This is the canonical content representation.
+   *
+   * @example
+   * ```ts
+   * override renderMarkdown({ data }: this['RenderArgs']) {
+   *   return `# ${data?.title}`;
+   * }
+   * ```
    */
-  abstract renderMarkdown(args: {
-    data: TData | null;
-    params: TParams;
-    context?: ComponentContext;
-  }): string;
+  abstract renderMarkdown(args: this['RenderArgs']): string;
 
   /**
    * Render as HTML for browser context.
@@ -80,11 +101,7 @@ export abstract class Component<TParams = unknown, TData = unknown> {
    * Default implementation converts renderMarkdown() output to HTML.
    * Override for custom HTML rendering with rich styling/interactivity.
    */
-  renderHTML(args: {
-    data: TData | null;
-    params: TParams;
-    context?: ComponentContext;
-  }): string {
+  renderHTML(args: this['RenderArgs']): string {
     if (args.data === null) {
       return `<div class="${CSS_LOADING}" data-component="${this.name}">Loading...</div>`;
     }

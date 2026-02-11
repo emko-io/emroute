@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://jsr.io/@emkodev/emroute/1.0.2/doc/logo-full.png" alt="emroute" width="394" height="80">
+  <img src="https://jsr.io/@emkodev/emroute/1.0.3/doc/logo-full.png" alt="emroute" width="394" height="80">
 </p>
 
 <p align="center">
@@ -22,15 +22,15 @@ GET /md/projects/42       → plain Markdown
 ## How It Works
 
 <p align="center">
-  <img src="https://jsr.io/@emkodev/emroute/1.0.2/doc/diagram-tp.png" alt="emroute architecture" width="480" height="480">
+  <img src="https://jsr.io/@emkodev/emroute/1.0.3/doc/diagram-tp.png" alt="emroute architecture" width="480" height="480">
 </p>
 
 One component, three rendering paths:
 
 <p align="center">
-  <img src="https://jsr.io/@emkodev/emroute/1.0.2/doc/diagram-flow-spa.png" alt="SPA flow" width="320" height="320">
-  <img src="https://jsr.io/@emkodev/emroute/1.0.2/doc/diagram-flow-ssr-html.png" alt="SSR HTML flow" width="320" height="320">
-  <img src="https://jsr.io/@emkodev/emroute/1.0.2/doc/diagram-flow-ssr-md.png" alt="SSR Markdown flow" width="320" height="320">
+  <img src="https://jsr.io/@emkodev/emroute/1.0.3/doc/diagram-flow-spa.png" alt="SPA flow" width="320" height="320">
+  <img src="https://jsr.io/@emkodev/emroute/1.0.3/doc/diagram-flow-ssr-html.png" alt="SSR HTML flow" width="320" height="320">
+  <img src="https://jsr.io/@emkodev/emroute/1.0.3/doc/diagram-flow-ssr-md.png" alt="SSR Markdown flow" width="320" height="320">
 </p>
 
 The SPA and SSR HTML flows both call `renderHTML()` — same output, different
@@ -62,18 +62,18 @@ import { PageComponent } from '@emkodev/emroute';
 class ProjectPage extends PageComponent<{ id: string }, ProjectData> {
   override readonly name = 'project';
 
-  override async getData({ params }) {
+  override async getData({ params }: this['DataArgs']) {
     const res = await fetch(`/api/projects/${params.id}`);
     return res.json();
   }
 
-  override renderHTML({ data, params, context }) {
+  override renderHTML({ data, params, context }: this['RenderArgs']) {
     // context.files.html has the companion .page.html template if it exists
     const template = context?.files?.html ?? `<h1>\${data.name}</h1>`;
     return template.replaceAll('{{id}}', params.id) + '<router-slot></router-slot>';
   }
 
-  override renderMarkdown({ data, context }) {
+  override renderMarkdown({ data, context }: this['RenderArgs']) {
     // context.files.md has the companion .page.md content if it exists
     return context?.files?.md ?? `# ${data.name}\n\nStatus: ${data.status}`;
   }
@@ -91,7 +91,10 @@ export default new ProjectPage();
 - **SSR hydration** — server-rendered HTML adopted by the SPA without re-rendering
 - **Error boundaries** — scoped error handlers per route prefix, plus status pages (`404.page.html`) and a root fallback
 - **Zero dependencies** — native APIs only (URLPattern, custom elements, History API). No framework runtime, no virtual DOM, no build-time magic
+- **Pluggable markdown** — `<mark-down>` custom element with a swappable parser interface; bring your own renderer
 - **Redirects** — declarative `.redirect.ts` files with 301/302 support
+- **Sitemap generation** — opt-in `sitemap.xml` from the routes manifest with support for dynamic route enumerators
+- **Dev server** — file watcher with hot reload, automatic route manifest generation, and bundle serving
 
 ## Getting Started
 

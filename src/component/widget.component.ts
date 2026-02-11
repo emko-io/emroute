@@ -13,7 +13,7 @@
  */
 
 import { Component, type ComponentContext } from './abstract.component.ts';
-import { escapeHtml } from '../util/html.util.ts';
+import { escapeHtml, scopeWidgetCss } from '../util/html.util.ts';
 
 export abstract class WidgetComponent<
   TParams = unknown,
@@ -39,7 +39,7 @@ export abstract class WidgetComponent<
     args: this['RenderArgs'],
   ): string {
     const files = args.context?.files;
-    const style = files?.css ? `<style>${files.css}</style>\n` : '';
+    const style = files?.css ? `<style>${scopeWidgetCss(files.css, this.name)}</style>\n` : '';
 
     if (files?.html) {
       return style + files.html;

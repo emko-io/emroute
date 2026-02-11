@@ -420,6 +420,55 @@ File paths are relative to the app root. Absolute URLs (e.g.,
 time with caching. The default `WidgetComponent.renderHTML()` automatically
 prepends `<style>` tags when a CSS file is declared.
 
+**CSS auto-scoping:** Companion `.widget.css` files are automatically wrapped in
+`@scope (widget-{name}) { ... }` by the default `renderHTML()`. This scopes
+styles to the widget's custom element without Shadow DOM or manual class
+prefixes. Write plain CSS in your companion file — scoping happens at render
+time:
+
+```css
+/* nav.widget.css — no manual scoping needed */
+a {
+  text-decoration: none;
+  color: #64748b;
+}
+a:hover {
+  color: #334155;
+}
+a.active {
+  color: #2563eb;
+  font-weight: 600;
+}
+```
+
+The rendered output becomes:
+
+```html
+<style>
+  @scope (widget-nav) {
+    a {
+      text-decoration: none;
+      color: #64748b;
+    }
+    a:hover {
+      color: #334155;
+    }
+    a.active {
+      color: #2563eb;
+      font-weight: 600;
+    }
+  }
+</style>
+```
+
+Widgets that override `renderHTML()` and handle CSS themselves can use the
+exported `scopeWidgetCss(css, widgetName)` utility for the same effect.
+
+**`content-visibility: auto`:** All widget custom elements have
+`content-visibility: auto` set by default. Off-screen widgets skip layout and
+paint entirely; visible widgets render normally. Override per-widget with CSS
+if needed (`widget-nav { content-visibility: visible; }`).
+
 Widget errors are contained — a failing widget renders its error state inline
 without breaking the surrounding page.
 
@@ -459,6 +508,29 @@ Use `this.element` to attach event listeners, query rendered children, integrate
 third-party libraries, or perform any imperative DOM work after rendering.
 Components that don't need DOM access simply ignore the property — it's
 opt-in by nature.
+
+### Lazy Loading
+
+Add the `lazy` attribute to defer a widget's `loadData()` until it scrolls into
+the viewport — same pattern as `<img loading="lazy">`:
+
+```html
+<widget-crypto-price lazy coin="bitcoin"></widget-crypto-price>
+```
+
+The widget's `connectedCallback` sets up an `IntersectionObserver` instead of
+calling `loadData()` immediately. Once the element becomes visible, the observer
+disconnects and data loading begins.
+
+**Key behaviors:**
+
+- Laziness is decided at the usage site, not the widget definition — the same
+  widget can be lazy in one place and eager in another.
+- SSR ignores `lazy` — lazy widgets are still pre-rendered server-side. On the
+  client, the SSR hydration path fires first (restores from `data-ssr`, skips
+  `loadData`), so `lazy` has no effect on SSR-hydrated widgets.
+- `reload()` always fetches immediately, regardless of `lazy`.
+- The `lazy` attribute is not parsed as a widget parameter.
 
 ## Extending Context
 
@@ -684,6 +756,27 @@ The SPA router:
 - Strips `/html/` prefix from links (so SSR links work in SPA context)
 - Redirects `/md/` links to the server for plain text output
 - Fires `navigate`, `load`, and `error` events
+- Wraps route changes in `document.startViewTransition()` for animated
+  cross-fades (progressive enhancement — instant fallback in older browsers)
+
+**View Transitions:** Route changes are animated via the View Transitions API by
+default. The browser cross-fades between old and new page content with no
+configuration needed. Customize or disable via CSS:
+
+```css
+/* Custom slide animation */
+::view-transition-old(root) {
+  animation: slide-out 0.2s ease-in;
+}
+::view-transition-new(root) {
+  animation: slide-in 0.2s ease-out;
+}
+
+/* Disable transitions entirely */
+::view-transition-group(*) {
+  animation-duration: 0s;
+}
+```
 
 ```ts
 // From the return value:

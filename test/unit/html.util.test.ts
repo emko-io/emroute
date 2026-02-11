@@ -1,5 +1,5 @@
 import { assertEquals } from '@std/assert';
-import { escapeHtml, STATUS_MESSAGES } from '../../src/util/html.util.ts';
+import { escapeHtml, scopeWidgetCss, STATUS_MESSAGES } from '../../src/util/html.util.ts';
 import { parseAttrsToParams } from '../../src/util/widget-resolve.util.ts';
 
 Deno.test('escapeHtml - basic ampersand', () => {
@@ -213,4 +213,23 @@ Deno.test('parseAttrsToParams - HTML entity decoding in double quotes', () => {
 
 Deno.test('parseAttrsToParams - HTML entity decoding in single quotes', () => {
   assertEquals(parseAttrsToParams("text='hello &amp; goodbye'"), { text: 'hello & goodbye' });
+});
+
+Deno.test('parseAttrsToParams - lazy attribute is skipped', () => {
+  assertEquals(parseAttrsToParams('name="Alice" lazy'), { name: 'Alice' });
+});
+
+// =============================================================================
+// scopeWidgetCss
+// =============================================================================
+
+Deno.test('scopeWidgetCss - wraps CSS in @scope rule', () => {
+  const result = scopeWidgetCss('.btn { color: red; }', 'counter');
+  assertEquals(result, '@scope (widget-counter) {\n.btn { color: red; }\n}');
+});
+
+Deno.test('scopeWidgetCss - preserves multiline CSS', () => {
+  const css = '.title {\n  font-size: 2rem;\n}\n.body {\n  margin: 0;\n}';
+  const result = scopeWidgetCss(css, 'card');
+  assertEquals(result, `@scope (widget-card) {\n${css}\n}`);
 });

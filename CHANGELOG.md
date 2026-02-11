@@ -5,6 +5,50 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.3] - 2026-02-11
+
+### Added
+
+- **View Transitions on SPA navigation** — `SpaHtmlRouter` wraps route changes
+  in `document.startViewTransition()` for animated cross-fades between pages.
+  Progressive enhancement — browsers without support fall back to instant DOM
+  updates. Customize animations via `::view-transition-*` CSS pseudo-elements.
+  Disable with `::view-transition-group(*) { animation-duration: 0s; }`.
+
+### Changed
+
+- Test suite: 583 unit tests, 92 browser test steps.
+
+## [1.3.2] - 2026-02-11
+
+### Added
+
+- **`content-visibility: auto` on all widget elements** — `ComponentElement` sets
+  `content-visibility: auto` on every widget custom element in the browser.
+  Off-screen widgets skip layout and paint entirely; visible widgets render
+  normally. Users can override per-widget with CSS. Zero JS overhead.
+- **`@scope` auto-injection for widget companion CSS** — companion `.widget.css`
+  files are automatically wrapped in `@scope (widget-{name}) { ... }` by
+  `WidgetComponent.renderHTML()`. Styles are scoped to the widget's custom element
+  without Shadow DOM or manual class prefixes. Works in both SSR and SPA.
+  `scopeWidgetCss()` utility exported for custom widget overrides.
+
+## [1.3.1] - 2026-02-11
+
+### Added
+
+- **`lazy` attribute on widgets** — `<widget-foo lazy>` defers `loadData()` until
+  the element enters the viewport via `IntersectionObserver`. Same pattern as
+  `<img loading="lazy">`. Laziness is decided at the usage site, not the widget
+  definition. SSR ignores the attribute — lazy widgets are still pre-rendered
+  server-side. SSR-hydrated widgets skip `loadData` regardless of `lazy`
+  (correct behavior). `reload()` always fetches immediately.
+
+### Fixed
+
+- SSR `parseAttrsToParams` now skips the `lazy` attribute, preventing it from
+  leaking into widget params as `{ lazy: '' }`.
+
 ## [1.3.0] - 2026-02-11
 
 ### Added
@@ -14,10 +58,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `getData()`, `renderHTML()`, `destroy()`, and any other method during the
   browser lifecycle. Stays `undefined` on the server (SSR/Markdown), preserving
   isomorphic safety. Cleared on disconnect.
-
-### Changed
-
-- Test suite: 580 unit tests, 87 browser test steps.
 
 ## [1.2.0] - 2026-02-11
 

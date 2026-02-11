@@ -14,7 +14,7 @@ import type {
   ComponentContext,
   ContextProvider,
 } from '../component/abstract.component.ts';
-import { DATA_SSR_ATTR, HTMLElementBase } from '../util/html.util.ts';
+import { DATA_SSR_ATTR, HTMLElementBase, LAZY_ATTR } from '../util/html.util.ts';
 
 const COMPONENT_STATES = ['idle', 'loading', 'ready', 'error'] as const;
 type ComponentState = (typeof COMPONENT_STATES)[number];
@@ -45,6 +45,7 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
   private errorMessage = '';
   private deferred: PromiseWithResolvers<void> | null = null;
   private abortController: AbortController | null = null;
+  private intersectionObserver: IntersectionObserver | null = null;
 
   /** Promise that resolves with fetched data (available after loadData starts) */
   dataPromise: Promise<TData | null> | null = null;
@@ -120,13 +121,14 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
 
   async connectedCallback(): Promise<void> {
     this.component.element = this;
+    this.style.contentVisibility = 'auto';
     this.abortController = new AbortController();
     const signal = this.abortController.signal;
 
     // Parse params from element attributes
     const params: Record<string, unknown> = {};
     for (const attr of this.attributes) {
-      if (attr.name === DATA_SSR_ATTR) continue;
+      if (attr.name === DATA_SSR_ATTR || attr.name === LAZY_ATTR) continue;
       const key = attr.name.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
       try {
         params[key] = JSON.parse(attr.value);
@@ -172,12 +174,27 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
       }
     }
 
+    // Lazy: defer loadData until element is visible
+    if (this.hasAttribute(LAZY_ATTR)) {
+      this.intersectionObserver = new IntersectionObserver(([entry]) => {
+        if (entry.isIntersecting) {
+          this.intersectionObserver?.disconnect();
+          this.intersectionObserver = null;
+          this.loadData();
+        }
+      });
+      this.intersectionObserver.observe(this);
+      return;
+    }
+
     await this.loadData();
   }
 
   disconnectedCallback(): void {
     this.component.destroy?.();
     this.component.element = undefined;
+    this.intersectionObserver?.disconnect();
+    this.intersectionObserver = null;
     this.abortController?.abort();
     this.abortController = null;
     this.state = 'idle';

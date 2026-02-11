@@ -249,7 +249,16 @@ export class SpaHtmlRouter {
       // Render page
       this.core.currentRoute = matched;
       const routeInfo = this.core.toRouteInfo(matched, pathname);
-      await this.renderPage(routeInfo, matched, signal);
+
+      if (document.startViewTransition) {
+        const transition = document.startViewTransition(async () => {
+          await this.renderPage(routeInfo, matched, signal);
+        });
+        signal.addEventListener('abort', () => transition.skipTransition(), { once: true });
+        await transition.updateCallbackDone;
+      } else {
+        await this.renderPage(routeInfo, matched, signal);
+      }
 
       if (signal.aborted) return;
 

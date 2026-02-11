@@ -218,11 +218,15 @@ Deno.test(
 
     // --- CSS file injection: widget (local) ---
 
-    await t.step('file-backed widget with CSS injects <style> tag', async () => {
+    await t.step('file-backed widget with CSS injects @scope-wrapped <style> tag', async () => {
       const res = await fetch(baseUrl('/html/widget-files'));
       assertEquals(res.status, 200);
       const html = await res.text();
       assert(html.includes('<style>'), 'should contain <style> tag from widget CSS');
+      assert(
+        html.includes('@scope (widget-file-widget)'),
+        'should wrap CSS in @scope for widget element',
+      );
       assert(html.includes('.widget-file'), 'should contain local widget CSS content');
       assert(html.includes('border-radius'), 'should contain full CSS rule from local file');
     });
@@ -248,6 +252,18 @@ Deno.test(
         'should contain auto-discovered greeting widget tag',
       );
       assert(html.includes('data-ssr='), 'greeting widget should have SSR data');
+    });
+
+    await t.step('lazy widget is still pre-rendered server-side', async () => {
+      const res = await fetch(baseUrl('/html/mixed-widgets'));
+      assertEquals(res.status, 200);
+      const html = await res.text();
+      assert(
+        html.includes('<widget-greeting lazy'),
+        'should preserve lazy attribute on widget tag',
+      );
+      assert(html.includes('Hello, Lazy!'), 'SSR should render lazy widget content');
+      assert(html.includes('data-ssr='), 'lazy widget should have data-ssr attribute');
     });
 
     await t.step('manually-registered external widget renders in mixed-widgets page', async () => {

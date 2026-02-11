@@ -8,7 +8,7 @@
 import type { Component, ContextProvider } from '../component/abstract.component.ts';
 import { logger } from '../type/logger.type.ts';
 import type { RouteInfo } from '../type/route.type.ts';
-import { DATA_SSR_ATTR } from './html.util.ts';
+import { DATA_SSR_ATTR, LAZY_ATTR } from './html.util.ts';
 
 /**
  * Resolve <widget-*> tags in HTML by calling getData() + renderHTML()
@@ -89,7 +89,7 @@ export function parseAttrsToParams(attrsString: string): Record<string, unknown>
     /(?<attr>[a-z][a-z0-9-]*)(?:="(?<dq>[^"]*)"|='(?<sq>[^']*)'|=(?<uq>[^\s>]+))?/gi;
   for (const match of attrsString.matchAll(attrPattern)) {
     const { attr: attrName, dq, sq, uq } = match.groups!;
-    if (attrName === DATA_SSR_ATTR) continue;
+    if (attrName === DATA_SSR_ATTR || attrName === LAZY_ATTR) continue;
     const key = attrName.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
     const rawValue = dq ?? sq ?? uq;
     if (rawValue === undefined) {

@@ -735,7 +735,8 @@ Deno.test('WidgetComponent - renderHTML prepends style tag when css file in cont
     context: testContext({ html: '<div>Content</div>', css: '.widget { color: red; }' }),
   });
 
-  assertStringIncludes(result, '<style>.widget { color: red; }</style>');
+  assertStringIncludes(result, '@scope (widget-css-widget)');
+  assertStringIncludes(result, '.widget { color: red; }');
   assertStringIncludes(result, '<div>Content</div>');
   assertEquals(result.indexOf('<style>') < result.indexOf('<div>Content</div>'), true);
 });
@@ -748,7 +749,8 @@ Deno.test('WidgetComponent - renderHTML prepends style tag with md fallback', ()
     context: testContext({ md: '# Styled MD', css: '.md { font-size: 14px; }' }),
   });
 
-  assertStringIncludes(result, '<style>.md { font-size: 14px; }</style>');
+  assertStringIncludes(result, '@scope (widget-css-only)');
+  assertStringIncludes(result, '.md { font-size: 14px; }');
   assertStringIncludes(result, '<mark-down>');
 });
 
@@ -760,7 +762,8 @@ Deno.test('WidgetComponent - renderHTML prepends style tag with base default fal
     context: testContext({ css: '.base { margin: 0; }' }),
   });
 
-  assertStringIncludes(result, '<style>.base { margin: 0; }</style>');
+  assertStringIncludes(result, '@scope (widget-css-only)');
+  assertStringIncludes(result, '.base { margin: 0; }');
   assertStringIncludes(result, 'c-loading');
 });
 
@@ -802,7 +805,8 @@ Deno.test('resolveWidgetTags - loads css for css-backed widget', async () => {
   const html = '<widget-css-widget></widget-css-widget>';
   const result = await resolveWidgetTags(html, registry, testRouteInfo, loadFiles);
 
-  assertStringIncludes(result, '<style>.css-widget { color: blue; }</style>');
+  assertStringIncludes(result, '@scope (widget-css-widget)');
+  assertStringIncludes(result, '.css-widget { color: blue; }');
   assertStringIncludes(result, '<div>CSS Widget HTML</div>');
   assertStringIncludes(result, 'data-ssr');
 });

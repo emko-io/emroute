@@ -5,6 +5,9 @@
 /** HTML attribute name used for SSR hydration data on widgets. */
 export const DATA_SSR_ATTR = 'data-ssr';
 
+/** HTML attribute name for lazy-loading widgets via IntersectionObserver. */
+export const LAZY_ATTR = 'lazy';
+
 /** Server-safe base class: HTMLElement in browser, inert class on server. */
 export const HTMLElementBase = globalThis.HTMLElement ??
   (class {} as unknown as typeof HTMLElement);
@@ -33,6 +36,14 @@ export function unescapeHtml(text: string): string {
     .replaceAll('&gt;', '>')
     .replaceAll('&lt;', '<')
     .replaceAll('&amp;', '&');
+}
+
+/**
+ * Wrap CSS in a `@scope` rule scoped to the widget's custom element tag.
+ * Used by `WidgetComponent.renderHTML()` for companion CSS files.
+ */
+export function scopeWidgetCss(css: string, widgetName: string): string {
+  return `@scope (widget-${widgetName}) {\n${css}\n}`;
 }
 
 /**

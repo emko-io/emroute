@@ -517,6 +517,58 @@ Deno.test({ name: 'SPA renderer', sanitizeResources: false, sanitizeOps: false }
     );
   });
 
+  await t.step('lazy widget defers loadData until visible', async () => {
+    await page.goto(baseUrl('/mixed-widgets'));
+    await page.waitForSelector('widget-greeting[lazy] .greeting-message', { timeout: 5000 });
+
+    const message = await page.textContent('widget-greeting[lazy] .greeting-message');
+    assertEquals(message, 'Hello, Lazy!');
+  });
+
+  await t.step('widget element has content-visibility: auto', async () => {
+    await page.goto(baseUrl('/mixed-widgets'));
+    await page.waitForSelector('widget-greeting .greeting-message', { timeout: 5000 });
+
+    const cv = await page.evaluate(() => {
+      const el = document.querySelector('widget-greeting');
+      return el ? getComputedStyle(el).contentVisibility : null;
+    });
+    assertEquals(cv, 'auto');
+  });
+
+  await t.step('lazy attribute is not parsed as a widget param', async () => {
+    await page.goto(baseUrl('/mixed-widgets'));
+    await page.waitForSelector('widget-greeting[lazy] .greeting-message', { timeout: 5000 });
+
+    // The greeting should use the name param, not have a "lazy" param
+    const message = await page.textContent('widget-greeting[lazy] .greeting-message');
+    assertEquals(message, 'Hello, Lazy!');
+  });
+
+  await t.step('SPA navigation uses View Transitions API when available', async () => {
+    await page.goto(baseUrl('/'));
+    await page.waitForSelector('router-slot mark-down h1', { timeout: 5000 });
+
+    const called = await page.evaluate(async () => {
+      let transitionCalled = false;
+      const original = document.startViewTransition;
+      document.startViewTransition = ((cb: () => Promise<void>) => {
+        transitionCalled = true;
+        return original.call(document, cb);
+      }) as typeof document.startViewTransition;
+      // deno-lint-ignore no-explicit-any
+      await (globalThis as any).__emroute_router.navigate('/about');
+      document.startViewTransition = original;
+      return transitionCalled;
+    });
+
+    assertEquals(called, true, 'startViewTransition should be called during navigation');
+
+    // Verify the page still rendered correctly
+    const heading = await page.textContent('router-slot router-slot h1');
+    assertEquals(heading, 'About');
+  });
+
   await t.step('does not intercept external links', async () => {
     await page.goto(baseUrl('/'));
     await page.waitForSelector('router-slot mark-down h1', { timeout: 5000 });

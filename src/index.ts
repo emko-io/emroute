@@ -53,4 +53,4 @@ export { WidgetComponent } from './component/widget.component.ts';
 export { WidgetRegistry } from './widget/widget.registry.ts';
 
 // Utils
-export { escapeHtml } from './util/html.util.ts';
+export { escapeHtml, scopeWidgetCss } from './util/html.util.ts';

@@ -89,6 +89,12 @@ export const routesManifest: RoutesManifest = {
     files: { html: 'routes/articles.page.html', ts: 'routes/articles.page.ts' },
   },
   {
+    pattern: '/mixed-widgets',
+    type: 'page',
+    modulePath: 'routes/mixed-widgets.page.html',
+    files: { html: 'routes/mixed-widgets.page.html', md: 'routes/mixed-widgets.page.md' },
+  },
+  {
     pattern: '/about',
     type: 'page',
     modulePath: 'routes/about.page.html',

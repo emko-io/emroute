@@ -2,15 +2,19 @@
 /// <reference lib="deno.ns" />
 
 /**
- * Routes Generator CLI (Deno)
+ * Routes & Widgets Generator CLI (Deno)
  *
  * Usage:
  *   deno run --allow-read --allow-write tool/cli.ts [routesDir] [outputFile] [importPath]
+ *       [--widgets widgetsDir widgetsOutput]
  *
  * Arguments:
- *   routesDir   - Directory to scan (default: "routes")
- *   outputFile  - Output manifest file (default: "routes.manifest.ts")
- *   importPath  - Import path for types (default: "@emkodev/emroute")
+ *   routesDir      - Directory to scan for routes (default: "routes")
+ *   outputFile     - Output routes manifest file (default: "routes.manifest.ts")
+ *   importPath     - Import path for types (default: "@emkodev/emroute")
+ *   --widgets      - Enable widget manifest generation
+ *   widgetsDir     - Directory to scan for widgets (default: "widgets")
+ *   widgetsOutput  - Output widgets manifest file (default: "widgets.manifest.ts")
  */
 
 import {
@@ -18,12 +22,16 @@ import {
   generateManifestCode,
   generateRoutesManifest,
 } from './route.generator.ts';
+import { discoverWidgets, generateWidgetsManifestCode } from './widget.generator.ts';
 import { denoFs } from './fs.deno.ts';
 
 async function main() {
-  const routesDir = Deno.args[0] ?? 'routes';
-  const outputFile = Deno.args[1] ?? 'routes.manifest.ts';
-  const importPath = Deno.args[2] ?? '@emkodev/emroute';
+  const widgetsIdx = Deno.args.indexOf('--widgets');
+  const positionalArgs = widgetsIdx >= 0 ? Deno.args.slice(0, widgetsIdx) : [...Deno.args];
+
+  const routesDir = positionalArgs[0] ?? 'routes';
+  const outputFile = positionalArgs[1] ?? 'routes.manifest.ts';
+  const importPath = positionalArgs[2] ?? '@emkodev/emroute';
 
   console.log(`[Routes Generator] Scanning: ${routesDir}/`);
 
@@ -91,6 +99,41 @@ async function main() {
       console.log(`[Routes Generator] Generated empty: ${outputFile}`);
     } else {
       throw error;
+    }
+  }
+
+  // Widget manifest generation
+  if (widgetsIdx >= 0) {
+    const widgetArgs = Deno.args.slice(widgetsIdx + 1);
+    const widgetsDir = widgetArgs[0] ?? 'widgets';
+    const widgetsOutput = widgetArgs[1] ?? 'widgets.manifest.ts';
+
+    console.log(`\n[Widgets Generator] Scanning: ${widgetsDir}/`);
+
+    try {
+      const entries = await discoverWidgets(widgetsDir, denoFs, widgetsDir);
+      console.log(`[Widgets Generator] Found ${entries.length} widgets`);
+
+      const code = generateWidgetsManifestCode(entries, importPath);
+      await denoFs.writeTextFile(widgetsOutput, code);
+
+      console.log(`[Widgets Generator] Generated: ${widgetsOutput}`);
+
+      if (entries.length > 0) {
+        console.log('\nWidgets:');
+        for (const entry of entries) {
+          const fileTypes = entry.files ? Object.keys(entry.files).join('+') : '';
+          const filesInfo = fileTypes ? ` [${fileTypes}]` : '';
+          console.log(`  ${entry.name.padEnd(30)} → ${entry.modulePath}${filesInfo}`);
+        }
+      }
+    } catch (error) {
+      if (error instanceof FileSystemError && error.code === 'NOT_FOUND') {
+        console.log(`[Widgets Generator] No widgets directory found at: ${widgetsDir}/`);
+        console.log('[Widgets Generator] Skipping widget manifest generation.');
+      } else {
+        throw error;
+      }
     }
   }
 }

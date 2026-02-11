@@ -293,9 +293,9 @@ class CryptoPrice extends WidgetComponent<{ coin: string }, { price: number }> {
 export default new CryptoPrice();
 ```
 
-Widgets register as `<widget-{name}>` custom elements. Add them to a
-`WidgetRegistry` so all renderers (SPA, SSR HTML, SSR Markdown) can resolve
-them. Use widgets in HTML or Markdown:
+Widgets register as `<widget-{name}>` custom elements. They can be
+auto-discovered from a `widgets/` directory or registered manually via
+`WidgetRegistry`. Use widgets in HTML or Markdown:
 
 **In HTML templates:**
 
@@ -323,49 +323,81 @@ JSON keys become HTML attributes: `{"coin": "bitcoin"}` is equivalent to
 
 ### Registering Widgets
 
-Widgets must be registered in **both** the SPA entry point and the SSR server.
-Without SPA registration, `<widget-*>` tags appear as empty elements in the
-browser.
+#### File-based discovery (recommended)
 
-**SPA (main.ts):**
+Place widgets in a `widgets/` directory following the convention
+`widgets/{name}/{name}.widget.ts`. The dev server auto-discovers them when you
+set `widgetsDir`:
 
-```ts
-import { ComponentElement, createSpaHtmlRouter, WidgetRegistry } from '@emkodev/emroute/spa';
-import { routesManifest } from './routes.manifest.ts';
-import cryptoPrice from './widgets/crypto-price.widget.ts';
-
-const widgets = new WidgetRegistry();
-widgets.add(cryptoPrice);
-
-// Define <widget-*> custom elements in the browser
-for (const widget of widgets) {
-  ComponentElement.register(widget);
-}
-
-const router = await createSpaHtmlRouter(routesManifest);
+```
+widgets/
+  crypto-price/
+    crypto-price.widget.ts     ← discovered automatically
+    crypto-price.widget.css    ← companion file (optional)
+  nav/
+    nav.widget.ts
+    nav.widget.html
 ```
 
-**SSR (dev.ts):**
+The server handles both sides:
+
+- **SSR**: imports each widget module, populates a `WidgetRegistry` for
+  server-side rendering
+- **SPA**: generates a `widgets.manifest.ts` with module loaders, and the
+  generated (or consumer-provided) `main.ts` registers `<widget-*>` custom
+  elements from it
+
+No manual imports needed. Add a widget directory, restart the server (or let
+`watch` mode pick it up), and it's available in all three rendering contexts.
+
+#### Manual registration
+
+For widgets that live outside the `widgets/` directory (vendor packages,
+generated code, etc.), register them manually via `WidgetRegistry`:
 
 ```ts
 import { WidgetRegistry } from '@emkodev/emroute';
-import cryptoPrice from './widgets/crypto-price.widget.ts';
+import myVendorWidget from './vendor/some-widget.ts';
 
 const widgets = new WidgetRegistry();
-widgets.add(cryptoPrice);
+widgets.add(myVendorWidget);
 
-await createDevServer({ ..., widgets }, denoServerRuntime);
+await createDevServer({ widgetsDir: 'widgets', widgets }, denoServerRuntime);
 ```
 
-The SSR registry resolves widgets server-side for `/html/*` and `/md/*` routes.
-The SPA registry defines custom elements so the browser can render and hydrate
-them. Both use the same widget instances — you just register them in two places.
+When both `widgetsDir` and `widgets` are provided, they are merged — manual
+registrations take priority on name collision.
+
+For the SPA side, manually registered widgets need explicit registration in your
+`main.ts`:
+
+```ts
+import { ComponentElement, createSpaHtmlRouter } from '@emkodev/emroute/spa';
+import { routesManifest } from './routes.manifest.ts';
+import myVendorWidget from './vendor/some-widget.ts';
+
+ComponentElement.register(myVendorWidget);
+
+await createSpaHtmlRouter(routesManifest);
+```
 
 ### Widget Files
 
-Widgets can declare companion files (`.html`, `.md`, `.css`) that get loaded
-by the SSR infrastructure and passed through `context.files`, mirroring how
-page files work:
+Widgets support companion files (`.html`, `.md`, `.css`) that are loaded by the
+SSR infrastructure and passed through `context.files`, mirroring how page
+files work.
+
+With file-based discovery (`widgetsDir`), companion files are detected
+automatically — just place them next to the widget module:
+
+```
+widgets/nav/
+  nav.widget.ts      ← widget module
+  nav.widget.html    ← auto-discovered companion
+  nav.widget.css     ← auto-discovered companion
+```
+
+For manually registered widgets, declare file paths explicitly:
 
 ```ts
 class NavWidget extends WidgetComponent<Record<string, unknown>, NavData> {
@@ -471,34 +503,32 @@ code. The SSR renderers set the HTTP status (301/302) but do not emit a
 
 ## SPA Setup
 
-The minimal SPA entry point:
+### Zero-config (default)
 
-```html
-<!-- index.html -->
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <title>My App</title>
-  </head>
-  <body>
-    <router-slot></router-slot>
-    <script type="module" src="/main.js"></script>
-  </body>
-</html>
-```
+When you don't provide `main.ts` or `index.html`, the dev server generates
+both. The generated entry point registers auto-discovered widgets and
+initializes the SPA router. The generated HTML shell contains a `<router-slot>`
+with the bundled script injected before `</body>`.
+
+This is the recommended starting point. You only need custom files when you
+have specific requirements (markdown renderer, vendor widgets, custom `<head>`
+content).
+
+### Custom entry point
+
+Create a `main.ts` when you need to configure a markdown renderer, register
+vendor widgets, or run other client-side setup:
 
 ```ts
 // main.ts
 import { createSpaHtmlRouter, MarkdownElement } from '@emkodev/emroute/spa';
 import { routesManifest } from './routes.manifest.ts';
 
-// Required if any route uses .page.md files — see note below
 MarkdownElement.setRenderer({
   render: (md) => myMarkdownLib.render(md),
 });
 
-const router = await createSpaHtmlRouter(routesManifest);
+await createSpaHtmlRouter(routesManifest);
 ```
 
 > **When do you need a markdown renderer?** Only in the SPA (browser). SSR
@@ -509,6 +539,38 @@ const router = await createSpaHtmlRouter(routesManifest);
 > requires a renderer. If your app has no `.page.md` routes, you can skip
 > `setRenderer()` entirely. See [Markdown Renderers](./markdown-renderer.md)
 > for available options.
+
+### Custom HTML shell
+
+Create an `index.html` when you need custom `<head>` content, fonts, or meta
+tags. The server injects the `<script>` tag automatically before `</body>` —
+don't add your own:
+
+```html
+<!-- index.html -->
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>My App</title>
+    <link rel="icon" href="/favicon.ico">
+  </head>
+  <body>
+    <router-slot></router-slot>
+  </body>
+</html>
+```
+
+If a `main.css` file exists in your app root, the server injects a
+`<link rel="stylesheet" href="/main.css">` before `</head>` automatically.
+
+### SPA router
+
+The router is stored on `globalThis.__emroute_router` after initialization,
+giving consumer scripts programmatic access without needing a module reference.
+Calling `createSpaHtmlRouter()` twice returns the existing instance with a
+console warning.
 
 The SPA router:
 
@@ -521,6 +583,12 @@ The SPA router:
 - Fires `navigate`, `load`, and `error` events
 
 ```ts
+// From the return value:
+const router = await createSpaHtmlRouter(routesManifest);
+
+// Or from globalThis (e.g. in a separate script):
+const router = globalThis.__emroute_router;
+
 router.addEventListener((event) => {
   if (event.type === 'navigate') console.log('Navigating to', event.pathname);
   if (event.type === 'load') console.log('Loaded', event.pathname);
@@ -628,7 +696,8 @@ await Deno.writeTextFile('routes.manifest.ts', code);
 ## Development Server
 
 emroute includes a dev server that bundles your entry point, serves the SPA,
-and handles SSR routes:
+and handles SSR routes. At minimum, you need a `routes/` directory — everything
+else is auto-generated:
 
 ```ts
 import { createDevServer } from '@emkodev/emroute/server';
@@ -636,12 +705,56 @@ import { denoServerRuntime } from '@emkodev/emroute/server/deno';
 
 const server = await createDevServer({
   port: 3000,
-  entryPoint: 'main.ts',
-  routesDir: 'routes', // Auto-generates manifest
-  appRoot: '.', // Root for file resolution
-  watch: true, // Rebuild on changes
+  routesDir: 'routes',
 }, denoServerRuntime);
 ```
+
+With more options:
+
+```ts
+const server = await createDevServer({
+  port: 3000,
+  routesDir: 'routes', // Auto-generates routes.manifest.ts
+  widgetsDir: 'widgets', // Auto-discovers widgets
+  entryPoint: 'main.ts', // Optional — generated when absent
+  appRoot: '.', // Root for file resolution
+  watch: true, // Rebuild on changes
+  title: 'My App', // HTML <title> for generated shell
+  spa: 'root', // SPA mode (see below)
+}, denoServerRuntime);
+```
+
+### Auto-generated files
+
+The server detects which files you provide and generates the rest:
+
+| File         | Provided | Generated behavior                                                  |
+| ------------ | -------- | ------------------------------------------------------------------- |
+| `main.ts`    | yes      | Bundled as-is                                                       |
+| `main.ts`    | no       | `_main.generated.ts` created with widget registration + router init |
+| `index.html` | yes      | Used as shell, `<script>` and `<link>` tags injected                |
+| `index.html` | no       | Minimal HTML shell generated with `<router-slot>`                   |
+| `main.css`   | yes      | `<link rel="stylesheet">` auto-injected into `<head>`               |
+| `main.css`   | no       | No stylesheet injected                                              |
+
+### SPA modes
+
+The `spa` option controls how the server handles non-file requests:
+
+| Mode     | `GET /`        | `GET /about`        | `/html/*` | `/md/*`   |
+| -------- | -------------- | ------------------- | --------- | --------- |
+| `'root'` | SPA shell      | SPA shell           | SSR HTML  | SSR MD    |
+| `'leaf'` | 302 → `/html/` | SPA shell           | SSR HTML  | SSR MD    |
+| `'none'` | 302 → `/html/` | 302 → `/html/about` | SSR HTML  | SSR MD    |
+| `'only'` | SPA shell      | SPA shell           | SPA shell | SPA shell |
+
+- **`'root'`** (default) — full SPA with SSR fallback endpoints
+- **`'leaf'`** — SSR landing page at `/`, SPA for deeper routes
+- **`'none'`** — pure SSR, no client-side routing
+- **`'only'`** — pure SPA, no SSR endpoints
+
+In `'root'`, `'leaf'`, and `'none'` modes, the SPA shell includes an HTML
+comment hinting at the SSR endpoints for LLMs and text clients.
 
 **Required permissions** (Deno):
 
@@ -651,17 +764,9 @@ deno run --allow-net --allow-read --allow-write --allow-run --allow-env dev.ts
 
 - `--allow-net` — HTTP server
 - `--allow-read` — read route files, templates, static assets
-- `--allow-write` — write generated `routes.manifest.ts` and `.build/` output
+- `--allow-write` — write generated manifests and `.build/` output
 - `--allow-run` — spawn `deno bundle --watch` for bundling
 - `--allow-env` — read `PORT`, `ENTRY_POINT`, etc. (optional, only if using env vars)
-
-The server handles:
-
-- `GET /` — SPA fallback (serves `index.html`)
-- `GET /html/*` — SSR HTML rendering
-- `GET /md/*` — SSR Markdown rendering (returns `text/plain`)
-- `GET /*.js` — Bundled JavaScript
-- `GET /routes/*.html`, `/routes/*.md` — Static file serving
 
 ## Design Principles
 

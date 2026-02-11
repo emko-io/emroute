@@ -31,6 +31,7 @@ export type {
 
 export type {
   ParsedWidgetBlock,
+  SpaMode,
   WidgetManifestEntry,
   WidgetsManifest,
 } from './type/widget.type.ts';

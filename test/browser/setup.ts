@@ -8,30 +8,11 @@
 import { createDevServer, type DevServer } from '../../server/dev.server.ts';
 import { denoServerRuntime } from '../../server/server.deno.ts';
 import { generateManifestCode, generateRoutesManifest } from '../../tool/route.generator.ts';
-import {
-  discoverWidgetFiles,
-  generateWidgetFilesManifestCode,
-} from '../../tool/widget.generator.ts';
 import type { FileSystem } from '../../tool/fs.type.ts';
 import { WidgetRegistry } from '../../src/widget/widget.registry.ts';
 import type { MarkdownRenderer } from '../../src/type/markdown.type.ts';
 import { AstRenderer, initParser, MarkdownParser } from 'jsr:@emkodev/emko-md@0.1.0-beta.2/parser';
-import { greetingWidget } from './fixtures/widgets/greeting/greeting.widget.ts';
-import { infoCardWidget } from './fixtures/widgets/info-card/info-card.widget.ts';
-import failingWidget from './fixtures/widgets/failing/failing.widget.ts';
-import { counterHtmWidget } from './fixtures/widgets/counter-htm/counter-htm.widget.ts';
-import { counterVanillaWidget } from './fixtures/widgets/counter-vanilla/counter-vanilla.widget.ts';
-import { fileWidget } from './fixtures/widgets/file-widget/file-widget.widget.ts';
-import { remoteWidget } from './fixtures/widgets/remote-widget/remote-widget.widget.ts';
-import { navWidget } from './fixtures/widgets/nav/nav.widget.ts';
-import { heroBannerWidget } from './fixtures/widgets/hero-banner/hero-banner.widget.ts';
-import { articleCardWidget } from './fixtures/widgets/article-card/article-card.widget.ts';
-import { statCardWidget } from './fixtures/widgets/stat-card/stat-card.widget.ts';
-import { recentArticleWidget } from './fixtures/widgets/recent-article/recent-article.widget.ts';
-import { tagCloudWidget } from './fixtures/widgets/tag-cloud/tag-cloud.widget.ts';
-import { searchFilterWidget } from './fixtures/widgets/search-filter/search-filter.widget.ts';
-import { contentTabWidget } from './fixtures/widgets/content-tab/content-tab.widget.ts';
-import { codeBlockWidget } from './fixtures/widgets/code-block/code-block.widget.ts';
+import { externalWidget } from './fixtures/assets/external.widget.ts';
 
 import { type Browser, chromium, type Page } from 'npm:playwright@1.50.1';
 
@@ -67,7 +48,10 @@ function stripPrefix(path: string): string {
   return path.startsWith(`${FIXTURES_DIR}/`) ? path.slice(FIXTURES_DIR.length + 1) : path;
 }
 
-export async function startServer(options?: { watch?: boolean }): Promise<void> {
+export async function startServer(options?: {
+  watch?: boolean;
+  spa?: 'none' | 'leaf' | 'root' | 'only';
+}): Promise<void> {
   if (server) return;
 
   // Generate manifest from fixture route files
@@ -135,35 +119,6 @@ export async function startServer(options?: { watch?: boolean }): Promise<void> 
 
   result.moduleLoaders = moduleLoaders;
 
-  // Create widget registry for SSR rendering
-  const widgets = new WidgetRegistry();
-  widgets.add(greetingWidget);
-  widgets.add(infoCardWidget);
-  widgets.add(failingWidget);
-  widgets.add(counterHtmWidget);
-  widgets.add(counterVanillaWidget);
-  widgets.add(fileWidget);
-  widgets.add(remoteWidget);
-  widgets.add(navWidget);
-  widgets.add(heroBannerWidget);
-  widgets.add(articleCardWidget);
-  widgets.add(statCardWidget);
-  widgets.add(recentArticleWidget);
-  widgets.add(tagCloudWidget);
-  widgets.add(searchFilterWidget);
-  widgets.add(contentTabWidget);
-  widgets.add(codeBlockWidget);
-
-  // Discover widget companion files and generate SPA manifest
-  const discoveredFiles = await discoverWidgetFiles(
-    `${FIXTURES_DIR}/widgets`,
-    widgets,
-    fs,
-    'widgets',
-  );
-  const widgetManifestCode = generateWidgetFilesManifestCode(discoveredFiles);
-  await Deno.writeTextFile(`${FIXTURES_DIR}/widget-files.manifest.ts`, widgetManifestCode);
-
   // Create server-side emko-md renderer
   const wasmUrl = new URL(
     './fixtures/assets/hypertext_parser_bg.0.1.0-beta.2.wasm',
@@ -180,22 +135,21 @@ export async function startServer(options?: { watch?: boolean }): Promise<void> 
     },
   };
 
-  // Convert discovery map to record for SSR renderers
-  const widgetFilesRecord: Record<string, { html?: string; md?: string; css?: string }> = {};
-  for (const [name, files] of discoveredFiles) {
-    widgetFilesRecord[name] = files;
-  }
+  // Manual widget registry for widgets outside widgetsDir (e.g. external/vendor)
+  const manualWidgets = new WidgetRegistry();
+  manualWidgets.add(externalWidget);
 
   server = await createDevServer(
     {
       port: PORT,
-      entryPoint: `${FIXTURES_DIR}/main.ts`,
+      entryPoint: 'main.ts',
       routesManifest: result,
       appRoot: FIXTURES_DIR,
+      widgetsDir: `${FIXTURES_DIR}/widgets`,
+      widgets: manualWidgets,
       watch: options?.watch ?? false,
-      widgets,
-      widgetFiles: widgetFilesRecord,
       markdownRenderer,
+      spa: options?.spa,
     },
     denoServerRuntime,
   );
@@ -204,8 +158,16 @@ export async function startServer(options?: { watch?: boolean }): Promise<void> 
   await new Promise((resolve) => setTimeout(resolve, 3000));
 }
 
-export async function stopServer(): Promise<void> {
-  // No-op: server persists across test files, cleanup via unload event
+export function stopServer(): void {
+  if (!server) return;
+  try {
+    server.bundleProcess?.kill();
+  } catch {
+    // Bundle process may have already exited
+  }
+  server.watchHandle?.close();
+  server.handle.shutdown();
+  server = null;
 }
 
 export async function launchBrowser(): Promise<Browser> {

@@ -16,6 +16,7 @@ import { BreadcrumbWidget } from '../../widget/breadcrumb.widget.ts';
 
 export { createSpaHtmlRouter, SpaHtmlRouter } from './html.renderer.ts';
 export { ComponentElement, MarkdownElement, RouterSlot, WidgetRegistry };
+export type { SpaMode, WidgetsManifest } from '../../type/widget.type.ts';
 
 /** Default widget registry with built-in widgets. */
 export const builtInWidgets: WidgetRegistry = new WidgetRegistry();

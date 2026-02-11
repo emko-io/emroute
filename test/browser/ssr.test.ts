@@ -237,6 +237,48 @@ Deno.test(
       assert(html.includes('border-left'), 'should contain full CSS rule from remote file');
     });
 
+    // --- Mixed widgets: auto-discovered + manual registry ---
+
+    await t.step('auto-discovered widget renders in mixed-widgets page', async () => {
+      const res = await fetch(baseUrl('/html/mixed-widgets'));
+      assertEquals(res.status, 200);
+      const html = await res.text();
+      assert(
+        html.includes('<widget-greeting'),
+        'should contain auto-discovered greeting widget tag',
+      );
+      assert(html.includes('data-ssr='), 'greeting widget should have SSR data');
+    });
+
+    await t.step('manually-registered external widget renders in mixed-widgets page', async () => {
+      const res = await fetch(baseUrl('/html/mixed-widgets'));
+      assertEquals(res.status, 200);
+      const html = await res.text();
+      assert(
+        html.includes('<widget-external'),
+        'should contain manually-registered external widget tag',
+      );
+      assert(
+        html.includes('External widget from manual-registry'),
+        'external widget should render with SSR content',
+      );
+    });
+
+    // --- main.css auto-injection ---
+
+    await t.step('main.css is auto-injected as <link> in <head>', async () => {
+      const res = await fetch(baseUrl('/html/'));
+      assertEquals(res.status, 200);
+      const html = await res.text();
+      assert(
+        html.includes('<link rel="stylesheet" href="/main.css">'),
+        'should contain <link> for main.css',
+      );
+      const linkIdx = html.indexOf('<link rel="stylesheet" href="/main.css">');
+      const headEndIdx = html.indexOf('</head>');
+      assert(linkIdx < headEndIdx, 'main.css link should appear inside <head>');
+    });
+
     // --- Error: getData throws ---
 
     await t.step('getData() throw returns 500 with root error handler', async () => {
@@ -401,6 +443,19 @@ Deno.test(
       assert(md.includes('Hello, World!'), 'greeting widget without files still works');
       // No unresolved widget blocks should remain
       assert(!md.includes('```widget:'), 'should have no unresolved widget blocks');
+    });
+
+    // --- Mixed widgets: auto-discovered + manual registry (markdown) ---
+
+    await t.step('mixed widgets render in markdown SSR', async () => {
+      const res = await fetch(baseUrl('/md/mixed-widgets'));
+      assertEquals(res.status, 200);
+      const md = await res.text();
+      assert(md.includes('Hello, World!'), 'auto-discovered greeting widget should render');
+      assert(
+        md.includes('External widget from manual-registry'),
+        'manually-registered external widget should render',
+      );
     });
 
     // --- Error: getData throws ---

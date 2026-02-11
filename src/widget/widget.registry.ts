@@ -10,6 +10,7 @@
  */
 
 import type { WidgetComponent } from '../component/widget.component.ts';
+import type { WidgetManifestEntry, WidgetsManifest } from '../type/widget.type.ts';
 
 export class WidgetRegistry {
   private widgets = new Map<string, WidgetComponent>();
@@ -27,5 +28,24 @@ export class WidgetRegistry {
   /** Iterate all registered widgets. */
   [Symbol.iterator](): IterableIterator<WidgetComponent> {
     return this.widgets.values();
+  }
+
+  /** Emit a WidgetsManifest from registered widgets. */
+  toManifest(): WidgetsManifest {
+    const widgets: WidgetManifestEntry[] = [];
+    const moduleLoaders: Record<string, () => Promise<unknown>> = {};
+
+    for (const [name, widget] of this.widgets) {
+      const entry: WidgetManifestEntry = {
+        name,
+        modulePath: name,
+        tagName: `widget-${name}`,
+        files: widget.files,
+      };
+      widgets.push(entry);
+      moduleLoaders[name] = () => Promise.resolve({ default: widget.constructor });
+    }
+
+    return { widgets, moduleLoaders };
   }
 }

@@ -93,7 +93,7 @@ Deno.test({ name: 'SPA renderer', sanitizeResources: false, sanitizeOps: false }
     assertEquals(heading, 'Project 99');
 
     // deno-lint-ignore no-explicit-any
-    const params = await page.evaluate(() => (globalThis as any).__testRouter.getParams());
+    const params = await page.evaluate(() => (globalThis as any).__emroute_router.getParams());
     assertEquals(params.id, '99');
   });
 
@@ -140,7 +140,7 @@ Deno.test({ name: 'SPA renderer', sanitizeResources: false, sanitizeOps: false }
     await page.waitForSelector('router-slot mark-down h1', { timeout: 5000 });
 
     // deno-lint-ignore no-explicit-any
-    await page.evaluate(async () => await (globalThis as any).__testRouter.navigate('/about'));
+    await page.evaluate(async () => await (globalThis as any).__emroute_router.navigate('/about'));
     await page.waitForFunction(
       () => {
         const h1 = document.querySelector('router-slot router-slot h1');
@@ -170,7 +170,7 @@ Deno.test({ name: 'SPA renderer', sanitizeResources: false, sanitizeOps: false }
     await page.waitForSelector('router-slot mark-down h1', { timeout: 5000 });
 
     // deno-lint-ignore no-explicit-any
-    await page.evaluate(async () => await (globalThis as any).__testRouter.navigate('/about'));
+    await page.evaluate(async () => await (globalThis as any).__emroute_router.navigate('/about'));
     await page.waitForFunction(
       () => {
         const h1 = document.querySelector('router-slot router-slot h1');
@@ -213,7 +213,7 @@ Deno.test({ name: 'SPA renderer', sanitizeResources: false, sanitizeOps: false }
 
     await page.evaluate(
       // deno-lint-ignore no-explicit-any
-      async () => await (globalThis as any).__testRouter.navigate('/about#section-1'),
+      async () => await (globalThis as any).__emroute_router.navigate('/about#section-1'),
     );
     await page.waitForFunction(
       () => {
@@ -238,7 +238,7 @@ Deno.test({ name: 'SPA renderer', sanitizeResources: false, sanitizeOps: false }
     const events = await page.evaluate(async () => {
       const collected: Array<{ type: string; pathname: string }> = [];
       // deno-lint-ignore no-explicit-any
-      const router = (globalThis as any).__testRouter;
+      const router = (globalThis as any).__emroute_router;
       router.addEventListener((event: { type: string; pathname: string }) => {
         collected.push({ type: event.type, pathname: event.pathname });
       });
@@ -359,7 +359,7 @@ Deno.test({ name: 'SPA renderer', sanitizeResources: false, sanitizeOps: false }
     await page.waitForSelector('router-slot mark-down h1', { timeout: 5000 });
 
     // deno-lint-ignore no-explicit-any
-    await page.evaluate(async () => await (globalThis as any).__testRouter.navigate('/old'));
+    await page.evaluate(async () => await (globalThis as any).__emroute_router.navigate('/old'));
     await page.waitForFunction(
       () => {
         const h1 = document.querySelector('router-slot router-slot h1');
@@ -379,7 +379,7 @@ Deno.test({ name: 'SPA renderer', sanitizeResources: false, sanitizeOps: false }
     await page.waitForSelector('router-slot mark-down h1', { timeout: 5000 });
 
     // deno-lint-ignore no-explicit-any
-    await page.evaluate(async () => await (globalThis as any).__testRouter.navigate('/about'));
+    await page.evaluate(async () => await (globalThis as any).__emroute_router.navigate('/about'));
     await page.waitForFunction(
       () => {
         const h1 = document.querySelector('router-slot router-slot h1');
@@ -463,7 +463,7 @@ Deno.test({ name: 'SPA renderer', sanitizeResources: false, sanitizeOps: false }
     // by the per-navigation AbortController in SpaHtmlRouter.handleNavigation.
     await page.evaluate(async () => {
       // deno-lint-ignore no-explicit-any
-      const router = (globalThis as any).__testRouter;
+      const router = (globalThis as any).__emroute_router;
       // Fire-and-forget: these should be cancelled by the final navigate()
       router.navigate('/projects/42');
       router.navigate('/about');

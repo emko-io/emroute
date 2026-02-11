@@ -5,6 +5,63 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-02-11
+
+### Added
+
+- **File-based widget discovery** — `discoverWidgets()` scans a `widgetsDir/`
+  for `{name}/{name}.widget.ts` modules and their companion files (html, md,
+  css). Generates a `WidgetsManifest` with module loaders for SPA bundles.
+  `generateWidgetsManifestCode()` produces the manifest source file.
+- **Per-element widget instantiation** — `ComponentElement.register()` now
+  creates a fresh widget instance per DOM element via the class constructor,
+  giving each element its own state. Added `ComponentElement.registerClass()`
+  for manifest-based registration where a class (not instance) is available.
+- **`WidgetRegistry.toManifest()`** — emits a `WidgetsManifest` from manually
+  registered widgets for programmatic use.
+- **SPA mode configuration** — `DevServerConfig.spa` accepts `'root'` (default),
+  `'leaf'`, `'none'`, or `'only'` to control how the server handles non-file
+  requests and whether SSR endpoints are active.
+- **Zero-config dev server** — `entryPoint` is now optional. When absent, the
+  server generates `_main.generated.ts` with widget registration and router
+  initialization. When `index.html` is absent, a minimal HTML shell is
+  generated. When `main.css` exists, a `<link rel="stylesheet">` is
+  auto-injected into `<head>`.
+- **Script tag injection** — the server always injects the bundled `<script>`
+  tag before `</body>`, whether using a consumer-provided or generated
+  `index.html`. Consumer HTML shells no longer need a manual script tag.
+- **`__emroute_router` global** — `createSpaHtmlRouter()` stores the router
+  instance on `globalThis.__emroute_router` for programmatic access from
+  consumer scripts. Duplicate calls return the existing instance with a warning.
+- **`SpaMode` type** exported from `@emkodev/emroute` and `@emkodev/emroute/spa`.
+- **CLI `--widgets` flag** — `deno run tool/cli.ts [routesDir] [output]
+  [importPath] [--widgets widgetsDir widgetsOutput]` generates both route and
+  widget manifests.
+
+### Deprecated
+
+- `discoverWidgetFiles()` — use `discoverWidgets()` instead.
+- `generateWidgetFilesManifestCode()` — use `generateWidgetsManifestCode()`.
+- `DevServerConfig.widgetFiles` — use `widgetsDir` for auto-discovery.
+
+### Fixed
+
+- Redirect responses (`Response.redirect()`) no longer crash the dev server
+  when security headers are injected (immutable headers).
+- Redirect path in `spa: 'none'` mode no longer produces double slashes
+  (`/html//about` → `/html/about`).
+
+### Changed
+
+- Dev server widget discovery uses `relativeToAppRoot()` to compute correct
+  manifest paths regardless of `appRoot` depth.
+- SSR widget import uses `extractWidgetExport()` to handle default, named
+  instance, and class exports uniformly.
+- Quick start guide simplified to one file (just `routes/index.page.md`).
+- Consumer guide updated with file-based widget discovery, SPA modes, zero-config
+  setup, and `__emroute_router` documentation.
+- Test suite: 564 unit tests, 86 browser test steps.
+
 ## [1.0.3] - 2026-02-11
 
 ### Added

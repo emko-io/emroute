@@ -522,11 +522,21 @@ export class SpaHtmlRouter {
 
 /**
  * Create and initialize SPA HTML router.
+ *
+ * The router instance is stored on `globalThis.__emroute_router` for
+ * programmatic access from consumer scripts (navigate, getParams, etc.).
+ * Calling this function twice returns the existing router with a warning.
  */
 export async function createSpaHtmlRouter(
   manifest: RoutesManifest,
 ): Promise<SpaHtmlRouter> {
+  const g = globalThis as Record<string, unknown>;
+  if (g.__emroute_router) {
+    console.warn('eMroute: SPA router already initialized. Remove duplicate <script> tags.');
+    return g.__emroute_router as SpaHtmlRouter;
+  }
   const router = new SpaHtmlRouter(manifest);
   await router.initialize();
+  g.__emroute_router = router;
   return router;
 }

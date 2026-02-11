@@ -45,6 +45,7 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
 
   /**
    * Register a widget as a custom element: `widget-{name}`.
+   * Creates a fresh widget instance per DOM element (per-element state).
    * Optional `files` parameter provides discovered file paths without mutating
    * the component instance.
    */
@@ -58,9 +59,35 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
       return;
     }
 
+    const WidgetClass = component.constructor as new () => Component<TP, TD>;
+
     const BoundElement = class extends ComponentElement<TP, TD> {
       constructor() {
-        super(component, files);
+        super(new WidgetClass(), files);
+      }
+    };
+
+    customElements.define(tagName, BoundElement);
+  }
+
+  /**
+   * Register a widget class (not instance) as a custom element: `widget-{name}`.
+   * Used for manifest-based registration where classes are loaded dynamically.
+   */
+  static registerClass<TP, TD>(
+    WidgetClass: new () => Component<TP, TD>,
+    name: string,
+    files?: WidgetFiles,
+  ): void {
+    const tagName = `widget-${name}`;
+
+    if (!globalThis.customElements || customElements.get(tagName)) {
+      return;
+    }
+
+    const BoundElement = class extends ComponentElement<TP, TD> {
+      constructor() {
+        super(new WidgetClass(), files);
       }
     };
 

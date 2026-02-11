@@ -34,6 +34,9 @@ export interface ParsedWidgetBlock {
 /** Custom element tag name for widgets: `widget-{name}` */
 export type WidgetTagName = `widget-${string}`;
 
+/** SPA rendering mode. */
+export type SpaMode = 'none' | 'leaf' | 'root' | 'only';
+
 /**
  * Widget manifest entry for code generation.
  */

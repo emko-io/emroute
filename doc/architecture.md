@@ -209,3 +209,7 @@ Widgets can declare companion files (`.html`, `.md`, `.css`) via a `files` prope
 - Light DOM custom elements for widgets. No Shadow DOM — global styles cascade naturally.
 
 The router is ~500 lines across three renderers sharing a core. Pages are classes with two render methods. That's the whole framework.
+
+---
+
+<img src="./logo-full.png" alt="emroute" width="197" height="40">

@@ -80,8 +80,8 @@ Deno.test(
 
       // Navigate to hydration page via SPA (no SSR)
       await page.evaluate(() => {
-        (globalThis as Record<string, unknown>).__testRouter &&
-          ((globalThis as Record<string, unknown>).__testRouter as {
+        (globalThis as Record<string, unknown>).__emroute_router &&
+          ((globalThis as Record<string, unknown>).__emroute_router as {
             navigate: (url: string) => Promise<void>;
           }).navigate('/hydration');
       });

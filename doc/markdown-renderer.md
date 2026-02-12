@@ -49,7 +49,7 @@ WASM-based parser with widget support. Zero JS dependencies. An editor built
 on the same parser is in development.
 
 ```bash
-deno add jsr:@emkodev/emko-md@^0.1.0-beta.2/parser
+deno add jsr:@emkodev/emko-md@^0.1.0-beta.3/parser
 ```
 
 Requires vendoring the WASM binary (~50KB) into your project. See

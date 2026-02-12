@@ -21,6 +21,9 @@
 import { assertEquals, assertStringIncludes } from '@std/assert';
 import { createSsrHtmlRouter, SsrHtmlRouter } from '../../src/renderer/ssr/html.renderer.ts';
 import type { RouteConfig, RoutesManifest } from '../../src/type/route.type.ts';
+import type { MarkdownRenderer } from '../../src/type/markdown.type.ts';
+import { WidgetRegistry } from '../../src/widget/widget.registry.ts';
+import { WidgetComponent } from '../../src/component/widget.component.ts';
 
 /**
  * Create a minimal test manifest
@@ -1230,6 +1233,278 @@ Deno.test('SsrHtmlRouter - render() root route uses router-slot placeholder', as
   try {
     const result = await router.render('http://localhost/');
     assertEquals(result.html.includes('<router-slot></router-slot>'), true);
+  } finally {
+    restore();
+  }
+});
+
+// ============================================================================
+// Renderer-side Widget Expansion Tests
+//
+// Verifies that expandMarkdown uses renderer output directly — widget tags
+// and router-slot tags emitted by the renderer pass through unchanged, with
+// no fenced-block post-processing.
+// ============================================================================
+
+/** Markdown renderer that emits widget tags directly (like emko-md). */
+function createWidgetAwareRenderer(): MarkdownRenderer {
+  return {
+    render(markdown: string): string {
+      // Simulate emko-md: fenced widget blocks → <widget-*> tags,
+      // router-slot blocks → <router-slot>, plain markdown → <p>
+      let html = markdown;
+
+      // Convert ```widget:name\n{...}\n``` → <widget-name attrs>
+      html = html.replace(
+        /```widget:([a-z][a-z0-9-]*)\n(.*?)```/gs,
+        (_match, name, params) => {
+          const trimmed = params.trim();
+          if (!trimmed || trimmed === '{}') return `<widget-${name}></widget-${name}>`;
+          try {
+            const obj = JSON.parse(trimmed);
+            const attrs = Object.entries(obj)
+              .map(([k, v]) => `${k}="${v}"`)
+              .join(' ');
+            return `<widget-${name} ${attrs}></widget-${name}>`;
+          } catch {
+            return `<widget-${name}></widget-${name}>`;
+          }
+        },
+      );
+
+      // Convert ```\nrouter-slot\n``` → <router-slot></router-slot>
+      html = html.replace(/```\nrouter-slot\n```/g, '<router-slot></router-slot>');
+
+      // Convert plain lines to <p> (simplified)
+      html = html.replace(/^([^<\n].+)$/gm, '<p>$1</p>');
+
+      return html;
+    },
+  };
+}
+
+/** Test widget that renders data from params. */
+class PriceWidget
+  extends WidgetComponent<Record<string, unknown>, { coin: string; price: number }> {
+  override readonly name = 'crypto-price';
+
+  override getData(args: this['DataArgs']): Promise<{ coin: string; price: number }> {
+    return Promise.resolve({
+      coin: String(args.params.coin ?? 'bitcoin'),
+      price: 42000,
+    });
+  }
+
+  override renderHTML(args: this['RenderArgs']): string {
+    return `<span>${args.data!.coin}: $${args.data!.price}</span>`;
+  }
+
+  override renderMarkdown(args: this['RenderArgs']): string {
+    return `**${args.data!.coin}**: $${args.data!.price}`;
+  }
+}
+
+Deno.test('SsrHtmlRouter - expandMarkdown uses renderer output directly for widget tags', async () => {
+  const md = '# Price\n\n```widget:crypto-price\n{"coin": "bitcoin"}\n```';
+
+  const routes: RouteConfig[] = [
+    createTestRoute({
+      pattern: '/prices',
+      modulePath: '/prices.page.md',
+      files: { md: '/prices.page.md' },
+    }),
+  ];
+  const manifest = createTestManifest({ routes });
+  const renderer = createWidgetAwareRenderer();
+  const router = new SsrHtmlRouter(manifest, { markdownRenderer: renderer });
+
+  const restore = mockFetch({ '/prices.page.md': md });
+
+  try {
+    const result = await router.render('http://localhost/prices');
+    assertEquals(result.status, 200);
+    // The renderer emits <widget-crypto-price> directly — verify it passes through
+    assertStringIncludes(result.html, '<widget-crypto-price');
+    assertStringIncludes(result.html, 'coin="bitcoin"');
+    // No <pre><code> wrappers from old fenced-block post-processing
+    assertEquals(result.html.includes('<pre><code'), false);
+  } finally {
+    restore();
+  }
+});
+
+Deno.test('SsrHtmlRouter - expandMarkdown uses renderer output directly for router-slot', async () => {
+  const md = '# Layout\n\n```\nrouter-slot\n```';
+
+  const routes: RouteConfig[] = [
+    createTestRoute({
+      pattern: '/layout',
+      modulePath: '/layout.page.md',
+      files: { md: '/layout.page.md' },
+    }),
+  ];
+  const manifest = createTestManifest({ routes });
+  const renderer = createWidgetAwareRenderer();
+  const router = new SsrHtmlRouter(manifest, { markdownRenderer: renderer });
+
+  const restore = mockFetch({ '/layout.page.md': md });
+
+  try {
+    const result = await router.render('http://localhost/layout');
+    assertEquals(result.status, 200);
+    assertStringIncludes(result.html, '<router-slot></router-slot>');
+    assertEquals(result.html.includes('<pre><code'), false);
+  } finally {
+    restore();
+  }
+});
+
+Deno.test('SsrHtmlRouter - expandMarkdown + resolveWidgetTags renders widget with SSR data', async () => {
+  const md = '# Dashboard\n\n```widget:crypto-price\n{"coin": "ethereum"}\n```';
+
+  const routes: RouteConfig[] = [
+    createTestRoute({
+      pattern: '/dashboard',
+      modulePath: '/dashboard.page.md',
+      files: { md: '/dashboard.page.md' },
+    }),
+  ];
+  const manifest = createTestManifest({ routes });
+
+  const registry = new WidgetRegistry();
+  registry.add(new PriceWidget());
+
+  const renderer = createWidgetAwareRenderer();
+  const router = new SsrHtmlRouter(manifest, {
+    markdownRenderer: renderer,
+    widgets: registry,
+  });
+
+  const restore = mockFetch({ '/dashboard.page.md': md });
+
+  try {
+    const result = await router.render('http://localhost/dashboard');
+    assertEquals(result.status, 200);
+    // Widget was resolved with SSR data
+    assertStringIncludes(result.html, 'data-ssr=');
+    assertStringIncludes(result.html, 'ethereum: $42000');
+  } finally {
+    restore();
+  }
+});
+
+Deno.test('SsrHtmlRouter - expandMarkdown preserves multiple widget tags from renderer', async () => {
+  const md = [
+    '# Prices',
+    '',
+    '```widget:crypto-price',
+    '{"coin": "bitcoin"}',
+    '```',
+    '',
+    '```widget:crypto-price',
+    '{"coin": "solana"}',
+    '```',
+  ].join('\n');
+
+  const routes: RouteConfig[] = [
+    createTestRoute({
+      pattern: '/multi',
+      modulePath: '/multi.page.md',
+      files: { md: '/multi.page.md' },
+    }),
+  ];
+  const manifest = createTestManifest({ routes });
+
+  const registry = new WidgetRegistry();
+  registry.add(new PriceWidget());
+
+  const renderer = createWidgetAwareRenderer();
+  const router = new SsrHtmlRouter(manifest, {
+    markdownRenderer: renderer,
+    widgets: registry,
+  });
+
+  const restore = mockFetch({ '/multi.page.md': md });
+
+  try {
+    const result = await router.render('http://localhost/multi');
+    assertEquals(result.status, 200);
+    assertStringIncludes(result.html, 'bitcoin: $42000');
+    assertStringIncludes(result.html, 'solana: $42000');
+  } finally {
+    restore();
+  }
+});
+
+Deno.test('SsrHtmlRouter - expandMarkdown with widget and router-slot in same page', async () => {
+  const md = [
+    '```widget:crypto-price',
+    '{"coin": "bitcoin"}',
+    '```',
+    '',
+    '```',
+    'router-slot',
+    '```',
+  ].join('\n');
+
+  const routes: RouteConfig[] = [
+    createTestRoute({
+      pattern: '/mixed',
+      modulePath: '/mixed.page.md',
+      files: { md: '/mixed.page.md' },
+    }),
+  ];
+  const manifest = createTestManifest({ routes });
+
+  const registry = new WidgetRegistry();
+  registry.add(new PriceWidget());
+
+  const renderer = createWidgetAwareRenderer();
+  const router = new SsrHtmlRouter(manifest, {
+    markdownRenderer: renderer,
+    widgets: registry,
+  });
+
+  const restore = mockFetch({ '/mixed.page.md': md });
+
+  try {
+    const result = await router.render('http://localhost/mixed');
+    assertEquals(result.status, 200);
+    assertStringIncludes(result.html, 'bitcoin: $42000');
+    assertStringIncludes(result.html, '<router-slot></router-slot>');
+  } finally {
+    restore();
+  }
+});
+
+Deno.test('SsrHtmlRouter - expandMarkdown with no-param widget', async () => {
+  const md = '```widget:crypto-price\n{}\n```';
+
+  const routes: RouteConfig[] = [
+    createTestRoute({
+      pattern: '/noparam',
+      modulePath: '/noparam.page.md',
+      files: { md: '/noparam.page.md' },
+    }),
+  ];
+  const manifest = createTestManifest({ routes });
+
+  const registry = new WidgetRegistry();
+  registry.add(new PriceWidget());
+
+  const renderer = createWidgetAwareRenderer();
+  const router = new SsrHtmlRouter(manifest, {
+    markdownRenderer: renderer,
+    widgets: registry,
+  });
+
+  const restore = mockFetch({ '/noparam.page.md': md });
+
+  try {
+    const result = await router.render('http://localhost/noparam');
+    assertEquals(result.status, 200);
+    // Default coin is "bitcoin" from getData
+    assertStringIncludes(result.html, 'bitcoin: $42000');
   } finally {
     restore();
   }

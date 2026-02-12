@@ -2,6 +2,7 @@
   "version": "5",
   "specifiers": {
     "jsr:@emkodev/emko-md@0.1.0-beta.2": "0.1.0-beta.2",
+    "jsr:@emkodev/emko-md@0.1.0-beta.3": "0.1.0-beta.3",
     "jsr:@std/assert@1": "1.0.16",
     "jsr:@std/internal@^1.0.12": "1.0.12",
     "npm:playwright@1.50.1": "1.50.1"
@@ -9,6 +10,9 @@
   "jsr": {
     "@emkodev/emko-md@0.1.0-beta.2": {
       "integrity": "973e9f886e09c748872892a3b9eb14adbc4e7d242bfdb3f8e8eba0e5ee506ac7"
+    },
+    "@emkodev/emko-md@0.1.0-beta.3": {
+      "integrity": "60fe1b9fb2324e7e427c7a8789ef981119ffc16beaff6db57006140e69e28a23"
     },
     "@std/assert@1.0.16": {
       "integrity": "6a7272ed1eaa77defe76e5ff63ca705d9c495077e2d5fd0126d2b53fc5bd6532",

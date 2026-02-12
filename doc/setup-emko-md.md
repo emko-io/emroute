@@ -20,7 +20,7 @@ with zero JS dependencies.
 ## 1. Install the packages
 
 ```bash
-deno add jsr:@emkodev/emko-md@^0.1.0-beta.2/parser
+deno add jsr:@emkodev/emko-md@^0.1.0-beta.3/parser
 ```
 
 Your `deno.json` imports should now include both emroute and emko-md. You also
@@ -33,7 +33,7 @@ need the server sub-exports for the custom dev script:
     "@emkodev/emroute/spa": "jsr:@emkodev/emroute/spa",
     "@emkodev/emroute/server": "jsr:@emkodev/emroute/server",
     "@emkodev/emroute/server/deno": "jsr:@emkodev/emroute/server/deno",
-    "@emkodev/emko-md/parser": "jsr:@emkodev/emko-md@0.1.0-beta.2/parser"
+    "@emkodev/emko-md/parser": "jsr:@emkodev/emko-md@0.1.0-beta.3/parser"
   }
 }
 ```
@@ -52,14 +52,14 @@ Download it from JSR and place it in your assets directory:
 
 ```bash
 mkdir -p assets
-curl -o assets/hypertext_parser_bg.0.1.0-beta.2.wasm \
-  https://jsr.io/@emkodev/emko-md/0.1.0-beta.2/hypertext-parser/pkg/hypertext_parser_bg.wasm
+curl -o assets/emko_md_parser_bg.0.1.0-beta.3.wasm \
+  https://jsr.io/@emkodev/emko-md/0.1.0-beta.3/parser/pkg/emko_md_parser_bg.wasm
 ```
 
 Include the version in the filename so you know when it's stale.
 
 The dev server serves files from `appRoot` automatically, so
-`/assets/hypertext_parser_bg.0.1.0-beta.2.wasm` will resolve without any
+`/assets/emko_md_parser_bg.0.1.0-beta.3.wasm` will resolve without any
 extra configuration.
 
 ## 3. Client-side renderer
@@ -80,7 +80,7 @@ MarkdownElement.setRenderer(
     async init() {
       await initParser({
         module_or_path: new URL(
-          '/assets/hypertext_parser_bg.0.1.0-beta.2.wasm',
+          '/assets/emko_md_parser_bg.0.1.0-beta.3.wasm',
           location.origin,
         ),
       });
@@ -124,7 +124,7 @@ import { denoServerRuntime } from '@emkodev/emroute/server/deno';
 import { WidgetRegistry } from '@emkodev/emroute';
 
 const wasmPath = new URL(
-  './assets/hypertext_parser_bg.0.1.0-beta.2.wasm',
+  './assets/emko_md_parser_bg.0.1.0-beta.3.wasm',
   import.meta.url,
 );
 

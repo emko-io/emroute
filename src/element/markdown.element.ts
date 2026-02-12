@@ -11,7 +11,6 @@
  */
 
 import { escapeHtml, HTMLElementBase } from '../util/html.util.ts';
-import { processFencedSlots, processFencedWidgets } from '../util/fenced-block.util.ts';
 import { CSS_ERROR } from '../component/abstract.component.ts';
 import type { MarkdownRenderer } from '../type/markdown.type.ts';
 import { stripSsrPrefix } from '../route/route.core.ts';
@@ -159,27 +158,10 @@ export class MarkdownElement extends HTMLElementBase {
   private async renderContent(markdown: string): Promise<void> {
     try {
       const renderer = await MarkdownElement.getRenderer();
-      let html = renderer.render(markdown);
-
-      // Process fenced router-slot blocks
-      html = processFencedSlots(html, (t) => this.decodeHtmlEntities(t));
-
-      // Process fenced widget blocks
-      html = processFencedWidgets(html, (t) => this.decodeHtmlEntities(t));
-
-      this.innerHTML = html;
+      this.innerHTML = renderer.render(markdown);
     } catch (error) {
       this.showError(error);
     }
-  }
-
-  /**
-   * Decode HTML entities back to plain text.
-   */
-  private decodeHtmlEntities(text: string): string {
-    const textarea = document.createElement('textarea');
-    textarea.innerHTML = text;
-    return textarea.value;
   }
 
   private showError(error: unknown): void {

@@ -16,6 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with `@starting-style` and discrete animations, popover anchor positioning
   (CSS anchors with fallback), and navigation-triggered dismissal.
 
+### Changed
+
+- **Renderer-side widget expansion** — widget fenced blocks (`` `widget:name`)
+  are now expanded by the markdown renderer's AST pipeline instead of regex-based
+  post-processing. Requires `@emkodev/emko-md@0.1.0-beta.3` or a renderer that
+  emits `<widget-*>` tags directly. Removed `processFencedWidgets` and
+  `processFencedSlots` from `fenced-block.util.ts` (deleted).
+
 ## [1.3.4] - 2026-02-11
 
 ### Added

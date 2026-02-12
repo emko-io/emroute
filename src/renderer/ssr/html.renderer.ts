@@ -24,7 +24,6 @@ import {
 } from '../../route/route.core.ts';
 import { toUrl } from '../../route/route.matcher.ts';
 import { escapeHtml, STATUS_MESSAGES, unescapeHtml } from '../../util/html.util.ts';
-import { processFencedSlots, processFencedWidgets } from '../../util/fenced-block.util.ts';
 import { resolveWidgetTags } from '../../util/widget-resolve.util.ts';
 import type { WidgetRegistry } from '../../widget/widget.registry.ts';
 
@@ -278,10 +277,7 @@ export class SsrHtmlRouter {
 
     return html.replace(pattern, (_match, escaped: string) => {
       const markdown = unescapeHtml(escaped);
-      let rendered = renderer.render(markdown);
-      rendered = processFencedSlots(rendered, unescapeHtml);
-      rendered = processFencedWidgets(rendered, unescapeHtml);
-      return rendered;
+      return renderer.render(markdown);
     });
   }
 

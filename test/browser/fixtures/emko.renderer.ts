@@ -1,4 +1,4 @@
-import { AstRenderer, initParser, MarkdownParser } from 'jsr:@emkodev/emko-md@0.1.0-beta.2/parser';
+import { AstRenderer, initParser, MarkdownParser } from 'jsr:@emkodev/emko-md@0.1.0-beta.3/parser';
 import { MarkdownElement } from '@emkodev/emroute/spa';
 import type { MarkdownRenderer } from '@emkodev/emroute';
 
@@ -9,7 +9,7 @@ MarkdownElement.setRenderer(
   {
     async init() {
       await initParser({
-        module_or_path: new URL('/assets/hypertext_parser_bg.0.1.0-beta.2.wasm', location.origin),
+        module_or_path: new URL('/assets/emko_md_parser_bg.0.1.0-beta.3.wasm', location.origin),
       });
       parser = new MarkdownParser();
     },

@@ -11,7 +11,7 @@ import { generateManifestCode, generateRoutesManifest } from '../../tool/route.g
 import type { FileSystem } from '../../tool/fs.type.ts';
 import { WidgetRegistry } from '../../src/widget/widget.registry.ts';
 import type { MarkdownRenderer } from '../../src/type/markdown.type.ts';
-import { AstRenderer, initParser, MarkdownParser } from 'jsr:@emkodev/emko-md@0.1.0-beta.2/parser';
+import { AstRenderer, initParser, MarkdownParser } from 'jsr:@emkodev/emko-md@0.1.0-beta.3/parser';
 import { externalWidget } from './fixtures/assets/external.widget.ts';
 
 import { type Browser, chromium, type Page } from 'npm:playwright@1.50.1';
@@ -121,7 +121,7 @@ export async function startServer(options?: {
 
   // Create server-side emko-md renderer
   const wasmUrl = new URL(
-    './fixtures/assets/hypertext_parser_bg.0.1.0-beta.2.wasm',
+    './fixtures/assets/emko_md_parser_bg.0.1.0-beta.3.wasm',
     import.meta.url,
   );
   await initParser({ module_or_path: wasmUrl });

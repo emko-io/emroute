@@ -7,3 +7,4 @@ node_modules/
 routes.manifest.ts
 test/browser/fixtures/routes.manifest.ts
 test/browser/fixtures/assets/*.wasm
+.claude/

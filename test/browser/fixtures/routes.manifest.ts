@@ -101,6 +101,12 @@ export const routesManifest: RoutesManifest = {
     files: { md: 'routes/about.page.md', css: 'routes/about.page.css', html: 'routes/about.page.html' },
   },
   {
+    pattern: '/empty-markdown',
+    type: 'page',
+    modulePath: 'routes/empty-markdown.page.html',
+    files: { html: 'routes/empty-markdown.page.html' },
+  },
+  {
     pattern: '/overlay',
     type: 'page',
     modulePath: 'routes/overlay.page.md',

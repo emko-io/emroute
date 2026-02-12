@@ -72,6 +72,25 @@ Deno.test({ name: 'SPA renderer', sanitizeResources: false, sanitizeOps: false }
     assertEquals(fullLoadFired, false);
   });
 
+  await t.step('empty <mark-down> without companion .page.md renders empty', async () => {
+    await page.goto(baseUrl('/empty-markdown'));
+    await page.waitForSelector('router-slot router-slot h1', { timeout: 5000 });
+
+    const heading = await page.textContent('router-slot router-slot h1');
+    assertEquals(heading, 'Empty Markdown Test');
+
+    // <mark-down> should be empty — no content, no error
+    const markdownHTML = await page.evaluate(() => {
+      const md = document.querySelector('router-slot router-slot mark-down');
+      return md?.innerHTML ?? null;
+    });
+    assertEquals(markdownHTML, '');
+
+    // Content after the empty <mark-down> should render normally
+    const afterText = await page.textContent('router-slot router-slot .after-markdown');
+    assertEquals(afterText, 'Content after markdown');
+  });
+
   // --- Custom .page.ts component ---
 
   await t.step('.page.ts component renders with getData', async () => {

@@ -75,6 +75,11 @@ export const widgetsManifest: WidgetsManifest = {
       files: { css: 'widgets/nav/nav.widget.css' },
     },
     {
+      name: 'overlay-demo',
+      modulePath: 'widgets/overlay-demo/overlay-demo.widget.ts',
+      tagName: 'widget-overlay-demo',
+    },
+    {
       name: 'recent-article',
       modulePath: 'widgets/recent-article/recent-article.widget.ts',
       tagName: 'widget-recent-article',
@@ -127,6 +132,8 @@ export const widgetsManifest: WidgetsManifest = {
     'widgets/info-card/info-card.widget.ts': () =>
       import('./widgets/info-card/info-card.widget.ts'),
     'widgets/nav/nav.widget.ts': () => import('./widgets/nav/nav.widget.ts'),
+    'widgets/overlay-demo/overlay-demo.widget.ts': () =>
+      import('./widgets/overlay-demo/overlay-demo.widget.ts'),
     'widgets/recent-article/recent-article.widget.ts': () =>
       import('./widgets/recent-article/recent-article.widget.ts'),
     'widgets/remote-widget/remote-widget.widget.ts': () =>

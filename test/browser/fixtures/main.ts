@@ -1,4 +1,5 @@
 import { ComponentElement, createSpaHtmlRouter } from '@emkodev/emroute/spa';
+import { createOverlayService } from '@emkodev/emroute/overlay';
 import { routesManifest } from './routes.manifest.ts';
 import { widgetsManifest } from './widgets.manifest.ts';
 
@@ -19,4 +20,15 @@ for (const entry of widgetsManifest.widgets) {
   }
 }
 
-await createSpaHtmlRouter(routesManifest);
+const overlay = createOverlayService();
+
+const router = await createSpaHtmlRouter(routesManifest, {
+  extendContext: (base) => ({ ...base, overlay }),
+});
+
+router.addEventListener((e) => {
+  if (e.type === 'navigate') overlay.dismissAll();
+});
+
+// Expose for console testing: __overlay.toast({ render(el) { el.textContent = 'hi' } })
+(globalThis as Record<string, unknown>).__overlay = overlay;

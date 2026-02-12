@@ -1,0 +1,61 @@
+{
+  "version": "5",
+  "specifiers": {
+    "jsr:@emkodev/emko-md@0.1.0-beta.2": "0.1.0-beta.2",
+    "jsr:@std/assert@1": "1.0.16",
+    "jsr:@std/internal@^1.0.12": "1.0.12",
+    "npm:playwright@1.50.1": "1.50.1"
+  },
+  "jsr": {
+    "@emkodev/emko-md@0.1.0-beta.2": {
+      "integrity": "973e9f886e09c748872892a3b9eb14adbc4e7d242bfdb3f8e8eba0e5ee506ac7"
+    },
+    "@std/assert@1.0.16": {
+      "integrity": "6a7272ed1eaa77defe76e5ff63ca705d9c495077e2d5fd0126d2b53fc5bd6532",
+      "dependencies": [
+        "jsr:@std/internal"
+      ]
+    },
+    "@std/internal@1.0.12": {
+      "integrity": "972a634fd5bc34b242024402972cd5143eac68d8dffaca5eaa4dba30ce17b027"
+    }
+  },
+  "npm": {
+    "fsevents@2.3.2": {
+      "integrity": "sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==",
+      "os": ["darwin"],
+      "scripts": true
+    },
+    "playwright-core@1.50.1": {
+      "integrity": "sha512-ra9fsNWayuYumt+NiM069M6OkcRb1FZSK8bgi66AtpFoWkg2+y0bJSNmkFrWhMbEBbVKC/EruAHH3g0zmtwGmQ==",
+      "bin": true
+    },
+    "playwright@1.50.1": {
+      "integrity": "sha512-G8rwsOQJ63XG6BbKj2w5rHeavFjy5zynBA9zsJMMtBoe/Uf757oG12NXz6e6OirF7RCrTVAKFXbLmn1RbL7Qaw==",
+      "dependencies": [
+        "playwright-core"
+      ],
+      "optionalDependencies": [
+        "fsevents"
+      ],
+      "bin": true
+    }
+  },
+  "redirects": {
+    "https://esm.sh/htm@3/preact?deps=preact@10": "https://esm.sh/htm@3.1.1/preact?deps=preact@10",
+    "https://esm.sh/preact@10/hooks": "https://esm.sh/preact@10.28.3/hooks"
+  },
+  "remote": {
+    "https://esm.sh/htm@3.1.1/X-ZHByZWFjdEAxMC4yOC4z/denonext/htm.mjs": "9216e59d4cbaf50b94aaf50540e58a498bc8fc4b865c67ae807b483ed62b2a7d",
+    "https://esm.sh/htm@3.1.1/X-ZHByZWFjdEAxMC4yOC4z/denonext/preact.mjs": "b0bc4f7304ac4d5b1d3c2db938b82cbc63f23e2dd133d6f656765c3a8aeec7ec",
+    "https://esm.sh/htm@3.1.1/preact?deps=preact@10": "403be233d2321e727a95818ec89b78e3b454a9c5152de7d7fc04841de95f7db2",
+    "https://esm.sh/preact@10.28.3/denonext/hooks.mjs": "ab86466f54d3ee8ec5e0efa0b5144b19375ba1fc614b4d98839ab6bd6f360ce2",
+    "https://esm.sh/preact@10.28.3/denonext/preact.mjs": "9e8eb03f04b90584e0498fee88376c733efa13d8b78f039655de5d82c8367619",
+    "https://esm.sh/preact@10.28.3/hooks": "ebd9af88c0eaaa97c7a9b6504586f67e2e144835cdcfe87c0783a4eb55a96785"
+  },
+  "workspace": {
+    "dependencies": [
+      "jsr:@std/assert@1"
+    ]
+  }
+}

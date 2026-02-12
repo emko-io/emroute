@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-02-12
+
+### Added
+
+- **Centralized overlay service** — new `@emkodev/emroute/overlay` module provides
+  factory function `createOverlayService()` managing modals (`<dialog>`), toasts
+  (`<div>` stack), and popovers (`popover` attribute). Integrates with component
+  context via `extendContext`. Features include lazy DOM creation, CSS transitions
+  with `@starting-style` and discrete animations, popover anchor positioning
+  (CSS anchors with fallback), and navigation-triggered dismissal.
+
 ## [1.3.4] - 2026-02-11
 
 ### Added

@@ -8,5 +8,5 @@
 
 import { startServer } from './setup.ts';
 
-await startServer();
-console.log('\nReady for manual testing. Press Ctrl+C to stop.\n');
+await startServer({ watch: true });
+console.log('\nReady for manual testing (watching for changes). Press Ctrl+C to stop.\n');

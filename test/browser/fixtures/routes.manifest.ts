@@ -101,6 +101,12 @@ export const routesManifest: RoutesManifest = {
     files: { md: 'routes/about.page.md', css: 'routes/about.page.css', html: 'routes/about.page.html' },
   },
   {
+    pattern: '/overlay',
+    type: 'page',
+    modulePath: 'routes/overlay.page.md',
+    files: { md: 'routes/overlay.page.md' },
+  },
+  {
     pattern: '/dashboard',
     type: 'page',
     modulePath: 'routes/dashboard.page.ts',

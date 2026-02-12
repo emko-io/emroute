@@ -709,6 +709,46 @@ Deno.test('SsrHtmlRouter - render() default root route returns slot', async () =
   }
 });
 
+Deno.test('SsrHtmlRouter - render() nested hierarchy consumes all inner router-slots', async () => {
+  const routes: RouteConfig[] = [
+    createTestRoute({
+      pattern: '/',
+      modulePath: '/layout.page.html',
+      files: { html: '/layout.page.html' },
+    }),
+    createTestRoute({
+      pattern: '/projects',
+      modulePath: '/projects.page.html',
+      files: { html: '/projects.page.html' },
+    }),
+    createTestRoute({
+      pattern: '/projects/:id',
+      modulePath: '/projects/[id].page.html',
+      files: { html: '/projects/[id].page.html' },
+    }),
+  ];
+  const manifest = createTestManifest({ routes });
+  const router = new SsrHtmlRouter(manifest);
+
+  const restore = mockFetch({
+    '/layout.page.html': '<header>Nav</header><router-slot></router-slot>',
+    '/projects.page.html': '<section>Projects<router-slot></router-slot></section>',
+    '/projects/[id].page.html': '<article>Project 42</article>',
+  });
+
+  try {
+    const result = await router.render('http://localhost/projects/42');
+    assertEquals(result.status, 200);
+    assertStringIncludes(result.html, 'Nav');
+    assertStringIncludes(result.html, 'Projects');
+    assertStringIncludes(result.html, 'Project 42');
+    // All intermediate router-slots consumed — none left in final output
+    assertEquals(result.html.includes('<router-slot'), false);
+  } finally {
+    restore();
+  }
+});
+
 // ============================================================================
 // HTML Escaping Tests
 // ============================================================================

@@ -20,7 +20,7 @@ class ProjectPage extends PageComponent<{ id: string }, { name: string }> {
     params: { id: string };
   }) {
     if (!data) return '';
-    return `# ${data.name}`;
+    return `# ${data.name}\n\n\`\`\`router-slot\n\`\`\``;
   }
 }
 

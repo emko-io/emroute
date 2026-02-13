@@ -10,6 +10,20 @@ import type { RoutesManifest } from '@emkodev/emroute';
 export const routesManifest: RoutesManifest = {
   routes: [
   {
+    pattern: '/nesting/lvl-one/level-two/level-three',
+    type: 'page',
+    modulePath: 'routes/nesting/lvl-one/level-two/level-three.page.html',
+    files: { html: 'routes/nesting/lvl-one/level-two/level-three.page.html', md: 'routes/nesting/lvl-one/level-two/level-three.page.md' },
+    parent: '/nesting/lvl-one/level-two',
+  },
+  {
+    pattern: '/nesting/lvl-one/level-two',
+    type: 'page',
+    modulePath: 'routes/nesting/lvl-one/level-two.page.html',
+    files: { html: 'routes/nesting/lvl-one/level-two.page.html', md: 'routes/nesting/lvl-one/level-two.page.md' },
+    parent: '/nesting/lvl-one',
+  },
+  {
     pattern: '/projects/:id/tasks',
     type: 'page',
     modulePath: 'routes/projects/[id]/tasks.page.ts',
@@ -43,6 +57,13 @@ export const routesManifest: RoutesManifest = {
     modulePath: 'routes/vanilla/counter.page.md',
     files: { md: 'routes/vanilla/counter.page.md' },
     parent: '/vanilla',
+  },
+  {
+    pattern: '/nesting/lvl-one',
+    type: 'page',
+    modulePath: 'routes/nesting/lvl-one.page.html',
+    files: { html: 'routes/nesting/lvl-one.page.html', md: 'routes/nesting/lvl-one.page.md' },
+    parent: '/nesting',
   },
   {
     pattern: '/projects/:id',
@@ -99,6 +120,12 @@ export const routesManifest: RoutesManifest = {
     type: 'page',
     modulePath: 'routes/about.page.html',
     files: { md: 'routes/about.page.md', css: 'routes/about.page.css', html: 'routes/about.page.html' },
+  },
+  {
+    pattern: '/nesting',
+    type: 'page',
+    modulePath: 'routes/nesting.page.html',
+    files: { md: 'routes/nesting.page.md', html: 'routes/nesting.page.html' },
   },
   {
     pattern: '/empty-markdown',

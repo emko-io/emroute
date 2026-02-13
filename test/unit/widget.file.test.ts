@@ -581,8 +581,8 @@ Deno.test('SsrHtmlRouter - renders widget with file-backed HTML', async () => {
   try {
     const result = await router.render('http://localhost/page');
     assertEquals(result.status, 200);
-    assertStringIncludes(result.html, '<span>Widget from file</span>');
-    assertStringIncludes(result.html, 'data-ssr');
+    assertStringIncludes(result.content, '<span>Widget from file</span>');
+    assertStringIncludes(result.content, 'data-ssr');
   } finally {
     restore();
   }
@@ -612,7 +612,7 @@ Deno.test('SsrHtmlRouter - renders widget without files unchanged', async () => 
   try {
     const result = await router.render('http://localhost/page');
     assertEquals(result.status, 200);
-    assertStringIncludes(result.html, '<span>42</span>');
+    assertStringIncludes(result.content, '<span>42</span>');
   } finally {
     restore();
   }
@@ -647,7 +647,7 @@ Deno.test('SsrMdRouter - renders widget with md file', async () => {
   try {
     const result = await router.render('/page');
     assertEquals(result.status, 200);
-    assertStringIncludes(result.markdown, '## Widget from MD file');
+    assertStringIncludes(result.content, '## Widget from MD file');
   } finally {
     restore();
   }
@@ -677,7 +677,7 @@ Deno.test('SsrMdRouter - renders widget without files unchanged', async () => {
   try {
     const result = await router.render('/page');
     assertEquals(result.status, 200);
-    assertStringIncludes(result.markdown, 'Count: 42');
+    assertStringIncludes(result.content, 'Count: 42');
   } finally {
     restore();
   }

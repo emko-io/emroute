@@ -633,8 +633,8 @@ export async function createDevServer(
       (pathname.startsWith(SSR_MD_PREFIX) || pathname + '/' === SSR_MD_PREFIX)
     ) {
       try {
-        const { markdown, status } = await ssrMdRouter.render(pathname);
-        return new Response(markdown, {
+        const { content, status } = await ssrMdRouter.render(pathname);
+        return new Response(content, {
           status,
           headers: {
             'Content-Type': 'text/markdown; charset=utf-8; variant=CommonMark',
@@ -656,7 +656,7 @@ export async function createDevServer(
         const result = await ssrHtmlRouter.render(pathname);
         const ssrTitle = result.title ?? title;
         const ssrRoute = stripSsrPrefix(pathname);
-        const shell = await buildSsrHtmlShell(result.html, ssrTitle, ssrRoute);
+        const shell = await buildSsrHtmlShell(result.content, ssrTitle, ssrRoute);
         return new Response(shell, {
           status: result.status,
           headers: {

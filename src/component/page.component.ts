@@ -101,7 +101,7 @@ export class PageComponent<
       return files.md;
     }
 
-    return '```\nrouter-slot\n```';
+    return '```router-slot\n```';
   }
 
   /**

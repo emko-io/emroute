@@ -5,222 +5,74 @@
  * Generates Markdown strings for LLM consumption, text clients, curl.
  */
 
-import { logger } from '../../type/logger.type.ts';
-import type {
-  MatchedRoute,
-  RouteConfig,
-  RouteInfo,
-  RoutesManifest,
-} from '../../type/route.type.ts';
-import defaultPageComponent, { type PageComponent } from '../../component/page.component.ts';
-import {
-  DEFAULT_ROOT_ROUTE,
-  RouteCore,
-  type RouteCoreOptions,
-  stripSsrPrefix,
-} from '../../route/route.core.ts';
-import { toUrl } from '../../route/route.matcher.ts';
+import type { RouteConfig, RouteInfo, RoutesManifest } from '../../type/route.type.ts';
+import type { PageComponent } from '../../component/page.component.ts';
+import { DEFAULT_ROOT_ROUTE } from '../../route/route.core.ts';
 import { STATUS_MESSAGES } from '../../util/html.util.ts';
 import { parseWidgetBlocks, replaceWidgetBlocks } from '../../widget/widget.parser.ts';
-import type { WidgetRegistry } from '../../widget/widget.registry.ts';
+import { SsrRenderer, type SsrRendererOptions } from './ssr.renderer.ts';
 
-const ROUTER_SLOT_BLOCK = '```\nrouter-slot\n```';
+const ROUTER_SLOT_BLOCK = '```router-slot\n```';
 
 /** Options for SSR Markdown Router */
-export interface SsrMdRouterOptions extends RouteCoreOptions {
-  /** Widget registry for server-side widget rendering */
-  widgets?: WidgetRegistry;
-  /** Discovered widget file paths (from discoverWidgetFiles), keyed by widget name */
-  widgetFiles?: Record<string, { html?: string; md?: string; css?: string }>;
-}
+export type SsrMdRouterOptions = SsrRendererOptions;
 
 /**
  * SSR Markdown Router for server-side markdown rendering.
  */
-export class SsrMdRouter {
-  private core: RouteCore;
-  private widgets: WidgetRegistry | null;
-  private widgetFiles: Record<string, { html?: string; md?: string; css?: string }>;
+export class SsrMdRouter extends SsrRenderer {
+  protected override readonly label = 'SSR MD';
 
   constructor(manifest: RoutesManifest, options: SsrMdRouterOptions = {}) {
-    this.core = new RouteCore(manifest, options);
-    this.widgets = options.widgets ?? null;
-    this.widgetFiles = options.widgetFiles ?? {};
+    super(manifest, options);
   }
 
-  /**
-   * Render a URL to Markdown string.
-   */
-  async render(url: string): Promise<{ markdown: string; status: number }> {
-    const urlObj = toUrl(url);
-    let pathname = urlObj.pathname;
-
-    pathname = stripSsrPrefix(pathname);
-
-    const matchUrl = toUrl(pathname + urlObj.search);
-    const matched = this.core.match(matchUrl);
-
-    const searchParams = urlObj.searchParams ?? new URLSearchParams();
-
-    if (!matched) {
-      const statusPage = this.core.matcher.getStatusPage(404);
-      if (statusPage) {
-        try {
-          const ri: RouteInfo = { pathname, pattern: statusPage.pattern, params: {}, searchParams };
-          const markdown = await this.renderRouteContent(ri, statusPage);
-          return { markdown, status: 404 };
-        } catch (e) {
-          logger.error(
-            `[SSR MD] Failed to render 404 status page for ${pathname}`,
-            e instanceof Error ? e : undefined,
-          );
-        }
-      }
-      return { markdown: this.renderStatusPage(404, pathname), status: 404 };
-    }
-
-    // Handle redirect
-    if (matched.route.type === 'redirect') {
-      const module = await this.core.loadModule<{ default: { to: string; status?: number } }>(
-        matched.route.modulePath,
-      );
-      const redirectConfig = module.default;
-      return {
-        markdown: `Redirect to: ${redirectConfig.to}`,
-        status: redirectConfig.status ?? 301,
-      };
-    }
-
-    const routeInfo = this.core.toRouteInfo(matched, pathname);
-
-    try {
-      const markdown = await this.renderPage(routeInfo, matched);
-      return { markdown, status: 200 };
-    } catch (error) {
-      if (error instanceof Response) {
-        const statusPage = this.core.matcher.getStatusPage(error.status);
-        if (statusPage) {
-          try {
-            const ri: RouteInfo = {
-              pathname,
-              pattern: statusPage.pattern,
-              params: {},
-              searchParams,
-            };
-            const markdown = await this.renderRouteContent(ri, statusPage);
-            return { markdown, status: error.status };
-          } catch (e) {
-            logger.error(
-              `[SSR MD] Failed to render ${error.status} status page for ${pathname}`,
-              e instanceof Error ? e : undefined,
-            );
-          }
-        }
-        return { markdown: this.renderStatusPage(error.status, pathname), status: error.status };
-      }
-      logger.error(
-        `[SSR MD] Error rendering ${pathname}:`,
-        error instanceof Error ? error : undefined,
-      );
-
-      const boundary = this.core.matcher.findErrorBoundary(pathname);
-      if (boundary) {
-        try {
-          const module = await this.core.loadModule<{ default: PageComponent }>(
-            boundary.modulePath,
-          );
-          const component = module.default;
-          const data = await component.getData({ params: {} });
-          const markdown = component.renderMarkdown({ data, params: {} });
-          return { markdown, status: 500 };
-        } catch (e) {
-          logger.error(
-            `[SSR MD] Error boundary failed for ${pathname}`,
-            e instanceof Error ? e : undefined,
-          );
-        }
-      }
-
-      const errorHandler = this.core.matcher.getErrorHandler();
-      if (errorHandler) {
-        try {
-          const module = await this.core.loadModule<{ default: PageComponent }>(
-            errorHandler.modulePath,
-          );
-          const component = module.default;
-          const data = await component.getData({ params: {} });
-          const markdown = component.renderMarkdown({ data, params: {} });
-          return { markdown, status: 500 };
-        } catch (e) {
-          logger.error(
-            `[SSR MD] Error handler failed for ${pathname}`,
-            e instanceof Error ? e : undefined,
-          );
-        }
-      }
-
-      return { markdown: this.renderErrorPage(error, pathname), status: 500 };
-    }
+  protected override injectSlot(parent: string, child: string): string {
+    return parent.replace(ROUTER_SLOT_BLOCK, child);
   }
 
-  /**
-   * Render a matched page to Markdown.
-   */
-  private async renderPage(routeInfo: RouteInfo, matched: MatchedRoute): Promise<string> {
-    const hierarchy = this.core.buildRouteHierarchy(routeInfo.pattern);
-
-    const parts: string[] = [];
-
-    for (const routePattern of hierarchy) {
-      let route = this.core.matcher.findRoute(routePattern);
-
-      if (!route && routePattern === '/') {
-        route = DEFAULT_ROOT_ROUTE;
-      }
-
-      if (!route) continue;
-
-      // Skip wildcard route appearing as its own parent (prevents double-render)
-      if (route === matched.route && routePattern !== matched.route.pattern) continue;
-
-      const markdown = await this.renderRouteContent(routeInfo, route);
-      if (markdown) {
-        parts.push(markdown);
-      }
-    }
-
-    return parts.join('\n\n---\n\n');
+  protected override stripSlots(result: string): string {
+    return result.replaceAll(ROUTER_SLOT_BLOCK, '').trim();
   }
 
   /**
    * Render a single route's content to Markdown.
    */
-  private async renderRouteContent(
+  protected override async renderRouteContent(
     routeInfo: RouteInfo,
     route: RouteConfig,
-  ): Promise<string> {
+  ): Promise<{ content: string; title?: string }> {
     if (route.modulePath === DEFAULT_ROOT_ROUTE.modulePath) {
-      return '';
+      return { content: ROUTER_SLOT_BLOCK };
     }
 
-    const files = route.files ?? {};
-
-    const component: PageComponent = files.ts
-      ? (await this.core.loadModule<{ default: PageComponent }>(files.ts)).default
-      : defaultPageComponent;
-
-    const context = await this.core.buildComponentContext(routeInfo, route);
-    const data = await component.getData({ params: routeInfo.params, context });
-    let markdown = component.renderMarkdown({ data, params: routeInfo.params, context });
+    let { content, title } = await this.loadRouteContent(routeInfo, route);
 
     // Resolve fenced widget blocks: call getData() + renderMarkdown()
     if (this.widgets) {
-      markdown = await this.resolveWidgets(markdown, routeInfo);
+      content = await this.resolveWidgets(content, routeInfo);
     }
 
-    if (markdown === ROUTER_SLOT_BLOCK) return '';
+    return { content, title };
+  }
 
-    return markdown;
+  protected override renderContent(
+    component: PageComponent,
+    args: PageComponent['RenderArgs'],
+  ): string {
+    return component.renderMarkdown(args);
+  }
+
+  protected override renderRedirect(to: string): string {
+    return `Redirect to: ${to}`;
+  }
+
+  protected override renderStatusPage(status: number, pathname: string): string {
+    return `# ${STATUS_MESSAGES[status] ?? 'Error'}\n\nPath: \`${pathname}\``;
+  }
+
+  protected override renderErrorPage(_error: unknown, pathname: string): string {
+    return `# Internal Server Error\n\nPath: \`${pathname}\``;
   }
 
   /**
@@ -228,11 +80,11 @@ export class SsrMdRouter {
    * Replaces ```widget:name blocks with rendered markdown output.
    */
   private async resolveWidgets(
-    markdown: string,
+    content: string,
     routeInfo: RouteInfo,
   ): Promise<string> {
-    const blocks = parseWidgetBlocks(markdown);
-    if (blocks.length === 0) return markdown;
+    const blocks = parseWidgetBlocks(content);
+    if (blocks.length === 0) return content;
 
     const replacements = new Map<(typeof blocks)[0], string>();
 
@@ -268,21 +120,7 @@ export class SsrMdRouter {
       }
     }));
 
-    return replaceWidgetBlocks(markdown, replacements);
-  }
-
-  /**
-   * Render a status page as Markdown.
-   */
-  private renderStatusPage(status: number, pathname: string): string {
-    return `# ${STATUS_MESSAGES[status] ?? 'Error'}\n\nPath: \`${pathname}\``;
-  }
-
-  /**
-   * Render an error page as Markdown.
-   */
-  private renderErrorPage(_error: unknown, pathname: string): string {
-    return `# Internal Server Error\n\nPath: \`${pathname}\``;
+    return replaceWidgetBlocks(content, replacements);
   }
 }
 

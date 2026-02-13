@@ -149,7 +149,7 @@ Deno.test('SsrHtmlRouter - extendContext enriches widget context', async () => {
     const result = await router.render('http://test/wtest');
 
     assertEquals(result.status, 200);
-    assert(result.html.includes('widget rendered'));
+    assert(result.content.includes('widget rendered'));
     assert(capturedWidgetContext !== undefined, 'widget getData should have been called');
     assertEquals(asAny(capturedWidgetContext).rpc, true);
     assertEquals(asAny(capturedWidgetContext).apiVersion, 3);
@@ -197,7 +197,7 @@ Deno.test('SsrMdRouter - extendContext enriches page component context', async (
     const result = await router.render('http://test/test');
 
     assertEquals(result.status, 200);
-    assert(result.markdown.includes('# test md'));
+    assert(result.content.includes('# test md'));
     assert(capturedContext !== undefined, 'getData should have been called');
     assertEquals(asAny(capturedContext).rpc, true);
     assertEquals(capturedContext!.pathname, '/test');
@@ -262,8 +262,8 @@ Deno.test('SsrMdRouter - extendContext enriches widget context in markdown', asy
     const result = await router.render('http://test/wmd');
 
     assertEquals(result.status, 200);
-    assert(result.markdown.includes('**widget rendered in md**'));
-    assert(!result.markdown.includes('```widget:'));
+    assert(result.content.includes('**widget rendered in md**'));
+    assert(!result.content.includes('```widget:'));
     assert(capturedWidgetContext !== undefined, 'widget getData should have been called');
     assertEquals(asAny(capturedWidgetContext).rpc, true);
     assertEquals(asAny(capturedWidgetContext).apiVersion, 3);

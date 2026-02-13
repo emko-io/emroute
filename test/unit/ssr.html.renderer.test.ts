@@ -123,7 +123,7 @@ Deno.test('SsrHtmlRouter - render() root route returns HTML and status 200', asy
   try {
     const result = await router.render('http://localhost/');
     assertEquals(result.status, 200);
-    assertStringIncludes(result.html, 'router-slot');
+    assertStringIncludes(result.content, 'router-slot');
   } finally {
     restore();
   }
@@ -147,7 +147,7 @@ Deno.test('SsrHtmlRouter - render() with HTML file', async () => {
   try {
     const result = await router.render('http://localhost/contact');
     assertEquals(result.status, 200);
-    assertStringIncludes(result.html, '<form>');
+    assertStringIncludes(result.content, '<form>');
   } finally {
     restore();
   }
@@ -171,7 +171,7 @@ Deno.test('SsrHtmlRouter - render() with Markdown file', async () => {
   try {
     const result = await router.render('http://localhost/docs');
     assertEquals(result.status, 200);
-    assertStringIncludes(result.html, 'mark-down');
+    assertStringIncludes(result.content, 'mark-down');
   } finally {
     restore();
   }
@@ -199,7 +199,7 @@ Deno.test('SsrHtmlRouter - render() strips /html/ prefix from URL', async () => 
   try {
     const result = await router.render('http://localhost/html/about');
     assertEquals(result.status, 200);
-    assertStringIncludes(result.html, 'About');
+    assertStringIncludes(result.content, 'About');
   } finally {
     restore();
   }
@@ -223,7 +223,7 @@ Deno.test('SsrHtmlRouter - render() normalizes /html/ with nested paths', async 
   try {
     const result = await router.render('http://localhost/html/projects/123');
     assertEquals(result.status, 200);
-    assertStringIncludes(result.html, 'Project');
+    assertStringIncludes(result.content, 'Project');
   } finally {
     restore();
   }
@@ -245,7 +245,7 @@ Deno.test('SsrHtmlRouter - render() non-existent route returns 404 status', asyn
   try {
     const result = await router.render('http://localhost/does-not-exist');
     assertEquals(result.status, 404);
-    assertStringIncludes(result.html, 'Not Found');
+    assertStringIncludes(result.content, 'Not Found');
   } finally {
     restore();
   }
@@ -261,7 +261,7 @@ Deno.test('SsrHtmlRouter - render() 404 response includes pathname', async () =>
   try {
     const result = await router.render('http://localhost/missing/page');
     assertEquals(result.status, 404);
-    assertStringIncludes(result.html, '/missing/page');
+    assertStringIncludes(result.content, '/missing/page');
   } finally {
     restore();
   }
@@ -350,7 +350,7 @@ Deno.test('SsrHtmlRouter - render() error page includes error message', async ()
   try {
     const result = await router.render('http://localhost/error');
     assertEquals(result.status, 500);
-    assertStringIncludes(result.html, 'Error');
+    assertStringIncludes(result.content, 'Error');
   } finally {
     restore();
   }
@@ -377,9 +377,9 @@ Deno.test('SsrHtmlRouter - render() generates string HTML without DOM', async ()
 
   try {
     const result = await router.render('http://localhost/page');
-    assertEquals(typeof result.html, 'string');
-    assertStringIncludes(result.html, '<div>');
-    assertStringIncludes(result.html, '</div>');
+    assertEquals(typeof result.content, 'string');
+    assertStringIncludes(result.content, '<div>');
+    assertStringIncludes(result.content, '</div>');
   } finally {
     restore();
   }
@@ -394,9 +394,9 @@ Deno.test('SsrHtmlRouter - render() status page HTML generation', async () => {
 
   try {
     const result = await router.render('http://localhost/not-found');
-    assertStringIncludes(result.html, '<h1>');
-    assertStringIncludes(result.html, 'Not Found');
-    assertStringIncludes(result.html, '<p>Path:');
+    assertStringIncludes(result.content, '<h1>');
+    assertStringIncludes(result.content, 'Not Found');
+    assertStringIncludes(result.content, '<p>Path:');
   } finally {
     restore();
   }
@@ -418,7 +418,7 @@ Deno.test('SsrHtmlRouter - render() error page HTML generation', async () => {
   try {
     const result = await router.render('http://localhost/crash');
     assertEquals(result.status, 500);
-    assertStringIncludes(result.html, '<h1>Error</h1>');
+    assertStringIncludes(result.content, '<h1>Error</h1>');
   } finally {
     restore();
   }
@@ -491,7 +491,7 @@ Deno.test('SsrHtmlRouter - render() uses root error handler on 500', async () =>
   try {
     const result = await router.render('http://localhost/crash');
     assertEquals(result.status, 500);
-    assertStringIncludes(result.html, 'Custom Error');
+    assertStringIncludes(result.content, 'Custom Error');
   } finally {
     restore();
   }
@@ -584,7 +584,7 @@ Deno.test('SsrHtmlRouter - render() uses scoped error boundary over root handler
   try {
     const result = await router.render('http://localhost/projects/42');
     assertEquals(result.status, 500);
-    assertStringIncludes(result.html, 'Project Error');
+    assertStringIncludes(result.content, 'Project Error');
   } finally {
     restore();
   }
@@ -627,8 +627,8 @@ Deno.test('SsrHtmlRouter - render() falls back to inline error when no handler e
   try {
     const result = await router.render('http://localhost/crash');
     assertEquals(result.status, 500);
-    assertStringIncludes(result.html, '<h1>Error</h1>');
-    assertStringIncludes(result.html, 'no handler');
+    assertStringIncludes(result.content, '<h1>Error</h1>');
+    assertStringIncludes(result.content, 'no handler');
   } finally {
     restore();
   }
@@ -703,7 +703,7 @@ Deno.test('SsrHtmlRouter - render() default root route returns slot', async () =
   try {
     const result = await router.render('http://localhost/');
     assertEquals(result.status, 200);
-    assertStringIncludes(result.html, '<router-slot></router-slot>');
+    assertStringIncludes(result.content, '<router-slot></router-slot>');
   } finally {
     restore();
   }
@@ -739,11 +739,11 @@ Deno.test('SsrHtmlRouter - render() nested hierarchy consumes all inner router-s
   try {
     const result = await router.render('http://localhost/projects/42');
     assertEquals(result.status, 200);
-    assertStringIncludes(result.html, 'Nav');
-    assertStringIncludes(result.html, 'Projects');
-    assertStringIncludes(result.html, 'Project 42');
+    assertStringIncludes(result.content, 'Nav');
+    assertStringIncludes(result.content, 'Projects');
+    assertStringIncludes(result.content, 'Project 42');
     // All intermediate router-slots consumed — none left in final output
-    assertEquals(result.html.includes('<router-slot'), false);
+    assertEquals(result.content.includes('<router-slot'), false);
   } finally {
     restore();
   }
@@ -764,7 +764,7 @@ Deno.test('SsrHtmlRouter - render() escapes special characters in error messages
     const result = await router.render('http://localhost/test?search=<script>');
     assertEquals(result.status, 404);
     // Verify HTML entities are escaped
-    const hasScript = result.html.includes('<script>');
+    const hasScript = result.content.includes('<script>');
     assertEquals(hasScript, false);
   } finally {
     restore();
@@ -843,8 +843,8 @@ Deno.test('SsrHtmlRouter - render() wraps markdown in mark-down element', async 
   try {
     const result = await router.render('http://localhost/md');
     assertEquals(result.status, 200);
-    assertStringIncludes(result.html, 'mark-down');
-    assertStringIncludes(result.html, 'router-slot');
+    assertStringIncludes(result.content, 'mark-down');
+    assertStringIncludes(result.content, 'router-slot');
   } finally {
     restore();
   }
@@ -884,7 +884,7 @@ Deno.test('SsrHtmlRouter - render() matches correct route when multiple exist', 
   try {
     const result = await router.render('http://localhost/blog');
     assertEquals(result.status, 200);
-    assertStringIncludes(result.html, 'Blog');
+    assertStringIncludes(result.content, 'Blog');
   } finally {
     restore();
   }
@@ -904,7 +904,7 @@ Deno.test('SsrHtmlRouter - render() displays Not Found message for 404', async (
   try {
     const result = await router.render('http://localhost/missing');
     assertEquals(result.status, 404);
-    assertStringIncludes(result.html, 'Not Found');
+    assertStringIncludes(result.content, 'Not Found');
   } finally {
     restore();
   }
@@ -1033,7 +1033,7 @@ Deno.test('SsrHtmlRouter - render() HTML takes priority when HTML file exists', 
   try {
     const result = await router.render('http://localhost/priority');
     assertEquals(result.status, 200);
-    assertStringIncludes(result.html, '<div>');
+    assertStringIncludes(result.content, '<div>');
   } finally {
     restore();
   }
@@ -1059,7 +1059,7 @@ Deno.test('SsrHtmlRouter - render() Markdown used when HTML not present', async 
   try {
     const result = await router.render('http://localhost/markdown');
     assertEquals(result.status, 200);
-    assertStringIncludes(result.html, 'mark-down');
+    assertStringIncludes(result.content, 'mark-down');
   } finally {
     restore();
   }
@@ -1085,7 +1085,7 @@ Deno.test('SsrHtmlRouter - render() returns router-slot when route has no files'
   try {
     const result = await router.render('http://localhost/empty');
     assertEquals(result.status, 200);
-    assertStringIncludes(result.html, '<router-slot></router-slot>');
+    assertStringIncludes(result.content, '<router-slot></router-slot>');
   } finally {
     restore();
   }
@@ -1124,7 +1124,7 @@ Deno.test('SsrHtmlRouter - render() returns object with html and status properti
 
   try {
     const result = await router.render('http://localhost/');
-    assertEquals(typeof result.html, 'string');
+    assertEquals(typeof result.content, 'string');
     assertEquals(typeof result.status, 'number');
   } finally {
     restore();
@@ -1272,7 +1272,7 @@ Deno.test('SsrHtmlRouter - render() root route uses router-slot placeholder', as
 
   try {
     const result = await router.render('http://localhost/');
-    assertEquals(result.html.includes('<router-slot></router-slot>'), true);
+    assertEquals(result.content.includes('<router-slot></router-slot>'), true);
   } finally {
     restore();
   }
@@ -1364,10 +1364,10 @@ Deno.test('SsrHtmlRouter - expandMarkdown uses renderer output directly for widg
     const result = await router.render('http://localhost/prices');
     assertEquals(result.status, 200);
     // The renderer emits <widget-crypto-price> directly — verify it passes through
-    assertStringIncludes(result.html, '<widget-crypto-price');
-    assertStringIncludes(result.html, 'coin="bitcoin"');
+    assertStringIncludes(result.content, '<widget-crypto-price');
+    assertStringIncludes(result.content, 'coin="bitcoin"');
     // No <pre><code> wrappers from old fenced-block post-processing
-    assertEquals(result.html.includes('<pre><code'), false);
+    assertEquals(result.content.includes('<pre><code'), false);
   } finally {
     restore();
   }
@@ -1392,8 +1392,8 @@ Deno.test('SsrHtmlRouter - expandMarkdown uses renderer output directly for rout
   try {
     const result = await router.render('http://localhost/layout');
     assertEquals(result.status, 200);
-    assertStringIncludes(result.html, '<router-slot></router-slot>');
-    assertEquals(result.html.includes('<pre><code'), false);
+    assertStringIncludes(result.content, '<router-slot></router-slot>');
+    assertEquals(result.content.includes('<pre><code'), false);
   } finally {
     restore();
   }
@@ -1426,8 +1426,8 @@ Deno.test('SsrHtmlRouter - expandMarkdown + resolveWidgetTags renders widget wit
     const result = await router.render('http://localhost/dashboard');
     assertEquals(result.status, 200);
     // Widget was resolved with SSR data
-    assertStringIncludes(result.html, 'data-ssr=');
-    assertStringIncludes(result.html, 'ethereum: $42000');
+    assertStringIncludes(result.content, 'data-ssr=');
+    assertStringIncludes(result.content, 'ethereum: $42000');
   } finally {
     restore();
   }
@@ -1469,8 +1469,8 @@ Deno.test('SsrHtmlRouter - expandMarkdown preserves multiple widget tags from re
   try {
     const result = await router.render('http://localhost/multi');
     assertEquals(result.status, 200);
-    assertStringIncludes(result.html, 'bitcoin: $42000');
-    assertStringIncludes(result.html, 'solana: $42000');
+    assertStringIncludes(result.content, 'bitcoin: $42000');
+    assertStringIncludes(result.content, 'solana: $42000');
   } finally {
     restore();
   }
@@ -1510,8 +1510,8 @@ Deno.test('SsrHtmlRouter - expandMarkdown with widget and router-slot in same pa
   try {
     const result = await router.render('http://localhost/mixed');
     assertEquals(result.status, 200);
-    assertStringIncludes(result.html, 'bitcoin: $42000');
-    assertStringIncludes(result.html, '<router-slot></router-slot>');
+    assertStringIncludes(result.content, 'bitcoin: $42000');
+    assertStringIncludes(result.content, '<router-slot></router-slot>');
   } finally {
     restore();
   }
@@ -1544,7 +1544,7 @@ Deno.test('SsrHtmlRouter - expandMarkdown with no-param widget', async () => {
     const result = await router.render('http://localhost/noparam');
     assertEquals(result.status, 200);
     // Default coin is "bitcoin" from getData
-    assertStringIncludes(result.html, 'bitcoin: $42000');
+    assertStringIncludes(result.content, 'bitcoin: $42000');
   } finally {
     restore();
   }

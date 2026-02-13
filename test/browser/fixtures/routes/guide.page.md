@@ -1,7 +1,3 @@
-```widget:nav
-{}
-```
-
 # emroute Developer Guide
 
 A quick reference for building applications with emroute.

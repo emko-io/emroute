@@ -3,6 +3,7 @@
   "specifiers": {
     "jsr:@emkodev/emko-md@0.1.0-beta.2": "0.1.0-beta.2",
     "jsr:@emkodev/emko-md@0.1.0-beta.3": "0.1.0-beta.3",
+    "jsr:@emkodev/emko-md@0.1.0-beta.4": "0.1.0-beta.4",
     "jsr:@std/assert@1": "1.0.16",
     "jsr:@std/internal@^1.0.12": "1.0.12",
     "npm:playwright@1.50.1": "1.50.1"
@@ -13,6 +14,9 @@
     },
     "@emkodev/emko-md@0.1.0-beta.3": {
       "integrity": "60fe1b9fb2324e7e427c7a8789ef981119ffc16beaff6db57006140e69e28a23"
+    },
+    "@emkodev/emko-md@0.1.0-beta.4": {
+      "integrity": "f922f007b94e5c729f3fbee55e4a4f9f081db2b516dfa38c9462c2cca542629f"
     },
     "@std/assert@1.0.16": {
       "integrity": "6a7272ed1eaa77defe76e5ff63ca705d9c495077e2d5fd0126d2b53fc5bd6532",

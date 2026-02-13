@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-02-13
+
+### Fixed
+
+- **Markdown renderer slot nesting** — the markdown renderer was concatenating
+  route hierarchy content instead of nesting it into slots. Our tests were
+  expecting similar output, because with nesting, a markdown+slot / markdown+slot
+  structure would replace the first slot with subpage content and then strip the
+  unused second slot. While the output was the same for most cases, the behaviour
+  was not as planned. We apologize for any inconvenience.
+
+### Changed
+
+- **SSR renderer base class** — extracted shared rendering pipeline into abstract
+  `SsrRenderer` base class. Both `SsrHtmlRouter` and `SsrMdRouter` now extend it,
+  unifying route hierarchy composition, error handling, and status page rendering.
+
 ## [1.4.0] - 2026-02-12
 
 ### Added

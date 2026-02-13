@@ -117,7 +117,7 @@ Deno.test('SsrMdRouter - render() returns 200 for valid route with markdown file
     const result = await router.render('/about');
 
     assertEquals(result.status, 200);
-    assertStringIncludes(result.markdown, 'About Page');
+    assertStringIncludes(result.content, 'About Page');
   } finally {
     restore();
   }
@@ -151,8 +151,8 @@ Deno.test('SsrMdRouter - render() returns 404 for non-existent route', async () 
   const result = await router.render('/nonexistent');
 
   assertEquals(result.status, 404);
-  assertStringIncludes(result.markdown, 'Not Found');
-  assertStringIncludes(result.markdown, '/nonexistent');
+  assertStringIncludes(result.content, 'Not Found');
+  assertStringIncludes(result.content, '/nonexistent');
 });
 
 Deno.test('SsrMdRouter - render() 404 includes path in markdown', async () => {
@@ -162,7 +162,7 @@ Deno.test('SsrMdRouter - render() 404 includes path in markdown', async () => {
   const result = await router.render('/missing/route');
 
   assertEquals(result.status, 404);
-  assertStringIncludes(result.markdown, '/missing/route');
+  assertStringIncludes(result.content, '/missing/route');
 });
 
 // ============================================================================
@@ -251,7 +251,7 @@ Deno.test('SsrMdRouter - render() returns 500 on unknown error', async () => {
   const result = await router.render('/error');
 
   assertEquals(result.status, 500);
-  assertStringIncludes(result.markdown, 'Error');
+  assertStringIncludes(result.content, 'Error');
 });
 
 Deno.test('SsrMdRouter - render() error page includes pathname', async () => {
@@ -269,7 +269,7 @@ Deno.test('SsrMdRouter - render() error page includes pathname', async () => {
   const result = await router.render('/broken');
 
   assertEquals(result.status, 500);
-  assertStringIncludes(result.markdown, '/broken');
+  assertStringIncludes(result.content, '/broken');
 });
 
 // ============================================================================
@@ -341,7 +341,7 @@ Deno.test('SsrMdRouter - render() uses root error handler on 500', async () => {
   const router = new SsrMdRouter(manifest);
   const result = await router.render('/crash');
   assertEquals(result.status, 500);
-  assertStringIncludes(result.markdown, 'Custom Error');
+  assertStringIncludes(result.content, 'Custom Error');
 });
 
 Deno.test('SsrMdRouter - render() uses scoped error boundary over root handler', async () => {
@@ -432,7 +432,7 @@ Deno.test('SsrMdRouter - render() uses scoped error boundary over root handler',
   const router = new SsrMdRouter(manifest);
   const result = await router.render('/projects/42');
   assertEquals(result.status, 500);
-  assertStringIncludes(result.markdown, 'Project Error');
+  assertStringIncludes(result.content, 'Project Error');
 });
 
 Deno.test('SsrMdRouter - render() falls back to inline error when no handler exists', async () => {
@@ -474,16 +474,16 @@ Deno.test('SsrMdRouter - render() falls back to inline error when no handler exi
   const router = new SsrMdRouter(manifest);
   const result = await router.render('/crash');
   assertEquals(result.status, 500);
-  assertStringIncludes(result.markdown, 'Internal Server Error');
+  assertStringIncludes(result.content, 'Internal Server Error');
 });
 
 // ============================================================================
 // Markdown String Generation Tests
 // ============================================================================
 
-Deno.test('SsrMdRouter - render() joins route hierarchy with separator', async () => {
+Deno.test('SsrMdRouter - render() composes route hierarchy via slot injection', async () => {
   const restore = mockFetch({
-    '/projects.md': '# Projects',
+    '/projects.md': '# Projects\n\n```router-slot\n```',
     '/projects/[id].md': '# Project Details',
   });
 
@@ -507,7 +507,8 @@ Deno.test('SsrMdRouter - render() joins route hierarchy with separator', async (
     const result = await router.render('/projects/123');
 
     assertEquals(result.status, 200);
-    assertStringIncludes(result.markdown, '---');
+    assertStringIncludes(result.content, 'Projects');
+    assertStringIncludes(result.content, 'Project Details');
   } finally {
     restore();
   }
@@ -515,7 +516,7 @@ Deno.test('SsrMdRouter - render() joins route hierarchy with separator', async (
 
 Deno.test('SsrMdRouter - render() includes parent route content', async () => {
   const restore = mockFetch({
-    '/docs.md': '# Documentation',
+    '/docs.md': '# Documentation\n\n```router-slot\n```',
     '/docs/guide.md': '# Getting Started',
   });
 
@@ -540,8 +541,8 @@ Deno.test('SsrMdRouter - render() includes parent route content', async () => {
     const result = await router.render('/docs/guide');
 
     assertEquals(result.status, 200);
-    assertStringIncludes(result.markdown, 'Documentation');
-    assertStringIncludes(result.markdown, 'Getting Started');
+    assertStringIncludes(result.content, 'Documentation');
+    assertStringIncludes(result.content, 'Getting Started');
   } finally {
     restore();
   }
@@ -558,7 +559,7 @@ Deno.test('SsrMdRouter - renderStatusPage generates 404 markdown', async () => {
   const result = await router.render('/missing');
 
   assertEquals(result.status, 404);
-  assertStringIncludes(result.markdown, 'Not Found');
+  assertStringIncludes(result.content, 'Not Found');
 });
 
 Deno.test('SsrMdRouter - renderStatusPage uses STATUS_MESSAGES', async () => {
@@ -568,7 +569,7 @@ Deno.test('SsrMdRouter - renderStatusPage uses STATUS_MESSAGES', async () => {
   const result = await router.render('/nonexistent');
 
   assertEquals(result.status, 404);
-  assertStringIncludes(result.markdown, 'Not Found');
+  assertStringIncludes(result.content, 'Not Found');
 });
 
 Deno.test('SsrMdRouter - 404 with no status page returns fallback', async () => {
@@ -580,8 +581,8 @@ Deno.test('SsrMdRouter - 404 with no status page returns fallback', async () => 
   const result = await router.render('/nonexistent');
 
   assertEquals(result.status, 404);
-  assertStringIncludes(result.markdown, 'Not Found');
-  assertStringIncludes(result.markdown, '/nonexistent');
+  assertStringIncludes(result.content, 'Not Found');
+  assertStringIncludes(result.content, '/nonexistent');
 });
 
 Deno.test('SsrMdRouter - 404 with .md status page returns md content', async () => {
@@ -609,8 +610,8 @@ Deno.test('SsrMdRouter - 404 with .md status page returns md content', async () 
     const result = await router.render('/nonexistent');
 
     assertEquals(result.status, 404);
-    assertStringIncludes(result.markdown, 'Oops');
-    assertStringIncludes(result.markdown, 'This page does not exist.');
+    assertStringIncludes(result.content, 'Oops');
+    assertStringIncludes(result.content, 'This page does not exist.');
   } finally {
     restore();
   }
@@ -641,7 +642,7 @@ Deno.test('SsrMdRouter - 404 with html-only status page strips router-slot', asy
     const result = await router.render('/nonexistent');
 
     assertEquals(result.status, 404);
-    assertEquals(result.markdown, '');
+    assertEquals(result.content, '');
   } finally {
     restore();
   }
@@ -666,7 +667,7 @@ Deno.test('SsrMdRouter - renderErrorPage includes pathname', async () => {
   const result = await router.render('/error');
 
   assertEquals(result.status, 500);
-  assertStringIncludes(result.markdown, '/error');
+  assertStringIncludes(result.content, '/error');
 });
 
 // ============================================================================
@@ -693,7 +694,7 @@ Deno.test('SsrMdRouter - handles route with only markdown file', async () => {
     const result = await router.render('/info');
 
     assertEquals(result.status, 200);
-    assertStringIncludes(result.markdown, 'Information');
+    assertStringIncludes(result.content, 'Information');
   } finally {
     restore();
   }
@@ -714,7 +715,7 @@ Deno.test('SsrMdRouter - handles route with no content files', async () => {
   const result = await router.render('/empty');
 
   assertEquals(result.status, 200);
-  assertEquals(result.markdown, '');
+  assertEquals(result.content, '');
 });
 
 // ============================================================================
@@ -748,9 +749,9 @@ Deno.test('SsrMdRouter - handles empty markdown content', async () => {
 
 Deno.test('SsrMdRouter - handles deeply nested routes', async () => {
   const restore = mockFetch({
-    '/a.md': '# A',
-    '/a/b.md': '# B',
-    '/a/b/c.md': '# C',
+    '/a.md': '# A\n\n```router-slot\n```',
+    '/a/b.md': '# B\n\n```router-slot\n```',
+    '/a/b/c.md': '# C\n\n```router-slot\n```',
     '/a/b/c/d.md': '# D',
   });
 
@@ -784,10 +785,10 @@ Deno.test('SsrMdRouter - handles deeply nested routes', async () => {
     const result = await router.render('/a/b/c/d');
 
     assertEquals(result.status, 200);
-    assertStringIncludes(result.markdown, 'A');
-    assertStringIncludes(result.markdown, 'B');
-    assertStringIncludes(result.markdown, 'C');
-    assertStringIncludes(result.markdown, 'D');
+    assertStringIncludes(result.content, 'A');
+    assertStringIncludes(result.content, 'B');
+    assertStringIncludes(result.content, 'C');
+    assertStringIncludes(result.content, 'D');
   } finally {
     restore();
   }
@@ -817,7 +818,7 @@ Deno.test('SsrMdRouter - skips default root route in hierarchy', async () => {
     const result = await router.render('/page');
 
     assertEquals(result.status, 200);
-    assertEquals(result.markdown, '# Page');
+    assertEquals(result.content, '# Page');
   } finally {
     restore();
   }
@@ -930,7 +931,7 @@ Deno.test('SsrMdRouter - fetches markdown content from file path', async () => {
     const result = await router.render('/page');
 
     assertEquals(result.status, 200);
-    assertStringIncludes(result.markdown, 'Fetched Content');
+    assertStringIncludes(result.content, 'Fetched Content');
   } finally {
     restore();
   }
@@ -967,9 +968,9 @@ Deno.test('SsrMdRouter - handles fetch errors gracefully', async () => {
 // Markdown Content Rendering Tests
 // ============================================================================
 
-Deno.test('SsrMdRouter - combines multiple route contents with separator', async () => {
+Deno.test('SsrMdRouter - combines parent and child content via slot injection', async () => {
   const restore = mockFetch({
-    '/parent.md': '# Parent',
+    '/parent.md': '# Parent\n\n```router-slot\n```',
     '/parent/child.md': '# Child',
   });
 
@@ -993,9 +994,8 @@ Deno.test('SsrMdRouter - combines multiple route contents with separator', async
     const result = await router.render('/parent/child');
 
     assertEquals(result.status, 200);
-    assertStringIncludes(result.markdown, '---');
-    assertStringIncludes(result.markdown, 'Parent');
-    assertStringIncludes(result.markdown, 'Child');
+    assertStringIncludes(result.content, 'Parent');
+    assertStringIncludes(result.content, 'Child');
   } finally {
     restore();
   }
@@ -1045,10 +1045,10 @@ Deno.test('SsrMdRouter - handles default root route pattern', async () => {
 // Multiple Content Sections Tests
 // ============================================================================
 
-Deno.test('SsrMdRouter - separates content from multiple routes correctly', async () => {
+Deno.test('SsrMdRouter - nests content from multiple routes via slot injection', async () => {
   const restore = mockFetch({
-    '/first.md': 'First Section',
-    '/first/second.md': 'Second Section',
+    '/first.md': 'First Section\n\n```router-slot\n```',
+    '/first/second.md': 'Second Section\n\n```router-slot\n```',
     '/first/second/third.md': 'Third Section',
   });
 
@@ -1077,8 +1077,9 @@ Deno.test('SsrMdRouter - separates content from multiple routes correctly', asyn
     const result = await router.render('/first/second/third');
 
     assertEquals(result.status, 200);
-    const parts = result.markdown.split('\n\n---\n\n');
-    assertEquals(parts.length >= 3, true);
+    assertStringIncludes(result.content, 'First Section');
+    assertStringIncludes(result.content, 'Second Section');
+    assertStringIncludes(result.content, 'Third Section');
   } finally {
     restore();
   }
@@ -1108,7 +1109,7 @@ Deno.test('SsrMdRouter - handles absolute module paths', async () => {
     const result = await router.render('/test');
 
     assertEquals(result.status, 200);
-    assertStringIncludes(result.markdown, 'Module Content');
+    assertStringIncludes(result.content, 'Module Content');
   } finally {
     restore();
   }
@@ -1203,5 +1204,5 @@ Deno.test('SsrMdRouter - handles empty route list', async () => {
   const result = await router.render('/anything');
 
   assertEquals(result.status, 404);
-  assertStringIncludes(result.markdown, 'Not Found');
+  assertStringIncludes(result.content, 'Not Found');
 });

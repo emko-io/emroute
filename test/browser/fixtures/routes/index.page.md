@@ -2,6 +2,9 @@
 {}
 ```
 
+```router-slot
+```
+
 # emroute
 
 File-based routing with triple rendering — SPA, SSR HTML, and SSR Markdown.

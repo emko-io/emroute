@@ -62,13 +62,13 @@ Deno.test('renderMarkdown - returns router-slot when no md file', () => {
   const component = new PageComponent();
   const context = testContext({});
   const result = component.renderMarkdown({ data: undefined, params: {}, context });
-  assertEquals(result, '```\nrouter-slot\n```');
+  assertEquals(result, '```router-slot\n```');
 });
 
 Deno.test('renderMarkdown - returns router-slot when no context', () => {
   const component = new PageComponent();
   const result = component.renderMarkdown({ data: undefined, params: {} });
-  assertEquals(result, '```\nrouter-slot\n```');
+  assertEquals(result, '```router-slot\n```');
 });
 
 Deno.test('renderMarkdown - returns empty markdown file content', () => {
@@ -76,7 +76,7 @@ Deno.test('renderMarkdown - returns empty markdown file content', () => {
   const context = testContext({ md: '' });
   // Empty string is falsy, so falls back to router-slot
   const result = component.renderMarkdown({ data: undefined, params: {}, context });
-  assertEquals(result, '```\nrouter-slot\n```');
+  assertEquals(result, '```router-slot\n```');
 });
 
 Deno.test('renderMarkdown - preserves special characters in md content', () => {
@@ -176,7 +176,7 @@ Deno.test('fallback - ts+html+no-md: renderHTML from html, renderMarkdown is rou
   assertEquals(component.renderHTML({ data: undefined, params: {}, context }), '<div>HTML</div>');
   assertEquals(
     component.renderMarkdown({ data: undefined, params: {}, context }),
-    '```\nrouter-slot\n```',
+    '```router-slot\n```',
   );
 });
 
@@ -200,7 +200,7 @@ Deno.test('fallback - ts+no-html+no-md: renderHTML is slot, renderMarkdown is sl
   );
   assertEquals(
     component.renderMarkdown({ data: undefined, params: {}, context }),
-    '```\nrouter-slot\n```',
+    '```router-slot\n```',
   );
 });
 

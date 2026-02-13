@@ -168,6 +168,12 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
         this.data = JSON.parse(ssrAttr);
         this.state = 'ready';
         this.removeAttribute(DATA_SSR_ATTR);
+
+        // Call hydrate() hook to attach event listeners without re-rendering
+        queueMicrotask(() => {
+          this.component.hydrate?.();
+        });
+
         this.signalReady();
         return;
       } catch {
@@ -322,5 +328,12 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
       params: this.params,
       context: this.context,
     });
+
+    // Call hydrate() after rendering to attach event listeners
+    if (this.state === 'ready') {
+      queueMicrotask(() => {
+        this.component.hydrate?.();
+      });
+    }
   }
 }

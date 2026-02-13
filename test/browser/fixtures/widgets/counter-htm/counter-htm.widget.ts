@@ -67,6 +67,71 @@ class CounterHtmWidget extends WidgetComponent<{ start?: string }, CounterData> 
     return { initial };
   }
 
+  private renderPreactCounter(initial: number, targetEl: Element) {
+    const { html, render, useState, useEffect } = CounterHtmWidget.preact!;
+    const Counter = ({ start }: { start: number }) => {
+      const [count, setCount] = useState(start);
+      const [time, setTime] = useState(new Date().toLocaleTimeString());
+      useEffect(() => {
+        const id = setInterval(() => setTime(new Date().toLocaleTimeString()), 1000);
+        return () => clearInterval(id);
+      }, []);
+
+      return html`
+        <div class="c-counter-htm">
+          <button
+            class="c-counter-htm__btn"
+            onClick="${() => setCount((c: number) => c - 1)}"
+          >
+            −
+          </button>
+          <p class="c-counter-htm__display">
+            Count: <strong>${count}</strong>
+          </p>
+          <button
+            class="c-counter-htm__btn"
+            onClick="${() => setCount((c: number) => c + 1)}"
+          >
+            +
+          </button>
+          <p class="c-counter-htm__display">
+            🕐 <strong>${time}</strong>
+          </p>
+        </div>
+      `;
+    };
+    render(
+      html`
+        <${Counter} start="${initial}" />
+      `,
+      targetEl,
+    );
+  }
+
+  override hydrate(): void {
+    // Called after SSR adoption - render Preact to existing container
+    if (!this.element) return;
+
+    const container = this.element.querySelector('[data-island="counter-htm"]');
+    if (!container || container.hasAttribute('data-hydrated')) return;
+
+    container.setAttribute('data-hydrated', '');
+    const initial = parseInt(container.getAttribute('data-start') || '0', 10);
+
+    // Load Preact if not already loaded (getData was skipped in SSR mode)
+    if (!CounterHtmWidget.preact) {
+      Promise.all([
+        import('https://esm.sh/htm@3/preact?deps=preact@10'),
+        import('https://esm.sh/preact@10/hooks'),
+      ]).then(([{ html, render }, { useState, useEffect }]) => {
+        CounterHtmWidget.preact = { html, render, useState, useEffect };
+        this.renderPreactCounter(initial, container);
+      });
+    } else {
+      this.renderPreactCounter(initial, container);
+    }
+  }
+
   override renderHTML({
     data,
   }: {
@@ -76,51 +141,53 @@ class CounterHtmWidget extends WidgetComponent<{ start?: string }, CounterData> 
     if (!data) return '';
     const initial = data.initial;
     const { html, render, useState, useEffect } = CounterHtmWidget.preact!;
-    queueMicrotask(() => {
-      const el = document.querySelector(
-        '[data-island="counter-htm"]:not([data-hydrated])',
-      );
-      if (!el) return;
-      el.setAttribute('data-hydrated', '');
-      const Counter = ({ start }: { start: number }) => {
-        const [count, setCount] = useState(start);
-        const [time, setTime] = useState(new Date().toLocaleTimeString());
-        useEffect(() => {
-          const id = setInterval(() => setTime(new Date().toLocaleTimeString()), 1000);
-          return () => clearInterval(id);
-        }, []);
+    if (typeof document !== 'undefined') {
+      queueMicrotask(() => {
+        const el = this.element?.querySelector(
+          '[data-island="counter-htm"]:not([data-hydrated])',
+        );
+        if (!el) return;
+        el.setAttribute('data-hydrated', '');
+        const Counter = ({ start }: { start: number }) => {
+          const [count, setCount] = useState(start);
+          const [time, setTime] = useState(new Date().toLocaleTimeString());
+          useEffect(() => {
+            const id = setInterval(() => setTime(new Date().toLocaleTimeString()), 1000);
+            return () => clearInterval(id);
+          }, []);
 
-        return html`
-          <div class="c-counter-htm">
-            <button
-              class="c-counter-htm__btn"
-              onClick="${() => setCount((c: number) => c - 1)}"
-            >
-              −
-            </button>
-            <p class="c-counter-htm__display">
-              Count: <strong>${count}</strong>
-            </p>
-            <button
-              class="c-counter-htm__btn"
-              onClick="${() => setCount((c: number) => c + 1)}"
-            >
-              +
-            </button>
-            <p class="c-counter-htm__display">
-              🕐 <strong>${time}</strong>
-            </p>
-          </div>
-        `;
-      };
-      render(
-        html`
-          <${Counter} start="${initial}" />
-        `,
-        el,
-      );
-    });
-    return `${STYLES}<div class="c-counter-htm" data-island="counter-htm"></div>`;
+          return html`
+            <div class="c-counter-htm">
+              <button
+                class="c-counter-htm__btn"
+                onClick="${() => setCount((c: number) => c - 1)}"
+              >
+                −
+              </button>
+              <p class="c-counter-htm__display">
+                Count: <strong>${count}</strong>
+              </p>
+              <button
+                class="c-counter-htm__btn"
+                onClick="${() => setCount((c: number) => c + 1)}"
+              >
+                +
+              </button>
+              <p class="c-counter-htm__display">
+                🕐 <strong>${time}</strong>
+              </p>
+            </div>
+          `;
+        };
+        render(
+          html`
+            <${Counter} start="${initial}" />
+          `,
+          el,
+        );
+      });
+    }
+    return `${STYLES}<div class="c-counter-htm" data-island="counter-htm" data-start="${initial}"></div>`;
   }
 
   override renderMarkdown({

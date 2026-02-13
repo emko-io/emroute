@@ -156,6 +156,22 @@ export abstract class Component<
   }
 
   /**
+   * Hydration hook called after SSR content is adopted.
+   * Use to attach event listeners to existing DOM without re-rendering.
+   * Only called when adopting SSR content (has data-ssr attribute).
+   * Not called during fresh client-side renders.
+   *
+   * @example
+   * ```ts
+   * override hydrate() {
+   *   const button = this.element?.querySelector('button');
+   *   button?.addEventListener('click', () => this.handleClick());
+   * }
+   * ```
+   */
+  hydrate?(): void;
+
+  /**
    * Cleanup hook called when the component is removed from the DOM.
    * Use for clearing timers, removing event listeners, unmounting
    * third-party renderers, closing connections, etc.

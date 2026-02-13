@@ -185,6 +185,13 @@ export const routesManifest: RoutesManifest = {
     parent: '/nesting-ts-html',
   },
   {
+    pattern: '/example/:path',
+    type: 'page',
+    modulePath: 'routes/example/[path].page.ts',
+    files: { ts: 'routes/example/[path].page.ts' },
+    parent: '/example',
+  },
+  {
     pattern: '/projects/:id',
     type: 'page',
     modulePath: 'routes/projects/[id].page.ts',
@@ -203,6 +210,12 @@ export const routesManifest: RoutesManifest = {
     type: 'page',
     modulePath: 'routes/preact.page.md',
     files: { md: 'routes/preact.page.md' },
+  },
+  {
+    pattern: '/example',
+    type: 'page',
+    modulePath: 'routes/example.page.ts',
+    files: { ts: 'routes/example.page.ts' },
   },
   {
     pattern: '/profile',
@@ -387,8 +400,10 @@ export const routesManifest: RoutesManifest = {
     'routes/nesting-ts/lvl-one.page.ts': () => import('./routes/nesting-ts/lvl-one.page.ts'),
     'routes/nesting-ts-md/lvl-one.page.ts': () => import('./routes/nesting-ts-md/lvl-one.page.ts'),
     'routes/nesting-ts-html/lvl-one.page.ts': () => import('./routes/nesting-ts-html/lvl-one.page.ts'),
+    'routes/example/[path].page.ts': () => import('./routes/example/[path].page.ts'),
     'routes/projects/[id].page.ts': () => import('./routes/projects/[id].page.ts'),
     'routes/articles/[slug].page.ts': () => import('./routes/articles/[slug].page.ts'),
+    'routes/example.page.ts': () => import('./routes/example.page.ts'),
     'routes/profile.page.ts': () => import('./routes/profile.page.ts'),
     'routes/articles.page.ts': () => import('./routes/articles.page.ts'),
     'routes/nesting-ts.page.ts': () => import('./routes/nesting-ts.page.ts'),

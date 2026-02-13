@@ -170,9 +170,11 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
         this.removeAttribute(DATA_SSR_ATTR);
 
         // Call hydrate() hook to attach event listeners without re-rendering
-        queueMicrotask(() => {
-          this.component.hydrate?.();
-        });
+        if (this.component.hydrate) {
+          queueMicrotask(() => {
+            this.component.hydrate!();
+          });
+        }
 
         this.signalReady();
         return;
@@ -330,9 +332,9 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
     });
 
     // Call hydrate() after rendering to attach event listeners
-    if (this.state === 'ready') {
+    if (this.state === 'ready' && this.component.hydrate) {
       queueMicrotask(() => {
-        this.component.hydrate?.();
+        this.component.hydrate!();
       });
     }
   }

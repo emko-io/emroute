@@ -47,11 +47,7 @@ export const widgetsManifest: WidgetsManifest = {
       name: 'file-widget',
       modulePath: 'widgets/file-widget/file-widget.widget.ts',
       tagName: 'widget-file-widget',
-      files: {
-        html: 'widgets/file-widget/file-widget.widget.html',
-        md: 'widgets/file-widget/file-widget.widget.md',
-        css: 'widgets/file-widget/file-widget.widget.css',
-      },
+      files: { html: 'widgets/file-widget/file-widget.widget.html', md: 'widgets/file-widget/file-widget.widget.md', css: 'widgets/file-widget/file-widget.widget.css' },
     },
     {
       name: 'greeting',
@@ -62,6 +58,11 @@ export const widgetsManifest: WidgetsManifest = {
       name: 'hero-banner',
       modulePath: 'widgets/hero-banner/hero-banner.widget.ts',
       tagName: 'widget-hero-banner',
+    },
+    {
+      name: 'hydration-test',
+      modulePath: 'widgets/hydration-test/hydration-test.widget.ts',
+      tagName: 'widget-hydration-test',
     },
     {
       name: 'info-card',
@@ -88,10 +89,7 @@ export const widgetsManifest: WidgetsManifest = {
       name: 'remote-widget',
       modulePath: 'widgets/remote-widget/remote-widget.widget.ts',
       tagName: 'widget-remote-widget',
-      files: {
-        html: 'widgets/remote-widget/remote-widget.widget.html',
-        css: 'widgets/remote-widget/remote-widget.widget.css',
-      },
+      files: { html: 'widgets/remote-widget/remote-widget.widget.html', css: 'widgets/remote-widget/remote-widget.widget.css' },
     },
     {
       name: 'search-filter',
@@ -107,42 +105,28 @@ export const widgetsManifest: WidgetsManifest = {
       name: 'tag-cloud',
       modulePath: 'widgets/tag-cloud/tag-cloud.widget.ts',
       tagName: 'widget-tag-cloud',
-    },
+    }
   ],
 
   moduleLoaders: {
-    'widgets/article-card/article-card.widget.ts': () =>
-      import('./widgets/article-card/article-card.widget.ts'),
-    'widgets/code-block/code-block.widget.ts': () =>
-      import('./widgets/code-block/code-block.widget.ts'),
-    'widgets/content-tab/content-tab.widget.ts': () =>
-      import('./widgets/content-tab/content-tab.widget.ts'),
-    'widgets/counter-htm/counter-htm.widget.ts': () =>
-      import('./widgets/counter-htm/counter-htm.widget.ts'),
-    'widgets/counter-vanilla/counter-vanilla.widget.ts': () =>
-      import('./widgets/counter-vanilla/counter-vanilla.widget.ts'),
-    'widgets/element-ref/element-ref.widget.ts': () =>
-      import('./widgets/element-ref/element-ref.widget.ts'),
+    'widgets/article-card/article-card.widget.ts': () => import('./widgets/article-card/article-card.widget.ts'),
+    'widgets/code-block/code-block.widget.ts': () => import('./widgets/code-block/code-block.widget.ts'),
+    'widgets/content-tab/content-tab.widget.ts': () => import('./widgets/content-tab/content-tab.widget.ts'),
+    'widgets/counter-htm/counter-htm.widget.ts': () => import('./widgets/counter-htm/counter-htm.widget.ts'),
+    'widgets/counter-vanilla/counter-vanilla.widget.ts': () => import('./widgets/counter-vanilla/counter-vanilla.widget.ts'),
+    'widgets/element-ref/element-ref.widget.ts': () => import('./widgets/element-ref/element-ref.widget.ts'),
     'widgets/failing/failing.widget.ts': () => import('./widgets/failing/failing.widget.ts'),
-    'widgets/file-widget/file-widget.widget.ts': () =>
-      import('./widgets/file-widget/file-widget.widget.ts'),
+    'widgets/file-widget/file-widget.widget.ts': () => import('./widgets/file-widget/file-widget.widget.ts'),
     'widgets/greeting/greeting.widget.ts': () => import('./widgets/greeting/greeting.widget.ts'),
-    'widgets/hero-banner/hero-banner.widget.ts': () =>
-      import('./widgets/hero-banner/hero-banner.widget.ts'),
-    'widgets/info-card/info-card.widget.ts': () =>
-      import('./widgets/info-card/info-card.widget.ts'),
+    'widgets/hero-banner/hero-banner.widget.ts': () => import('./widgets/hero-banner/hero-banner.widget.ts'),
+    'widgets/hydration-test/hydration-test.widget.ts': () => import('./widgets/hydration-test/hydration-test.widget.ts'),
+    'widgets/info-card/info-card.widget.ts': () => import('./widgets/info-card/info-card.widget.ts'),
     'widgets/nav/nav.widget.ts': () => import('./widgets/nav/nav.widget.ts'),
-    'widgets/overlay-demo/overlay-demo.widget.ts': () =>
-      import('./widgets/overlay-demo/overlay-demo.widget.ts'),
-    'widgets/recent-article/recent-article.widget.ts': () =>
-      import('./widgets/recent-article/recent-article.widget.ts'),
-    'widgets/remote-widget/remote-widget.widget.ts': () =>
-      import('./widgets/remote-widget/remote-widget.widget.ts'),
-    'widgets/search-filter/search-filter.widget.ts': () =>
-      import('./widgets/search-filter/search-filter.widget.ts'),
-    'widgets/stat-card/stat-card.widget.ts': () =>
-      import('./widgets/stat-card/stat-card.widget.ts'),
-    'widgets/tag-cloud/tag-cloud.widget.ts': () =>
-      import('./widgets/tag-cloud/tag-cloud.widget.ts'),
+    'widgets/overlay-demo/overlay-demo.widget.ts': () => import('./widgets/overlay-demo/overlay-demo.widget.ts'),
+    'widgets/recent-article/recent-article.widget.ts': () => import('./widgets/recent-article/recent-article.widget.ts'),
+    'widgets/remote-widget/remote-widget.widget.ts': () => import('./widgets/remote-widget/remote-widget.widget.ts'),
+    'widgets/search-filter/search-filter.widget.ts': () => import('./widgets/search-filter/search-filter.widget.ts'),
+    'widgets/stat-card/stat-card.widget.ts': () => import('./widgets/stat-card/stat-card.widget.ts'),
+    'widgets/tag-cloud/tag-cloud.widget.ts': () => import('./widgets/tag-cloud/tag-cloud.widget.ts'),
   },
 };

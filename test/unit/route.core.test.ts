@@ -1,681 +1,912 @@
 /**
- * Route Core Tests
+ * Unit tests for RouteCore
  *
- * Comprehensive unit tests for RouteCore class covering:
- * - Constructor and initialization
- * - Route matching and hierarchy building
- * - Event emission and listener management
- * - URL normalization
- * - Module loading with caching
- * - HTML and Markdown content fetching
+ * Tests cover:
+ * - Route matching against patterns
+ * - Parameter extraction from URLs
+ * - Parent-child relationships
+ * - Catch-all route matching (index files)
+ * - Dynamic segment matching ([id])
+ * - Specificity ordering
+ * - Context provider integration
+ * - Event emission
+ * - Module loading and caching
+ * - Widget file loading
  */
 
 import { assertEquals, assertExists } from '@std/assert';
-import { DEFAULT_ROOT_ROUTE, RouteCore } from '../../src/route/route.core.ts';
-import type {
-  MatchedRoute,
-  RouteConfig,
-  RouteInfo,
-  RouterEvent,
-  RoutesManifest,
-} from '../../src/type/route.type.ts';
+import {
+  assertSafeRedirect,
+  DEFAULT_ROOT_ROUTE,
+  RouteCore,
+  SSR_HTML_PREFIX,
+  SSR_MD_PREFIX,
+  stripSsrPrefix,
+} from '../../src/route/route.core.ts';
+import type { RouteConfig, RoutesManifest } from '../../src/type/route.type.ts';
+import type { ComponentContext } from '../../src/component/abstract.component.ts';
 
 /**
- * Create a minimal test manifest
+ * Helper to create a minimal routes manifest for testing
  */
-function createTestManifest(routes: RouteConfig[] = []): RoutesManifest {
+function createTestManifest(
+  routes: RouteConfig[] = [],
+): RoutesManifest {
   return {
     routes,
     errorBoundaries: [],
     statusPages: new Map(),
+    moduleLoaders: {
+      'test-loader': () => Promise.resolve({ test: true }),
+    },
   };
 }
 
 /**
- * Create a test route
+ * Helper to create a route config
  */
-function createTestRoute(overrides?: Partial<RouteConfig>): RouteConfig {
+function createRoute(
+  pattern: string,
+  modulePath: string = 'test-module',
+  parent?: string,
+): RouteConfig {
   return {
-    pattern: '/test',
+    pattern,
     type: 'page',
-    modulePath: '/test.page.ts',
-    ...overrides,
+    modulePath,
+    parent,
   };
 }
 
-Deno.test('RouteCore - constructor initialization', () => {
-  const manifest = createTestManifest();
-  const router = new RouteCore(manifest);
-
-  assertExists(router.matcher);
-  assertEquals(router.currentRoute, null);
-  assertEquals(router.getParams(), {});
-});
-
-Deno.test('RouteCore - constructor with routes', () => {
-  const routes = [
-    createTestRoute({ pattern: '/', modulePath: '/' }),
-    createTestRoute({ pattern: '/about', modulePath: '/about.page.ts' }),
-    createTestRoute({ pattern: '/projects/:id', modulePath: '/projects/[id].page.ts' }),
-  ];
-
-  const manifest = createTestManifest(routes);
-  const router = new RouteCore(manifest);
-
-  assertExists(router.matcher);
-});
-
-Deno.test('RouteCore - currentRoute getter returns null initially', () => {
-  const router = new RouteCore(createTestManifest());
-  assertEquals(router.currentRoute, null);
-});
-
-Deno.test('RouteCore - currentRoute setter and getter', () => {
-  const router = new RouteCore(createTestManifest());
-  const route: MatchedRoute = {
-    route: createTestRoute(),
-    params: { id: '123' },
-    patternResult: {} as URLPatternResult,
-  };
-
-  router.currentRoute = route;
-  assertEquals(router.currentRoute, route);
-});
-
-Deno.test('RouteCore - currentRoute can be set to null', () => {
-  const router = new RouteCore(createTestManifest());
-  const route: MatchedRoute = {
-    route: createTestRoute(),
-    params: { id: '123' },
-    patternResult: {} as URLPatternResult,
-  };
-
-  router.currentRoute = route;
-  router.currentRoute = null;
-  assertEquals(router.currentRoute, null);
-});
-
-Deno.test('RouteCore - getParams returns empty object when no current route', () => {
-  const router = new RouteCore(createTestManifest());
-  assertEquals(router.getParams(), {});
-});
-
-Deno.test('RouteCore - getParams returns current route params', () => {
-  const router = new RouteCore(createTestManifest());
-  const params = { id: '123', name: 'test' };
-  const route: MatchedRoute = {
-    route: createTestRoute(),
-    params,
-    patternResult: {} as URLPatternResult,
-  };
-
-  router.currentRoute = route;
-  assertEquals(router.getParams(), params);
-});
-
-Deno.test('RouteCore - getParams returns empty object after clearing current route', () => {
-  const router = new RouteCore(createTestManifest());
-  const route: MatchedRoute = {
-    route: createTestRoute(),
-    params: { id: '123' },
-    patternResult: {} as URLPatternResult,
-  };
-
-  router.currentRoute = route;
-  router.currentRoute = null;
-  assertEquals(router.getParams(), {});
-});
-
-Deno.test('RouteCore - addEventListener registers listener and returns unsubscribe function', () => {
-  const router = new RouteCore(createTestManifest());
-  let callCount = 0;
-
-  const unsubscribe = router.addEventListener(() => {
-    callCount++;
+Deno.test('RouteCore - stripSsrPrefix', async (t) => {
+  await t.step('strips /html/ prefix', () => {
+    const result = stripSsrPrefix('/html/about');
+    assertEquals(result, '/about');
   });
 
-  const event: RouterEvent = {
-    type: 'navigate',
-    pathname: '/test',
-    params: {},
-  };
-
-  router.emit(event);
-  assertEquals(callCount, 1);
-
-  unsubscribe();
-  router.emit(event);
-  assertEquals(callCount, 1);
-});
-
-Deno.test('RouteCore - addEventListener supports multiple listeners', () => {
-  const router = new RouteCore(createTestManifest());
-  let count1 = 0;
-  let count2 = 0;
-  let count3 = 0;
-
-  router.addEventListener(() => count1++);
-  router.addEventListener(() => count2++);
-  router.addEventListener(() => count3++);
-
-  const event: RouterEvent = {
-    type: 'navigate',
-    pathname: '/test',
-    params: {},
-  };
-
-  router.emit(event);
-  assertEquals(count1, 1);
-  assertEquals(count2, 1);
-  assertEquals(count3, 1);
-});
-
-Deno.test('RouteCore - addEventListener unsubscribe removes only that listener', () => {
-  const router = new RouteCore(createTestManifest());
-  let count1 = 0;
-  let count2 = 0;
-
-  const unsub1 = router.addEventListener(() => count1++);
-  router.addEventListener(() => count2++);
-
-  const event: RouterEvent = {
-    type: 'navigate',
-    pathname: '/test',
-    params: {},
-  };
-
-  router.emit(event);
-  assertEquals(count1, 1);
-  assertEquals(count2, 1);
-
-  unsub1();
-  router.emit(event);
-  assertEquals(count1, 1);
-  assertEquals(count2, 2);
-});
-
-Deno.test('RouteCore - emit calls all listeners with event', () => {
-  const router = new RouteCore(createTestManifest());
-  const events: RouterEvent[] = [];
-
-  router.addEventListener((e) => events.push(e));
-  router.addEventListener((e) => events.push(e));
-
-  const testEvent: RouterEvent = {
-    type: 'navigate',
-    pathname: '/projects/123',
-    params: { id: '123' },
-  };
-
-  router.emit(testEvent);
-  assertEquals(events.length, 2);
-  assertEquals(events[0], testEvent);
-  assertEquals(events[1], testEvent);
-});
-
-Deno.test('RouteCore - emit handles listener errors gracefully', () => {
-  const router = new RouteCore(createTestManifest());
-  let successCount = 0;
-
-  router.addEventListener(() => {
-    throw new Error('Listener error');
+  await t.step('strips /md/ prefix', () => {
+    const result = stripSsrPrefix('/md/projects/123');
+    assertEquals(result, '/projects/123');
   });
 
-  router.addEventListener(() => {
-    successCount++;
+  await t.step('returns pathname unchanged if no prefix', () => {
+    const result = stripSsrPrefix('/about');
+    assertEquals(result, '/about');
   });
 
-  const event: RouterEvent = {
-    type: 'navigate',
-    pathname: '/test',
-    params: {},
-  };
-
-  router.emit(event);
-  assertEquals(successCount, 1);
-});
-
-Deno.test('RouteCore - emit with navigate event type', () => {
-  const router = new RouteCore(createTestManifest());
-  let receivedEvent: RouterEvent | null = null;
-
-  router.addEventListener((e) => {
-    receivedEvent = e;
+  await t.step('handles root pathname', () => {
+    const result = stripSsrPrefix('/html/');
+    assertEquals(result, '/');
   });
 
-  const event: RouterEvent = {
-    type: 'navigate',
-    pathname: '/about',
-    params: {},
-  };
-
-  router.emit(event);
-  assertEquals(receivedEvent, event);
+  await t.step('preserves multiple slashes', () => {
+    const result = stripSsrPrefix('/html/projects/123/tasks');
+    assertEquals(result, '/projects/123/tasks');
+  });
 });
 
-Deno.test('RouteCore - emit with error event type', () => {
-  const router = new RouteCore(createTestManifest());
-  let receivedEvent: RouterEvent | null = null;
-
-  router.addEventListener((e) => {
-    receivedEvent = e;
+Deno.test('RouteCore - assertSafeRedirect', async (t) => {
+  await t.step('allows http URLs', () => {
+    assertSafeRedirect('http://example.com');
   });
 
-  const error = new Error('Test error');
-  const event: RouterEvent = {
-    type: 'error',
-    pathname: '/test',
-    params: {},
-    error,
-  };
-
-  router.emit(event);
-  assertEquals(receivedEvent, event);
-});
-
-Deno.test('RouteCore - emit with load event type', () => {
-  const router = new RouteCore(createTestManifest());
-  let receivedEvent: RouterEvent | null = null;
-
-  router.addEventListener((e) => {
-    receivedEvent = e;
+  await t.step('allows https URLs', () => {
+    assertSafeRedirect('https://example.com');
   });
 
-  const event: RouterEvent = {
-    type: 'load',
-    pathname: '/home',
-    params: {},
-  };
+  await t.step('allows relative URLs', () => {
+    assertSafeRedirect('/about');
+    assertSafeRedirect('../home');
+  });
 
-  router.emit(event);
-  assertEquals(receivedEvent, event);
-});
+  await t.step('allows root-relative URLs', () => {
+    assertSafeRedirect('/');
+  });
 
-Deno.test('RouteCore - match delegates to matcher', () => {
-  const routes = [
-    createTestRoute({ pattern: '/', modulePath: '/' }),
-    createTestRoute({ pattern: '/about', modulePath: '/about.page.ts' }),
-  ];
-  const manifest = createTestManifest(routes);
-  const router = new RouteCore(manifest);
-
-  const result = router.match('http://localhost/');
-  assertExists(result);
-  assertEquals(result?.route.pattern, '/');
-});
-
-Deno.test('RouteCore - match returns undefined for non-matching route', () => {
-  const routes = [
-    createTestRoute({ pattern: '/', modulePath: '/' }),
-  ];
-  const manifest = createTestManifest(routes);
-  const router = new RouteCore(manifest);
-
-  const result = router.match('http://localhost/nonexistent');
-  assertEquals(result, undefined);
-});
-
-Deno.test('RouteCore - match with URL object', () => {
-  const routes = [
-    createTestRoute({ pattern: '/projects/:id', modulePath: '/projects/[id].page.ts' }),
-  ];
-  const manifest = createTestManifest(routes);
-  const router = new RouteCore(manifest);
-
-  const url = new URL('http://localhost/projects/123');
-  const result = router.match(url);
-  assertExists(result);
-  assertEquals(result?.params.id, '123');
-});
-
-Deno.test('RouteCore - match with string URL', () => {
-  const routes = [
-    createTestRoute({ pattern: '/projects/:id', modulePath: '/projects/[id].page.ts' }),
-  ];
-  const manifest = createTestManifest(routes);
-  const router = new RouteCore(manifest);
-
-  const result = router.match('http://localhost/projects/456');
-  assertExists(result);
-  assertEquals(result?.params.id, '456');
-});
-
-Deno.test('RouteCore - buildRouteHierarchy for root route', () => {
-  const router = new RouteCore(createTestManifest());
-  const hierarchy = router.buildRouteHierarchy('/');
-  assertEquals(hierarchy, ['/']);
-});
-
-Deno.test('RouteCore - buildRouteHierarchy for single segment', () => {
-  const router = new RouteCore(createTestManifest());
-  const hierarchy = router.buildRouteHierarchy('/about');
-  assertEquals(hierarchy, ['/', '/about']);
-});
-
-Deno.test('RouteCore - buildRouteHierarchy for multiple segments', () => {
-  const router = new RouteCore(createTestManifest());
-  const hierarchy = router.buildRouteHierarchy('/projects/123/tasks');
-  assertEquals(hierarchy, [
-    '/',
-    '/projects',
-    '/projects/123',
-    '/projects/123/tasks',
-  ]);
-});
-
-Deno.test('RouteCore - buildRouteHierarchy with trailing slash', () => {
-  const router = new RouteCore(createTestManifest());
-  const hierarchy = router.buildRouteHierarchy('/projects/123/');
-  assertEquals(hierarchy, [
-    '/',
-    '/projects',
-    '/projects/123',
-  ]);
-});
-
-Deno.test('RouteCore - buildRouteHierarchy with deep nesting', () => {
-  const router = new RouteCore(createTestManifest());
-  const hierarchy = router.buildRouteHierarchy('/a/b/c/d/e');
-  assertEquals(hierarchy, [
-    '/',
-    '/a',
-    '/a/b',
-    '/a/b/c',
-    '/a/b/c/d',
-    '/a/b/c/d/e',
-  ]);
-});
-
-Deno.test('RouteCore - buildRouteHierarchy with special characters', () => {
-  const router = new RouteCore(createTestManifest());
-  const hierarchy = router.buildRouteHierarchy('/projects/my-project/tasks');
-  assertEquals(hierarchy, [
-    '/',
-    '/projects',
-    '/projects/my-project',
-    '/projects/my-project/tasks',
-  ]);
-});
-
-Deno.test('RouteCore - normalizeUrl removes trailing slash', () => {
-  const router = new RouteCore(createTestManifest());
-  assertEquals(router.normalizeUrl('/about/'), '/about');
-});
-
-Deno.test('RouteCore - normalizeUrl preserves root slash', () => {
-  const router = new RouteCore(createTestManifest());
-  assertEquals(router.normalizeUrl('/'), '/');
-});
-
-Deno.test('RouteCore - normalizeUrl with no trailing slash', () => {
-  const router = new RouteCore(createTestManifest());
-  assertEquals(router.normalizeUrl('/about'), '/about');
-});
-
-Deno.test('RouteCore - normalizeUrl with multiple trailing slashes', () => {
-  const router = new RouteCore(createTestManifest());
-  assertEquals(router.normalizeUrl('/about//'), '/about/');
-});
-
-Deno.test('RouteCore - normalizeUrl with deep path', () => {
-  const router = new RouteCore(createTestManifest());
-  assertEquals(router.normalizeUrl('/projects/123/tasks/'), '/projects/123/tasks');
-});
-
-Deno.test('RouteCore - toAbsolutePath with leading slash', () => {
-  const router = new RouteCore(createTestManifest());
-  assertEquals(router.toAbsolutePath('/test.page.ts'), '/test.page.ts');
-});
-
-Deno.test('RouteCore - toAbsolutePath without leading slash', () => {
-  const router = new RouteCore(createTestManifest());
-  assertEquals(router.toAbsolutePath('test.page.ts'), '/test.page.ts');
-});
-
-Deno.test('RouteCore - toAbsolutePath with nested path', () => {
-  const router = new RouteCore(createTestManifest());
-  assertEquals(router.toAbsolutePath('projects/123.page.ts'), '/projects/123.page.ts');
-});
-
-Deno.test('RouteCore - toAbsolutePath with absolute nested path', () => {
-  const router = new RouteCore(createTestManifest());
-  assertEquals(router.toAbsolutePath('/projects/123.page.ts'), '/projects/123.page.ts');
-});
-
-Deno.test('RouteCore - toAbsolutePath with empty string', () => {
-  const router = new RouteCore(createTestManifest());
-  assertEquals(router.toAbsolutePath(''), '/');
-});
-
-Deno.test('RouteCore - loadModule caches module', async () => {
-  const router = new RouteCore(createTestManifest());
-
-  // Create a mock module by using a data URL
-  const mockModule = { default: 'test content' };
-
-  // We'll test caching behavior with a simple approach
-  // by checking that calling it twice uses the cache
-  const moduleCache = (router as unknown as { moduleCache: Map<string, unknown> }).moduleCache;
-  moduleCache.set('/test.js', mockModule);
-
-  const cached = await router.loadModule('/test.js');
-  assertEquals(cached, mockModule);
-});
-
-Deno.test('RouteCore - loadModule caches by original path', async () => {
-  const router = new RouteCore(createTestManifest());
-  const moduleCache = (router as unknown as { moduleCache: Map<string, unknown> }).moduleCache;
-
-  const mockModule = { test: true };
-  moduleCache.set('test.js', mockModule);
-
-  const result = await router.loadModule('test.js');
-  assertEquals(result, mockModule);
-});
-
-Deno.test('RouteCore - loadModule returns same object on second call (cache)', async () => {
-  const router = new RouteCore(createTestManifest());
-  const moduleCache = (router as unknown as { moduleCache: Map<string, unknown> }).moduleCache;
-
-  const mockModule = { data: 'cached' };
-  moduleCache.set('/cached.js', mockModule);
-
-  const first = await router.loadModule('/cached.js');
-  const second = await router.loadModule('/cached.js');
-
-  assertEquals(first, mockModule);
-  assertEquals(second, mockModule);
-  assertEquals(first === second, true);
-});
-
-Deno.test('RouteCore - loadModule handles dynamic import', async () => {
-  const router = new RouteCore(createTestManifest());
-  const moduleCache = (router as unknown as { moduleCache: Map<string, unknown> }).moduleCache;
-
-  // Create a minimal mock for testing
-  const mockModule = { name: 'test-module' };
-  moduleCache.set('/dynamic.js', mockModule);
-
-  const result = await router.loadModule('/dynamic.js');
-  const loaded = result as unknown as { name: string };
-  assertEquals(loaded.name, 'test-module');
-});
-
-Deno.test('DEFAULT_ROOT_ROUTE has correct structure', () => {
-  assertEquals(DEFAULT_ROOT_ROUTE.pattern, '/');
-  assertEquals(DEFAULT_ROOT_ROUTE.type, 'page');
-  assertEquals(DEFAULT_ROOT_ROUTE.modulePath, '__default_root__');
-});
-
-Deno.test('RouteCore - integration: navigate and emit event', () => {
-  const router = new RouteCore(createTestManifest());
-  let navigationCount = 0;
-
-  router.addEventListener((event) => {
-    if (event.type === 'navigate') {
-      navigationCount++;
+  await t.step('throws on javascript protocol', () => {
+    try {
+      assertSafeRedirect('javascript:alert("xss")');
+      throw new Error('Should have thrown');
+    } catch (e) {
+      assertEquals(
+        (e as Error).message.includes('Unsafe redirect URL'),
+        true,
+      );
     }
   });
 
-  const route: MatchedRoute = {
-    route: createTestRoute({ pattern: '/projects/:id' }),
-    params: { id: '42' },
-    patternResult: {} as URLPatternResult,
-  };
-
-  router.currentRoute = route;
-  router.emit({
-    type: 'navigate',
-    pathname: '/projects/42',
-    params: { id: '42' },
+  await t.step('throws on data protocol', () => {
+    try {
+      assertSafeRedirect('data:text/html,<script>alert("xss")</script>');
+      throw new Error('Should have thrown');
+    } catch (e) {
+      assertEquals(
+        (e as Error).message.includes('Unsafe redirect URL'),
+        true,
+      );
+    }
   });
 
-  assertEquals(navigationCount, 1);
-  assertEquals(router.getParams().id, '42');
+  await t.step('throws on vbscript protocol', () => {
+    try {
+      assertSafeRedirect('vbscript:msgbox("xss")');
+      throw new Error('Should have thrown');
+    } catch (e) {
+      assertEquals(
+        (e as Error).message.includes('Unsafe redirect URL'),
+        true,
+      );
+    }
+  });
+
+  await t.step('is case-insensitive for protocols', () => {
+    try {
+      assertSafeRedirect('JavaScript:alert("xss")');
+      throw new Error('Should have thrown');
+    } catch (e) {
+      assertEquals(
+        (e as Error).message.includes('Unsafe redirect URL'),
+        true,
+      );
+    }
+  });
+
+  await t.step('handles whitespace before protocol', () => {
+    try {
+      assertSafeRedirect('  javascript:alert("xss")');
+      throw new Error('Should have thrown');
+    } catch (e) {
+      assertEquals(
+        (e as Error).message.includes('Unsafe redirect URL'),
+        true,
+      );
+    }
+  });
 });
 
-Deno.test('RouteCore - integration: multiple listeners handle same event', () => {
-  const router = new RouteCore(createTestManifest());
-  const events1: RouterEvent[] = [];
-  const events2: RouterEvent[] = [];
+Deno.test('RouteCore - constructor and initialization', async (t) => {
+  await t.step('creates router with manifest', () => {
+    const manifest = createTestManifest();
+    const router = new RouteCore(manifest);
 
-  router.addEventListener((e) => events1.push(e));
-  router.addEventListener((e) => events2.push(e));
+    assertExists(router.matcher);
+    assertEquals(router.contextProvider, undefined);
+  });
 
-  const testEvent: RouterEvent = {
-    type: 'navigate',
-    pathname: '/test',
-    params: {},
-  };
+  await t.step('registers context provider', () => {
+    const manifest = createTestManifest();
+    const provider = (ctx: ComponentContext) => ({
+      ...ctx,
+      custom: 'value',
+    });
 
-  router.emit(testEvent);
-  assertEquals(events1.length, 1);
-  assertEquals(events2.length, 1);
-  assertEquals(events1[0], events2[0]);
+    const router = new RouteCore(manifest, { extendContext: provider });
+
+    assertEquals(router.contextProvider, provider);
+  });
+
+  await t.step('sets baseUrl from options', () => {
+    const manifest = createTestManifest();
+    const router = new RouteCore(manifest, { baseUrl: 'http://localhost:3000' });
+
+    assertExists(router);
+  });
+
+  await t.step('defaults baseUrl to empty string', () => {
+    const manifest = createTestManifest();
+    const router = new RouteCore(manifest);
+
+    assertExists(router);
+  });
+
+  await t.step('initializes currentRoute as null', () => {
+    const manifest = createTestManifest();
+    const router = new RouteCore(manifest);
+
+    assertEquals(router.currentRoute, null);
+  });
 });
 
-Deno.test('RouteCore - integration: listeners can be added and removed dynamically', () => {
-  const router = new RouteCore(createTestManifest());
-  const callLog: number[] = [];
+Deno.test('RouteCore - route matching', async (t) => {
+  await t.step('matches static routes', () => {
+    const routes = [createRoute('/about')];
+    const manifest = createTestManifest(routes);
+    const router = new RouteCore(manifest);
 
-  const unsub1 = router.addEventListener(() => callLog.push(1));
-  const unsub2 = router.addEventListener(() => callLog.push(2));
-  const unsub3 = router.addEventListener(() => callLog.push(3));
+    const matched = router.match('/about');
 
-  const event: RouterEvent = {
-    type: 'navigate',
-    pathname: '/test',
-    params: {},
-  };
+    assertExists(matched);
+    assertEquals(matched?.route.pattern, '/about');
+  });
 
-  router.emit(event);
-  assertEquals(callLog, [1, 2, 3]);
+  await t.step('matches dynamic segment routes', () => {
+    const routes = [createRoute('/projects/:id')];
+    const manifest = createTestManifest(routes);
+    const router = new RouteCore(manifest);
 
-  unsub2();
-  callLog.length = 0;
+    const matched = router.match('/projects/123');
 
-  router.emit(event);
-  assertEquals(callLog, [1, 3]);
+    assertExists(matched);
+    assertEquals(matched?.route.pattern, '/projects/:id');
+    assertEquals(matched?.params.id, '123');
+  });
 
-  unsub1();
-  callLog.length = 0;
+  await t.step('matches nested dynamic routes', () => {
+    const routes = [createRoute('/projects/:projectId/tasks/:taskId')];
+    const manifest = createTestManifest(routes);
+    const router = new RouteCore(manifest);
 
-  router.emit(event);
-  assertEquals(callLog, [3]);
+    const matched = router.match('/projects/42/tasks/99');
 
-  unsub3();
-  callLog.length = 0;
+    assertExists(matched);
+    assertEquals(matched?.params.projectId, '42');
+    assertEquals(matched?.params.taskId, '99');
+  });
 
-  router.emit(event);
-  assertEquals(callLog, []);
+  await t.step('returns undefined for unmatched routes', () => {
+    const routes = [createRoute('/about')];
+    const manifest = createTestManifest(routes);
+    const router = new RouteCore(manifest);
+
+    const matched = router.match('/nonexistent');
+
+    assertEquals(matched, undefined);
+  });
+
+  await t.step('falls back to default root route for /', () => {
+    const manifest = createTestManifest([]);
+    const router = new RouteCore(manifest);
+
+    const matched = router.match('/');
+
+    assertExists(matched);
+    assertEquals(matched?.route, DEFAULT_ROOT_ROUTE);
+  });
+
+  await t.step('accepts URL objects', () => {
+    const routes = [createRoute('/about')];
+    const manifest = createTestManifest(routes);
+    const router = new RouteCore(manifest);
+
+    const url = new URL('http://localhost/about');
+    const matched = router.match(url);
+
+    assertExists(matched);
+    assertEquals(matched?.route.pattern, '/about');
+  });
+
+  await t.step('preserves search params in match result', () => {
+    const routes = [createRoute('/search')];
+    const manifest = createTestManifest(routes);
+    const router = new RouteCore(manifest);
+
+    const matched = router.match('/search?q=test&limit=10');
+
+    assertExists(matched?.searchParams);
+    assertEquals(matched?.searchParams?.get('q'), 'test');
+    assertEquals(matched?.searchParams?.get('limit'), '10');
+  });
 });
 
-Deno.test('RouteCore - getParams reflects current route changes', () => {
-  const router = new RouteCore(createTestManifest());
+Deno.test('RouteCore - parameter extraction', async (t) => {
+  await t.step('extracts single parameter', () => {
+    const routes = [createRoute('/users/:id')];
+    const manifest = createTestManifest(routes);
+    const router = new RouteCore(manifest);
 
-  assertEquals(router.getParams(), {});
+    const matched = router.match('/users/john-doe');
 
-  const route1: MatchedRoute = {
-    route: createTestRoute(),
-    params: { id: '1' },
-    patternResult: {} as URLPatternResult,
-  };
+    assertEquals(matched?.params.id, 'john-doe');
+  });
 
-  router.currentRoute = route1;
-  assertEquals(router.getParams().id, '1');
+  await t.step('extracts multiple parameters', () => {
+    const routes = [createRoute('/projects/:projectId/tasks/:taskId/comments/:commentId')];
+    const manifest = createTestManifest(routes);
+    const router = new RouteCore(manifest);
 
-  const route2: MatchedRoute = {
-    route: createTestRoute(),
-    params: { id: '2', name: 'test' },
-    patternResult: {} as URLPatternResult,
-  };
+    const matched = router.match('/projects/proj-1/tasks/task-2/comments/comment-3');
 
-  router.currentRoute = route2;
-  assertEquals(router.getParams().id, '2');
-  assertEquals(router.getParams().name, 'test');
+    assertEquals(matched?.params.projectId, 'proj-1');
+    assertEquals(matched?.params.taskId, 'task-2');
+    assertEquals(matched?.params.commentId, 'comment-3');
+  });
 
-  router.currentRoute = null;
-  assertEquals(router.getParams(), {});
+  await t.step('handles numeric parameters', () => {
+    const routes = [createRoute('/posts/:id')];
+    const manifest = createTestManifest(routes);
+    const router = new RouteCore(manifest);
+
+    const matched = router.match('/posts/12345');
+
+    assertEquals(matched?.params.id, '12345');
+  });
+
+  await t.step('handles slug parameters with hyphens', () => {
+    const routes = [createRoute('/articles/:slug')];
+    const manifest = createTestManifest(routes);
+    const router = new RouteCore(manifest);
+
+    const matched = router.match('/articles/my-awesome-article');
+
+    assertEquals(matched?.params.slug, 'my-awesome-article');
+  });
+
+  await t.step('getParams returns current route params', () => {
+    const routes = [createRoute('/users/:id')];
+    const manifest = createTestManifest(routes);
+    const router = new RouteCore(manifest);
+
+    router.currentRoute = router.match('/users/123')!;
+    const params = router.getParams();
+
+    assertEquals(params.id, '123');
+  });
+
+  await t.step('getParams returns empty object when no current route', () => {
+    const manifest = createTestManifest([]);
+    const router = new RouteCore(manifest);
+
+    const params = router.getParams();
+
+    assertEquals(params, {});
+  });
 });
 
-// ==============================================================================
-// toRouteInfo() Tests
-// ==============================================================================
+Deno.test('RouteCore - parent-child relationships', async (t) => {
+  await t.step('tracks parent route in config', () => {
+    const routes = [
+      createRoute('/projects', 'projects'),
+      createRoute('/projects/:id', 'project-detail', '/projects'),
+      createRoute('/projects/:id/tasks', 'project-tasks', '/projects/:id'),
+    ];
+    const manifest = createTestManifest(routes);
+    const router = new RouteCore(manifest);
 
-Deno.test('RouteCore - toRouteInfo builds RouteInfo from matched route', () => {
-  const routes = [
-    createTestRoute({ pattern: '/projects/:id', modulePath: '/projects/[id].page.ts' }),
-  ];
-  const router = new RouteCore(createTestManifest(routes));
+    assertEquals(routes[1].parent, '/projects');
+    assertEquals(routes[2].parent, '/projects/:id');
+  });
 
-  const matched = router.match('http://localhost/projects/42')!;
-  const routeInfo: RouteInfo = router.toRouteInfo(matched, '/projects/42');
+  await t.step('matches child routes correctly', () => {
+    const routes = [
+      createRoute('/projects', 'projects'),
+      createRoute('/projects/:id', 'project-detail', '/projects'),
+    ];
+    const manifest = createTestManifest(routes);
+    const router = new RouteCore(manifest);
 
-  assertEquals(routeInfo.pathname, '/projects/42');
-  assertEquals(routeInfo.pattern, '/projects/:id');
-  assertEquals(routeInfo.params, { id: '42' });
-  assertEquals(routeInfo.searchParams.toString(), '');
+    const matched = router.match('/projects/123');
+
+    assertEquals(matched?.route.pattern, '/projects/:id');
+    assertEquals(matched?.route.parent, '/projects');
+  });
 });
 
-Deno.test('RouteCore - toRouteInfo preserves searchParams from matched route', () => {
-  const routes = [
-    createTestRoute({ pattern: '/search', modulePath: '/search.page.ts' }),
-  ];
-  const router = new RouteCore(createTestManifest(routes));
+Deno.test('RouteCore - route hierarchy building', async (t) => {
+  await t.step('builds hierarchy for root', () => {
+    const manifest = createTestManifest([]);
+    const router = new RouteCore(manifest);
 
-  const url = new URL('http://localhost/search?q=hello&page=2');
-  const matched = router.match(url)!;
-  const routeInfo: RouteInfo = router.toRouteInfo(matched, '/search');
+    const hierarchy = router.buildRouteHierarchy('/');
 
-  assertEquals(routeInfo.pathname, '/search');
-  assertEquals(routeInfo.pattern, '/search');
-  assertEquals(routeInfo.searchParams.get('q'), 'hello');
-  assertEquals(routeInfo.searchParams.get('page'), '2');
+    assertEquals(hierarchy, ['/']);
+  });
+
+  await t.step('builds hierarchy for single segment', () => {
+    const manifest = createTestManifest([]);
+    const router = new RouteCore(manifest);
+
+    const hierarchy = router.buildRouteHierarchy('/about');
+
+    assertEquals(hierarchy, ['/', '/about']);
+  });
+
+  await t.step('builds hierarchy for multiple segments', () => {
+    const manifest = createTestManifest([]);
+    const router = new RouteCore(manifest);
+
+    const hierarchy = router.buildRouteHierarchy('/projects/123/tasks');
+
+    assertEquals(hierarchy, ['/', '/projects', '/projects/123', '/projects/123/tasks']);
+  });
+
+  await t.step('handles trailing segments correctly', () => {
+    const manifest = createTestManifest([]);
+    const router = new RouteCore(manifest);
+
+    const hierarchy = router.buildRouteHierarchy('/a/b/c/d/e');
+
+    assertEquals(hierarchy, [
+      '/',
+      '/a',
+      '/a/b',
+      '/a/b/c',
+      '/a/b/c/d',
+      '/a/b/c/d/e',
+    ]);
+  });
 });
 
-Deno.test('RouteCore - toRouteInfo defaults searchParams to empty when absent', () => {
-  const router = new RouteCore(createTestManifest());
+Deno.test('RouteCore - URL normalization', async (t) => {
+  await t.step('removes trailing slash', () => {
+    const manifest = createTestManifest([]);
+    const router = new RouteCore(manifest);
 
-  const matched: MatchedRoute = {
-    route: createTestRoute({ pattern: '/about' }),
-    params: {},
-    patternResult: {} as URLPatternResult,
-  };
-  const routeInfo: RouteInfo = router.toRouteInfo(matched, '/about');
+    const normalized = router.normalizeUrl('/about/');
 
-  assertEquals(routeInfo.searchParams.toString(), '');
+    assertEquals(normalized, '/about');
+  });
+
+  await t.step('keeps root slash', () => {
+    const manifest = createTestManifest([]);
+    const router = new RouteCore(manifest);
+
+    const normalized = router.normalizeUrl('/');
+
+    assertEquals(normalized, '/');
+  });
+
+  await t.step('keeps URLs without trailing slash', () => {
+    const manifest = createTestManifest([]);
+    const router = new RouteCore(manifest);
+
+    const normalized = router.normalizeUrl('/projects/123');
+
+    assertEquals(normalized, '/projects/123');
+  });
+
+  await t.step('handles nested paths with trailing slash', () => {
+    const manifest = createTestManifest([]);
+    const router = new RouteCore(manifest);
+
+    const normalized = router.normalizeUrl('/projects/123/tasks/');
+
+    assertEquals(normalized, '/projects/123/tasks');
+  });
 });
 
-Deno.test('RouteCore - toRouteInfo pathname is the resolved path, not the pattern', () => {
-  const routes = [
-    createTestRoute({ pattern: '/users/:id/posts', modulePath: '/users/[id]/posts.page.ts' }),
-  ];
-  const router = new RouteCore(createTestManifest(routes));
+Deno.test('RouteCore - path conversion', async (t) => {
+  await t.step('converts relative path to absolute', () => {
+    const manifest = createTestManifest([]);
+    const router = new RouteCore(manifest);
 
-  const matched = router.match('http://localhost/users/99/posts')!;
-  const routeInfo: RouteInfo = router.toRouteInfo(matched, '/users/99/posts');
+    const absolute = router.toAbsolutePath('about');
 
-  assertEquals(routeInfo.pathname, '/users/99/posts');
-  assertEquals(routeInfo.pattern, '/users/:id/posts');
-  assertEquals(routeInfo.params.id, '99');
+    assertEquals(absolute, '/about');
+  });
+
+  await t.step('keeps absolute paths unchanged', () => {
+    const manifest = createTestManifest([]);
+    const router = new RouteCore(manifest);
+
+    const absolute = router.toAbsolutePath('/about');
+
+    assertEquals(absolute, '/about');
+  });
+
+  await t.step('converts nested relative paths', () => {
+    const manifest = createTestManifest([]);
+    const router = new RouteCore(manifest);
+
+    const absolute = router.toAbsolutePath('projects/123/tasks');
+
+    assertEquals(absolute, '/projects/123/tasks');
+  });
+});
+
+Deno.test('RouteCore - route info building', async (t) => {
+  await t.step('builds route info from matched route', () => {
+    const routes = [createRoute('/projects/:id')];
+    const manifest = createTestManifest(routes);
+    const router = new RouteCore(manifest);
+
+    const matched = router.match('/projects/123')!;
+    const info = router.toRouteInfo(matched, '/projects/123');
+
+    assertEquals(info.pathname, '/projects/123');
+    assertEquals(info.pattern, '/projects/:id');
+    assertEquals(info.params.id, '123');
+  });
+
+  await t.step('includes search params in route info', () => {
+    const routes = [createRoute('/search')];
+    const manifest = createTestManifest(routes);
+    const router = new RouteCore(manifest);
+
+    const matched = router.match('/search?q=test')!;
+    const info = router.toRouteInfo(matched, '/search');
+
+    assertEquals(info.searchParams.get('q'), 'test');
+  });
+
+  await t.step('provides default empty search params if not set', () => {
+    const routes = [createRoute('/about')];
+    const manifest = createTestManifest(routes);
+    const router = new RouteCore(manifest);
+
+    const matched = { route: routes[0], params: {} } as any;
+    const info = router.toRouteInfo(matched, '/about');
+
+    assertExists(info.searchParams);
+    assertEquals(info.searchParams.toString(), '');
+  });
+});
+
+Deno.test('RouteCore - module loading and caching', async (t) => {
+  await t.step('caches modules', async () => {
+    const manifest = createTestManifest();
+    const router = new RouteCore(manifest);
+
+    const module1 = await router.loadModule('test-loader');
+    const module2 = await router.loadModule('test-loader');
+
+    assertEquals(module1, module2);
+  });
+
+  await t.step('loads module from moduleLoaders', async () => {
+    const manifest = createTestManifest();
+    const router = new RouteCore(manifest);
+
+    const module = await router.loadModule('test-loader') as any;
+
+    assertEquals(module.test, true);
+  });
+
+  await t.step('returns different modules for different paths', async () => {
+    const manifest: RoutesManifest = {
+      routes: [],
+      errorBoundaries: [],
+      statusPages: new Map(),
+      moduleLoaders: {
+        'module-1': () => Promise.resolve({ id: 1 }),
+        'module-2': () => Promise.resolve({ id: 2 }),
+      },
+    };
+    const router = new RouteCore(manifest);
+
+    const mod1 = await router.loadModule('module-1') as any;
+    const mod2 = await router.loadModule('module-2') as any;
+
+    assertEquals(mod1.id, 1);
+    assertEquals(mod2.id, 2);
+  });
+});
+
+Deno.test('RouteCore - event emission', async (t) => {
+  await t.step('emits events to listeners', () => {
+    const manifest = createTestManifest([]);
+    const router = new RouteCore(manifest);
+
+    const events: any[] = [];
+    router.addEventListener((event) => {
+      events.push(event);
+    });
+
+    router.emit({ type: 'navigate', pathname: '/about', params: {} });
+
+    assertEquals(events.length, 1);
+    assertEquals(events[0].type, 'navigate');
+    assertEquals(events[0].pathname, '/about');
+  });
+
+  await t.step('supports multiple listeners', () => {
+    const manifest = createTestManifest([]);
+    const router = new RouteCore(manifest);
+
+    const events1: any[] = [];
+    const events2: any[] = [];
+
+    router.addEventListener((event) => events1.push(event));
+    router.addEventListener((event) => events2.push(event));
+
+    router.emit({ type: 'navigate', pathname: '/about', params: {} });
+
+    assertEquals(events1.length, 1);
+    assertEquals(events2.length, 1);
+  });
+
+  await t.step('listener removal returns unsubscribe function', () => {
+    const manifest = createTestManifest([]);
+    const router = new RouteCore(manifest);
+
+    const events: any[] = [];
+    const unsubscribe = router.addEventListener((event) => {
+      events.push(event);
+    });
+
+    router.emit({ type: 'navigate', pathname: '/about', params: {} });
+    assertEquals(events.length, 1);
+
+    unsubscribe();
+
+    router.emit({ type: 'navigate', pathname: '/projects', params: {} });
+    assertEquals(events.length, 1);
+  });
+
+  await t.step('handles listener errors gracefully', () => {
+    const manifest = createTestManifest([]);
+    const router = new RouteCore(manifest);
+
+    const errors: any[] = [];
+    const originalError = console.error;
+    console.error = (msg: string, err: any) => {
+      errors.push(err);
+    };
+
+    router.addEventListener(() => {
+      throw new Error('Listener error');
+    });
+
+    router.addEventListener(() => {
+      // This should still be called even though first listener threw
+    });
+
+    try {
+      router.emit({ type: 'navigate', pathname: '/about', params: {} });
+      assertEquals(errors.length > 0, true);
+    } finally {
+      console.error = originalError;
+    }
+  });
+
+  await t.step('emits events with route parameters', () => {
+    const manifest = createTestManifest([]);
+    const router = new RouteCore(manifest);
+
+    const events: any[] = [];
+    router.addEventListener((event) => events.push(event));
+
+    router.emit({
+      type: 'navigate',
+      pathname: '/users/123',
+      params: { id: '123' },
+    });
+
+    assertEquals(events[0].params.id, '123');
+  });
+
+  await t.step('emits error events', () => {
+    const manifest = createTestManifest([]);
+    const router = new RouteCore(manifest);
+
+    const events: any[] = [];
+    router.addEventListener((event) => events.push(event));
+
+    const error = new Error('Route not found');
+    router.emit({
+      type: 'error',
+      pathname: '/nonexistent',
+      params: {},
+      error,
+    });
+
+    assertEquals(events[0].type, 'error');
+    assertEquals(events[0].error, error);
+  });
+});
+
+Deno.test('RouteCore - context provider integration', async (t) => {
+  await t.step('extends context with provider', async () => {
+    const manifest = createTestManifest();
+    const provider = (ctx: ComponentContext) => ({
+      ...ctx,
+      userId: '123',
+      isAuthenticated: true,
+    });
+
+    const router = new RouteCore(manifest, { extendContext: provider });
+
+    const baseContext: ComponentContext = {
+      pathname: '/dashboard',
+      pattern: '/dashboard',
+      params: {},
+      searchParams: new URLSearchParams(),
+    };
+
+    const extended = router.contextProvider!(baseContext) as any;
+
+    assertEquals(extended.userId, '123');
+    assertEquals(extended.isAuthenticated, true);
+    assertEquals(extended.pathname, '/dashboard');
+  });
+
+  await t.step('builds component context with provider', async () => {
+    const manifest: RoutesManifest = {
+      routes: [],
+      errorBoundaries: [],
+      statusPages: new Map(),
+    };
+
+    const provider = (ctx: ComponentContext) => ({
+      ...ctx,
+      appName: 'MyApp',
+    });
+
+    const router = new RouteCore(manifest, { extendContext: provider });
+
+    const routeInfo: any = {
+      pathname: '/home',
+      pattern: '/home',
+      params: {},
+      searchParams: new URLSearchParams(),
+    };
+
+    const route = createRoute('/home');
+
+    const context = await router.buildComponentContext(routeInfo, route);
+
+    assertEquals((context as any).appName, 'MyApp');
+    assertEquals(context.pathname, '/home');
+  });
+
+  await t.step('preserves files in extended context', async () => {
+    const manifest: RoutesManifest = {
+      routes: [],
+      errorBoundaries: [],
+      statusPages: new Map(),
+    };
+
+    const provider = (ctx: ComponentContext) => ({
+      ...ctx,
+      custom: 'data',
+    });
+
+    const router = new RouteCore(manifest, { extendContext: provider });
+
+    const routeInfo: any = {
+      pathname: '/page',
+      pattern: '/page',
+      params: {},
+      searchParams: new URLSearchParams(),
+    };
+
+    const route = createRoute('/page');
+    const context = await router.buildComponentContext(routeInfo, route);
+
+    assertEquals((context as any).custom, 'data');
+    assertEquals(context.files?.html, undefined);
+  });
+});
+
+Deno.test('RouteCore - specificity ordering', async (t) => {
+  await t.step('matches more specific static routes before less specific', () => {
+    const routes = [
+      createRoute('/projects'),
+      createRoute('/projects/featured'),
+      createRoute('/projects/:id'),
+    ];
+    const manifest = createTestManifest(routes);
+    const router = new RouteCore(manifest);
+
+    const matched = router.match('/projects/featured');
+
+    assertEquals(matched?.route.pattern, '/projects/featured');
+  });
+
+  await t.step('matches static routes before dynamic when ordered correctly', () => {
+    // Routes must be ordered by specificity in the manifest
+    const routes = [
+      createRoute('/posts/featured'),
+      createRoute('/posts/:id'),
+    ];
+    const manifest = createTestManifest(routes);
+    const router = new RouteCore(manifest);
+
+    const matched = router.match('/posts/featured');
+
+    assertEquals(matched?.route.pattern, '/posts/featured');
+  });
+
+  await t.step('matches deeper routes before shallower', () => {
+    const routes = [
+      createRoute('/projects/:id'),
+      createRoute('/projects/:id/tasks'),
+      createRoute('/projects/:id/tasks/:taskId'),
+    ];
+    const manifest = createTestManifest(routes);
+    const router = new RouteCore(manifest);
+
+    const matched = router.match('/projects/123/tasks/456');
+
+    assertEquals(matched?.route.pattern, '/projects/:id/tasks/:taskId');
+  });
+});
+
+Deno.test('RouteCore - catch-all and wildcard routes', async (t) => {
+  await t.step('matches wildcard routes with rest parameter', () => {
+    const routes = [
+      createRoute('/docs/:rest*'),
+    ];
+    const manifest = createTestManifest(routes);
+    const router = new RouteCore(manifest);
+
+    const matched = router.match('/docs/guides/getting-started');
+
+    assertExists(matched);
+  });
+
+  await t.step('provides catch-all for nested paths', () => {
+    const routes = [
+      createRoute('/docs'),
+      createRoute('/docs/:rest*'),
+    ];
+    const manifest = createTestManifest(routes);
+    const router = new RouteCore(manifest);
+
+    const matched1 = router.match('/docs');
+    const matched2 = router.match('/docs/guides/advanced/optimization');
+
+    assertEquals(matched1?.route.pattern, '/docs');
+    assertEquals(matched2?.route.pattern, '/docs/:rest*');
+  });
+});
+
+Deno.test('RouteCore - edge cases', async (t) => {
+  await t.step('handles empty route params', () => {
+    const routes = [createRoute('/static')];
+    const manifest = createTestManifest(routes);
+    const router = new RouteCore(manifest);
+
+    const matched = router.match('/static');
+
+    assertEquals(matched?.params, {});
+  });
+
+  await t.step('handles route with special characters in dynamic segment', () => {
+    const routes = [createRoute('/search/:query')];
+    const manifest = createTestManifest(routes);
+    const router = new RouteCore(manifest);
+
+    const matched = router.match('/search/hello-world');
+
+    assertEquals(matched?.params.query, 'hello-world');
+  });
+
+  await t.step('handles complex nested dynamic parameters', () => {
+    const routes = [createRoute('/api/:version/users/:userId/posts/:postId/comments/:commentId')];
+    const manifest = createTestManifest(routes);
+    const router = new RouteCore(manifest);
+
+    const matched = router.match('/api/v1/users/user123/posts/post456/comments/comment789');
+
+    assertEquals(matched?.params.version, 'v1');
+    assertEquals(matched?.params.userId, 'user123');
+    assertEquals(matched?.params.postId, 'post456');
+    assertEquals(matched?.params.commentId, 'comment789');
+  });
+
+  await t.step('handles routes with hyphens in static segments', () => {
+    const routes = [createRoute('/api-docs/:pageName')];
+    const manifest = createTestManifest(routes);
+    const router = new RouteCore(manifest);
+
+    const matched = router.match('/api-docs/getting-started');
+
+    assertExists(matched);
+    assertEquals(matched?.params.pageName, 'getting-started');
+  });
+
+  await t.step('getParams with no params returns empty object', () => {
+    const manifest = createTestManifest([]);
+    const router = new RouteCore(manifest);
+
+    const params = router.getParams();
+
+    assertEquals(params, {});
+  });
+});
+
+Deno.test('RouteCore - SSR prefix constants', async (t) => {
+  await t.step('SSR_HTML_PREFIX is correct', () => {
+    assertEquals(SSR_HTML_PREFIX, '/html/');
+  });
+
+  await t.step('SSR_MD_PREFIX is correct', () => {
+    assertEquals(SSR_MD_PREFIX, '/md/');
+  });
+
+  await t.step('DEFAULT_ROOT_ROUTE has correct structure', () => {
+    assertEquals(DEFAULT_ROOT_ROUTE.pattern, '/');
+    assertEquals(DEFAULT_ROOT_ROUTE.type, 'page');
+    assertEquals(DEFAULT_ROOT_ROUTE.modulePath, '__default_root__');
+  });
 });

@@ -12,7 +12,7 @@
  */
 
 import { assertEquals, assertStringIncludes } from '@std/assert';
-import { resolveWidgetTags, parseAttrsToParams } from '../../src/util/widget-resolve.util.ts';
+import { parseAttrsToParams, resolveWidgetTags } from '../../src/util/widget-resolve.util.ts';
 import { WidgetComponent } from '../../src/component/widget.component.ts';
 import type { ComponentContext, ContextProvider } from '../../src/component/abstract.component.ts';
 import type { RouteInfo } from '../../src/type/route.type.ts';
@@ -675,7 +675,8 @@ Deno.test('resolveWidgetTags - self-closing widget tag syntax not matched', asyn
  */
 
 Deno.test('resolveWidgetTags - concurrent widget resolution', async () => {
-  const html = '<widget-simple></widget-simple><widget-param-widget count="5"></widget-param-widget>';
+  const html =
+    '<widget-simple></widget-simple><widget-param-widget count="5"></widget-param-widget>';
   const registry = new MockRegistry(new SimpleWidget(), new ParamWidget());
   const routeInfo = createTestRouteInfo();
 
@@ -688,8 +689,7 @@ Deno.test('resolveWidgetTags - widget with all attribute quote styles', async ()
   const customWidget = new (class extends ParamWidget {
     override getData({ params }: any) {
       return Promise.resolve({
-        total:
-          parseInt(params.dQuote ?? '0', 10) +
+        total: parseInt(params.dQuote ?? '0', 10) +
           parseInt(params.sQuote ?? '0', 10) +
           parseInt(params.noQuote ?? '0', 10),
         displayName: 'sum',
@@ -733,7 +733,7 @@ Deno.test('resolveWidgetTags - whitespace around widget tags', async () => {
  */
 
 Deno.test('parseAttrsToParams - JSON array parsed', () => {
-  assertEquals(parseAttrsToParams('items=\'[1,2,3]\''), { items: [1, 2, 3] });
+  assertEquals(parseAttrsToParams("items='[1,2,3]'"), { items: [1, 2, 3] });
 });
 
 Deno.test('parseAttrsToParams - nested JSON object', () => {

@@ -12,8 +12,11 @@
  * - .page.ts + .page.md (markdown in context)
  * - Flat file vs directory index
  * - Nested dynamic routes
+ * - Nesting at multiple depths (all file combinations)
  * - Redirects
- * - 404
+ * - 404 / 500 status pages
+ * - CSS injection (page and widget)
+ * - Widget rendering in SSR mode
  */
 
 import { assert, assertEquals } from '@std/assert';
@@ -120,6 +123,199 @@ Deno.test(
       assertEquals(res.status, 200);
       const html = await res.text();
       assert(html.includes('Project Hub'), 'should contain directory index content');
+    });
+
+    // --- Nesting: .html + .md (4 levels) ---
+
+    await t.step('nesting (.html+.md) — root level', async () => {
+      const res = await fetch(baseUrl('/html/nesting'));
+      assertEquals(res.status, 200);
+      const html = await res.text();
+      assert(html.includes('[nesting] .html BEFORE slot'), 'should contain nesting root content');
+      assert(html.includes('[nesting] .html AFTER slot'), 'should contain nesting root footer');
+    });
+
+    await t.step('nesting (.html+.md) — level 1', async () => {
+      const res = await fetch(baseUrl('/html/nesting/lvl-one'));
+      assertEquals(res.status, 200);
+      const html = await res.text();
+      assert(html.includes('[nesting] .html BEFORE slot'), 'should contain root wrapper');
+      assert(html.includes('[lvl-one] .html BEFORE slot'), 'should contain lvl-one content');
+      assert(html.includes('[lvl-one] .html AFTER slot'), 'should contain lvl-one footer');
+    });
+
+    await t.step('nesting (.html+.md) — level 2', async () => {
+      const res = await fetch(baseUrl('/html/nesting/lvl-one/level-two'));
+      assertEquals(res.status, 200);
+      const html = await res.text();
+      assert(html.includes('[nesting] .html BEFORE slot'), 'should contain root wrapper');
+      assert(html.includes('[lvl-one] .html BEFORE slot'), 'should contain lvl-one wrapper');
+      assert(html.includes('[level-two] .html BEFORE slot'), 'should contain level-two content');
+    });
+
+    await t.step('nesting (.html+.md) — level 3 (leaf)', async () => {
+      const res = await fetch(baseUrl('/html/nesting/lvl-one/level-two/level-three'));
+      assertEquals(res.status, 200);
+      const html = await res.text();
+      assert(html.includes('[nesting] .html BEFORE slot'), 'should contain root wrapper');
+      assert(html.includes('[lvl-one] .html BEFORE slot'), 'should contain lvl-one wrapper');
+      assert(html.includes('[level-two] .html BEFORE slot'), 'should contain level-two wrapper');
+      assert(
+        html.includes('[level-three] .html BEFORE slot'),
+        'should contain level-three leaf content',
+      );
+      assert(
+        html.includes('[level-three] .html AFTER slot'),
+        'leaf should have both before/after markers',
+      );
+    });
+
+    // --- Nesting: .ts + .html (4 levels) ---
+
+    await t.step('nesting-ts-html (.ts+.html) — root level', async () => {
+      const res = await fetch(baseUrl('/html/nesting-ts-html'));
+      assertEquals(res.status, 200);
+      const html = await res.text();
+      assert(
+        html.includes('[nesting-ts-html] .html BEFORE slot'),
+        'should contain root content',
+      );
+    });
+
+    await t.step('nesting-ts-html (.ts+.html) — level 1', async () => {
+      const res = await fetch(baseUrl('/html/nesting-ts-html/lvl-one'));
+      assertEquals(res.status, 200);
+      const html = await res.text();
+      assert(
+        html.includes('[nesting-ts-html] .html BEFORE slot'),
+        'should contain root wrapper',
+      );
+      assert(
+        html.includes('[lvl-one-ts-html] .html BEFORE slot'),
+        'should contain lvl-one content',
+      );
+    });
+
+    await t.step('nesting-ts-html (.ts+.html) — level 2', async () => {
+      const res = await fetch(baseUrl('/html/nesting-ts-html/lvl-one/level-two'));
+      assertEquals(res.status, 200);
+      const html = await res.text();
+      assert(
+        html.includes('[nesting-ts-html] .html BEFORE slot'),
+        'should contain root wrapper',
+      );
+      assert(
+        html.includes('[lvl-one-ts-html] .html BEFORE slot'),
+        'should contain lvl-one wrapper',
+      );
+      assert(
+        html.includes('[level-two-ts-html] .html BEFORE slot'),
+        'should contain level-two content',
+      );
+    });
+
+    await t.step('nesting-ts-html (.ts+.html) — level 3 (leaf)', async () => {
+      const res = await fetch(baseUrl('/html/nesting-ts-html/lvl-one/level-two/level-three'));
+      assertEquals(res.status, 200);
+      const html = await res.text();
+      assert(
+        html.includes('[nesting-ts-html] .html BEFORE slot'),
+        'should contain root wrapper',
+      );
+      assert(
+        html.includes('[lvl-one-ts-html] .html BEFORE slot'),
+        'should contain lvl-one wrapper',
+      );
+      assert(
+        html.includes('[level-two-ts-html] .html BEFORE slot'),
+        'should contain level-two wrapper',
+      );
+      assert(
+        html.includes('[level-three-ts-html] .html'),
+        'should contain level-three leaf content',
+      );
+    });
+
+    // --- Nesting: .ts + .md (4 levels) ---
+
+    await t.step('nesting-ts-md (.ts+.md) — root level', async () => {
+      const res = await fetch(baseUrl('/html/nesting-ts-md'));
+      assertEquals(res.status, 200);
+      const html = await res.text();
+      assert(html.includes('[nesting-ts-md] .md BEFORE slot'), 'should contain root content');
+    });
+
+    await t.step('nesting-ts-md (.ts+.md) — level 1', async () => {
+      const res = await fetch(baseUrl('/html/nesting-ts-md/lvl-one'));
+      assertEquals(res.status, 200);
+      const html = await res.text();
+      assert(html.includes('[nesting-ts-md] .md BEFORE slot'), 'should contain root wrapper');
+      assert(html.includes('[lvl-one-ts-md] .md BEFORE slot'), 'should contain lvl-one content');
+    });
+
+    await t.step('nesting-ts-md (.ts+.md) — level 2', async () => {
+      const res = await fetch(baseUrl('/html/nesting-ts-md/lvl-one/level-two'));
+      assertEquals(res.status, 200);
+      const html = await res.text();
+      assert(html.includes('[nesting-ts-md] .md BEFORE slot'), 'should contain root wrapper');
+      assert(html.includes('[lvl-one-ts-md] .md BEFORE slot'), 'should contain lvl-one wrapper');
+      assert(
+        html.includes('[level-two-ts-md] .md BEFORE slot'),
+        'should contain level-two content',
+      );
+    });
+
+    await t.step('nesting-ts-md (.ts+.md) — level 3 (leaf)', async () => {
+      const res = await fetch(baseUrl('/html/nesting-ts-md/lvl-one/level-two/level-three'));
+      assertEquals(res.status, 200);
+      const html = await res.text();
+      assert(html.includes('[nesting-ts-md] .md BEFORE slot'), 'should contain root wrapper');
+      assert(html.includes('[lvl-one-ts-md] .md BEFORE slot'), 'should contain lvl-one wrapper');
+      assert(
+        html.includes('[level-two-ts-md] .md BEFORE slot'),
+        'should contain level-two wrapper',
+      );
+      assert(html.includes('[level-three-ts-md] .md'), 'should contain level-three leaf content');
+    });
+
+    // --- Nesting: .ts only parents + mixed leaves ---
+
+    await t.step('nesting-ts (ts-only parents) — typescript leaf', async () => {
+      const res = await fetch(
+        baseUrl('/html/nesting-ts/lvl-one/level-two/level-three/typescript'),
+      );
+      assertEquals(res.status, 200);
+      const html = await res.text();
+      assert(
+        html.includes('[typescript-leaf] rendered by .ts renderHTML'),
+        'should render typescript leaf via renderHTML override',
+      );
+      assert(
+        !html.includes('BEFORE slot'),
+        'ts-only parents should be transparent passthrough',
+      );
+    });
+
+    await t.step('nesting-ts (ts-only parents) — markdown leaf', async () => {
+      const res = await fetch(
+        baseUrl('/html/nesting-ts/lvl-one/level-two/level-three/markdown'),
+      );
+      assertEquals(res.status, 200);
+      const html = await res.text();
+      assert(
+        html.includes('[markdown-leaf] rendered by .md file'),
+        'should render markdown leaf content',
+      );
+    });
+
+    await t.step('nesting-ts (ts-only parents) — html leaf', async () => {
+      const res = await fetch(baseUrl('/html/nesting-ts/lvl-one/level-two/level-three/html'));
+      assertEquals(res.status, 200);
+      const html = await res.text();
+      assert(
+        html.includes('[html-leaf] rendered by .html file'),
+        'should render html leaf content',
+      );
     });
 
     // --- Redirect ---
@@ -400,6 +596,150 @@ Deno.test(
       assertEquals(res.status, 200);
       const md = await res.text();
       assert(md.includes('Project Hub'), 'should contain directory index content');
+    });
+
+    // --- Nesting: .html + .md (4 levels) ---
+
+    await t.step('nesting (.html+.md) — root level markdown', async () => {
+      const res = await fetch(baseUrl('/md/nesting'));
+      assertEquals(res.status, 200);
+      const md = await res.text();
+      assert(
+        md.includes('[nesting] .md BEFORE slot'),
+        'should contain nesting root markdown content',
+      );
+      assert(
+        md.includes('[nesting] .md AFTER slot'),
+        'should contain nesting root markdown footer',
+      );
+    });
+
+    await t.step('nesting (.html+.md) — level 1 markdown', async () => {
+      const res = await fetch(baseUrl('/md/nesting/lvl-one'));
+      assertEquals(res.status, 200);
+      const md = await res.text();
+      assert(md.includes('[nesting] .md BEFORE slot'), 'should contain root wrapper');
+      assert(md.includes('[lvl-one] .md BEFORE slot'), 'should contain lvl-one markdown');
+      assert(md.includes('[lvl-one] .md AFTER slot'), 'should contain lvl-one footer');
+    });
+
+    await t.step('nesting (.html+.md) — level 2 markdown', async () => {
+      const res = await fetch(baseUrl('/md/nesting/lvl-one/level-two'));
+      assertEquals(res.status, 200);
+      const md = await res.text();
+      assert(md.includes('[nesting] .md BEFORE slot'), 'should contain root wrapper');
+      assert(md.includes('[lvl-one] .md BEFORE slot'), 'should contain lvl-one wrapper');
+      assert(md.includes('[level-two] .md BEFORE slot'), 'should contain level-two markdown');
+    });
+
+    await t.step('nesting (.html+.md) — level 3 markdown (leaf)', async () => {
+      const res = await fetch(baseUrl('/md/nesting/lvl-one/level-two/level-three'));
+      assertEquals(res.status, 200);
+      const md = await res.text();
+      assert(md.includes('[nesting] .md BEFORE slot'), 'should contain root wrapper');
+      assert(md.includes('[lvl-one] .md BEFORE slot'), 'should contain lvl-one wrapper');
+      assert(md.includes('[level-two] .md BEFORE slot'), 'should contain level-two wrapper');
+      assert(md.includes('[level-three] .md'), 'should contain level-three leaf markdown');
+    });
+
+    // --- Nesting: .ts + .html (no .md) — expected root-only behavior ---
+
+    await t.step('nesting-ts-html (.ts+.html, no .md) — root only visible', async () => {
+      const res = await fetch(baseUrl('/md/nesting-ts-html'));
+      assertEquals(res.status, 200);
+      const md = await res.text();
+      assert(
+        md.includes('[nesting-ts-html] .md BEFORE slot') === false,
+        'should not have markdown content (no .md file)',
+      );
+      // Expected: falls back to router-slot placeholder with no visible content
+    });
+
+    await t.step('nesting-ts-html — level 1 (root-only expected)', async () => {
+      const res = await fetch(baseUrl('/md/nesting-ts-html/lvl-one'));
+      assertEquals(res.status, 200);
+      const md = await res.text();
+      // Expected: pages without .md files produce invisible slot placeholders
+      // Only root page's markdown is visible (if any)
+      const hasNoVisibleNesting = !md.includes('[lvl-one] .md BEFORE slot');
+      assert(
+        hasNoVisibleNesting,
+        'level without .md file should be invisible in SSR Markdown',
+      );
+    });
+
+    // --- Nesting: .ts + .md (4 levels) ---
+
+    await t.step('nesting-ts-md (.ts+.md) — root level markdown', async () => {
+      const res = await fetch(baseUrl('/md/nesting-ts-md'));
+      assertEquals(res.status, 200);
+      const md = await res.text();
+      assert(
+        md.includes('[nesting-ts-md] .md BEFORE slot'),
+        'should contain root markdown content',
+      );
+    });
+
+    await t.step('nesting-ts-md (.ts+.md) — level 1 markdown', async () => {
+      const res = await fetch(baseUrl('/md/nesting-ts-md/lvl-one'));
+      assertEquals(res.status, 200);
+      const md = await res.text();
+      assert(md.includes('[nesting-ts-md] .md BEFORE slot'), 'should contain root wrapper');
+      assert(md.includes('[lvl-one-ts-md] .md BEFORE slot'), 'should contain lvl-one markdown');
+    });
+
+    await t.step('nesting-ts-md (.ts+.md) — level 2 markdown', async () => {
+      const res = await fetch(baseUrl('/md/nesting-ts-md/lvl-one/level-two'));
+      assertEquals(res.status, 200);
+      const md = await res.text();
+      assert(md.includes('[nesting-ts-md] .md BEFORE slot'), 'should contain root wrapper');
+      assert(md.includes('[lvl-one-ts-md] .md BEFORE slot'), 'should contain lvl-one wrapper');
+      assert(md.includes('[level-two-ts-md] .md BEFORE slot'), 'should contain level-two markdown');
+    });
+
+    await t.step('nesting-ts-md (.ts+.md) — level 3 markdown (leaf)', async () => {
+      const res = await fetch(baseUrl('/md/nesting-ts-md/lvl-one/level-two/level-three'));
+      assertEquals(res.status, 200);
+      const md = await res.text();
+      assert(md.includes('[nesting-ts-md] .md BEFORE slot'), 'should contain root wrapper');
+      assert(md.includes('[lvl-one-ts-md] .md BEFORE slot'), 'should contain lvl-one wrapper');
+      assert(md.includes('[level-two-ts-md] .md BEFORE slot'), 'should contain level-two wrapper');
+      assert(md.includes('[level-three-ts-md] .md'), 'should contain level-three leaf markdown');
+    });
+
+    // --- Nesting: .ts only parents + mixed leaves ---
+
+    await t.step('nesting-ts (ts-only parents) — typescript leaf markdown', async () => {
+      const res = await fetch(
+        baseUrl('/md/nesting-ts/lvl-one/level-two/level-three/typescript'),
+      );
+      assertEquals(res.status, 200);
+      const md = await res.text();
+      assert(
+        md.includes('[typescript-leaf] rendered by .ts renderMarkdown'),
+        'should render typescript leaf via renderMarkdown override',
+      );
+    });
+
+    await t.step('nesting-ts (ts-only parents) — markdown leaf', async () => {
+      const res = await fetch(
+        baseUrl('/md/nesting-ts/lvl-one/level-two/level-three/markdown'),
+      );
+      assertEquals(res.status, 200);
+      const md = await res.text();
+      assert(
+        md.includes('[markdown-leaf] rendered by .md file'),
+        'should render markdown leaf content',
+      );
+    });
+
+    await t.step('nesting-ts (ts-only parents) — html leaf (no .md, root-only)', async () => {
+      const res = await fetch(baseUrl('/md/nesting-ts/lvl-one/level-two/level-three/html'));
+      assertEquals(res.status, 200);
+      const md = await res.text();
+      // Expected: html-only leaf has no .md file, produces invisible slot placeholder
+      const hasNoVisibleContent = !md.includes('[html-leaf] .md');
+      assert(hasNoVisibleContent, 'html-only leaf should be invisible in SSR Markdown');
     });
 
     // --- Redirect ---

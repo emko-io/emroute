@@ -53,13 +53,17 @@
   },
   "tasks": {
     "test": "deno test test/unit/*.test.ts",
-    "test:watch": "deno test test/unit/*.test.ts --watch",
+    "test:unit": "deno test test/unit/*.test.ts",
+    "test:unit:watch": "deno test test/unit/*.test.ts --watch",
+    "test:browser": "TEST_PORT=4100 deno test test/browser/*.test.ts --allow-net --allow-read --allow-write --allow-env --allow-run --allow-sys",
+    "test:browser:watch": "TEST_PORT=4100 deno test test/browser/*.test.ts --allow-net --allow-read --allow-write --allow-env --allow-run --allow-sys --watch",
+    "test:all": "deno test test/unit/*.test.ts & TEST_PORT=4100 deno test test/browser/*.test.ts --allow-net --allow-read --allow-write --allow-env --allow-run --allow-sys & wait",
+    "test:server": "TEST_PORT=4100 deno run --allow-net --allow-read --allow-write --allow-run --allow-env --allow-sys test/browser/start-server.ts",
     "check": "deno check src/index.ts",
     "fmt": "deno fmt",
     "lint": "deno lint",
     "generate:routes": "deno run --allow-read --allow-write tool/cli.ts",
-    "dev": "deno run --allow-net --allow-read --allow-write --allow-run --allow-env server/cli.deno.ts",
-    "test:browser": "deno test test/browser/*.test.ts --allow-net --allow-read --allow-write --allow-env --allow-run --allow-sys"
+    "dev": "deno run --allow-net --allow-read --allow-write --allow-run --allow-env server/cli.deno.ts"
   },
   "compilerOptions": {
     "lib": ["dom", "dom.iterable", "esnext", "deno.ns"],

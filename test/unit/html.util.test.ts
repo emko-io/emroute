@@ -1,235 +1,350 @@
-import { assertEquals } from '@std/assert';
-import { escapeHtml, scopeWidgetCss, STATUS_MESSAGES } from '../../src/util/html.util.ts';
-import { parseAttrsToParams } from '../../src/util/widget-resolve.util.ts';
+import { assertEquals, assertStrictEquals } from '@std/assert';
+import {
+  DATA_SSR_ATTR,
+  escapeHtml,
+  HTMLElementBase,
+  LAZY_ATTR,
+  scopeWidgetCss,
+  STATUS_MESSAGES,
+  unescapeHtml,
+} from '../../src/util/html.util.ts';
 
-Deno.test('escapeHtml - basic ampersand', () => {
-  const result = escapeHtml('Hello & goodbye');
-  assertEquals(result, 'Hello &amp; goodbye');
+Deno.test('escapeHtml - basic HTML special characters', () => {
+  assertEquals(escapeHtml('<div>'), '&lt;div&gt;');
+  assertEquals(escapeHtml('<script>'), '&lt;script&gt;');
+  assertEquals(escapeHtml('</script>'), '&lt;/script&gt;');
 });
 
-Deno.test('escapeHtml - basic less than', () => {
-  const result = escapeHtml('<script>');
-  assertEquals(result, '&lt;script&gt;');
+Deno.test('escapeHtml - ampersand', () => {
+  assertEquals(escapeHtml('&'), '&amp;');
+  assertEquals(escapeHtml('&amp;'), '&amp;amp;');
+  assertEquals(escapeHtml('foo & bar'), 'foo &amp; bar');
 });
 
-Deno.test('escapeHtml - basic greater than', () => {
-  const result = escapeHtml('a > b');
-  assertEquals(result, 'a &gt; b');
+Deno.test('escapeHtml - quotes', () => {
+  assertEquals(escapeHtml('"test"'), '&quot;test&quot;');
+  assertEquals(escapeHtml("'test'"), '&#39;test&#39;');
+  assertEquals(escapeHtml('`test`'), '&#96;test&#96;');
 });
 
-Deno.test('escapeHtml - basic double quote', () => {
-  const result = escapeHtml('Say "hello"');
-  assertEquals(result, 'Say &quot;hello&quot;');
+Deno.test('escapeHtml - angle brackets', () => {
+  assertEquals(escapeHtml('<'), '&lt;');
+  assertEquals(escapeHtml('>'), '&gt;');
+  assertEquals(escapeHtml('<>'), '&lt;&gt;');
 });
 
-Deno.test('escapeHtml - all HTML entities', () => {
-  const result = escapeHtml('&<>"');
-  assertEquals(result, '&amp;&lt;&gt;&quot;');
+Deno.test('escapeHtml - XSS prevention scenarios', () => {
+  // Script injection attempt
+  assertEquals(
+    escapeHtml('<script>alert("xss")</script>'),
+    '&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;',
+  );
+
+  // Event handler injection attempt
+  assertEquals(
+    escapeHtml('<img src="x" onerror="alert(\'xss\')">'),
+    '&lt;img src=&quot;x&quot; onerror=&quot;alert(&#39;xss&#39;)&quot;&gt;',
+  );
+
+  // HTML entity injection
+  assertEquals(
+    escapeHtml('&#60;script&#62;'),
+    '&amp;#60;script&amp;#62;',
+  );
+
+  // JavaScript protocol
+  assertEquals(
+    escapeHtml('<a href="javascript:alert(\'xss\')">'),
+    '&lt;a href=&quot;javascript:alert(&#39;xss&#39;)&quot;&gt;',
+  );
 });
 
-Deno.test('escapeHtml - mixed text with multiple special characters', () => {
-  const result = escapeHtml('This & that <div>"quoted"</div>');
-  assertEquals(result, 'This &amp; that &lt;div&gt;&quot;quoted&quot;&lt;/div&gt;');
-});
-
-Deno.test('escapeHtml - multiple ampersands', () => {
-  const result = escapeHtml('Tom & Jerry & Spike');
-  assertEquals(result, 'Tom &amp; Jerry &amp; Spike');
-});
-
-Deno.test('escapeHtml - consecutive special characters', () => {
-  const result = escapeHtml('<<>>');
-  assertEquals(result, '&lt;&lt;&gt;&gt;');
+Deno.test('escapeHtml - all escapable characters together', () => {
+  assertEquals(
+    escapeHtml('<>"\'&`'),
+    '&lt;&gt;&quot;&#39;&amp;&#96;',
+  );
 });
 
 Deno.test('escapeHtml - empty string', () => {
-  const result = escapeHtml('');
-  assertEquals(result, '');
+  assertEquals(escapeHtml(''), '');
 });
 
-Deno.test('escapeHtml - no special characters', () => {
-  const result = escapeHtml('Hello World');
-  assertEquals(result, 'Hello World');
-});
-
-Deno.test('escapeHtml - only spaces', () => {
-  const result = escapeHtml('   ');
-  assertEquals(result, '   ');
+Deno.test('escapeHtml - plain text with no special characters', () => {
+  assertEquals(escapeHtml('hello world'), 'hello world');
+  assertEquals(escapeHtml('123'), '123');
+  assertEquals(escapeHtml('test123'), 'test123');
 });
 
 Deno.test('escapeHtml - unicode characters', () => {
-  const result = escapeHtml('Hello 世界 🌍');
-  assertEquals(result, 'Hello 世界 🌍');
+  assertEquals(escapeHtml('你好'), '你好');
+  assertEquals(escapeHtml('مرحبا'), 'مرحبا');
+  assertEquals(escapeHtml('こんにちは'), 'こんにちは');
+  assertEquals(escapeHtml('Ñoño'), 'Ñoño');
+  assertEquals(escapeHtml('🎉'), '🎉');
+  assertEquals(escapeHtml('Ø'), 'Ø');
 });
 
 Deno.test('escapeHtml - unicode with special characters', () => {
-  const result = escapeHtml('你好 & goodbye "世界"');
-  assertEquals(result, '你好 &amp; goodbye &quot;世界&quot;');
+  assertEquals(escapeHtml('<你好>'), '&lt;你好&gt;');
+  assertEquals(escapeHtml('こんにちは & さようなら'), 'こんにちは &amp; さようなら');
 });
 
-Deno.test('escapeHtml - emoji', () => {
-  const result = escapeHtml('😀 & "happy"');
-  assertEquals(result, '😀 &amp; &quot;happy&quot;');
+Deno.test('escapeHtml - whitespace preservation', () => {
+  assertEquals(escapeHtml('  hello  '), '  hello  ');
+  assertEquals(escapeHtml('\t\n\r'), '\t\n\r');
+  assertEquals(escapeHtml('hello\nworld'), 'hello\nworld');
 });
 
-Deno.test('escapeHtml - newlines and tabs preserved', () => {
-  const result = escapeHtml('Line1\nLine2\tTabbed');
-  assertEquals(result, 'Line1\nLine2\tTabbed');
+Deno.test('escapeHtml - multiple consecutive special characters', () => {
+  assertEquals(escapeHtml('<<<>>>'), '&lt;&lt;&lt;&gt;&gt;&gt;');
+  assertEquals(escapeHtml('&&&'), '&amp;&amp;&amp;');
+  assertEquals(escapeHtml('""\'\''), '&quot;&quot;&#39;&#39;');
 });
 
-Deno.test('escapeHtml - HTML entities not double-escaped', () => {
-  const result = escapeHtml('&lt;');
-  assertEquals(result, '&amp;lt;');
-});
-
-Deno.test('escapeHtml - complex HTML code example', () => {
-  const input = '<script>alert("XSS & injection")</script>';
-  const result = escapeHtml(input);
+Deno.test('escapeHtml - complex HTML document', () => {
+  const html = '<html><head><title>"Test" & \'Content\'</title></head><body>`code`</body></html>';
+  const escaped = escapeHtml(html);
   assertEquals(
-    result,
-    '&lt;script&gt;alert(&quot;XSS &amp; injection&quot;)&lt;/script&gt;',
+    escaped,
+    '&lt;html&gt;&lt;head&gt;&lt;title&gt;&quot;Test&quot; &amp; &#39;Content&#39;&lt;/title&gt;&lt;/head&gt;&lt;body&gt;&#96;code&#96;&lt;/body&gt;&lt;/html&gt;',
   );
 });
 
-Deno.test('escapeHtml - HTML attributes example', () => {
-  const input = 'onclick="alert(\'gotcha\')"';
-  const result = escapeHtml(input);
-  assertEquals(result, 'onclick=&quot;alert(&#39;gotcha&#39;)&quot;');
+Deno.test('unescapeHtml - basic HTML entities', () => {
+  assertEquals(unescapeHtml('&lt;div&gt;'), '<div>');
+  assertEquals(unescapeHtml('&lt;script&gt;'), '<script>');
+  assertEquals(unescapeHtml('&lt;/script&gt;'), '</script>');
 });
 
-Deno.test('STATUS_MESSAGES - 404 status code', () => {
-  assertEquals(STATUS_MESSAGES[404], 'Not Found');
+Deno.test('unescapeHtml - ampersand', () => {
+  assertEquals(unescapeHtml('&amp;'), '&');
+  assertEquals(unescapeHtml('&amp;amp;'), '&amp;');
+  assertEquals(unescapeHtml('foo &amp; bar'), 'foo & bar');
 });
 
-Deno.test('STATUS_MESSAGES - 401 status code', () => {
+Deno.test('unescapeHtml - quotes', () => {
+  assertEquals(unescapeHtml('&quot;test&quot;'), '"test"');
+  assertEquals(unescapeHtml('&#39;test&#39;'), "'test'");
+  assertEquals(unescapeHtml('&#96;test&#96;'), '`test`');
+});
+
+Deno.test('unescapeHtml - empty string', () => {
+  assertEquals(unescapeHtml(''), '');
+});
+
+Deno.test('unescapeHtml - plain text', () => {
+  assertEquals(unescapeHtml('hello world'), 'hello world');
+  assertEquals(unescapeHtml('123'), '123');
+});
+
+Deno.test('unescapeHtml - unicode characters', () => {
+  assertEquals(unescapeHtml('你好'), '你好');
+  assertEquals(unescapeHtml('مرحبا'), 'مرحبا');
+  assertEquals(unescapeHtml('🎉'), '🎉');
+});
+
+Deno.test('unescapeHtml - whitespace preservation', () => {
+  assertEquals(unescapeHtml('  hello  '), '  hello  ');
+  assertEquals(unescapeHtml('\t\n\r'), '\t\n\r');
+});
+
+Deno.test('unescapeHtml - multiple consecutive entities', () => {
+  assertEquals(unescapeHtml('&lt;&lt;&lt;&gt;&gt;&gt;'), '<<<>>>');
+  assertEquals(unescapeHtml('&amp;&amp;&amp;'), '&&&');
+  assertEquals(unescapeHtml('&quot;&quot;&#39;&#39;'), '""\'\'');
+});
+
+Deno.test('unescapeHtml - complex HTML document', () => {
+  const escaped =
+    '&lt;html&gt;&lt;head&gt;&lt;title&gt;&quot;Test&quot; &amp; &#39;Content&#39;&lt;/title&gt;&lt;/head&gt;&lt;body&gt;&#96;code&#96;&lt;/body&gt;&lt;/html&gt;';
+  const expected =
+    '<html><head><title>"Test" & \'Content\'</title></head><body>`code`</body></html>';
+  assertEquals(unescapeHtml(escaped), expected);
+});
+
+Deno.test('roundtrip: escape then unescape', () => {
+  const original = '<script>alert("xss")</script>';
+  const escaped = escapeHtml(original);
+  const unescaped = unescapeHtml(escaped);
+  assertEquals(unescaped, original);
+});
+
+Deno.test('roundtrip: escape then unescape with mixed content', () => {
+  const original =
+    '<div class="container" data-attr=\'value\'>`code` & "quotes" & \'apostrophes\'</div>';
+  const escaped = escapeHtml(original);
+  const unescaped = unescapeHtml(escaped);
+  assertEquals(unescaped, original);
+});
+
+Deno.test('roundtrip: escape then unescape with unicode', () => {
+  const original = '你好 <tag> مرحبا & こんにちは';
+  const escaped = escapeHtml(original);
+  const unescaped = unescapeHtml(escaped);
+  assertEquals(unescaped, original);
+});
+
+Deno.test('roundtrip: unescape then escape', () => {
+  const original = '&lt;script&gt;alert(&quot;test&quot;)&lt;/script&gt;';
+  const unescaped = unescapeHtml(original);
+  const escaped = escapeHtml(unescaped);
+  assertEquals(escaped, original);
+});
+
+Deno.test('unescapeHtml - partial entities (should not convert)', () => {
+  // Incomplete entities should remain as-is
+  assertEquals(unescapeHtml('&lt'), '&lt');
+  assertEquals(unescapeHtml('&#39'), '&#39');
+  assertEquals(unescapeHtml('&quot'), '&quot');
+});
+
+Deno.test('scopeWidgetCss - basic scoping', () => {
+  const css = 'body { color: red; }';
+  const result = scopeWidgetCss(css, 'my-widget');
+  assertEquals(result, '@scope (widget-my-widget) {\nbody { color: red; }\n}');
+});
+
+Deno.test('scopeWidgetCss - with hyphenated widget name', () => {
+  const css = '.button { background: blue; }';
+  const result = scopeWidgetCss(css, 'awesome-button');
+  assertEquals(result, '@scope (widget-awesome-button) {\n.button { background: blue; }\n}');
+});
+
+Deno.test('scopeWidgetCss - with empty CSS', () => {
+  const result = scopeWidgetCss('', 'widget');
+  assertEquals(result, '@scope (widget-widget) {\n\n}');
+});
+
+Deno.test('scopeWidgetCss - with multiline CSS', () => {
+  const css = `body {
+  color: red;
+  font-size: 16px;
+}
+
+.container {
+  padding: 10px;
+}`;
+  const result = scopeWidgetCss(css, 'complex');
+  assertEquals(
+    result,
+    `@scope (widget-complex) {
+${css}
+}`,
+  );
+});
+
+Deno.test('scopeWidgetCss - with special characters in widget name', () => {
+  const css = 'p { margin: 0; }';
+  const result = scopeWidgetCss(css, 'my-awesome-widget-v2');
+  assertEquals(result, '@scope (widget-my-awesome-widget-v2) {\np { margin: 0; }\n}');
+});
+
+Deno.test('scopeWidgetCss - with unicode in CSS', () => {
+  const css = '.content { content: "你好"; }';
+  const result = scopeWidgetCss(css, 'i18n');
+  assertEquals(result, '@scope (widget-i18n) {\n.content { content: "你好"; }\n}');
+});
+
+Deno.test('DATA_SSR_ATTR constant', () => {
+  assertEquals(DATA_SSR_ATTR, 'data-ssr');
+  assertStrictEquals(typeof DATA_SSR_ATTR, 'string');
+});
+
+Deno.test('LAZY_ATTR constant', () => {
+  assertEquals(LAZY_ATTR, 'lazy');
+  assertStrictEquals(typeof LAZY_ATTR, 'string');
+});
+
+Deno.test('STATUS_MESSAGES - contains expected status codes', () => {
   assertEquals(STATUS_MESSAGES[401], 'Unauthorized');
-});
-
-Deno.test('STATUS_MESSAGES - 403 status code', () => {
   assertEquals(STATUS_MESSAGES[403], 'Forbidden');
-});
-
-Deno.test('STATUS_MESSAGES - 500 status code', () => {
+  assertEquals(STATUS_MESSAGES[404], 'Not Found');
   assertEquals(STATUS_MESSAGES[500], 'Internal Server Error');
 });
 
-Deno.test('STATUS_MESSAGES - undefined status code returns undefined', () => {
-  assertEquals(STATUS_MESSAGES[418], undefined);
+Deno.test('STATUS_MESSAGES - only contains expected keys', () => {
+  const expectedKeys = ['401', '403', '404', '500'];
+  const actualKeys = Object.keys(STATUS_MESSAGES).sort();
+  assertEquals(actualKeys, expectedKeys.sort());
 });
 
-Deno.test('STATUS_MESSAGES - zero returns undefined', () => {
-  assertEquals(STATUS_MESSAGES[0], undefined);
+Deno.test('STATUS_MESSAGES - all values are non-empty strings', () => {
+  for (const [code, message] of Object.entries(STATUS_MESSAGES)) {
+    assertStrictEquals(typeof message, 'string');
+    assertEquals(message.length > 0, true, `Status ${code} has empty message`);
+  }
 });
 
-Deno.test('STATUS_MESSAGES - negative code returns undefined', () => {
-  assertEquals(STATUS_MESSAGES[-1], undefined);
+Deno.test('HTMLElementBase - exports a constructor', () => {
+  assertStrictEquals(typeof HTMLElementBase, 'function');
 });
 
-Deno.test('STATUS_MESSAGES - object has correct length', () => {
-  const keys = Object.keys(STATUS_MESSAGES);
-  assertEquals(keys.length, 4);
+Deno.test('HTMLElementBase - is usable as a base class', () => {
+  class TestElement extends HTMLElementBase {
+    value = 'test';
+  }
+  const instance = new TestElement();
+  assertEquals(instance.value, 'test');
 });
 
-Deno.test('STATUS_MESSAGES - contains only expected status codes', () => {
-  const expectedCodes = [401, 403, 404, 500];
-  const actualCodes = Object.keys(STATUS_MESSAGES).map(Number);
-  assertEquals(actualCodes.sort(), expectedCodes.sort());
+Deno.test('escapeHtml - order of replacement matters (ampersand first)', () => {
+  // Ensure ampersand is replaced first to avoid double-escaping
+  const input = '&<>"\'`';
+  const escaped = escapeHtml(input);
+  // Each character should appear exactly once escaped
+  assertEquals(escaped.match(/&amp;/g)!.length, 1);
+  assertEquals(escaped.match(/&lt;/g)!.length, 1);
+  assertEquals(escaped.match(/&gt;/g)!.length, 1);
+  assertEquals(escaped.match(/&quot;/g)!.length, 1);
+  assertEquals(escaped.match(/&#39;/g)!.length, 1);
+  assertEquals(escaped.match(/&#96;/g)!.length, 1);
 });
 
-Deno.test('STATUS_MESSAGES - all messages are strings', () => {
-  Object.values(STATUS_MESSAGES).forEach((message) => {
-    assertEquals(typeof message, 'string');
-  });
+Deno.test('escapeHtml - long strings with many special characters', () => {
+  const input = '<>'.repeat(100) + '&'.repeat(100) + '"\'`'.repeat(100);
+  const escaped = escapeHtml(input);
+  // Should not contain unescaped special characters
+  assertEquals(escaped.includes('<'), false);
+  assertEquals(escaped.includes('>'), false);
+  assertEquals(escaped.includes('&') && !escaped.includes('&amp;'), false);
 });
 
-Deno.test('STATUS_MESSAGES - all messages are non-empty', () => {
-  Object.values(STATUS_MESSAGES).forEach((message) => {
-    assertEquals(message.length > 0, true);
-  });
+Deno.test('unescapeHtml - unknown entities left unchanged', () => {
+  assertEquals(unescapeHtml('&unknown;'), '&unknown;');
+  assertEquals(unescapeHtml('&#999999;'), '&#999999;');
 });
 
-// =============================================================================
-// parseAttrsToParams
-// =============================================================================
-
-Deno.test('parseAttrsToParams - double-quoted attribute', () => {
-  assertEquals(parseAttrsToParams('coin="bitcoin"'), { coin: 'bitcoin' });
+Deno.test('escapeHtml and unescapeHtml - idempotence on plain text', () => {
+  const plainText = 'This is plain text with no special characters';
+  assertEquals(escapeHtml(plainText), plainText);
+  assertEquals(unescapeHtml(plainText), plainText);
 });
 
-Deno.test('parseAttrsToParams - single-quoted attribute', () => {
-  assertEquals(parseAttrsToParams("coin='bitcoin'"), { coin: 'bitcoin' });
+Deno.test('escapeHtml - preserves numbers and common symbols that are not escaped', () => {
+  const input = '0123456789!@#$%=+-*()[]{}|;:,./? ';
+  const expected = '0123456789!@#$%=+-*()[]{}|;:,./? ';
+  assertEquals(escapeHtml(input), expected);
 });
 
-Deno.test('parseAttrsToParams - unquoted attribute', () => {
-  assertEquals(parseAttrsToParams('coin=bitcoin'), { coin: 'bitcoin' });
+Deno.test('HTML injection prevention - prevents CDATA injection', () => {
+  const input = '<![CDATA[alert("xss")]]>';
+  const escaped = escapeHtml(input);
+  assertEquals(escaped, '&lt;![CDATA[alert(&quot;xss&quot;)]]&gt;');
 });
 
-Deno.test('parseAttrsToParams - boolean attribute', () => {
-  assertEquals(parseAttrsToParams('disabled'), { disabled: '' });
+Deno.test('HTML injection prevention - prevents comment injection', () => {
+  const input = '<!-- comment with <script> -->';
+  const escaped = escapeHtml(input);
+  assertEquals(escaped, '&lt;!-- comment with &lt;script&gt; --&gt;');
 });
 
-Deno.test('parseAttrsToParams - mixed attribute styles', () => {
+Deno.test('scopeWidgetCss - does not escape CSS content', () => {
+  const css = '@media (max-width: 768px) { body { color: < test >; } }';
+  const result = scopeWidgetCss(css, 'responsive');
+  // CSS content should remain unchanged
   assertEquals(
-    parseAttrsToParams('coin="bitcoin" name=\'test\' count=42 disabled'),
-    { coin: 'bitcoin', name: 'test', count: 42, disabled: '' },
+    result,
+    '@scope (widget-responsive) {\n@media (max-width: 768px) { body { color: < test >; } }\n}',
   );
-});
-
-Deno.test('parseAttrsToParams - kebab-case to camelCase', () => {
-  assertEquals(parseAttrsToParams("my-attr='hello'"), { myAttr: 'hello' });
-});
-
-Deno.test('parseAttrsToParams - empty string', () => {
-  assertEquals(parseAttrsToParams(''), {});
-});
-
-Deno.test('parseAttrsToParams - data-ssr is skipped', () => {
-  assertEquals(parseAttrsToParams('coin="bitcoin" data-ssr="ignored"'), { coin: 'bitcoin' });
-});
-
-Deno.test('parseAttrsToParams - JSON value in double quotes', () => {
-  assertEquals(parseAttrsToParams('count="42"'), { count: 42 });
-});
-
-Deno.test('parseAttrsToParams - JSON value in single quotes', () => {
-  assertEquals(parseAttrsToParams("active='true'"), { active: true });
-});
-
-Deno.test('parseAttrsToParams - unquoted numeric value', () => {
-  assertEquals(parseAttrsToParams('count=42'), { count: 42 });
-});
-
-Deno.test('parseAttrsToParams - multiple boolean attributes', () => {
-  assertEquals(parseAttrsToParams('disabled hidden readonly'), {
-    disabled: '',
-    hidden: '',
-    readonly: '',
-  });
-});
-
-Deno.test('parseAttrsToParams - HTML entity decoding in double quotes', () => {
-  assertEquals(parseAttrsToParams('text="hello &amp; goodbye"'), { text: 'hello & goodbye' });
-});
-
-Deno.test('parseAttrsToParams - HTML entity decoding in single quotes', () => {
-  assertEquals(parseAttrsToParams("text='hello &amp; goodbye'"), { text: 'hello & goodbye' });
-});
-
-Deno.test('parseAttrsToParams - lazy attribute is skipped', () => {
-  assertEquals(parseAttrsToParams('name="Alice" lazy'), { name: 'Alice' });
-});
-
-// =============================================================================
-// scopeWidgetCss
-// =============================================================================
-
-Deno.test('scopeWidgetCss - wraps CSS in @scope rule', () => {
-  const result = scopeWidgetCss('.btn { color: red; }', 'counter');
-  assertEquals(result, '@scope (widget-counter) {\n.btn { color: red; }\n}');
-});
-
-Deno.test('scopeWidgetCss - preserves multiline CSS', () => {
-  const css = '.title {\n  font-size: 2rem;\n}\n.body {\n  margin: 0;\n}';
-  const result = scopeWidgetCss(css, 'card');
-  assertEquals(result, `@scope (widget-card) {\n${css}\n}`);
 });

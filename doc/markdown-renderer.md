@@ -61,9 +61,13 @@ both client-side and server-side configuration.
 
 ---
 
-### marked
+### marked (Recommended)
 
-Popular, fast, lightweight markdown parser.
+Popular, fast, lightweight markdown parser. Custom renderer API supports
+emroute's `widget:*` and `router-slot` fenced blocks natively.
+
+See [Setting Up marked](./setup-marked.md) for the full setup guide covering
+client-side, server-side, widget/slot expansion, and security.
 
 ```bash
 # Deno
@@ -84,28 +88,8 @@ MarkdownElement.setRenderer({
 });
 ```
 
-**With syntax highlighting (highlight.js):**
-
-```typescript
-import { marked } from 'marked';
-import hljs from 'highlight.js';
-
-marked.setOptions({
-  highlight(code, lang) {
-    if (lang && hljs.getLanguage(lang)) {
-      return hljs.highlight(code, { language: lang }).value;
-    }
-    return code;
-  },
-});
-
-MarkdownElement.setRenderer({
-  render: (md) => marked.parse(md, { async: false }) as string,
-});
-```
-
-**Pros:** Well-maintained, fast, many plugins
-**Cons:** No built-in widget support
+**Pros:** Well-maintained, fast, custom renderers for widget/slot expansion
+**Cons:** None significant
 
 ---
 

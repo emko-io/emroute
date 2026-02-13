@@ -1,223 +1,456 @@
-import { assertEquals } from '@std/assert';
+/**
+ * Unit tests for ComponentRenderer
+ *
+ * Tests cover the core component rendering pipeline:
+ * - renderComponent() with HTML and Markdown contexts
+ * - Component lifecycle: validateParams → getData → render
+ * - Error handling: validation errors and render errors
+ * - Context passing (params, signal, componentContext)
+ * - Component block parsing and replacement in markdown
+ *
+ * Mocks are used to control component behavior and verify
+ * the renderer's correct sequencing and error propagation.
+ */
+
+import { assertEquals, assertRejects, assertStringIncludes } from '@std/assert';
+import type { ComponentContext } from '../../src/component/abstract.component.ts';
+import { Component } from '../../src/component/abstract.component.ts';
 import {
   parseComponentBlocks,
   type ParsedComponentBlock,
   renderComponent,
   replaceComponentBlocks,
 } from '../../src/renderer/component/component.renderer.ts';
-import { Component } from '../../src/component/abstract.component.ts';
+
+// ============================================================================
+// Test Fixtures & Helpers
+// ============================================================================
 
 /**
- * Mock component for testing
+ * Create a mock ComponentContext
  */
-class MockComponent extends Component<{ title: string }, { content: string }> {
-  readonly name = 'test-component';
+function createMockContext(
+  overrides?: Partial<ComponentContext>,
+): ComponentContext {
+  return {
+    pathname: '/test',
+    pattern: '/test',
+    params: {},
+    searchParams: new URLSearchParams(),
+    ...overrides,
+  };
+}
 
-  getData({ params }: { params: { title: string } }) {
-    return Promise.resolve({ content: `Content from ${params.title}` });
+/**
+ * Create a mock Component for testing
+ */
+class MockComponent extends Component {
+  readonly name = 'mock-component';
+
+  validateParamsResult?: string;
+  hasValidateParams = true;
+  getDataCalled = false;
+  getDataParams?: unknown;
+  getDataSignal?: AbortSignal;
+  getDataContext?: ComponentContext;
+  getDataReturnValue: unknown = { title: 'Mock Data' };
+
+  renderHTMLCalled = false;
+  renderHTMLData?: unknown;
+  renderHTMLParams?: unknown;
+  renderHTMLContext?: ComponentContext;
+  renderHTMLReturnValue = '<div>Mock HTML</div>';
+
+  renderMarkdownCalled = false;
+  renderMarkdownData?: unknown;
+  renderMarkdownParams?: unknown;
+  renderMarkdownContext?: ComponentContext;
+  renderMarkdownReturnValue = '# Mock Markdown';
+
+  renderErrorCalled = false;
+  renderErrorValue?: unknown;
+  renderErrorParams?: unknown;
+  renderErrorReturnValue = '<div class="c-error">Error</div>';
+
+  renderMarkdownErrorCalled = false;
+  renderMarkdownErrorValue?: unknown;
+  renderMarkdownErrorReturnValue = '> **Error**';
+
+  override validateParams(params: unknown): string | undefined {
+    if (!this.hasValidateParams) return undefined;
+    return this.validateParamsResult;
   }
 
-  renderMarkdown({ data }: { data: { content: string } | null }) {
-    return `# ${data?.content}`;
-  }
+  async getData(args: { params: unknown; signal?: AbortSignal; context?: ComponentContext }) {
+    this.getDataCalled = true;
+    this.getDataParams = args.params;
+    this.getDataSignal = args.signal;
+    this.getDataContext = args.context;
 
-  override renderHTML({ data }: { data: { content: string } | null }) {
-    if (data === null) {
-      return `<div class="c-loading" data-component="${this.name}">Loading...</div>`;
+    if (this.getDataReturnValue instanceof Error) {
+      throw this.getDataReturnValue;
     }
-    return `<div class="c-markdown" data-component="${this.name}" data-markdown>&lt;h1&gt;${data.content}&lt;/h1&gt;</div>`;
+
+    return this.getDataReturnValue;
+  }
+
+  renderMarkdown(args: { data: unknown; params: unknown; context?: ComponentContext }): string {
+    this.renderMarkdownCalled = true;
+    this.renderMarkdownData = args.data;
+    this.renderMarkdownParams = args.params;
+    this.renderMarkdownContext = args.context;
+    return this.renderMarkdownReturnValue;
+  }
+
+  override renderHTML(
+    args: { data: unknown; params: unknown; context?: ComponentContext },
+  ): string {
+    this.renderHTMLCalled = true;
+    this.renderHTMLData = args.data;
+    this.renderHTMLParams = args.params;
+    this.renderHTMLContext = args.context;
+    return this.renderHTMLReturnValue;
+  }
+
+  override renderError(args: { error: unknown; params: unknown }): string {
+    this.renderErrorCalled = true;
+    this.renderErrorValue = args.error;
+    this.renderErrorParams = args.params;
+    return this.renderErrorReturnValue;
+  }
+
+  override renderMarkdownError(error: unknown): string {
+    this.renderMarkdownErrorCalled = true;
+    this.renderMarkdownErrorValue = error;
+    return this.renderMarkdownErrorReturnValue;
   }
 }
 
-/**
- * Mock component with validation
- */
-class ValidatingComponent extends Component<{ value: number }, { result: number }> {
-  readonly name = 'validating-component';
+// ============================================================================
+// renderComponent() - Basic Lifecycle Tests
+// ============================================================================
 
-  getData({ params }: { params: { value: number } }) {
-    return Promise.resolve({ result: params.value * 2 });
-  }
-
-  renderMarkdown({ data }: { data: { result: number } | null }) {
-    return `Result: ${data?.result}`;
-  }
-
-  override validateParams(params: { value: number }): string | undefined {
-    if (params.value < 0) {
-      return 'Value must be non-negative';
-    }
-    return undefined;
-  }
-}
-
-/**
- * Mock component that throws errors
- */
-class ErrorThrowingComponent extends Component<unknown, unknown> {
-  readonly name = 'error-component';
-
-  getData() {
-    return Promise.reject(new Error('Data fetch failed'));
-  }
-
-  renderMarkdown() {
-    return 'Should not be reached';
-  }
-}
-
-/**
- * Mock layout component
- */
-// Test renderComponent with markdown context
-Deno.test('renderComponent - renders component in markdown context', async () => {
+Deno.test('renderComponent - HTML context: calls getData then renderHTML', async () => {
   const component = new MockComponent();
-  const params = { title: 'Test Title' };
+  const params = { id: '123' };
+  const context = createMockContext();
 
-  const result = await renderComponent(component, params, 'markdown');
+  const result = await renderComponent(component, params, 'html', {
+    componentContext: context,
+  });
 
-  assertEquals(result, '# Content from Test Title');
+  assertEquals(component.getDataCalled, true);
+  assertEquals(component.renderHTMLCalled, true);
+  assertEquals(component.renderMarkdownCalled, false);
+  assertEquals(result, '<div>Mock HTML</div>');
 });
 
-Deno.test('renderComponent - renders component in html context', async () => {
+Deno.test('renderComponent - Markdown context: calls getData then renderMarkdown', async () => {
   const component = new MockComponent();
-  const params = { title: 'Test Title' };
+  const params = { id: '456' };
+  const context = createMockContext();
 
-  const result = await renderComponent(component, params, 'html');
+  const result = await renderComponent(component, params, 'markdown', {
+    componentContext: context,
+  });
 
-  assertEquals(
-    result,
-    '<div class="c-markdown" data-component="test-component" data-markdown>&lt;h1&gt;Content from Test Title&lt;/h1&gt;</div>',
-  );
+  assertEquals(component.getDataCalled, true);
+  assertEquals(component.renderMarkdownCalled, true);
+  assertEquals(component.renderHTMLCalled, false);
+  assertEquals(result, '# Mock Markdown');
 });
 
-Deno.test('renderComponent - calls validateParams and returns error in markdown on validation failure', async () => {
-  const component = new ValidatingComponent();
-  const params = { value: -5 };
+Deno.test('renderComponent - Passes params to getData', async () => {
+  const component = new MockComponent();
+  const params = { id: '789', name: 'test' };
 
-  const result = await renderComponent(component, params, 'markdown');
+  await renderComponent(component, params, 'html');
 
-  assertEquals(result, '> **Error** (`validating-component`): Value must be non-negative');
+  assertEquals(component.getDataParams, params);
 });
 
-Deno.test('renderComponent - calls validateParams and returns error in html on validation failure', async () => {
-  const component = new ValidatingComponent();
-  const params = { value: -5 };
+Deno.test('renderComponent - Passes context to getData', async () => {
+  const component = new MockComponent();
+  const context = createMockContext({ pathname: '/custom' });
 
-  const result = await renderComponent(component, params, 'html');
+  await renderComponent(component, {}, 'html', { componentContext: context });
 
-  assertEquals(
-    result,
-    '<div class="c-error" data-component="validating-component">Error: Value must be non-negative</div>',
-  );
+  assertEquals(component.getDataContext, context);
 });
 
-Deno.test('renderComponent - handles validation error in markdown context', async () => {
-  const component = new ValidatingComponent();
-  const params = { value: 10 };
+Deno.test('renderComponent - Passes signal to getData', async () => {
+  const component = new MockComponent();
+  const controller = new AbortController();
 
-  const result = await renderComponent(component, params, 'markdown');
+  await renderComponent(component, {}, 'html', { signal: controller.signal });
 
-  assertEquals(result, 'Result: 20');
+  assertEquals(component.getDataSignal, controller.signal);
 });
 
-Deno.test('renderComponent - renders successfully with valid params', async () => {
-  const component = new ValidatingComponent();
-  const params = { value: 10 };
+// ============================================================================
+// renderComponent() - Data Passing to Render Functions
+// ============================================================================
 
-  const result = await renderComponent(component, params, 'html');
+Deno.test('renderComponent - Passes getData result to renderHTML', async () => {
+  const component = new MockComponent();
+  component.getDataReturnValue = { title: 'Custom Data' };
 
-  assertEquals(
-    result,
-    '<div class="c-markdown" data-component="validating-component" data-markdown>Result: 20</div>',
-  );
+  await renderComponent(component, {}, 'html');
+
+  assertEquals(component.renderHTMLData, { title: 'Custom Data' });
 });
 
-Deno.test('renderComponent - handles getData errors in markdown context', async () => {
-  const component = new ErrorThrowingComponent();
+Deno.test('renderComponent - Passes getData result to renderMarkdown', async () => {
+  const component = new MockComponent();
+  component.getDataReturnValue = { title: 'Custom Data' };
 
-  const result = await renderComponent(component, {}, 'markdown');
+  await renderComponent(component, {}, 'markdown');
 
-  assertEquals(result, '> **Error** (`error-component`): Data fetch failed');
+  assertEquals(component.renderMarkdownData, { title: 'Custom Data' });
 });
 
-Deno.test('renderComponent - handles getData errors in html context', async () => {
-  const component = new ErrorThrowingComponent();
+Deno.test('renderComponent - Passes null data to render when getData returns null', async () => {
+  const component = new MockComponent();
+  component.getDataReturnValue = null;
+
+  await renderComponent(component, {}, 'html');
+
+  assertEquals(component.renderHTMLData, null);
+});
+
+Deno.test('renderComponent - HTML: passes params and context to renderHTML', async () => {
+  const component = new MockComponent();
+  const params = { slug: 'test-post' };
+  const context = createMockContext();
+
+  await renderComponent(component, params, 'html', { componentContext: context });
+
+  assertEquals(component.renderHTMLParams, params);
+  assertEquals(component.renderHTMLContext, context);
+});
+
+Deno.test('renderComponent - Markdown: passes params and context to renderMarkdown', async () => {
+  const component = new MockComponent();
+  const params = { slug: 'test-post' };
+  const context = createMockContext();
+
+  await renderComponent(component, params, 'markdown', { componentContext: context });
+
+  assertEquals(component.renderMarkdownParams, params);
+  assertEquals(component.renderMarkdownContext, context);
+});
+
+// ============================================================================
+// renderComponent() - Params Validation
+// ============================================================================
+
+Deno.test('renderComponent - HTML: validation passes, continues to getData', async () => {
+  const component = new MockComponent();
+  component.validateParamsResult = undefined;
+
+  const result = await renderComponent(component, { id: '1' }, 'html');
+
+  assertEquals(component.getDataCalled, true);
+  assertEquals(result, '<div>Mock HTML</div>');
+});
+
+Deno.test('renderComponent - Markdown: validation passes, continues to getData', async () => {
+  const component = new MockComponent();
+  component.validateParamsResult = undefined;
+
+  const result = await renderComponent(component, { id: '1' }, 'markdown');
+
+  assertEquals(component.getDataCalled, true);
+  assertEquals(result, '# Mock Markdown');
+});
+
+Deno.test('renderComponent - HTML: validation fails, calls renderError', async () => {
+  const component = new MockComponent();
+  component.validateParamsResult = 'Invalid ID';
+
+  const result = await renderComponent(component, { id: 'invalid' }, 'html');
+
+  assertEquals(component.getDataCalled, false);
+  assertEquals(component.renderHTMLCalled, false);
+  assertEquals(component.renderErrorCalled, true);
+  assertEquals(result, '<div class="c-error">Error</div>');
+});
+
+Deno.test('renderComponent - Markdown: validation fails, calls renderMarkdownError', async () => {
+  const component = new MockComponent();
+  component.validateParamsResult = 'Invalid ID';
+
+  const result = await renderComponent(component, { id: 'invalid' }, 'markdown');
+
+  assertEquals(component.getDataCalled, false);
+  assertEquals(component.renderMarkdownCalled, false);
+  assertEquals(component.renderMarkdownErrorCalled, true);
+  assertEquals(result, '> **Error**');
+});
+
+Deno.test('renderComponent - Validation error passed to renderError with params', async () => {
+  const component = new MockComponent();
+  component.validateParamsResult = 'ID must be numeric';
+  const params = { id: 'abc' };
+
+  await renderComponent(component, params, 'html');
+
+  assertEquals(component.renderErrorValue instanceof Error, true);
+  assertEquals((component.renderErrorValue as Error).message, 'ID must be numeric');
+  assertEquals(component.renderErrorParams, params);
+});
+
+Deno.test('renderComponent - No validateParams method: skips validation', async () => {
+  const component = new MockComponent();
+  component.hasValidateParams = false;
+
+  const result = await renderComponent(component, { id: '1' }, 'html');
+
+  assertEquals(component.getDataCalled, true);
+  assertEquals(result, '<div>Mock HTML</div>');
+});
+
+// ============================================================================
+// renderComponent() - Error Handling from getData
+// ============================================================================
+
+Deno.test('renderComponent - HTML: getData throws, calls renderError', async () => {
+  const component = new MockComponent();
+  const error = new Error('Data fetch failed');
+  component.getDataReturnValue = error;
 
   const result = await renderComponent(component, {}, 'html');
 
-  assertEquals(
-    result,
-    '<div class="c-error" data-component="error-component">Error: Data fetch failed</div>',
-  );
+  assertEquals(component.renderHTMLCalled, false);
+  assertEquals(component.renderErrorCalled, true);
+  assertEquals(component.renderErrorValue, error);
+  assertEquals(result, '<div class="c-error">Error</div>');
 });
 
-Deno.test('renderComponent - handles non-Error exceptions in markdown context', async () => {
-  class StringThrowingComponent extends Component<unknown, unknown> {
-    readonly name = 'string-error-component';
+Deno.test('renderComponent - Markdown: getData throws, calls renderMarkdownError', async () => {
+  const component = new MockComponent();
+  const error = new Error('Data fetch failed');
+  component.getDataReturnValue = error;
 
-    getData() {
-      return Promise.reject('Plain string error');
-    }
-
-    renderMarkdown() {
-      return 'Should not be reached';
-    }
-  }
-
-  const component = new StringThrowingComponent();
   const result = await renderComponent(component, {}, 'markdown');
 
-  assertEquals(result, '> **Error** (`string-error-component`): Plain string error');
+  assertEquals(component.renderMarkdownCalled, false);
+  assertEquals(component.renderMarkdownErrorCalled, true);
+  assertEquals(component.renderMarkdownErrorValue, error);
+  assertEquals(result, '> **Error**');
 });
 
-// Test parseComponentBlocks
-Deno.test('parseComponentBlocks - parses simple component block', () => {
-  const markdown = 'Text\n```component:widget\n{"key": "value"}\n```\nMore text';
+Deno.test('renderComponent - getData error passed to renderError with params', async () => {
+  const component = new MockComponent();
+  const error = new Error('Network error');
+  component.getDataReturnValue = error;
+  const params = { id: '1' };
+
+  await renderComponent(component, params, 'html');
+
+  assertEquals(component.renderErrorParams, params);
+});
+
+// ============================================================================
+// renderComponent() - Context Files Population
+// ============================================================================
+
+Deno.test('renderComponent - Passes context.files to component', async () => {
+  const component = new MockComponent();
+  const context = createMockContext({
+    files: { html: '<p>test</p>', css: 'p { color: red; }' },
+  });
+
+  await renderComponent(component, {}, 'html', { componentContext: context });
+
+  assertEquals(component.renderHTMLContext?.files?.html, '<p>test</p>');
+  assertEquals(component.renderHTMLContext?.files?.css, 'p { color: red; }');
+});
+
+Deno.test('renderComponent - Markdown mode: passes context.files to renderMarkdown', async () => {
+  const component = new MockComponent();
+  const context = createMockContext({
+    files: { md: '# Test' },
+  });
+
+  await renderComponent(component, {}, 'markdown', { componentContext: context });
+
+  assertEquals(component.renderMarkdownContext?.files?.md, '# Test');
+});
+
+// ============================================================================
+// renderComponent() - CSS Injection
+// ============================================================================
+
+Deno.test('renderComponent - CSS in context.files available to component', async () => {
+  const component = new MockComponent();
+  const cssContent = '.test { font-weight: bold; }';
+  const context = createMockContext({
+    files: { css: cssContent },
+  });
+
+  await renderComponent(component, {}, 'html', { componentContext: context });
+
+  assertEquals(component.renderHTMLContext?.files?.css, cssContent);
+});
+
+// ============================================================================
+// parseComponentBlocks() - Basic Parsing
+// ============================================================================
+
+Deno.test('parseComponentBlocks - Single component block with params', () => {
+  const markdown = 'Text before\n```component:greeting\n{"name":"Alice"}\n```\nText after';
 
   const blocks = parseComponentBlocks(markdown);
 
   assertEquals(blocks.length, 1);
-  assertEquals(blocks[0].componentName, 'widget');
-  assertEquals(blocks[0].params, { key: 'value' });
+  assertEquals(blocks[0].componentName, 'greeting');
+  assertEquals(blocks[0].params, { name: 'Alice' });
   assertEquals(blocks[0].parseError, undefined);
 });
 
-Deno.test('parseComponentBlocks - parses component block with empty params', () => {
-  const markdown = 'Text\n```component:button\n```\nMore text';
+Deno.test('parseComponentBlocks - Single component block without params', () => {
+  const markdown = 'Text\n```component:counter\n\n```\nMore text';
 
   const blocks = parseComponentBlocks(markdown);
 
   assertEquals(blocks.length, 1);
-  assertEquals(blocks[0].componentName, 'button');
+  assertEquals(blocks[0].componentName, 'counter');
   assertEquals(blocks[0].params, {});
   assertEquals(blocks[0].parseError, undefined);
 });
 
-Deno.test('parseComponentBlocks - parses component block with whitespace-only content', () => {
-  const markdown = 'Text\n```component:badge\n  \n\t\n```\nMore text';
-
-  const blocks = parseComponentBlocks(markdown);
-
-  assertEquals(blocks.length, 1);
-  assertEquals(blocks[0].componentName, 'badge');
-  assertEquals(blocks[0].params, {});
-  assertEquals(blocks[0].parseError, undefined);
-});
-
-Deno.test('parseComponentBlocks - parses multiple component blocks', () => {
-  const markdown = '```component:first\n{"a": 1}\n```\nMiddle\n```component:second\n{"b": 2}\n```';
+Deno.test('parseComponentBlocks - Multiple component blocks', () => {
+  const markdown = '```component:greeting\n{"name":"Alice"}\n```\n' +
+    'Middle text\n' +
+    '```component:counter\n{"start":5}\n```';
 
   const blocks = parseComponentBlocks(markdown);
 
   assertEquals(blocks.length, 2);
-  assertEquals(blocks[0].componentName, 'first');
-  assertEquals(blocks[0].params, { a: 1 });
-  assertEquals(blocks[1].componentName, 'second');
-  assertEquals(blocks[1].params, { b: 2 });
+  assertEquals(blocks[0].componentName, 'greeting');
+  assertEquals(blocks[1].componentName, 'counter');
 });
 
-Deno.test('parseComponentBlocks - sets parseError for invalid JSON', () => {
+Deno.test('parseComponentBlocks - Component name validation (kebab-case)', () => {
+  const markdown1 = '```component:my-widget\n{}\n```';
+  const markdown2 = '```component:widget123\n{}\n```';
+  const markdown3 = '```component:w1-d2-g3\n{}\n```';
+
+  const blocks1 = parseComponentBlocks(markdown1);
+  const blocks2 = parseComponentBlocks(markdown2);
+  const blocks3 = parseComponentBlocks(markdown3);
+
+  assertEquals(blocks1[0].componentName, 'my-widget');
+  assertEquals(blocks2[0].componentName, 'widget123');
+  assertEquals(blocks3[0].componentName, 'w1-d2-g3');
+});
+
+// ============================================================================
+// parseComponentBlocks() - Error Handling
+// ============================================================================
+
+Deno.test('parseComponentBlocks - Invalid JSON params', () => {
   const markdown = '```component:widget\n{invalid json}\n```';
 
   const blocks = parseComponentBlocks(markdown);
@@ -225,175 +458,201 @@ Deno.test('parseComponentBlocks - sets parseError for invalid JSON', () => {
   assertEquals(blocks.length, 1);
   assertEquals(blocks[0].componentName, 'widget');
   assertEquals(blocks[0].params, null);
-  assertEquals(blocks[0].parseError?.includes('Invalid JSON'), true);
+  assertStringIncludes(blocks[0].parseError!, 'Invalid JSON');
 });
 
-Deno.test('parseComponentBlocks - sets parseError for array params', () => {
-  const markdown = '```component:widget\n[1, 2, 3]\n```';
+Deno.test('parseComponentBlocks - Params is array (invalid)', () => {
+  const markdown = '```component:widget\n[1,2,3]\n```';
 
   const blocks = parseComponentBlocks(markdown);
 
   assertEquals(blocks.length, 1);
-  assertEquals(blocks[0].componentName, 'widget');
   assertEquals(blocks[0].params, null);
   assertEquals(blocks[0].parseError, 'Params must be a JSON object');
 });
 
-Deno.test('parseComponentBlocks - sets parseError for null params', () => {
+Deno.test('parseComponentBlocks - Params is null (invalid)', () => {
   const markdown = '```component:widget\nnull\n```';
 
   const blocks = parseComponentBlocks(markdown);
 
   assertEquals(blocks.length, 1);
-  assertEquals(blocks[0].componentName, 'widget');
   assertEquals(blocks[0].params, null);
   assertEquals(blocks[0].parseError, 'Params must be a JSON object');
 });
 
-Deno.test('parseComponentBlocks - sets parseError for string params', () => {
+Deno.test('parseComponentBlocks - Params is primitive (invalid)', () => {
   const markdown = '```component:widget\n"string"\n```';
 
   const blocks = parseComponentBlocks(markdown);
 
   assertEquals(blocks.length, 1);
-  assertEquals(blocks[0].componentName, 'widget');
   assertEquals(blocks[0].params, null);
   assertEquals(blocks[0].parseError, 'Params must be a JSON object');
 });
 
-Deno.test('parseComponentBlocks - sets parseError for number params', () => {
-  const markdown = '```component:widget\n42\n```';
+// ============================================================================
+// parseComponentBlocks() - Index Tracking
+// ============================================================================
+
+Deno.test('parseComponentBlocks - Tracks startIndex and endIndex', () => {
+  const prefix = 'Some text before\n';
+  const block = '```component:widget\n{"x":1}\n```';
+  const markdown = prefix + block;
 
   const blocks = parseComponentBlocks(markdown);
 
   assertEquals(blocks.length, 1);
-  assertEquals(blocks[0].params, null);
-  assertEquals(blocks[0].parseError, 'Params must be a JSON object');
+  assertEquals(blocks[0].startIndex, prefix.length);
+  assertEquals(blocks[0].endIndex, markdown.length);
 });
 
-Deno.test('parseComponentBlocks - tracks correct startIndex and endIndex', () => {
-  const markdown = 'prefix```component:test\n{}\n```suffix';
+Deno.test('parseComponentBlocks - Multiple blocks track correct indices', () => {
+  const markdown = '```component:a\n{}\n```\n' +
+    'between\n' +
+    '```component:b\n{}\n```';
 
   const blocks = parseComponentBlocks(markdown);
 
-  assertEquals(blocks[0].startIndex, 6);
-  assertEquals(blocks[0].endIndex, 30);
-  assertEquals(markdown.substring(blocks[0].startIndex, blocks[0].endIndex), blocks[0].fullMatch);
+  assertEquals(blocks.length, 2);
+  // First block
+  assertEquals(blocks[0].startIndex, 0);
+  assertEquals(blocks[0].endIndex > 0, true);
+  // Second block starts after first
+  assertEquals(blocks[1].startIndex > blocks[0].endIndex, true);
+  assertEquals(blocks[1].endIndex > blocks[1].startIndex, true);
 });
 
-Deno.test('parseComponentBlocks - handles nested quotes in JSON', () => {
-  const markdown = '```component:widget\n{"text": "Quote\\"inside", "other": "value"}\n```';
+// ============================================================================
+// parseComponentBlocks() - Edge Cases
+// ============================================================================
+
+Deno.test('parseComponentBlocks - No component blocks returns empty array', () => {
+  const markdown = '# Heading\n\nSome text with no components';
+
+  const blocks = parseComponentBlocks(markdown);
+
+  assertEquals(blocks.length, 0);
+});
+
+Deno.test('parseComponentBlocks - Component block with whitespace in params', () => {
+  const markdown = '```component:widget\n  { "key" : "value" }  \n```';
 
   const blocks = parseComponentBlocks(markdown);
 
   assertEquals(blocks.length, 1);
-  assertEquals(blocks[0].params, { text: 'Quote"inside', other: 'value' });
+  assertEquals(blocks[0].params, { key: 'value' });
   assertEquals(blocks[0].parseError, undefined);
 });
 
-Deno.test('parseComponentBlocks - ignores similar patterns that dont match', () => {
-  const markdown =
-    'Some `component:widget` and ```component-widget\n{}\n``` text should be ignored';
-
-  const blocks = parseComponentBlocks(markdown);
-
-  assertEquals(blocks.length, 0);
-});
-
-Deno.test('parseComponentBlocks - requires lowercase component name', () => {
-  const markdown = '```component:Widget\n{}\n```';
-
-  const blocks = parseComponentBlocks(markdown);
-
-  assertEquals(blocks.length, 0);
-});
-
-Deno.test('parseComponentBlocks - accepts numeric characters in component name', () => {
-  const markdown = '```component:widget2\n{"key": "value"}\n```';
+Deno.test('parseComponentBlocks - Component block with newlines in JSON', () => {
+  const markdown = '```component:widget\n' +
+    '{\n' +
+    '  "name": "test",\n' +
+    '  "value": 123\n' +
+    '}\n' +
+    '```';
 
   const blocks = parseComponentBlocks(markdown);
 
   assertEquals(blocks.length, 1);
-  assertEquals(blocks[0].componentName, 'widget2');
+  assertEquals(blocks[0].params, { name: 'test', value: 123 });
 });
 
-Deno.test('parseComponentBlocks - accepts hyphens in component name', () => {
-  const markdown = '```component:my-widget-name\n{"key": "value"}\n```';
+Deno.test('parseComponentBlocks - Component name must start with lowercase', () => {
+  const markdown1 = '```component:Widget\n{}\n```';
+  const markdown2 = '```component:WIDGET\n{}\n```';
 
-  const blocks = parseComponentBlocks(markdown);
+  const blocks1 = parseComponentBlocks(markdown1);
+  const blocks2 = parseComponentBlocks(markdown2);
 
-  assertEquals(blocks.length, 1);
-  assertEquals(blocks[0].componentName, 'my-widget-name');
+  // Pattern requires lowercase start [a-z], so these won't match
+  assertEquals(blocks1.length, 0);
+  assertEquals(blocks2.length, 0);
 });
 
-Deno.test('parseComponentBlocks - returns empty array for no matches', () => {
-  const markdown = 'No components here\n```code\nsome code\n```';
-
-  const blocks = parseComponentBlocks(markdown);
-
-  assertEquals(blocks.length, 0);
-});
-
-Deno.test('parseComponentBlocks - handles complex nested JSON', () => {
-  const markdown =
-    '```component:form\n{"fields": [{"name": "input", "value": 42}], "nested": {"deep": true}}\n```';
+Deno.test('parseComponentBlocks - Complex nested JSON', () => {
+  const markdown = '```component:widget\n{"user":{"name":"Alice","age":30},"tags":["a","b"]}\n```';
 
   const blocks = parseComponentBlocks(markdown);
 
   assertEquals(blocks.length, 1);
   assertEquals(blocks[0].params, {
-    fields: [{ name: 'input', value: 42 }],
-    nested: { deep: true },
+    user: { name: 'Alice', age: 30 },
+    tags: ['a', 'b'],
   });
 });
 
-Deno.test('parseComponentBlocks - preserves fullMatch with exact content', () => {
-  const markdown = '```component:test\n{"a": 1}\n```';
+Deno.test('parseComponentBlocks - Empty markdown', () => {
+  const blocks = parseComponentBlocks('');
 
-  const blocks = parseComponentBlocks(markdown);
-
-  assertEquals(blocks[0].fullMatch, '```component:test\n{"a": 1}\n```');
+  assertEquals(blocks.length, 0);
 });
 
-// Test replaceComponentBlocks
-Deno.test('replaceComponentBlocks - replaces single component block', () => {
-  const markdown = 'Before\n```component:test\n{}\n```\nAfter';
+// ============================================================================
+// replaceComponentBlocks() - Basic Replacement
+// ============================================================================
+
+Deno.test('replaceComponentBlocks - Single block replacement', () => {
+  const markdown = 'Before\n```component:widget\n{}\n```\nAfter';
   const block = parseComponentBlocks(markdown)[0];
-  const replacements = new Map([[block, 'RENDERED']]);
+  const replacements = new Map([[block, '<div>Rendered</div>']]);
 
   const result = replaceComponentBlocks(markdown, replacements);
 
-  assertEquals(result, 'Before\nRENDERED\nAfter');
+  assertEquals(result, 'Before\n<div>Rendered</div>\nAfter');
 });
 
-Deno.test('replaceComponentBlocks - replaces multiple component blocks', () => {
-  const markdown = 'A\n```component:first\n{}\n```\nB\n```component:second\n{}\n```\nC';
+Deno.test('replaceComponentBlocks - Multiple block replacements', () => {
+  const markdown = '```component:a\n{}\n```\n' +
+    'middle\n' +
+    '```component:b\n{}\n```';
   const blocks = parseComponentBlocks(markdown);
   const replacements = new Map([
-    [blocks[0], 'FIRST'],
-    [blocks[1], 'SECOND'],
+    [blocks[0], '[A]'],
+    [blocks[1], '[B]'],
   ]);
 
   const result = replaceComponentBlocks(markdown, replacements);
 
-  assertEquals(result, 'A\nFIRST\nB\nSECOND\nC');
+  assertEquals(result, '[A]\nmiddle\n[B]');
 });
 
-Deno.test('replaceComponentBlocks - handles overlapping blocks correctly by processing in reverse order', () => {
-  const markdown = '```component:a\n{}\n```X```component:b\n{}\n```';
+Deno.test('replaceComponentBlocks - Replacement with HTML', () => {
+  const markdown = '```component:card\n{"title":"Test"}\n```';
+  const block = parseComponentBlocks(markdown)[0];
+  const replacements = new Map([[
+    block,
+    '<div class="card"><h2>Test</h2><p>Content</p></div>',
+  ]]);
+
+  const result = replaceComponentBlocks(markdown, replacements);
+
+  assertEquals(result, '<div class="card"><h2>Test</h2><p>Content</p></div>');
+});
+
+// ============================================================================
+// replaceComponentBlocks() - Partial Replacements
+// ============================================================================
+
+Deno.test('replaceComponentBlocks - Only replace some blocks', () => {
+  const markdown = '```component:a\n{}\n```\n' +
+    '```component:b\n{}\n```\n' +
+    '```component:c\n{}\n```';
   const blocks = parseComponentBlocks(markdown);
   const replacements = new Map([
-    [blocks[0], 'A_REPLACEMENT'],
-    [blocks[1], 'B_REPLACEMENT'],
+    [blocks[0], 'A'],
+    [blocks[2], 'C'],
+    // blocks[1] not replaced
   ]);
 
   const result = replaceComponentBlocks(markdown, replacements);
 
-  assertEquals(result, 'A_REPLACEMENTXB_REPLACEMENT');
+  assertEquals(result, 'A\n```component:b\n{}\n```\nC');
 });
 
-Deno.test('replaceComponentBlocks - returns unchanged markdown when no replacements', () => {
-  const markdown = 'No components here';
+Deno.test('replaceComponentBlocks - Empty replacements map', () => {
+  const markdown = '```component:widget\n{}\n```';
   const replacements = new Map<ParsedComponentBlock, string>();
 
   const result = replaceComponentBlocks(markdown, replacements);
@@ -401,188 +660,236 @@ Deno.test('replaceComponentBlocks - returns unchanged markdown when no replaceme
   assertEquals(result, markdown);
 });
 
-Deno.test('replaceComponentBlocks - handles empty replacements value', () => {
-  const markdown = 'Before\n```component:test\n{}\n```\nAfter';
-  const block = parseComponentBlocks(markdown)[0];
-  const replacements = new Map([[block, '']]);
+// ============================================================================
+// replaceComponentBlocks() - Order Independence
+// ============================================================================
 
-  const result = replaceComponentBlocks(markdown, replacements);
-
-  assertEquals(result, 'Before\n\nAfter');
-});
-
-Deno.test('replaceComponentBlocks - preserves non-matched content exactly', () => {
-  const markdown = 'Special chars: & < > "\n```component:test\n{}\n```\nMore: <tag>';
-  const block = parseComponentBlocks(markdown)[0];
-  const replacements = new Map([[block, 'X']]);
-
-  const result = replaceComponentBlocks(markdown, replacements);
-
-  assertEquals(result, 'Special chars: & < > "\nX\nMore: <tag>');
-});
-
-Deno.test('replaceComponentBlocks - maintains correct positions with variable-length replacements', () => {
-  const markdown = '```component:a\n{}\n```\n```component:b\n{}\n```';
+Deno.test('replaceComponentBlocks - Processes in reverse order for correct indices', () => {
+  const markdown = 'a```component:x\n{}\n```b' +
+    'c```component:y\n{}\n```d' +
+    'e```component:z\n{}\n```f';
   const blocks = parseComponentBlocks(markdown);
+
+  // Provide replacements in forward order
   const replacements = new Map([
-    [blocks[0], 'SHORT'],
-    [blocks[1], 'VERY_LONG_REPLACEMENT_TEXT'],
+    [blocks[0], 'X'],
+    [blocks[1], 'Y'],
+    [blocks[2], 'Z'],
   ]);
 
   const result = replaceComponentBlocks(markdown, replacements);
 
-  assertEquals(result, 'SHORT\nVERY_LONG_REPLACEMENT_TEXT');
+  assertEquals(result, 'aXbcYdeZf');
 });
 
-Deno.test('replaceComponentBlocks - processes blocks in reverse order of startIndex', () => {
-  const markdown = '```component:first\n{}\n```\n```component:second\n{}\n```';
-  const blocks = parseComponentBlocks(markdown);
+// ============================================================================
+// Integration: Parsing and Replacement Together
+// ============================================================================
 
-  // Verify blocks are processed in correct order by checking the processing logic
-  assertEquals(blocks[0].startIndex < blocks[1].startIndex, true);
+Deno.test('Integration - Parse and replace component blocks', () => {
+  const markdown = '# Page\n\n```component:greeting\n{"name":"Alice"}\n```\n\nEnd';
+
+  const blocks = parseComponentBlocks(markdown);
+  assertEquals(blocks.length, 1);
+  assertEquals(blocks[0].componentName, 'greeting');
 
   const replacements = new Map([
-    [blocks[0], 'A'],
-    [blocks[1], 'B'],
+    [blocks[0], '<div class="greeting"><p>Hello Alice!</p></div>'],
   ]);
-
-  const result = replaceComponentBlocks(markdown, replacements);
-
-  assertEquals(result, 'A\nB');
-});
-
-Deno.test('replaceComponentBlocks - handles single-line markdown', () => {
-  const markdown = 'Text```component:test\n{}\n```MoreText';
-  const block = parseComponentBlocks(markdown)[0];
-  const replacements = new Map([[block, 'X']]);
-
-  const result = replaceComponentBlocks(markdown, replacements);
-
-  assertEquals(result, 'TextXMoreText');
-});
-
-Deno.test('replaceComponentBlocks - handles newlines in replacement text', () => {
-  const markdown = 'A\n```component:test\n{}\n```\nB';
-  const block = parseComponentBlocks(markdown)[0];
-  const replacements = new Map([[block, 'Line1\nLine2\nLine3']]);
-
-  const result = replaceComponentBlocks(markdown, replacements);
-
-  assertEquals(result, 'A\nLine1\nLine2\nLine3\nB');
-});
-
-Deno.test('replaceComponentBlocks - partial block replacement doesnt affect other blocks', () => {
-  const markdown = 'Start\n```component:keep\n{}\n```\nMiddle\n```component:replace\n{}\n```\nEnd';
-  const blocks = parseComponentBlocks(markdown);
-  const replacements = new Map([[blocks[1], 'REPLACED']]);
-
   const result = replaceComponentBlocks(markdown, replacements);
 
   assertEquals(
     result,
-    'Start\n```component:keep\n{}\n```\nMiddle\nREPLACED\nEnd',
+    '# Page\n\n<div class="greeting"><p>Hello Alice!</p></div>\n\nEnd',
   );
 });
 
-// Test interface and type correctness
-Deno.test('ParsedComponentBlock interface has all required properties', () => {
-  const markdown = '```component:test\n{"key": "value"}\n```';
+Deno.test('Integration - Parse, render, and replace components', async () => {
+  const markdown = '# Widget Demo\n\n```component:counter\n{"start":5}\n```\n\nDone';
+
   const blocks = parseComponentBlocks(markdown);
-
-  if (blocks.length > 0) {
-    const block = blocks[0];
-
-    assertEquals(typeof block.fullMatch, 'string');
-    assertEquals(typeof block.componentName, 'string');
-    assertEquals(typeof block.params, 'object');
-    assertEquals(typeof block.startIndex, 'number');
-    assertEquals(typeof block.endIndex, 'number');
-  }
-});
-
-Deno.test('ParsedComponentBlock with parseError has correct properties', () => {
-  const markdown = '```component:test\n{invalid}\n```';
-  const blocks = parseComponentBlocks(markdown);
-
-  if (blocks.length > 0) {
-    const block = blocks[0];
-
-    assertEquals(block.parseError !== undefined, true);
-    assertEquals(typeof block.parseError, 'string');
-  }
-});
-
-// Integration tests
-Deno.test('renderComponent and parseComponentBlocks work together', async () => {
-  const markdown =
-    'Text before\n```component:test-component\n{"title": "Integration"}\n```\nText after';
-  const blocks = parseComponentBlocks(markdown);
-
   assertEquals(blocks.length, 1);
-  assertEquals(blocks[0].componentName, 'test-component');
 
   const component = new MockComponent();
-  const rendered = await renderComponent(
-    component,
-    blocks[0].params as { title: string },
-    'markdown',
-  );
-
-  assertEquals(rendered, '# Content from Integration');
-});
-
-Deno.test('parseComponentBlocks and replaceComponentBlocks work together', async () => {
-  const markdown =
-    'Start\n```component:widget1\n{}\n```\nMiddle\n```component:widget2\n{}\n```\nEnd';
-  const blocks = parseComponentBlocks(markdown);
-
-  const component = new MockComponent();
-  const replacements = new Map<ParsedComponentBlock, string>();
-
-  for (const block of blocks) {
-    const rendered = await renderComponent(
-      component,
-      { title: block.componentName },
-      'markdown',
-    );
-    replacements.set(block, rendered);
-  }
-
-  const result = replaceComponentBlocks(markdown, replacements);
-
-  assertEquals(
-    result,
-    'Start\n# Content from widget1\nMiddle\n# Content from widget2\nEnd',
-  );
-});
-
-Deno.test('renderComponent handles spa context like html', async () => {
-  const component = new MockComponent();
-  const params = { title: 'SPA Test' };
-
-  const htmlResult = await renderComponent(component, params, 'html');
-  const spaResult = await renderComponent(component, params, 'spa');
-
-  assertEquals(htmlResult, spaResult);
-});
-
-Deno.test('parseComponentBlocks with multiline JSON values', () => {
-  const markdown = `\`\`\`component:test
-{
-  "title": "value",
-  "array": [1, 2, 3],
-  "nested": {
-    "key": "value"
-  }
-}
-\`\`\``;
-
-  const blocks = parseComponentBlocks(markdown);
-
-  assertEquals(blocks.length, 1);
-  assertEquals(blocks[0].params, {
-    title: 'value',
-    array: [1, 2, 3],
-    nested: { key: 'value' },
+  const context = createMockContext();
+  const rendered = await renderComponent(component, blocks[0].params!, 'html', {
+    componentContext: context,
   });
+
+  const replacements = new Map([[blocks[0], rendered]]);
+  const result = replaceComponentBlocks(markdown, replacements);
+
+  assertEquals(result, '# Widget Demo\n\n<div>Mock HTML</div>\n\nDone');
+});
+
+// ============================================================================
+// Abort Signal Handling
+// ============================================================================
+
+Deno.test('renderComponent - Passes AbortSignal through to getData', async () => {
+  const component = new MockComponent();
+  const controller = new AbortController();
+
+  await renderComponent(component, {}, 'html', { signal: controller.signal });
+
+  assertEquals(component.getDataSignal, controller.signal);
+});
+
+Deno.test('renderComponent - Can abort rendering', async () => {
+  const component = new MockComponent();
+  let receivedSignal: AbortSignal | undefined;
+
+  component.getData = async (args) => {
+    receivedSignal = args.signal;
+    if (args.signal?.aborted) {
+      throw new Error('Aborted');
+    }
+    return { data: 'test' };
+  };
+
+  const controller = new AbortController();
+  controller.abort();
+
+  await renderComponent(component, {}, 'html', { signal: controller.signal });
+
+  assertEquals(receivedSignal?.aborted, true);
+  assertEquals(component.renderErrorCalled, true);
+});
+
+// ============================================================================
+// Component Without Optional Methods
+// ============================================================================
+
+Deno.test('renderComponent - Component without validateParams', async () => {
+  const component = new MockComponent();
+  // Remove validateParams
+  component.validateParams = undefined as any;
+
+  const result = await renderComponent(component, { id: '1' }, 'html');
+
+  assertEquals(component.getDataCalled, true);
+  assertEquals(result, '<div>Mock HTML</div>');
+});
+
+// ============================================================================
+// Edge Cases & Special Scenarios
+// ============================================================================
+
+Deno.test('renderComponent - Empty params object', async () => {
+  const component = new MockComponent();
+
+  await renderComponent(component, {}, 'html');
+
+  assertEquals(component.getDataParams, {});
+  assertEquals(component.renderHTMLParams, {});
+});
+
+Deno.test('parseComponentBlocks - Multiple blocks with same name', () => {
+  const markdown = '```component:widget\n{"id":1}\n```\n' +
+    '```component:widget\n{"id":2}\n```';
+
+  const blocks = parseComponentBlocks(markdown);
+
+  assertEquals(blocks.length, 2);
+  assertEquals(blocks[0].componentName, 'widget');
+  assertEquals(blocks[1].componentName, 'widget');
+  assertEquals(blocks[0].params, { id: 1 });
+  assertEquals(blocks[1].params, { id: 2 });
+});
+
+Deno.test('parseComponentBlocks - fullMatch property correct', () => {
+  const markdown = '```component:test\n{"x":1}\n```';
+
+  const blocks = parseComponentBlocks(markdown);
+
+  assertEquals(blocks[0].fullMatch, markdown);
+});
+
+Deno.test('replaceComponentBlocks - Replacement longer than original', () => {
+  const markdown = 'a```component:x\n{}\n```b';
+  const block = parseComponentBlocks(markdown)[0];
+  const longReplacement = '<div class="card"><h1>Very Long Replacement Content</h1></div>';
+  const replacements = new Map([[block, longReplacement]]);
+
+  const result = replaceComponentBlocks(markdown, replacements);
+
+  assertEquals(result, 'a' + longReplacement + 'b');
+});
+
+Deno.test('replaceComponentBlocks - Replacement shorter than original', () => {
+  const markdown = 'a```component:very-long-name\n{"very":"long","params":"here"}\n```b';
+  const block = parseComponentBlocks(markdown)[0];
+  const shortReplacement = 'X';
+  const replacements = new Map([[block, shortReplacement]]);
+
+  const result = replaceComponentBlocks(markdown, replacements);
+
+  assertEquals(result, 'aXb');
+});
+
+// ============================================================================
+// Real-world Scenarios
+// ============================================================================
+
+Deno.test('Real world - Render page with multiple widgets', async () => {
+  const markdown = '# My Page\n\n' +
+    '```component:hero\n{"title":"Welcome"}\n```\n\n' +
+    'Some content\n\n' +
+    '```component:card-list\n{"count":3}\n```\n\n' +
+    'More content';
+
+  const blocks = parseComponentBlocks(markdown);
+  assertEquals(blocks.length, 2);
+
+  const component1 = new MockComponent();
+  component1.renderHTMLReturnValue = '<section class="hero">Welcome</section>';
+
+  const component2 = new MockComponent();
+  component2.renderHTMLReturnValue = '<div class="cards">3 items</div>';
+
+  const rendered1 = await renderComponent(component1, blocks[0].params!, 'html');
+  const rendered2 = await renderComponent(component2, blocks[1].params!, 'html');
+
+  const replacements = new Map([
+    [blocks[0], rendered1],
+    [blocks[1], rendered2],
+  ]);
+
+  const result = replaceComponentBlocks(markdown, replacements);
+
+  assertStringIncludes(result, '<section class="hero">Welcome</section>');
+  assertStringIncludes(result, '<div class="cards">3 items</div>');
+  assertStringIncludes(result, '# My Page');
+  assertStringIncludes(result, 'Some content');
+});
+
+Deno.test('Real world - Markdown rendering pipeline', async () => {
+  const markdown = '# Article\n\n```component:preview\n{"draft":false}\n```';
+
+  const blocks = parseComponentBlocks(markdown);
+  const component = new MockComponent();
+  component.renderMarkdownReturnValue = '> Article Preview';
+
+  const rendered = await renderComponent(component, blocks[0].params!, 'markdown');
+
+  const replacements = new Map([[blocks[0], rendered]]);
+  const result = replaceComponentBlocks(markdown, replacements);
+
+  assertEquals(result, '# Article\n\n> Article Preview');
+});
+
+Deno.test('Real world - Error recovery in component rendering', async () => {
+  const markdown = '```component:api-widget\n{"endpoint":"/data"}\n```';
+
+  const blocks = parseComponentBlocks(markdown);
+  const component = new MockComponent();
+  component.getDataReturnValue = new Error('API unavailable');
+  component.renderErrorReturnValue = '<div class="error">Service unavailable</div>';
+
+  const rendered = await renderComponent(component, blocks[0].params!, 'html');
+
+  const replacements = new Map([[blocks[0], rendered]]);
+  const result = replaceComponentBlocks(markdown, replacements);
+
+  assertStringIncludes(result, '<div class="error">Service unavailable</div>');
 });

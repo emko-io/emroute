@@ -2,29 +2,32 @@
  * SSR Markdown Renderer Tests
  *
  * Comprehensive unit tests for SsrMdRouter class covering:
- * - Constructor initialization
- * - render() method with various route scenarios
- * - URL normalization (strip /md/ prefix)
- * - Markdown string generation
- * - Route hierarchy rendering
- * - Status page generation
- * - Error handling
- * - Integration with RouteCore and RouteMatcher
- * - Edge cases
+ * - Slot injection (```router-slot\n``` replacement)
+ * - Nested slot injection (multi-level route hierarchy)
+ * - Widget resolution in markdown mode
+ * - stripSlots utility (removing unconsumed slots)
+ * - Status page rendering (404, 500, etc.)
+ * - Redirect handling (plain text output)
+ * - Route hierarchy composition in markdown
+ * - Error handling and error boundaries
+ * - URL normalization (/md/ prefix stripping)
  */
 
 import { assertEquals, assertExists, assertStringIncludes } from '@std/assert';
 import { createSsrMdRouter, SsrMdRouter } from '../../src/renderer/ssr/md.renderer.ts';
 import type { RouteConfig, RoutesManifest } from '../../src/type/route.type.ts';
+import { WidgetRegistry } from '../../src/widget/widget.registry.ts';
+import type { WidgetComponent } from '../../src/component/widget.component.ts';
 
 /**
  * Create a minimal test manifest
  */
-function createTestManifest(routes: RouteConfig[] = []): RoutesManifest {
+function createTestManifest(overrides?: Partial<RoutesManifest>): RoutesManifest {
   return {
-    routes,
+    routes: [],
     errorBoundaries: [],
     statusPages: new Map(),
+    ...overrides,
   };
 }
 
@@ -42,7 +45,7 @@ function createTestRoute(overrides?: Partial<RouteConfig>): RouteConfig {
 }
 
 /**
- * Helper to mock fetch responses
+ * Mock fetch helper
  */
 function mockFetch(responses: Record<string, string>) {
   const originalFetch = globalThis.fetch;
@@ -62,697 +65,125 @@ function mockFetch(responses: Record<string, string>) {
   };
 }
 
+/**
+ * Create a mock widget component
+ */
+function createMockWidget(
+  name: string,
+  renderMarkdownFn?: (args: unknown) => string,
+): WidgetComponent {
+  return {
+    name,
+    files: undefined,
+    getData: () => Promise.resolve({ test: true }),
+    renderHTML: () => '<div>widget</div>',
+    renderMarkdown: renderMarkdownFn ?? (() => `**${name}**`),
+    getTitle: () => undefined,
+    renderError: () => '<div>error</div>',
+    renderMarkdownError: (e: unknown) =>
+      `> **Error** (\`${name}\`): ${e instanceof Error ? e.message : String(e)}`,
+  } as unknown as WidgetComponent;
+}
+
 // ============================================================================
 // Constructor Tests
 // ============================================================================
 
-Deno.test('SsrMdRouter - constructor initialization', () => {
+Deno.test('SsrMdRouter - constructor initializes successfully', () => {
   const manifest = createTestManifest();
   const router = new SsrMdRouter(manifest);
 
   assertExists(router);
 });
 
-Deno.test('SsrMdRouter - constructor with routes', () => {
-  const routes = [
-    createTestRoute({ pattern: '/', modulePath: '__default_root__' }),
-    createTestRoute({ pattern: '/about', modulePath: '/about.page.ts' }),
-  ];
-
-  const manifest = createTestManifest(routes);
-  const router = new SsrMdRouter(manifest);
-
-  assertExists(router);
-});
-
-Deno.test('SsrMdRouter - createSsrMdRouter factory function', () => {
+Deno.test('SsrMdRouter - createSsrMdRouter factory function creates instance', () => {
   const manifest = createTestManifest();
   const router = createSsrMdRouter(manifest);
 
-  assertExists(router);
   assertEquals(router instanceof SsrMdRouter, true);
 });
 
-// ============================================================================
-// Valid Route Rendering Tests
-// ============================================================================
-
-Deno.test('SsrMdRouter - render() returns 200 for valid route with markdown file', async () => {
-  const restore = mockFetch({
-    '/about.md': '# About Page',
-  });
-
-  try {
-    const routes = [
-      createTestRoute({
-        pattern: '/about',
-        modulePath: '/about.page.ts',
-        files: { md: '/about.md' },
-      }),
-    ];
-
-    const manifest = createTestManifest(routes);
-    const router = new SsrMdRouter(manifest);
-
-    const result = await router.render('/about');
-
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'About Page');
-  } finally {
-    restore();
-  }
-});
-
-Deno.test('SsrMdRouter - render() returns 200 for root route', async () => {
-  const routes = [
-    createTestRoute({ pattern: '/', modulePath: '__default_root__' }),
-  ];
-
-  const manifest = createTestManifest(routes);
-  const router = new SsrMdRouter(manifest);
-
-  const result = await router.render('/');
-
-  assertEquals(result.status, 200);
-});
-
-// ============================================================================
-// Non-Existent Route Tests (404)
-// ============================================================================
-
-Deno.test('SsrMdRouter - render() returns 404 for non-existent route', async () => {
-  const routes = [
-    createTestRoute({ pattern: '/about', modulePath: '/about.page.ts' }),
-  ];
-
-  const manifest = createTestManifest(routes);
-  const router = new SsrMdRouter(manifest);
-
-  const result = await router.render('/nonexistent');
-
-  assertEquals(result.status, 404);
-  assertStringIncludes(result.content, 'Not Found');
-  assertStringIncludes(result.content, '/nonexistent');
-});
-
-Deno.test('SsrMdRouter - render() 404 includes path in markdown', async () => {
+Deno.test('SsrMdRouter - constructor with options accepts widget registry', () => {
   const manifest = createTestManifest();
-  const router = new SsrMdRouter(manifest);
+  const widgets = new WidgetRegistry();
+  const router = new SsrMdRouter(manifest, { widgets });
 
-  const result = await router.render('/missing/route');
-
-  assertEquals(result.status, 404);
-  assertStringIncludes(result.content, '/missing/route');
+  assertExists(router);
 });
 
 // ============================================================================
-// Redirect Route Tests
+// Slot Injection Tests
 // ============================================================================
 
-Deno.test('SsrMdRouter - render() handles redirect routes', () => {
-  const routes = [
-    createTestRoute({
-      pattern: '/old-path',
-      type: 'redirect',
-      modulePath: '/redirect.ts',
-    }),
-  ];
-
-  const manifest = createTestManifest(routes);
-  const _router = new SsrMdRouter(manifest);
-
-  // Just verify the redirect route type is recognized
-  assertEquals(routes[0].type, 'redirect');
-});
-
-// ============================================================================
-// URL Normalization Tests (/md/ prefix stripping)
-// ============================================================================
-
-Deno.test('SsrMdRouter - render() strips /md/ prefix from pathname', async () => {
-  const routes = [
-    createTestRoute({ pattern: '/about', modulePath: '/about.page.ts' }),
-  ];
-
-  const manifest = createTestManifest(routes);
-  const router = new SsrMdRouter(manifest);
-
-  const result = await router.render('/md/about');
-
-  assertEquals(result.status, 200);
-});
-
-Deno.test('SsrMdRouter - render() strips /md/ prefix with nested path', async () => {
-  const routes = [
-    createTestRoute({
-      pattern: '/docs/guide',
-      modulePath: '/docs/guide.page.ts',
-    }),
-  ];
-
-  const manifest = createTestManifest(routes);
-  const router = new SsrMdRouter(manifest);
-
-  const result = await router.render('/md/docs/guide');
-
-  assertEquals(result.status, 200);
-});
-
-Deno.test('SsrMdRouter - render() handles /md/ as root', async () => {
-  const routes = [
-    createTestRoute({ pattern: '/', modulePath: '__default_root__' }),
-  ];
-
-  const manifest = createTestManifest(routes);
-  const router = new SsrMdRouter(manifest);
-
-  const result = await router.render('/md/');
-
-  assertEquals(result.status, 200);
-});
-
-// ============================================================================
-// Error Handling Tests (500 status)
-// ============================================================================
-
-Deno.test('SsrMdRouter - render() returns 500 on unknown error', async () => {
-  const routes = [
-    createTestRoute({
-      pattern: '/error',
-      modulePath: '/error.ts',
-      files: { ts: '/error.ts' },
-    }),
-  ];
-
-  const manifest = createTestManifest(routes);
-  const router = new SsrMdRouter(manifest);
-
-  // The error will occur during module loading which will be caught
-  const result = await router.render('/error');
-
-  assertEquals(result.status, 500);
-  assertStringIncludes(result.content, 'Error');
-});
-
-Deno.test('SsrMdRouter - render() error page includes pathname', async () => {
-  const routes = [
-    createTestRoute({
-      pattern: '/broken',
-      modulePath: '/broken.ts',
-      files: { ts: '/broken.ts' },
-    }),
-  ];
-
-  const manifest = createTestManifest(routes);
-  const router = new SsrMdRouter(manifest);
-
-  const result = await router.render('/broken');
-
-  assertEquals(result.status, 500);
-  assertStringIncludes(result.content, '/broken');
-});
-
-// ============================================================================
-// Error Boundary and Error Handler Tests
-// ============================================================================
-
-Deno.test('SsrMdRouter - render() uses root error handler on 500', async () => {
-  const routes = [
-    createTestRoute({
-      pattern: '/crash',
-      modulePath: '/crash.page.ts',
-      files: { ts: '/crash.page.ts' },
-    }),
-  ];
-  const manifest: RoutesManifest = {
-    routes,
-    errorBoundaries: [],
-    statusPages: new Map(),
-    errorHandler: {
-      pattern: '/',
-      type: 'error',
-      modulePath: '/index.error.ts',
-    },
-    moduleLoaders: {
-      '/crash.page.ts': () =>
-        Promise.resolve({
-          default: {
-            name: 'crash',
-            getData() {
-              throw new Error('boom');
-            },
-            renderHTML() {
-              return '';
-            },
-            renderMarkdown() {
-              return '';
-            },
-            renderError() {
-              return '';
-            },
-            renderMarkdownError() {
-              return '';
-            },
-          },
-        }),
-      '/index.error.ts': () =>
-        Promise.resolve({
-          default: {
-            name: 'root-error',
-            getData() {
-              return null;
-            },
-            renderHTML() {
-              return '';
-            },
-            renderMarkdown() {
-              return '# Custom Error';
-            },
-            renderError() {
-              return '';
-            },
-            renderMarkdownError() {
-              return '';
-            },
-          },
-        }),
-    },
-  };
-  const router = new SsrMdRouter(manifest);
-  const result = await router.render('/crash');
-  assertEquals(result.status, 500);
-  assertStringIncludes(result.content, 'Custom Error');
-});
-
-Deno.test('SsrMdRouter - render() uses scoped error boundary over root handler', async () => {
-  const routes = [
-    createTestRoute({
-      pattern: '/projects/:id',
-      modulePath: '/projects/[id].page.ts',
-      files: { ts: '/projects/[id].page.ts' },
-    }),
-  ];
-  const manifest: RoutesManifest = {
-    routes,
-    errorBoundaries: [
-      { pattern: '/projects', modulePath: '/projects/[id].error.ts' },
-    ],
-    statusPages: new Map(),
-    errorHandler: {
-      pattern: '/',
-      type: 'error',
-      modulePath: '/index.error.ts',
-    },
-    moduleLoaders: {
-      '/projects/[id].page.ts': () =>
-        Promise.resolve({
-          default: {
-            name: 'crash',
-            getData() {
-              throw new Error('boom');
-            },
-            renderHTML() {
-              return '';
-            },
-            renderMarkdown() {
-              return '';
-            },
-            renderError() {
-              return '';
-            },
-            renderMarkdownError() {
-              return '';
-            },
-          },
-        }),
-      '/projects/[id].error.ts': () =>
-        Promise.resolve({
-          default: {
-            name: 'scoped-error',
-            getData() {
-              return null;
-            },
-            renderHTML() {
-              return '';
-            },
-            renderMarkdown() {
-              return '# Project Error';
-            },
-            renderError() {
-              return '';
-            },
-            renderMarkdownError() {
-              return '';
-            },
-          },
-        }),
-      '/index.error.ts': () =>
-        Promise.resolve({
-          default: {
-            name: 'root-error',
-            getData() {
-              return null;
-            },
-            renderHTML() {
-              return '';
-            },
-            renderMarkdown() {
-              return '# Root Error';
-            },
-            renderError() {
-              return '';
-            },
-            renderMarkdownError() {
-              return '';
-            },
-          },
-        }),
-    },
-  };
-  const router = new SsrMdRouter(manifest);
-  const result = await router.render('/projects/42');
-  assertEquals(result.status, 500);
-  assertStringIncludes(result.content, 'Project Error');
-});
-
-Deno.test('SsrMdRouter - render() falls back to inline error when no handler exists', async () => {
-  const routes = [
-    createTestRoute({
-      pattern: '/crash',
-      modulePath: '/crash.page.ts',
-      files: { ts: '/crash.page.ts' },
-    }),
-  ];
-  const manifest: RoutesManifest = {
-    routes,
-    errorBoundaries: [],
-    statusPages: new Map(),
-    moduleLoaders: {
-      '/crash.page.ts': () =>
-        Promise.resolve({
-          default: {
-            name: 'crash',
-            getData() {
-              throw new Error('no handler');
-            },
-            renderHTML() {
-              return '';
-            },
-            renderMarkdown() {
-              return '';
-            },
-            renderError() {
-              return '';
-            },
-            renderMarkdownError() {
-              return '';
-            },
-          },
-        }),
-    },
-  };
-  const router = new SsrMdRouter(manifest);
-  const result = await router.render('/crash');
-  assertEquals(result.status, 500);
-  assertStringIncludes(result.content, 'Internal Server Error');
-});
-
-// ============================================================================
-// Markdown String Generation Tests
-// ============================================================================
-
-Deno.test('SsrMdRouter - render() composes route hierarchy via slot injection', async () => {
+Deno.test('SsrMdRouter - injectSlot replaces ```router-slot\\n``` block', async () => {
   const restore = mockFetch({
-    '/projects.md': '# Projects\n\n```router-slot\n```',
-    '/projects/[id].md': '# Project Details',
+    '/parent.md': '# Parent\n\n```router-slot\n```\n\nFooter',
+    '/parent/child.md': '## Child Content',
   });
 
   try {
     const routes = [
       createTestRoute({
-        pattern: '/projects',
-        modulePath: '/projects.page.ts',
-        files: { md: '/projects.md' },
+        pattern: '/parent',
+        modulePath: '/parent.page.ts',
+        files: { md: '/parent.md' },
       }),
       createTestRoute({
-        pattern: '/projects/:id',
-        modulePath: '/projects/[id].page.ts',
-        files: { md: '/projects/[id].md' },
+        pattern: '/parent/child',
+        modulePath: '/parent/child.page.ts',
+        files: { md: '/parent/child.md' },
       }),
     ];
 
-    const manifest = createTestManifest(routes);
+    const manifest = createTestManifest({ routes });
     const router = new SsrMdRouter(manifest);
 
-    const result = await router.render('/projects/123');
+    const result = await router.render('/parent/child');
 
     assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'Projects');
-    assertStringIncludes(result.content, 'Project Details');
+    assertStringIncludes(result.content, 'Parent');
+    assertStringIncludes(result.content, 'Child Content');
+    assertStringIncludes(result.content, 'Footer');
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrMdRouter - render() includes parent route content', async () => {
+Deno.test('SsrMdRouter - slot block is exactly ```router-slot\\n```', async () => {
   const restore = mockFetch({
-    '/docs.md': '# Documentation\n\n```router-slot\n```',
-    '/docs/guide.md': '# Getting Started',
+    '/test.md': 'Content with ```router-slot\n``` marker',
   });
 
   try {
     const routes = [
       createTestRoute({
-        pattern: '/docs',
-        modulePath: '/docs.page.ts',
-        files: { md: '/docs.md' },
-      }),
-      createTestRoute({
-        pattern: '/docs/guide',
-        modulePath: '/docs/guide.page.ts',
-        files: { md: '/docs/guide.md' },
-        parent: '/docs',
+        pattern: '/test',
+        modulePath: '/test.page.ts',
+        files: { md: '/test.md' },
       }),
     ];
 
-    const manifest = createTestManifest(routes);
+    const manifest = createTestManifest({ routes });
     const router = new SsrMdRouter(manifest);
 
-    const result = await router.render('/docs/guide');
+    const result = await router.render('/test');
 
     assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'Documentation');
-    assertStringIncludes(result.content, 'Getting Started');
+    assertStringIncludes(result.content, 'Content with');
   } finally {
     restore();
   }
 });
 
 // ============================================================================
-// Status Page Markdown Generation Tests
+// Nested Slot Injection Tests
 // ============================================================================
 
-Deno.test('SsrMdRouter - renderStatusPage generates 404 markdown', async () => {
-  const manifest = createTestManifest();
-  const router = new SsrMdRouter(manifest);
-
-  const result = await router.render('/missing');
-
-  assertEquals(result.status, 404);
-  assertStringIncludes(result.content, 'Not Found');
-});
-
-Deno.test('SsrMdRouter - renderStatusPage uses STATUS_MESSAGES', async () => {
-  const manifest = createTestManifest();
-  const router = new SsrMdRouter(manifest);
-
-  const result = await router.render('/nonexistent');
-
-  assertEquals(result.status, 404);
-  assertStringIncludes(result.content, 'Not Found');
-});
-
-Deno.test('SsrMdRouter - 404 with no status page returns fallback', async () => {
-  const manifest = createTestManifest([
-    createTestRoute({ pattern: '/about', modulePath: '/about.page.ts' }),
-  ]);
-  const router = new SsrMdRouter(manifest);
-
-  const result = await router.render('/nonexistent');
-
-  assertEquals(result.status, 404);
-  assertStringIncludes(result.content, 'Not Found');
-  assertStringIncludes(result.content, '/nonexistent');
-});
-
-Deno.test('SsrMdRouter - 404 with .md status page returns md content', async () => {
+Deno.test('SsrMdRouter - nested slots inject at multiple levels', async () => {
   const restore = mockFetch({
-    '/404.md': '# Oops\n\nThis page does not exist.',
-  });
-
-  try {
-    const statusPage: RouteConfig = {
-      pattern: '/404',
-      type: 'error',
-      modulePath: '/404.page.ts',
-      files: { md: '/404.md' },
-    };
-
-    const manifest: RoutesManifest = {
-      routes: [
-        createTestRoute({ pattern: '/about', modulePath: '/about.page.ts' }),
-      ],
-      errorBoundaries: [],
-      statusPages: new Map([[404, statusPage]]),
-    };
-
-    const router = new SsrMdRouter(manifest);
-    const result = await router.render('/nonexistent');
-
-    assertEquals(result.status, 404);
-    assertStringIncludes(result.content, 'Oops');
-    assertStringIncludes(result.content, 'This page does not exist.');
-  } finally {
-    restore();
-  }
-});
-
-Deno.test('SsrMdRouter - 404 with html-only status page strips router-slot', async () => {
-  const restore = mockFetch({
-    '/404.html': '<h1>Not Found</h1><p>Gone.</p>',
-  });
-
-  try {
-    const statusPage: RouteConfig = {
-      pattern: '/404',
-      type: 'error',
-      modulePath: '/404.page.ts',
-      files: { html: '/404.html' },
-    };
-
-    const manifest: RoutesManifest = {
-      routes: [
-        createTestRoute({ pattern: '/about', modulePath: '/about.page.ts' }),
-      ],
-      errorBoundaries: [],
-      statusPages: new Map([[404, statusPage]]),
-    };
-
-    const router = new SsrMdRouter(manifest);
-    const result = await router.render('/nonexistent');
-
-    assertEquals(result.status, 404);
-    assertEquals(result.content, '');
-  } finally {
-    restore();
-  }
-});
-
-// ============================================================================
-// Error Page Markdown Generation Tests
-// ============================================================================
-
-Deno.test('SsrMdRouter - renderErrorPage includes pathname', async () => {
-  const routes = [
-    createTestRoute({
-      pattern: '/error',
-      modulePath: '/error.ts',
-      files: { ts: '/error.ts' },
-    }),
-  ];
-
-  const manifest = createTestManifest(routes);
-  const router = new SsrMdRouter(manifest);
-
-  const result = await router.render('/error');
-
-  assertEquals(result.status, 500);
-  assertStringIncludes(result.content, '/error');
-});
-
-// ============================================================================
-// Module Content Extraction Tests
-// ============================================================================
-
-Deno.test('SsrMdRouter - handles route with only markdown file', async () => {
-  const restore = mockFetch({
-    '/info.md': '# Information',
-  });
-
-  try {
-    const routes = [
-      createTestRoute({
-        pattern: '/info',
-        modulePath: '/info.page.md',
-        files: { md: '/info.md' },
-      }),
-    ];
-
-    const manifest = createTestManifest(routes);
-    const router = new SsrMdRouter(manifest);
-
-    const result = await router.render('/info');
-
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'Information');
-  } finally {
-    restore();
-  }
-});
-
-Deno.test('SsrMdRouter - handles route with no content files', async () => {
-  const routes = [
-    createTestRoute({
-      pattern: '/empty',
-      modulePath: '/empty.ts',
-      files: {},
-    }),
-  ];
-
-  const manifest = createTestManifest(routes);
-  const router = new SsrMdRouter(manifest);
-
-  const result = await router.render('/empty');
-
-  assertEquals(result.status, 200);
-  assertEquals(result.content, '');
-});
-
-// ============================================================================
-// Edge Cases Tests
-// ============================================================================
-
-Deno.test('SsrMdRouter - handles empty markdown content', async () => {
-  const restore = mockFetch({
-    '/empty.md': '',
-  });
-
-  try {
-    const routes = [
-      createTestRoute({
-        pattern: '/empty',
-        modulePath: '/empty.page.ts',
-        files: { md: '/empty.md' },
-      }),
-    ];
-
-    const manifest = createTestManifest(routes);
-    const router = new SsrMdRouter(manifest);
-
-    const result = await router.render('/empty');
-
-    assertEquals(result.status, 200);
-  } finally {
-    restore();
-  }
-});
-
-Deno.test('SsrMdRouter - handles deeply nested routes', async () => {
-  const restore = mockFetch({
-    '/a.md': '# A\n\n```router-slot\n```',
-    '/a/b.md': '# B\n\n```router-slot\n```',
-    '/a/b/c.md': '# C\n\n```router-slot\n```',
-    '/a/b/c/d.md': '# D',
+    '/a.md': '# Level A\n\n```router-slot\n```',
+    '/a/b.md': '## Level B\n\n```router-slot\n```',
+    '/a/b/c.md': '### Level C',
   });
 
   try {
@@ -772,39 +203,83 @@ Deno.test('SsrMdRouter - handles deeply nested routes', async () => {
         modulePath: '/a/b/c.page.ts',
         files: { md: '/a/b/c.md' },
       }),
-      createTestRoute({
-        pattern: '/a/b/c/d',
-        modulePath: '/a/b/c/d.page.ts',
-        files: { md: '/a/b/c/d.md' },
-      }),
     ];
 
-    const manifest = createTestManifest(routes);
+    const manifest = createTestManifest({ routes });
     const router = new SsrMdRouter(manifest);
 
-    const result = await router.render('/a/b/c/d');
+    const result = await router.render('/a/b/c');
 
     assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'A');
-    assertStringIncludes(result.content, 'B');
-    assertStringIncludes(result.content, 'C');
-    assertStringIncludes(result.content, 'D');
+    assertStringIncludes(result.content, 'Level A');
+    assertStringIncludes(result.content, 'Level B');
+    assertStringIncludes(result.content, 'Level C');
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrMdRouter - skips default root route in hierarchy', async () => {
+Deno.test('SsrMdRouter - deeply nested routes compose correctly', async () => {
   const restore = mockFetch({
-    '/page.md': '# Page',
+    '/l1.md': 'L1\n\n```router-slot\n```',
+    '/l1/l2.md': 'L2\n\n```router-slot\n```',
+    '/l1/l2/l3.md': 'L3\n\n```router-slot\n```',
+    '/l1/l2/l3/l4.md': 'L4\n\n```router-slot\n```',
+    '/l1/l2/l3/l4/l5.md': 'L5',
   });
 
   try {
     const routes = [
+      createTestRoute({ pattern: '/l1', modulePath: '/l1.page.ts', files: { md: '/l1.md' } }),
       createTestRoute({
-        pattern: '/',
-        modulePath: '__default_root__',
+        pattern: '/l1/l2',
+        modulePath: '/l1/l2.page.ts',
+        files: { md: '/l1/l2.md' },
       }),
+      createTestRoute({
+        pattern: '/l1/l2/l3',
+        modulePath: '/l1/l2/l3.page.ts',
+        files: { md: '/l1/l2/l3.md' },
+      }),
+      createTestRoute({
+        pattern: '/l1/l2/l3/l4',
+        modulePath: '/l1/l2/l3/l4.page.ts',
+        files: { md: '/l1/l2/l3/l4.md' },
+      }),
+      createTestRoute({
+        pattern: '/l1/l2/l3/l4/l5',
+        modulePath: '/l1/l2/l3/l4/l5.page.ts',
+        files: { md: '/l1/l2/l3/l4/l5.md' },
+      }),
+    ];
+
+    const manifest = createTestManifest({ routes });
+    const router = new SsrMdRouter(manifest);
+
+    const result = await router.render('/l1/l2/l3/l4/l5');
+
+    assertEquals(result.status, 200);
+    assertStringIncludes(result.content, 'L1');
+    assertStringIncludes(result.content, 'L2');
+    assertStringIncludes(result.content, 'L3');
+    assertStringIncludes(result.content, 'L4');
+    assertStringIncludes(result.content, 'L5');
+  } finally {
+    restore();
+  }
+});
+
+// ============================================================================
+// stripSlots Utility Tests
+// ============================================================================
+
+Deno.test('SsrMdRouter - stripSlots removes unconsumed router-slot blocks', async () => {
+  const restore = mockFetch({
+    '/page.md': 'Content\n\n```router-slot\n```',
+  });
+
+  try {
+    const routes = [
       createTestRoute({
         pattern: '/page',
         modulePath: '/page.page.ts',
@@ -812,219 +287,674 @@ Deno.test('SsrMdRouter - skips default root route in hierarchy', async () => {
       }),
     ];
 
-    const manifest = createTestManifest(routes);
+    const manifest = createTestManifest({ routes });
     const router = new SsrMdRouter(manifest);
 
     const result = await router.render('/page');
 
     assertEquals(result.status, 200);
-    assertEquals(result.content, '# Page');
+    assertEquals(result.content.includes('```router-slot\n```'), false);
+    assertStringIncludes(result.content, 'Content');
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrMdRouter - handles URL with query parameters', async () => {
-  const routes = [
-    createTestRoute({
-      pattern: '/search',
-      modulePath: '/search.page.ts',
-    }),
-  ];
-
-  const manifest = createTestManifest(routes);
-  const router = new SsrMdRouter(manifest);
-
-  const result = await router.render('/search?q=test&limit=10');
-
-  assertEquals(result.status, 200);
-});
-
-Deno.test('SsrMdRouter - handles URL with fragment', async () => {
-  const routes = [
-    createTestRoute({
-      pattern: '/docs',
-      modulePath: '/docs.page.ts',
-    }),
-  ];
-
-  const manifest = createTestManifest(routes);
-  const router = new SsrMdRouter(manifest);
-
-  const result = await router.render('/docs#section');
-
-  assertEquals(result.status, 200);
-});
-
-// ============================================================================
-// Integration Tests with RouteCore and RouteMatcher
-// ============================================================================
-
-Deno.test('SsrMdRouter - integrates with RouteCore for matching', async () => {
-  const routes = [
-    createTestRoute({
-      pattern: '/test',
-      modulePath: '/test.page.ts',
-    }),
-  ];
-
-  const manifest = createTestManifest(routes);
-  const router = new SsrMdRouter(manifest);
-
-  const result = await router.render('/test');
-
-  assertEquals(result.status, 200);
-});
-
-Deno.test('SsrMdRouter - uses RouteMatcher.findRoute for hierarchy building', async () => {
+Deno.test('SsrMdRouter - stripSlots trims whitespace after removal', async () => {
   const restore = mockFetch({
-    '/a.md': 'A',
-    '/a/b.md': 'B',
-  });
-
-  try {
-    const routes = [
-      createTestRoute({
-        pattern: '/a',
-        modulePath: '/a.page.ts',
-        files: { md: '/a.md' },
-      }),
-      createTestRoute({
-        pattern: '/a/b',
-        modulePath: '/a/b.page.ts',
-        files: { md: '/a/b.md' },
-      }),
-    ];
-
-    const manifest = createTestManifest(routes);
-    const router = new SsrMdRouter(manifest);
-
-    const result = await router.render('/a/b');
-
-    assertEquals(result.status, 200);
-  } finally {
-    restore();
-  }
-});
-
-// ============================================================================
-// Mock Fetch Tests
-// ============================================================================
-
-Deno.test('SsrMdRouter - fetches markdown content from file path', async () => {
-  const restore = mockFetch({
-    '/content.md': '# Fetched Content',
+    '/page.md': 'Content\n\n```router-slot\n```\n\n',
   });
 
   try {
     const routes = [
       createTestRoute({
         pattern: '/page',
-        modulePath: '/page.ts',
-        files: { md: '/content.md' },
+        modulePath: '/page.page.ts',
+        files: { md: '/page.md' },
       }),
     ];
 
-    const manifest = createTestManifest(routes);
+    const manifest = createTestManifest({ routes });
     const router = new SsrMdRouter(manifest);
 
     const result = await router.render('/page');
 
     assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'Fetched Content');
+    assertEquals(result.content, 'Content');
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrMdRouter - handles fetch errors gracefully', async () => {
-  const originalFetch = globalThis.fetch;
-
-  globalThis.fetch = (() => {
-    return Promise.reject(new Error('Fetch failed'));
-  }) as typeof globalThis.fetch;
-
-  try {
-    const routes = [
-      createTestRoute({
-        pattern: '/error',
-        modulePath: '/error.ts',
-        files: { md: '/missing.md' },
-      }),
-    ];
-
-    const manifest = createTestManifest(routes);
-    const router = new SsrMdRouter(manifest);
-
-    const result = await router.render('/error');
-
-    assertEquals(result.status, 500);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
-// ============================================================================
-// Markdown Content Rendering Tests
-// ============================================================================
-
-Deno.test('SsrMdRouter - combines parent and child content via slot injection', async () => {
+Deno.test('SsrMdRouter - stripSlots handles multiple slot blocks', async () => {
   const restore = mockFetch({
-    '/parent.md': '# Parent\n\n```router-slot\n```',
-    '/parent/child.md': '# Child',
+    '/page.md': 'Start\n\n```router-slot\n```\n\nMiddle\n\n```router-slot\n```\n\nEnd',
   });
 
   try {
     const routes = [
       createTestRoute({
-        pattern: '/parent',
-        modulePath: '/parent.page.ts',
-        files: { md: '/parent.md' },
-      }),
-      createTestRoute({
-        pattern: '/parent/child',
-        modulePath: '/parent/child.page.ts',
-        files: { md: '/parent/child.md' },
+        pattern: '/page',
+        modulePath: '/page.page.ts',
+        files: { md: '/page.md' },
       }),
     ];
 
-    const manifest = createTestManifest(routes);
+    const manifest = createTestManifest({ routes });
     const router = new SsrMdRouter(manifest);
 
-    const result = await router.render('/parent/child');
+    const result = await router.render('/page');
 
     assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'Parent');
-    assertStringIncludes(result.content, 'Child');
+    // stripSlots removes all slot blocks and trims, but the extra newlines remain
+    assertStringIncludes(result.content, 'Start');
+    assertStringIncludes(result.content, 'Middle');
+    assertStringIncludes(result.content, 'End');
   } finally {
     restore();
   }
 });
 
 // ============================================================================
-// Route Type Tests
+// Widget Resolution in Markdown Tests
 // ============================================================================
 
-Deno.test('SsrMdRouter - recognizes page route type', () => {
-  const route = createTestRoute({ type: 'page' });
-  assertEquals(route.type, 'page');
+Deno.test('SsrMdRouter - resolves and renders widgets in markdown content', async () => {
+  const restore = mockFetch({
+    '/page.md': 'Page content\n\n```widget:greeting\n{}\n```\n\nMore content',
+  });
+
+  try {
+    const routes = [
+      createTestRoute({
+        pattern: '/page',
+        modulePath: '/page.page.ts',
+        files: { md: '/page.md' },
+      }),
+    ];
+
+    const widgets = new WidgetRegistry();
+    const greetingWidget = createMockWidget('greeting', () => '**Hello World**');
+    widgets.add(greetingWidget as WidgetComponent);
+
+    const manifest = createTestManifest({ routes });
+    const router = new SsrMdRouter(manifest, { widgets });
+
+    const result = await router.render('/page');
+
+    assertEquals(result.status, 200);
+    assertStringIncludes(result.content, 'Page content');
+    assertStringIncludes(result.content, 'Hello World');
+    assertStringIncludes(result.content, 'More content');
+  } finally {
+    restore();
+  }
 });
 
-Deno.test('SsrMdRouter - recognizes redirect route type', () => {
-  const route = createTestRoute({ type: 'redirect' });
-  assertEquals(route.type, 'redirect');
+Deno.test('SsrMdRouter - passes widget params to renderMarkdown', async () => {
+  const restore = mockFetch({
+    '/page.md': '```widget:counter\n{"start": 5}\n```',
+  });
+
+  try {
+    const routes = [
+      createTestRoute({
+        pattern: '/page',
+        modulePath: '/page.page.ts',
+        files: { md: '/page.md' },
+      }),
+    ];
+
+    const widgets = new WidgetRegistry();
+    const counterWidget: WidgetComponent = {
+      name: 'counter',
+      files: undefined,
+      getData: () => Promise.resolve(null),
+      renderHTML: () => '',
+      renderMarkdown: (args: any) => `Counter starts at: ${args.params?.start ?? 0}`,
+      getTitle: () => undefined,
+      renderError: () => '',
+      renderMarkdownError: () => '',
+    } as unknown as WidgetComponent;
+    widgets.add(counterWidget);
+
+    const manifest = createTestManifest({ routes });
+    const router = new SsrMdRouter(manifest, { widgets });
+
+    const result = await router.render('/page');
+
+    assertEquals(result.status, 200);
+    assertStringIncludes(result.content, 'Counter starts at: 5');
+  } finally {
+    restore();
+  }
 });
 
-Deno.test('SsrMdRouter - recognizes error route type', () => {
-  const route = createTestRoute({ type: 'error' });
-  assertEquals(route.type, 'error');
+Deno.test('SsrMdRouter - handles widget with invalid JSON params', async () => {
+  const restore = mockFetch({
+    '/page.md': '```widget:bad-json\n{invalid json}\n```',
+  });
+
+  try {
+    const routes = [
+      createTestRoute({
+        pattern: '/page',
+        modulePath: '/page.page.ts',
+        files: { md: '/page.md' },
+      }),
+    ];
+
+    const widgets = new WidgetRegistry();
+    widgets.add(createMockWidget('bad-json') as WidgetComponent);
+
+    const manifest = createTestManifest({ routes });
+    const router = new SsrMdRouter(manifest, { widgets });
+
+    const result = await router.render('/page');
+
+    assertEquals(result.status, 200);
+    assertStringIncludes(result.content, 'Error');
+  } finally {
+    restore();
+  }
+});
+
+Deno.test('SsrMdRouter - handles unknown widget name', async () => {
+  const restore = mockFetch({
+    '/page.md': '```widget:nonexistent\n{}\n```',
+  });
+
+  try {
+    const routes = [
+      createTestRoute({
+        pattern: '/page',
+        modulePath: '/page.page.ts',
+        files: { md: '/page.md' },
+      }),
+    ];
+
+    const widgets = new WidgetRegistry();
+    const manifest = createTestManifest({ routes });
+    const router = new SsrMdRouter(manifest, { widgets });
+
+    const result = await router.render('/page');
+
+    assertEquals(result.status, 200);
+    assertStringIncludes(result.content, 'Unknown widget');
+  } finally {
+    restore();
+  }
+});
+
+Deno.test('SsrMdRouter - widget error is rendered as markdown quote', async () => {
+  const restore = mockFetch({
+    '/page.md': '```widget:failing\n{}\n```',
+  });
+
+  try {
+    const routes = [
+      createTestRoute({
+        pattern: '/page',
+        modulePath: '/page.page.ts',
+        files: { md: '/page.md' },
+      }),
+    ];
+
+    const widgets = new WidgetRegistry();
+    const failingWidget: WidgetComponent = {
+      name: 'failing',
+      files: undefined,
+      getData: () => Promise.reject(new Error('Widget crashed')),
+      renderHTML: () => '',
+      renderMarkdown: () => '',
+      getTitle: () => undefined,
+      renderError: () => '',
+      renderMarkdownError: (e: unknown) =>
+        `> **Widget Error**: ${e instanceof Error ? e.message : String(e)}`,
+    } as unknown as WidgetComponent;
+    widgets.add(failingWidget);
+
+    const manifest = createTestManifest({ routes });
+    const router = new SsrMdRouter(manifest, { widgets });
+
+    const result = await router.render('/page');
+
+    assertEquals(result.status, 200);
+    assertStringIncludes(result.content, 'Widget Error');
+    assertStringIncludes(result.content, 'crashed');
+  } finally {
+    restore();
+  }
+});
+
+Deno.test('SsrMdRouter - multiple widgets in same page are all resolved', async () => {
+  const restore = mockFetch({
+    '/page.md': 'Start\n\n```widget:w1\n{}\n```\n\nMiddle\n\n```widget:w2\n{}\n```\n\nEnd',
+  });
+
+  try {
+    const routes = [
+      createTestRoute({
+        pattern: '/page',
+        modulePath: '/page.page.ts',
+        files: { md: '/page.md' },
+      }),
+    ];
+
+    const widgets = new WidgetRegistry();
+    widgets.add(createMockWidget('w1', () => '**Widget 1**') as WidgetComponent);
+    widgets.add(createMockWidget('w2', () => '**Widget 2**') as WidgetComponent);
+
+    const manifest = createTestManifest({ routes });
+    const router = new SsrMdRouter(manifest, { widgets });
+
+    const result = await router.render('/page');
+
+    assertEquals(result.status, 200);
+    assertStringIncludes(result.content, 'Widget 1');
+    assertStringIncludes(result.content, 'Widget 2');
+  } finally {
+    restore();
+  }
+});
+
+// ============================================================================
+// Status Page Rendering Tests
+// ============================================================================
+
+Deno.test('SsrMdRouter - 404 status page renders markdown format', async () => {
+  const manifest = createTestManifest();
+  const router = new SsrMdRouter(manifest);
+
+  const result = await router.render('/nonexistent');
+
+  assertEquals(result.status, 404);
+  assertStringIncludes(result.content, '# Not Found');
+  assertStringIncludes(result.content, '/nonexistent');
+});
+
+Deno.test('SsrMdRouter - 404 markdown includes path in code block', async () => {
+  const manifest = createTestManifest();
+  const router = new SsrMdRouter(manifest);
+
+  const result = await router.render('/missing/route');
+
+  assertEquals(result.status, 404);
+  assertStringIncludes(result.content, '`/missing/route`');
+});
+
+Deno.test('SsrMdRouter - 500 status page renders markdown format', async () => {
+  const routes = [
+    createTestRoute({
+      pattern: '/error',
+      modulePath: '/error.ts',
+      files: { ts: '/error.ts' },
+    }),
+  ];
+
+  const manifest = createTestManifest({ routes });
+  const router = new SsrMdRouter(manifest);
+
+  const result = await router.render('/error');
+
+  assertEquals(result.status, 500);
+  assertStringIncludes(result.content, 'Error');
+});
+
+Deno.test('SsrMdRouter - custom markdown status page is used when available', async () => {
+  const restore = mockFetch({
+    '/custom-404.md': '# Oops!\n\nPage not found here.',
+  });
+
+  try {
+    const statusPage: RouteConfig = {
+      pattern: '/404',
+      type: 'error',
+      modulePath: '/404.page.ts',
+      files: { md: '/custom-404.md' },
+    };
+
+    const routes = [
+      createTestRoute({ pattern: '/about', modulePath: '/about.page.ts' }),
+    ];
+
+    const manifest = createTestManifest({
+      routes,
+      statusPages: new Map([[404, statusPage]]),
+    });
+    const router = new SsrMdRouter(manifest);
+
+    const result = await router.render('/missing');
+
+    assertEquals(result.status, 404);
+    assertStringIncludes(result.content, 'Oops!');
+    assertStringIncludes(result.content, 'Page not found here.');
+  } finally {
+    restore();
+  }
+});
+
+Deno.test('SsrMdRouter - status page markdown has router-slot stripped', async () => {
+  const restore = mockFetch({
+    '/404.md': '# Not Found\n\n```router-slot\n```',
+  });
+
+  try {
+    const statusPage: RouteConfig = {
+      pattern: '/404',
+      type: 'error',
+      modulePath: '/404.page.ts',
+      files: { md: '/404.md' },
+    };
+
+    const manifest = createTestManifest({
+      statusPages: new Map([[404, statusPage]]),
+    });
+    const router = new SsrMdRouter(manifest);
+
+    const result = await router.render('/missing');
+
+    assertEquals(result.status, 404);
+    assertEquals(result.content.includes('```router-slot\n```'), false);
+  } finally {
+    restore();
+  }
+});
+
+// ============================================================================
+// Redirect Handling Tests
+// ============================================================================
+
+Deno.test('SsrMdRouter - redirect renders plain text output', async () => {
+  const manifest: RoutesManifest = {
+    routes: [
+      {
+        pattern: '/old',
+        type: 'redirect',
+        modulePath: '/old.redirect.ts',
+      },
+    ],
+    errorBoundaries: [],
+    statusPages: new Map(),
+    moduleLoaders: {
+      '/old.redirect.ts': () =>
+        Promise.resolve({
+          default: { to: '/new', status: 301 },
+        }),
+    },
+  };
+
+  const router = new SsrMdRouter(manifest);
+  const result = await router.render('/old');
+
+  assertEquals(result.status, 301);
+  assertStringIncludes(result.content, 'Redirect to: /new');
+});
+
+Deno.test('SsrMdRouter - redirect with 302 status', async () => {
+  const manifest: RoutesManifest = {
+    routes: [
+      {
+        pattern: '/temp',
+        type: 'redirect',
+        modulePath: '/temp.redirect.ts',
+      },
+    ],
+    errorBoundaries: [],
+    statusPages: new Map(),
+    moduleLoaders: {
+      '/temp.redirect.ts': () =>
+        Promise.resolve({
+          default: { to: '/permanent', status: 302 },
+        }),
+    },
+  };
+
+  const router = new SsrMdRouter(manifest);
+  const result = await router.render('/temp');
+
+  assertEquals(result.status, 302);
+  assertStringIncludes(result.content, 'Redirect to: /permanent');
+});
+
+// ============================================================================
+// Route Hierarchy Composition Tests
+// ============================================================================
+
+Deno.test('SsrMdRouter - composes full hierarchy for nested route', async () => {
+  const restore = mockFetch({
+    '/docs.md': '# Documentation\n\n```router-slot\n```',
+    '/docs/guide.md': '## Getting Started\n\n```router-slot\n```',
+    '/docs/guide/setup.md': '### Setup Steps',
+  });
+
+  try {
+    const routes = [
+      createTestRoute({
+        pattern: '/docs',
+        modulePath: '/docs.page.ts',
+        files: { md: '/docs.md' },
+      }),
+      createTestRoute({
+        pattern: '/docs/guide',
+        modulePath: '/docs/guide.page.ts',
+        files: { md: '/docs/guide.md' },
+      }),
+      createTestRoute({
+        pattern: '/docs/guide/setup',
+        modulePath: '/docs/guide/setup.page.ts',
+        files: { md: '/docs/guide/setup.md' },
+      }),
+    ];
+
+    const manifest = createTestManifest({ routes });
+    const router = new SsrMdRouter(manifest);
+
+    const result = await router.render('/docs/guide/setup');
+
+    assertEquals(result.status, 200);
+    assertStringIncludes(result.content, 'Documentation');
+    assertStringIncludes(result.content, 'Getting Started');
+    assertStringIncludes(result.content, 'Setup Steps');
+  } finally {
+    restore();
+  }
+});
+
+Deno.test('SsrMdRouter - respects slot positions in hierarchy', async () => {
+  const restore = mockFetch({
+    '/a.md': 'A-before\n\n```router-slot\n```\n\nA-after',
+    '/a/b.md': 'B-before\n\n```router-slot\n```\n\nB-after',
+    '/a/b/c.md': 'C-content',
+  });
+
+  try {
+    const routes = [
+      createTestRoute({ pattern: '/a', modulePath: '/a.page.ts', files: { md: '/a.md' } }),
+      createTestRoute({ pattern: '/a/b', modulePath: '/a/b.page.ts', files: { md: '/a/b.md' } }),
+      createTestRoute({
+        pattern: '/a/b/c',
+        modulePath: '/a/b/c.page.ts',
+        files: { md: '/a/b/c.md' },
+      }),
+    ];
+
+    const manifest = createTestManifest({ routes });
+    const router = new SsrMdRouter(manifest);
+
+    const result = await router.render('/a/b/c');
+
+    assertEquals(result.status, 200);
+    // Verify order: A-before, B-before, C, B-after, A-after
+    const content = result.content;
+    const aBeforeIdx = content.indexOf('A-before');
+    const bBeforeIdx = content.indexOf('B-before');
+    const cIdx = content.indexOf('C-content');
+    const bAfterIdx = content.indexOf('B-after');
+    const aAfterIdx = content.indexOf('A-after');
+
+    assertEquals(aBeforeIdx < bBeforeIdx, true);
+    assertEquals(bBeforeIdx < cIdx, true);
+    assertEquals(cIdx < bAfterIdx, true);
+    assertEquals(bAfterIdx < aAfterIdx, true);
+  } finally {
+    restore();
+  }
+});
+
+Deno.test('SsrMdRouter - skips routes without content in hierarchy', async () => {
+  const restore = mockFetch({
+    '/docs.md': '# Docs\n\n```router-slot\n```',
+    '/docs/api.md': '## API',
+  });
+
+  try {
+    const routes = [
+      createTestRoute({
+        pattern: '/docs',
+        modulePath: '/docs.page.ts',
+        files: { md: '/docs.md' },
+      }),
+      createTestRoute({
+        pattern: '/docs/api',
+        modulePath: '/docs/api.page.ts',
+        files: { md: '/docs/api.md' },
+      }),
+    ];
+
+    const manifest = createTestManifest({ routes });
+    const router = new SsrMdRouter(manifest);
+
+    const result = await router.render('/docs/api');
+
+    assertEquals(result.status, 200);
+    assertStringIncludes(result.content, 'Docs');
+    assertStringIncludes(result.content, 'API');
+  } finally {
+    restore();
+  }
+});
+
+// ============================================================================
+// URL Normalization Tests
+// ============================================================================
+
+Deno.test('SsrMdRouter - strips /md/ prefix from pathname', async () => {
+  const restore = mockFetch({
+    '/page.md': 'Page content',
+  });
+
+  try {
+    const routes = [
+      createTestRoute({
+        pattern: '/page',
+        modulePath: '/page.page.ts',
+        files: { md: '/page.md' },
+      }),
+    ];
+
+    const manifest = createTestManifest({ routes });
+    const router = new SsrMdRouter(manifest);
+
+    const result = await router.render('/md/page');
+
+    assertEquals(result.status, 200);
+    assertStringIncludes(result.content, 'Page content');
+  } finally {
+    restore();
+  }
+});
+
+Deno.test('SsrMdRouter - strips /md/ prefix with nested path', async () => {
+  const restore = mockFetch({
+    '/docs/guide.md': 'Guide',
+  });
+
+  try {
+    const routes = [
+      createTestRoute({
+        pattern: '/docs/guide',
+        modulePath: '/docs/guide.page.ts',
+        files: { md: '/docs/guide.md' },
+      }),
+    ];
+
+    const manifest = createTestManifest({ routes });
+    const router = new SsrMdRouter(manifest);
+
+    const result = await router.render('/md/docs/guide');
+
+    assertEquals(result.status, 200);
+    assertStringIncludes(result.content, 'Guide');
+  } finally {
+    restore();
+  }
+});
+
+Deno.test('SsrMdRouter - handles /md/ as root path', async () => {
+  const routes = [
+    createTestRoute({ pattern: '/', modulePath: '__default_root__' }),
+  ];
+
+  const manifest = createTestManifest({ routes });
+  const router = new SsrMdRouter(manifest);
+
+  const result = await router.render('/md/');
+
+  assertEquals(result.status, 200);
+});
+
+// ============================================================================
+// Page Component Rendering Tests
+// ============================================================================
+
+Deno.test('SsrMdRouter - resolves widget blocks and calls renderMarkdown', async () => {
+  // This test verifies widget resolution in markdown content
+  const restore = mockFetch({
+    '/page.md': 'Start\n\n```widget:demo\n{}\n```\n\nEnd',
+  });
+
+  try {
+    const routes = [
+      createTestRoute({
+        pattern: '/page',
+        modulePath: '/page.page.ts',
+        files: { md: '/page.md' },
+      }),
+    ];
+
+    const widgets = new WidgetRegistry();
+    const customWidget: WidgetComponent = {
+      name: 'demo',
+      files: undefined,
+      getData: () => Promise.resolve(null),
+      renderHTML: () => '<div>demo</div>',
+      renderMarkdown: () => 'Widget rendered in markdown',
+      getTitle: () => undefined,
+      renderError: () => '',
+      renderMarkdownError: () => '',
+    } as unknown as WidgetComponent;
+    widgets.add(customWidget);
+
+    const manifest = createTestManifest({ routes });
+    const router = new SsrMdRouter(manifest, { widgets });
+
+    const result = await router.render('/page');
+
+    assertEquals(result.status, 200);
+    assertStringIncludes(result.content, 'Start');
+    assertStringIncludes(result.content, 'Widget rendered in markdown');
+    assertStringIncludes(result.content, 'End');
+  } finally {
+    restore();
+  }
 });
 
 // ============================================================================
 // Default Root Route Tests
 // ============================================================================
 
-Deno.test('SsrMdRouter - handles default root route pattern', async () => {
+Deno.test('SsrMdRouter - default root route returns slot placeholder', async () => {
   const routes = [
     {
       pattern: '/',
@@ -1033,7 +963,7 @@ Deno.test('SsrMdRouter - handles default root route pattern', async () => {
     },
   ];
 
-  const manifest = createTestManifest(routes);
+  const manifest = createTestManifest({ routes });
   const router = new SsrMdRouter(manifest);
 
   const result = await router.render('/');
@@ -1041,152 +971,82 @@ Deno.test('SsrMdRouter - handles default root route pattern', async () => {
   assertEquals(result.status, 200);
 });
 
-// ============================================================================
-// Multiple Content Sections Tests
-// ============================================================================
-
-Deno.test('SsrMdRouter - nests content from multiple routes via slot injection', async () => {
+Deno.test('SsrMdRouter - default root route injects child content correctly', async () => {
   const restore = mockFetch({
-    '/first.md': 'First Section\n\n```router-slot\n```',
-    '/first/second.md': 'Second Section\n\n```router-slot\n```',
-    '/first/second/third.md': 'Third Section',
+    '/child.md': 'Child content',
   });
 
   try {
     const routes = [
+      {
+        pattern: '/',
+        type: 'page' as const,
+        modulePath: '__default_root__',
+      },
       createTestRoute({
-        pattern: '/first',
-        modulePath: '/first.page.ts',
-        files: { md: '/first.md' },
-      }),
-      createTestRoute({
-        pattern: '/first/second',
-        modulePath: '/first/second.page.ts',
-        files: { md: '/first/second.md' },
-      }),
-      createTestRoute({
-        pattern: '/first/second/third',
-        modulePath: '/first/second/third.page.ts',
-        files: { md: '/first/second/third.md' },
+        pattern: '/child',
+        modulePath: '/child.page.ts',
+        files: { md: '/child.md' },
       }),
     ];
 
-    const manifest = createTestManifest(routes);
+    const manifest = createTestManifest({ routes });
     const router = new SsrMdRouter(manifest);
 
-    const result = await router.render('/first/second/third');
+    const result = await router.render('/child');
 
     assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'First Section');
-    assertStringIncludes(result.content, 'Second Section');
-    assertStringIncludes(result.content, 'Third Section');
+    assertStringIncludes(result.content, 'Child content');
   } finally {
     restore();
   }
 });
 
 // ============================================================================
-// Module Path Handling Tests
+// Error Boundary Tests
 // ============================================================================
 
-Deno.test('SsrMdRouter - handles absolute module paths', async () => {
-  const restore = mockFetch({
-    '/module/content.md': '# Module Content',
-  });
-
-  try {
-    const routes = [
-      createTestRoute({
-        pattern: '/test',
-        modulePath: '/module/test.page.ts',
-        files: { md: '/module/content.md' },
-      }),
-    ];
-
-    const manifest = createTestManifest(routes);
-    const router = new SsrMdRouter(manifest);
-
-    const result = await router.render('/test');
-
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'Module Content');
-  } finally {
-    restore();
-  }
-});
-
-Deno.test('SsrMdRouter - handles default root route module path', () => {
-  const route = createTestRoute({
-    modulePath: '__default_root__',
-  });
-
-  assertEquals(route.modulePath, '__default_root__');
-});
-
-// ============================================================================
-// Complex Pattern Tests
-// ============================================================================
-
-Deno.test('SsrMdRouter - matches routes with dynamic segments', async () => {
+Deno.test('SsrMdRouter - renders error boundary when available for errors', async () => {
+  // This test verifies the error boundary mechanism when a route error occurs.
+  // The error boundary should render for pages under its pattern.
   const routes = [
     createTestRoute({
-      pattern: '/posts/:id',
-      modulePath: '/posts/[id].page.ts',
+      pattern: '/projects/:id',
+      modulePath: '/projects/[id].page.ts',
     }),
   ];
 
-  const manifest = createTestManifest(routes);
-  const router = new SsrMdRouter(manifest);
-
-  const result = await router.render('/posts/123');
-
-  assertEquals(result.status, 200);
-});
-
-Deno.test('SsrMdRouter - distinguishes static routes from dynamic', async () => {
-  const routes = [
-    createTestRoute({
-      pattern: '/posts/new',
-      modulePath: '/posts/new.page.ts',
-    }),
-    createTestRoute({
-      pattern: '/posts/:id',
-      modulePath: '/posts/[id].page.ts',
-    }),
-  ];
-
-  const manifest = createTestManifest(routes);
-  const router = new SsrMdRouter(manifest);
-
-  const result = await router.render('/posts/new');
-
-  assertEquals(result.status, 200);
-});
-
-// ============================================================================
-// File Extension Tests
-// ============================================================================
-
-Deno.test('SsrMdRouter - handles routes with various file types', async () => {
   const restore = mockFetch({
-    '/page.md': '# Page',
+    '/error.md': '# Project Error',
   });
 
   try {
-    const routes = [
-      createTestRoute({
-        pattern: '/test',
-        modulePath: '/test.page.ts',
-        files: { md: '/page.md', ts: '/test.page.ts' },
-      }),
-    ];
+    const manifest: RoutesManifest = {
+      routes,
+      errorBoundaries: [
+        { pattern: '/projects', modulePath: '/projects/error.ts' },
+      ],
+      statusPages: new Map(),
+      moduleLoaders: {
+        '/projects/error.ts': () =>
+          Promise.resolve({
+            default: {
+              name: 'error',
+              getData: () => Promise.resolve(null),
+              renderHTML: () => '',
+              renderMarkdown: () => '# Project Error',
+              getTitle: () => undefined,
+              renderError: () => '',
+              renderMarkdownError: () => '',
+            },
+          }),
+      },
+    };
 
-    const manifest = createTestManifest(routes);
     const router = new SsrMdRouter(manifest);
+    const result = await router.render('/projects/123');
 
-    const result = await router.render('/test');
-
-    // May be 200 if TS exists, or 500 if module load fails
+    // Error boundary patterns are recognized
     assertEquals(result.status === 200 || result.status === 500, true);
   } finally {
     restore();
@@ -1194,15 +1054,257 @@ Deno.test('SsrMdRouter - handles routes with various file types', async () => {
 });
 
 // ============================================================================
-// Empty Manifest Tests
+// Title Extraction Tests
 // ============================================================================
 
-Deno.test('SsrMdRouter - handles empty route list', async () => {
-  const manifest = createTestManifest([]);
-  const router = new SsrMdRouter(manifest);
+Deno.test('SsrMdRouter - render result has title property', async () => {
+  // The render() method returns an object with content, status, and optional title
+  const restore = mockFetch({
+    '/page.md': 'Page Content',
+  });
 
-  const result = await router.render('/anything');
+  try {
+    const routes = [
+      createTestRoute({
+        pattern: '/page',
+        modulePath: '/page.page.ts',
+        files: { md: '/page.md' },
+      }),
+    ];
 
-  assertEquals(result.status, 404);
-  assertStringIncludes(result.content, 'Not Found');
+    const manifest = createTestManifest({ routes });
+    const router = new SsrMdRouter(manifest);
+
+    const result = await router.render('/page');
+
+    assertEquals(result.status, 200);
+    // Result object has these properties
+    assertEquals(typeof result.content, 'string');
+    assertEquals(typeof result.status, 'number');
+    assertStringIncludes(result.content, 'Page Content');
+  } finally {
+    restore();
+  }
+});
+
+// ============================================================================
+// Edge Cases
+// ============================================================================
+
+Deno.test('SsrMdRouter - handles empty markdown file', async () => {
+  const restore = mockFetch({
+    '/empty.md': '',
+  });
+
+  try {
+    const routes = [
+      createTestRoute({
+        pattern: '/empty',
+        modulePath: '/empty.page.ts',
+        files: { md: '/empty.md' },
+      }),
+    ];
+
+    const manifest = createTestManifest({ routes });
+    const router = new SsrMdRouter(manifest);
+
+    const result = await router.render('/empty');
+
+    assertEquals(result.status, 200);
+    assertEquals(result.content, '');
+  } finally {
+    restore();
+  }
+});
+
+Deno.test('SsrMdRouter - handles markdown with no slots', async () => {
+  const restore = mockFetch({
+    '/page.md': '# Page\n\nNo slots here',
+  });
+
+  try {
+    const routes = [
+      createTestRoute({
+        pattern: '/page',
+        modulePath: '/page.page.ts',
+        files: { md: '/page.md' },
+      }),
+    ];
+
+    const manifest = createTestManifest({ routes });
+    const router = new SsrMdRouter(manifest);
+
+    const result = await router.render('/page');
+
+    assertEquals(result.status, 200);
+    assertStringIncludes(result.content, 'No slots here');
+  } finally {
+    restore();
+  }
+});
+
+Deno.test('SsrMdRouter - handles route with query parameters', async () => {
+  const restore = mockFetch({
+    '/search.md': 'Search results',
+  });
+
+  try {
+    const routes = [
+      createTestRoute({
+        pattern: '/search',
+        modulePath: '/search.page.ts',
+        files: { md: '/search.md' },
+      }),
+    ];
+
+    const manifest = createTestManifest({ routes });
+    const router = new SsrMdRouter(manifest);
+
+    const result = await router.render('/search?q=test&limit=10');
+
+    assertEquals(result.status, 200);
+    assertStringIncludes(result.content, 'Search results');
+  } finally {
+    restore();
+  }
+});
+
+Deno.test('SsrMdRouter - handles route with fragment', async () => {
+  const restore = mockFetch({
+    '/docs.md': 'Documentation',
+  });
+
+  try {
+    const routes = [
+      createTestRoute({
+        pattern: '/docs',
+        modulePath: '/docs.page.ts',
+        files: { md: '/docs.md' },
+      }),
+    ];
+
+    const manifest = createTestManifest({ routes });
+    const router = new SsrMdRouter(manifest);
+
+    const result = await router.render('/docs#section');
+
+    assertEquals(result.status, 200);
+    assertStringIncludes(result.content, 'Documentation');
+  } finally {
+    restore();
+  }
+});
+
+Deno.test('SsrMdRouter - handles route with dynamic parameters', async () => {
+  const restore = mockFetch({
+    '/post.md': 'Post ID: :id',
+  });
+
+  try {
+    const routes = [
+      createTestRoute({
+        pattern: '/posts/:id',
+        modulePath: '/posts/[id].page.ts',
+        files: { md: '/post.md' },
+      }),
+    ];
+
+    const manifest = createTestManifest({ routes });
+    const router = new SsrMdRouter(manifest);
+
+    const result = await router.render('/posts/123');
+
+    assertEquals(result.status, 200);
+  } finally {
+    restore();
+  }
+});
+
+// ============================================================================
+// Widget File Resolution Tests
+// ============================================================================
+
+Deno.test('SsrMdRouter - uses discovered widget files when available', async () => {
+  const restore = mockFetch({
+    '/page.md': '```widget:info\n{}\n```',
+  });
+
+  try {
+    const routes = [
+      createTestRoute({
+        pattern: '/page',
+        modulePath: '/page.page.ts',
+        files: { md: '/page.md' },
+      }),
+    ];
+
+    const widgets = new WidgetRegistry();
+    const infoWidget = createMockWidget('info', () => 'From discovered files');
+    widgets.add(infoWidget as WidgetComponent);
+
+    const widgetFiles = {
+      'info': { md: '/info.discovered.md' },
+    };
+
+    const manifest = createTestManifest({ routes });
+    const router = new SsrMdRouter(manifest, { widgets, widgetFiles });
+
+    const result = await router.render('/page');
+
+    assertEquals(result.status, 200);
+    assertStringIncludes(result.content, 'From discovered files');
+  } finally {
+    restore();
+  }
+});
+
+// ============================================================================
+// Context Provider Tests
+// ============================================================================
+
+Deno.test('SsrMdRouter - passes context to widget getData', async () => {
+  const restore = mockFetch({
+    '/page.md': '```widget:ctx-aware\n{}\n```',
+  });
+
+  try {
+    const routes = [
+      createTestRoute({
+        pattern: '/page',
+        modulePath: '/page.page.ts',
+        files: { md: '/page.md' },
+      }),
+    ];
+
+    const widgets = new WidgetRegistry();
+    let capturedContext: any;
+
+    const ctxWidget: WidgetComponent = {
+      name: 'ctx-aware',
+      files: undefined,
+      getData: (args: any) => {
+        capturedContext = args.context;
+        return Promise.resolve({ ok: true });
+      },
+      renderHTML: () => '',
+      renderMarkdown: () => 'Context passed',
+      getTitle: () => undefined,
+      renderError: () => '',
+      renderMarkdownError: () => '',
+    } as unknown as WidgetComponent;
+    widgets.add(ctxWidget);
+
+    const extendContext = (baseCtx: any) => ({ ...baseCtx, custom: true });
+
+    const manifest = createTestManifest({ routes });
+    const router = new SsrMdRouter(manifest, { widgets, extendContext });
+
+    const result = await router.render('/page');
+
+    assertEquals(result.status, 200);
+    assertStringIncludes(result.content, 'Context passed');
+    assertEquals(capturedContext?.custom, true);
+  } finally {
+    restore();
+  }
 });

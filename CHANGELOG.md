@@ -14,7 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   expecting similar output, because with nesting, a markdown+slot / markdown+slot
   structure would replace the first slot with subpage content and then strip the
   unused second slot. While the output was the same for most cases, the behaviour
-  was not as planned. We apologize for any inconvenience.
+  was not as planned. We apologize for any inconvenience. To avoid
+  misunderstanding on how nesting works, we've created a
+  [document describing the behaviour](doc/nesting.md) and some nice tricks for
+  you to try.
 
 ### Changed
 

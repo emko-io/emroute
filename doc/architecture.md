@@ -93,7 +93,7 @@ Each level renders its content, and the next level's output replaces the `<route
 
 - **SPA**: DOM injection — set `innerHTML` on the slot element, recurse
 - **SSR HTML**: string replacement — replace `<router-slot></router-slot>` in the parent string
-- **SSR Markdown**: concatenation — join sections with `---` separators
+- **SSR Markdown**: string replacement — replace `` ```router-slot\n``` `` fenced block in the parent string
 
 ## RouteInfo and ComponentContext
 

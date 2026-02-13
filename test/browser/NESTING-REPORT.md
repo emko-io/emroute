@@ -18,7 +18,7 @@ Three variants, each with 4 levels: root → lvl-one → level-two → level-thr
 All `.ts` files extend `PageComponent` with no overrides (only `name` and `getData`).
 
 Each `.html` template has `<router-slot></router-slot>` between BEFORE/AFTER markers.
-Each `.md` file has `` ```router-slot``` `` fenced block between BEFORE/AFTER markers.
+Each `.md` file has `` ```router-slot\n``` `` fenced block between BEFORE/AFTER markers.
 Leaf level (level-three) has no `<router-slot>` / fenced block.
 
 ### Mixed nesting (ts-only parents, mixed leaves)
@@ -61,7 +61,7 @@ PageComponent subclasses with no overrides.
 | `/nesting-ts-html/lvl-one/level-two/level-three` | root only    | all 4                         | all 4                         |
 
 SSR HTML: all levels correct.
-SSR Markdown: only root renders — **expected**, these pages have no `.md` files so `renderMarkdown` falls back to a bare `` ```router-slot``` `` placeholder with zero visible content.
+SSR Markdown: only root renders — **expected**, these pages have no `.md` files so `renderMarkdown` falls back to a bare `` ```router-slot\n``` `` placeholder with zero visible content.
 SPA: all levels correct.
 
 ### `nesting-ts-md` (.ts + .md, no .html)
@@ -79,7 +79,7 @@ All modes correct.
 
 ### `nesting-ts` (ts-only parents, mixed leaves)
 
-Parent levels are ts-only — no `.html` or `.md` files. `renderHTML` falls back to bare `<router-slot>`, `renderMarkdown` falls back to `` ```router-slot``` ``. Parents are transparent passthrough slots in all modes.
+Parent levels are ts-only — no `.html` or `.md` files. `renderHTML` falls back to bare `<router-slot>`, `renderMarkdown` falls back to `` ```router-slot\n``` ``. Parents are transparent passthrough slots in all modes.
 
 | Route            | SSR Markdown         | SSR HTML               | SPA                    |
 | ---------------- | -------------------- | ---------------------- | ---------------------- |
@@ -107,5 +107,5 @@ The "root only" SSR Markdown result for pages without `.md` files is expected: `
 - SSR HTML correctly nests all variants at all depths.
 - The original `nesting` variant (html+md, no ts) uses `<mark-down>` elements that provide an additional `<router-slot>` path from the `.md` fenced block.
 - For `.ts` + `.html` pages, the `<router-slot>` in the `.html` template is the only slot, and the SPA router fills it correctly at all depths via the `renderPage` loop.
-- Ts-only parent pages (no `.html`, no `.md`) produce bare `<router-slot>` / `` ```router-slot``` `` fallbacks and act as transparent passthrough wrappers.
+- Ts-only parent pages (no `.html`, no `.md`) produce bare `<router-slot>` / `` ```router-slot\n``` `` fallbacks and act as transparent passthrough wrappers.
 - Test server must be restarted to pick up new route files (watch mode only rebuilds the bundle).

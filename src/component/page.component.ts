@@ -5,7 +5,7 @@
  *
  * Default implementations follow the fallback table:
  * - renderHTML: html file → md via <mark-down> → <router-slot />
- * - renderMarkdown: md file → ```router-slot```
+ * - renderMarkdown: md file → ```router-slot\n```
  * - getData: no-op (returns null)
  */
 
@@ -83,7 +83,7 @@ export class PageComponent<
    *
    * Fallback chain:
    * 1. md file content from context
-   * 2. `` ```router-slot``` `` (slot placeholder in markdown)
+   * 2. `` ```router-slot\n``` `` (slot placeholder in markdown — newline required)
    *
    * @example
    * ```ts

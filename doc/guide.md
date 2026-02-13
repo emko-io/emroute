@@ -215,6 +215,10 @@ export default new BlogPage();
 
 ## Nested Routes
 
+> For a full guide covering slot syntax, fallback chains, visibility across
+> modes, passthrough pages, catch-all vs dynamic segments, and more — see
+> [Nested Routes](./nesting.md).
+
 Child routes render inside their parent's `<router-slot>`:
 
 ```
@@ -242,7 +246,7 @@ generator handles this automatically based on directory structure.
 > child content injected into its `<router-slot>`. If you want a standalone
 > homepage, put the homepage content before the slot:
 >
-> ```md
+> ````md
 > <!-- routes/index.page.md — renders on every page as a layout -->
 >
 > # My App
@@ -250,12 +254,10 @@ generator handles this automatically based on directory structure.
 > [Home](/) | [About](/about) | [Projects](/projects)
 >
 > ---
-> ```
 >
-> router-slot
->
+> ```router-slot
 > ```
-> ```
+> ````
 >
 > The markdown/HTML above the slot acts as a persistent layout. The child
 > route's content fills the slot. To keep the root index as just a homepage

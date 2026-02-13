@@ -113,6 +113,7 @@ deno task test            # run tests
 
 - [Quick start](doc/quick-start.md) — three files, one command
 - [Consumer guide](doc/guide.md) — routing, components, widgets, error handling, SSR, dev server
+- [Nested routes](doc/nesting.md) — slot syntax, fallback chains, passthrough pages, catch-all patterns, tips and tricks
 - [Markdown renderers](doc/markdown-renderer.md) — pluggable parser interface and setup examples
 - [Setting up emko-md](doc/setup-emko-md.md) — WASM markdown renderer with client + server config
 

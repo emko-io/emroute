@@ -162,7 +162,7 @@ export default new ApiPage();
 ```
 
 This page has no `.html` or `.md`, so `renderHTML` falls back to a bare
-`<router-slot>` and `renderMarkdown` falls back to a `` ```router-slot``` ``
+`<router-slot>` and `renderMarkdown` falls back to a `` ```router-slot\n``` ``
 placeholder. The child page renders directly — no visible wrapper.
 
 ## Visibility Across Modes
@@ -186,7 +186,7 @@ convert HTML to markdown. If you need markdown output, provide it explicitly.
 ## Slot Rules
 
 1. **One slot per page.** The router replaces the first `<router-slot>` (HTML)
-   or `` ```router-slot``` `` (Markdown) it finds. Extra slots are left empty.
+   or `` ```router-slot\n``` `` (Markdown) it finds. Extra slots are left empty.
 
 2. **Non-leaf pages must have a slot.** Without a slot, child content has
    nowhere to go.
@@ -196,7 +196,7 @@ convert HTML to markdown. If you need markdown output, provide it explicitly.
 
 4. **Both `.html` and `.md` need their own slot.** The HTML slot
    (`<router-slot>`) is used by SSR HTML and SPA. The Markdown slot
-   (`` ```router-slot``` ``) is used by SSR Markdown. If you provide both files,
+   (`` ```router-slot\n``` ``) is used by SSR Markdown. If you provide both files,
    both need a slot for children to appear in all modes.
 
 ## Tips and Tricks

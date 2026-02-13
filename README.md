@@ -90,7 +90,7 @@ export default new ProjectPage();
 - **Widgets** — interactive islands with their own data lifecycle, error handling, and optional file companions (`.html`, `.md`, `.css`). Auto-discovered from a `widgets/` directory or registered manually. `this.element` gives opt-in DOM access in the browser. `<widget-foo lazy>` defers loading until visible via `IntersectionObserver`
 - **View Transitions** — SPA route changes animate via `document.startViewTransition()`. Progressive enhancement with CSS-only customization
 - **Scoped CSS** — companion `.widget.css` files auto-wrapped in `@scope (widget-{name}) { ... }`. All widget elements get `content-visibility: auto` and `container-type: inline-size` — use `@container` queries in widget CSS out of the box
-- **SSR hydration** — server-rendered HTML adopted by the SPA without re-rendering
+- **SSR hydration** — server-rendered HTML adopted by the SPA without re-rendering. Widgets can implement `hydrate()` to attach event listeners after SSR adoption, enabling full interactivity while preserving DOM performance
 - **Error boundaries** — scoped error handlers per route prefix, plus status pages (`404.page.html`) and a root fallback
 - **Extensible context** — inject app-level services (RPC clients, auth, feature flags) into every component via `extendContext` on the router. Type-safe access through module augmentation or a per-component generic
 - **Zero dependencies** — native APIs only (URLPattern, custom elements, History API). No framework runtime, no virtual DOM, no build-time magic

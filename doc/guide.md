@@ -532,6 +532,78 @@ third-party libraries, or perform any imperative DOM work after rendering.
 Components that don't need DOM access simply ignore the property — it's
 opt-in by nature.
 
+### Hydration Lifecycle
+
+When widgets are server-side rendered, the browser can adopt the pre-rendered
+HTML without re-rendering. The `hydrate()` lifecycle hook provides a way to
+attach event listeners and enable interactivity after the DOM is ready,
+regardless of whether the widget came from SSR adoption or fresh SPA rendering.
+
+```ts
+class InteractiveWidget extends WidgetComponent<{ start?: string }, { initial: number }> {
+  override readonly name = 'interactive';
+  private clickCount = 0;
+
+  // Store method reference for proper cleanup
+  private handleClick = () => {
+    this.clickCount++;
+    const display = this.element?.querySelector('#count');
+    if (display) display.textContent = String(this.clickCount);
+  };
+
+  override getData({ params }: this['DataArgs']) {
+    return Promise.resolve({ initial: parseInt(params.start ?? '0', 10) });
+  }
+
+  override renderHTML({ data }: this['RenderArgs']) {
+    if (!data) return '<p>Loading...</p>';
+    return `<div>
+      <button id="btn">Click me</button>
+      <span id="count">0</span>
+    </div>`;
+  }
+
+  // Called after SSR adoption AND after fresh SPA rendering
+  override hydrate() {
+    const button = this.element?.querySelector('#btn');
+    if (button) {
+      button.addEventListener('click', this.handleClick);
+    }
+  }
+
+  // Remove listeners to prevent memory leaks
+  override destroy() {
+    const button = this.element?.querySelector('#btn');
+    if (button) {
+      button.removeEventListener('click', this.handleClick);
+    }
+  }
+}
+```
+
+**Lifecycle flow:**
+
+- **SSR mode (`/html/*`)**: Server renders HTML → Browser adopts via `data-ssr`
+  → `hydrate()` called → widget is interactive
+- **SPA mode (`/*`)**: `getData()` → `renderHTML()` → `hydrate()` called →
+  widget is interactive
+
+The `hydrate()` hook is called after rendering in both modes, making it the
+single place to attach all event listeners. This gives you the best of both
+worlds: fast SSR adoption (DOM reuse) with full interactivity.
+
+**Key patterns:**
+
+- **Separation of concerns**: `renderHTML()` returns markup, `hydrate()` adds
+  interactivity
+- **Memory safety**: Use method references (`this.handleClick = () => {}`) so
+  `removeEventListener` in `destroy()` works correctly
+- **Framework widgets**: If loading a third-party library (React, Preact, etc.),
+  load it in `hydrate()` if not already available, since `getData()` may be
+  skipped in SSR mode
+- **Pages don't hydrate**: Only widgets (custom elements) receive the `hydrate()`
+  call. Pages are rendered directly via `innerHTML` without lifecycle hooks
+
 ### Lazy Loading
 
 Add the `lazy` attribute to defer a widget's `loadData()` until it scrolls into
@@ -849,7 +921,8 @@ component's `renderHTML()` and assembles the route hierarchy. When a
 calls `getData()` + `renderHTML()` on each widget, fills the tag with rendered
 content, and adds a `data-ssr` attribute with serialized data. In the browser,
 the SPA adopts this content without re-rendering — it detects `data-ssr`,
-restores state, and the widget is live.
+restores state, calls `hydrate()` to attach event listeners, and the widget is
+fully interactive.
 
 **SSR Markdown renders widgets too.** Fenced `widget:name` blocks are resolved
 via the registry: `getData()` + `renderMarkdown()` replaces the fenced block

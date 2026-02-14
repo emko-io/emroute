@@ -338,40 +338,46 @@ Deno.test(
 
     // ── Title Updates ─────────────────────────────────────────────────
 
-    await t.step({ name: 'title updates on navigation after hydration', ignore: true }, async () => {
-      // Start at home (SSR)
-      await page.goto(baseUrl('/html/'));
-      await page.waitForSelector('h1', { timeout: 5000 });
-      const initialTitle = await page.title();
-      // Just verify a title exists from SSR
-      assert(initialTitle && initialTitle.length > 0, 'initial title should be set from SSR');
+    await t.step(
+      { name: 'title updates on navigation after hydration', ignore: true },
+      async () => {
+        // Start at home (SSR)
+        await page.goto(baseUrl('/html/'));
+        await page.waitForSelector('h1', { timeout: 5000 });
+        const initialTitle = await page.title();
+        // Just verify a title exists from SSR
+        assert(initialTitle && initialTitle.length > 0, 'initial title should be set from SSR');
 
-      // Navigate via SPA to profile
-      await page.evaluate(() => {
-        const router = (globalThis as Record<string, unknown>).__emroute_router;
-        if (router && typeof router === 'object' && 'navigate' in router) {
-          (router.navigate as (url: string) => Promise<void>)('/profile');
-        }
-      });
-      await page.waitForSelector('h1', { timeout: 5000 });
+        // Navigate via SPA to profile
+        await page.evaluate(() => {
+          const router = (globalThis as Record<string, unknown>).__emroute_router;
+          if (router && typeof router === 'object' && 'navigate' in router) {
+            (router.navigate as (url: string) => Promise<void>)('/profile');
+          }
+        });
+        await page.waitForSelector('h1', { timeout: 5000 });
 
-      const profileTitle = await page.title();
-      assert(
-        profileTitle.includes('Alice'),
-        'title should update to profile page title',
-      );
-    });
+        const profileTitle = await page.title();
+        assert(
+          profileTitle.includes('Alice'),
+          'title should update to profile page title',
+        );
+      },
+    );
 
-    await t.step({ name: 'title updates respect getTitle() return value', ignore: true }, async () => {
-      await page.goto(baseUrl('/html/projects/99'));
-      await page.waitForSelector('h1', { timeout: 5000 });
+    await t.step(
+      { name: 'title updates respect getTitle() return value', ignore: true },
+      async () => {
+        await page.goto(baseUrl('/html/projects/99'));
+        await page.waitForSelector('h1', { timeout: 5000 });
 
-      const title = await page.title();
-      assert(
-        title.includes('Project 99'),
-        'dynamic title should include route params',
-      );
-    });
+        const title = await page.title();
+        assert(
+          title.includes('Project 99'),
+          'dynamic title should include route params',
+        );
+      },
+    );
 
     // ── Subsequent SPA Navigation ─────────────────────────────────────
 

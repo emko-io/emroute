@@ -50,7 +50,9 @@ class HydrationTestWidget extends WidgetComponent<Record<string, never>, Hydrati
   override renderHTML({ data }: this['RenderArgs']) {
     if (!data) return '<p>Loading...</p>';
 
-    const browserCalls = typeof globalThis !== 'undefined' ? globalThis.__hydration_test_calls || 0 : 'N/A';
+    const browserCalls = typeof globalThis !== 'undefined'
+      ? globalThis.__hydration_test_calls || 0
+      : 'N/A';
 
     return `<div id="hydration-content" data-ssr="${data.ssrRendered}">
   <h1>Hydration Test</h1>

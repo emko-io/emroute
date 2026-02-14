@@ -41,9 +41,9 @@ Your `deno.json` imports should include both emroute and marked:
 Create a single renderer module shared by both client and server. This ensures
 identical markdown output in both contexts.
 
-```ts
+````ts
 // renderer.ts
-import { marked } from "marked";
+import { marked } from 'marked';
 
 /**
  * Convert a JSON string to HTML attributes.
@@ -51,14 +51,14 @@ import { marked } from "marked";
  */
 function jsonToAttrs(text: string): string {
   const trimmed = text.trim();
-  if (!trimmed) return "";
+  if (!trimmed) return '';
   try {
     const obj = JSON.parse(trimmed) as Record<string, unknown>;
     return Object.entries(obj)
-      .map(([k, v]) => ` ${k}="${String(v).replace(/"/g, "&quot;")}"`)
-      .join("");
+      .map(([k, v]) => ` ${k}="${String(v).replace(/"/g, '&quot;')}"`)
+      .join('');
   } catch {
-    return "";
+    return '';
   }
 }
 
@@ -71,20 +71,20 @@ marked.use({
 
     code: ({ text, lang }) => {
       // ```widget:counter → <widget-counter label="Clicks" start="0">
-      if (lang?.startsWith("widget:")) {
-        const name = lang.slice("widget:".length);
+      if (lang?.startsWith('widget:')) {
+        const name = lang.slice('widget:'.length);
         const attrs = jsonToAttrs(text);
         return `<widget-${name}${attrs}></widget-${name}>`;
       }
 
       // ```router-slot → <router-slot name="sidebar">
-      if (lang === "router-slot") {
+      if (lang === 'router-slot') {
         const attrs = jsonToAttrs(text);
         return `<router-slot${attrs}></router-slot>`;
       }
 
       // Regular code blocks
-      const cls = lang ? ` class="language-${lang}"` : "";
+      const cls = lang ? ` class="language-${lang}"` : '';
       return `<pre><code${cls}>${text}</code></pre>`;
     },
   },
@@ -93,7 +93,7 @@ marked.use({
 export function render(markdown: string): string {
   return marked.parse(markdown, { async: false }) as string;
 }
-```
+````
 
 ### Fenced block conventions
 
@@ -138,7 +138,7 @@ The `html` renderer override controls how raw HTML tags in markdown are handled:
 
 ```ts
 // Pass through raw HTML (trusted content only)
-html: ({ text }) => text
+html: (({ text }) => text);
 
 // Escape raw HTML (safe for untrusted content — marked's default)
 // Simply remove the html override
@@ -156,9 +156,9 @@ Import the shared renderer in your SPA entry point and register it with
 
 ```ts
 // main.ts
-import { MarkdownElement, createSpaHtmlRouter } from "@emkodev/emroute/spa";
-import { routesManifest } from "./routes.manifest.ts";
-import { render } from "./renderer.ts";
+import { createSpaHtmlRouter, MarkdownElement } from '@emkodev/emroute/spa';
+import { routesManifest } from './routes.manifest.ts';
+import { render } from './renderer.ts';
 
 MarkdownElement.setRenderer({ render });
 
@@ -174,17 +174,17 @@ Pass the same renderer to `createDevServer`:
 
 ```ts
 // dev.ts
-import { createDevServer } from "@emkodev/emroute/server";
-import { denoServerRuntime } from "@emkodev/emroute/server/deno";
-import { render } from "./renderer.ts";
+import { createDevServer } from '@emkodev/emroute/server';
+import { denoServerRuntime } from '@emkodev/emroute/server/deno';
+import { render } from './renderer.ts';
 
 await createDevServer(
   {
     port: 1420,
-    entryPoint: "main.ts",
-    routesDir: "./routes",
-    widgetsDir: "./widgets",
-    appRoot: ".",
+    entryPoint: 'main.ts',
+    routesDir: './routes',
+    widgetsDir: './widgets',
+    appRoot: '.',
     markdownRenderer: { render },
   },
   denoServerRuntime,
@@ -206,22 +206,22 @@ Update the `dev` task in `deno.json`:
 The output of `render()` is assigned to `innerHTML` in the browser and served
 as HTML from the server. Your renderer is responsible for sanitizing its output.
 
-| Scenario | Recommendation |
-|---|---|
-| Trusted content (your own `.page.md` files) | Enable HTML passthrough for full flexibility |
+| Scenario                                    | Recommendation                                        |
+| ------------------------------------------- | ----------------------------------------------------- |
+| Trusted content (your own `.page.md` files) | Enable HTML passthrough for full flexibility          |
 | Untrusted content (user-submitted markdown) | Remove the `html` override so marked escapes raw HTML |
-| Mixed | Sanitize the output of `render()` before returning it |
+| Mixed                                       | Sanitize the output of `render()` before returning it |
 
 marked escapes raw HTML by default. The `html: ({ text }) => text` override
 disables this — only use it when you control the markdown source.
 
 ## Why both client and server?
 
-| Context | What renders markdown | When it runs |
-|---|---|---|
-| SPA (`/`) | `MarkdownElement` in the browser | Client navigates to a `.page.md` route |
-| SSR HTML (`/html/*`) | `markdownRenderer` on the server | Server handles an `/html/*` request |
-| SSR Markdown (`/md/*`) | Nothing — returns raw markdown | Server returns plain text as-is |
+| Context                | What renders markdown            | When it runs                           |
+| ---------------------- | -------------------------------- | -------------------------------------- |
+| SPA (`/`)              | `MarkdownElement` in the browser | Client navigates to a `.page.md` route |
+| SSR HTML (`/html/*`)   | `markdownRenderer` on the server | Server handles an `/html/*` request    |
+| SSR Markdown (`/md/*`) | Nothing — returns raw markdown   | Server returns plain text as-is        |
 
 Without the client-side renderer, SPA navigation to a markdown page shows raw
 text. Without the server-side renderer, `/html/*` routes return `<mark-down>`

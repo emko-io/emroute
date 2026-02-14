@@ -18,6 +18,7 @@ import { createSsrMdRouter, SsrMdRouter } from '../../src/renderer/ssr/md.render
 import type { RouteConfig, RoutesManifest } from '../../src/type/route.type.ts';
 import { WidgetRegistry } from '../../src/widget/widget.registry.ts';
 import type { WidgetComponent } from '../../src/component/widget.component.ts';
+import type { ComponentContext } from '../../src/component/abstract.component.ts';
 
 /**
  * Create a minimal test manifest
@@ -1303,7 +1304,7 @@ Deno.test('SsrMdRouter - passes context to widget getData', async () => {
 
     assertEquals(result.status, 200);
     assertStringIncludes(result.content, 'Context passed');
-    assertEquals(capturedContext?.custom, true);
+    assertEquals((capturedContext as ComponentContext & { custom?: boolean })?.custom, true);
   } finally {
     restore();
   }

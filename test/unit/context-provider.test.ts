@@ -382,6 +382,81 @@ Deno.test(
 );
 
 // ============================================================================
+// isLeaf in ComponentContext
+// ============================================================================
+
+Deno.test(
+  'RouteCore - buildComponentContext sets isLeaf true when passed true',
+  async () => {
+    const route = createTestRoute({ pattern: '/leaf' });
+    const core = new RouteCore(createTestManifest([route]));
+    const routeInfo: RouteInfo = {
+      pathname: '/leaf',
+      pattern: '/leaf',
+      params: {},
+      searchParams: new URLSearchParams(),
+    };
+
+    const ctx = await core.buildComponentContext(routeInfo, route, undefined, true);
+    assertEquals(ctx.isLeaf, true);
+  },
+);
+
+Deno.test(
+  'RouteCore - buildComponentContext sets isLeaf false when passed false',
+  async () => {
+    const route = createTestRoute({ pattern: '/layout' });
+    const core = new RouteCore(createTestManifest([route]));
+    const routeInfo: RouteInfo = {
+      pathname: '/layout/child',
+      pattern: '/layout/child',
+      params: {},
+      searchParams: new URLSearchParams(),
+    };
+
+    const ctx = await core.buildComponentContext(routeInfo, route, undefined, false);
+    assertEquals(ctx.isLeaf, false);
+  },
+);
+
+Deno.test(
+  'RouteCore - buildComponentContext leaves isLeaf undefined when not passed',
+  async () => {
+    const route = createTestRoute({ pattern: '/page' });
+    const core = new RouteCore(createTestManifest([route]));
+    const routeInfo: RouteInfo = {
+      pathname: '/page',
+      pattern: '/page',
+      params: {},
+      searchParams: new URLSearchParams(),
+    };
+
+    const ctx = await core.buildComponentContext(routeInfo, route);
+    assertEquals(ctx.isLeaf, undefined);
+  },
+);
+
+Deno.test(
+  'RouteCore - isLeaf is preserved through contextProvider',
+  async () => {
+    const route = createTestRoute({ pattern: '/test' });
+    const core = new RouteCore(createTestManifest([route]), {
+      extendContext: (base) => ({ ...base, custom: 'value' }),
+    });
+    const routeInfo: RouteInfo = {
+      pathname: '/test',
+      pattern: '/test',
+      params: {},
+      searchParams: new URLSearchParams(),
+    };
+
+    const ctx = await core.buildComponentContext(routeInfo, route, undefined, true);
+    assertEquals(ctx.isLeaf, true);
+    assertEquals(asAny(ctx).custom, 'value');
+  },
+);
+
+// ============================================================================
 // Context Enrichment with Custom Properties
 // ============================================================================
 

@@ -178,7 +178,8 @@ export abstract class SsrRenderer {
     let result = '';
     let pageTitle: string | undefined;
 
-    for (const routePattern of hierarchy) {
+    for (let i = 0; i < hierarchy.length; i++) {
+      const routePattern = hierarchy[i];
       let route = this.core.matcher.findRoute(routePattern);
 
       if (!route && routePattern === '/') {
@@ -190,7 +191,8 @@ export abstract class SsrRenderer {
       // Skip wildcard route appearing as its own parent (prevents double-render)
       if (route === matched.route && routePattern !== matched.route.pattern) continue;
 
-      const { content, title } = await this.renderRouteContent(routeInfo, route);
+      const isLeaf = i === hierarchy.length - 1;
+      const { content, title } = await this.renderRouteContent(routeInfo, route, isLeaf);
 
       if (title) {
         pageTitle = title;
@@ -211,12 +213,14 @@ export abstract class SsrRenderer {
   protected abstract renderRouteContent(
     routeInfo: RouteInfo,
     route: RouteConfig,
+    isLeaf?: boolean,
   ): Promise<{ content: string; title?: string }>;
 
   /** Load component, build context, get data, render content, get title. */
   protected async loadRouteContent(
     routeInfo: RouteInfo,
     route: RouteConfig,
+    isLeaf?: boolean,
   ): Promise<{ content: string; title?: string }> {
     const files = route.files ?? {};
 
@@ -225,7 +229,7 @@ export abstract class SsrRenderer {
       ? (await this.core.loadModule<{ default: PageComponent }>(tsModule)).default
       : defaultPageComponent;
 
-    const context = await this.core.buildComponentContext(routeInfo, route);
+    const context = await this.core.buildComponentContext(routeInfo, route, undefined, isLeaf);
     const data = await component.getData({ params: routeInfo.params, context });
     const content = this.renderContent(component, { data, params: routeInfo.params, context });
     const title = component.getTitle({ data, params: routeInfo.params, context });

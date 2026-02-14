@@ -458,6 +458,7 @@ Deno.test('combinations - comprehensive sorting test', () => {
 
   // Verify all wildcards are at the end
   const wildcardStartIndex = sorted.findIndex((r) => r.pattern.includes(':rest*'));
+  const nonWildcards = sorted.filter((r) => !r.pattern.includes(':rest*'));
 
   // All non-wildcards should come before wildcards
   if (wildcardStartIndex >= 0) {

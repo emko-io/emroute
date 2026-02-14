@@ -319,7 +319,7 @@ export class SpaHtmlRouter {
           continue;
         }
 
-        const { html, title } = await this.renderRouteContent(routeInfo, route, signal);
+        const { html, title } = await this.renderRouteContent(routeInfo, route, signal, isLeaf);
         if (signal.aborted) return;
 
         currentSlot.innerHTML = html;
@@ -369,6 +369,7 @@ export class SpaHtmlRouter {
     routeInfo: RouteInfo,
     route: RouteConfig,
     signal: AbortSignal,
+    isLeaf?: boolean,
   ): Promise<{ html: string; title?: string }> {
     if (route.modulePath === DEFAULT_ROOT_ROUTE.modulePath) {
       return { html: '<router-slot></router-slot>' };
@@ -380,7 +381,7 @@ export class SpaHtmlRouter {
       ? (await this.core.loadModule<{ default: PageComponent }>(files.ts)).default
       : defaultPageComponent;
 
-    const context = await this.core.buildComponentContext(routeInfo, route, signal);
+    const context = await this.core.buildComponentContext(routeInfo, route, signal, isLeaf);
     const data = await component.getData({ params: routeInfo.params, signal, context });
     const html = component.renderHTML({ data, params: routeInfo.params, context });
     const title = component.getTitle({ data, params: routeInfo.params, context });

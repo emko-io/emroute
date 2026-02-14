@@ -397,7 +397,7 @@ Deno.test('resolveWidgetTags - widget with kebab-case attributes', async () => {
   const html = '<widget-param-widget your-count="15" your-name="Bob"></widget-param-widget>';
   const registry = new MockRegistry(
     new (class extends ParamWidget {
-      override getData({ params }: this['DataArgs']) {
+      override getData({ params }: { params: Record<string, string>; context?: ComponentContext }) {
         return Promise.resolve({
           total: parseInt(params.yourCount ?? '0', 10),
           displayName: params.yourName ?? 'Anonymous',
@@ -696,7 +696,7 @@ Deno.test('resolveWidgetTags - concurrent widget resolution', async () => {
 
 Deno.test('resolveWidgetTags - widget with all attribute quote styles', async () => {
   const customWidget = new (class extends ParamWidget {
-    override getData({ params }: this['DataArgs']) {
+    override getData({ params }: { params: Record<string, string>; context?: ComponentContext }) {
       return Promise.resolve({
         total: parseInt(params.dQuote ?? '0', 10) +
           parseInt(params.sQuote ?? '0', 10) +

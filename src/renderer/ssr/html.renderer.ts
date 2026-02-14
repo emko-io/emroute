@@ -51,12 +51,13 @@ export class SsrHtmlRouter extends SsrRenderer {
   protected override async renderRouteContent(
     routeInfo: RouteInfo,
     route: RouteConfig,
+    isLeaf?: boolean,
   ): Promise<{ content: string; title?: string }> {
     if (route.modulePath === DEFAULT_ROOT_ROUTE.modulePath) {
       return { content: '<router-slot></router-slot>' };
     }
 
-    let { content, title } = await this.loadRouteContent(routeInfo, route);
+    let { content, title } = await this.loadRouteContent(routeInfo, route, isLeaf);
 
     // Expand <mark-down> tags server-side
     content = await this.expandMarkdown(content);

@@ -41,12 +41,13 @@ export class SsrMdRouter extends SsrRenderer {
   protected override async renderRouteContent(
     routeInfo: RouteInfo,
     route: RouteConfig,
+    isLeaf?: boolean,
   ): Promise<{ content: string; title?: string }> {
     if (route.modulePath === DEFAULT_ROOT_ROUTE.modulePath) {
       return { content: ROUTER_SLOT_BLOCK };
     }
 
-    let { content, title } = await this.loadRouteContent(routeInfo, route);
+    let { content, title } = await this.loadRouteContent(routeInfo, route, isLeaf);
 
     // Resolve fenced widget blocks: call getData() + renderMarkdown()
     if (this.widgets) {

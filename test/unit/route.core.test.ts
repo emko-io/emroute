@@ -668,7 +668,7 @@ Deno.test('RouteCore - event emission', async (t) => {
     const manifest = createTestManifest([]);
     const router = new RouteCore(manifest);
 
-    const events: Array<{ type: string; pathname: string; params: Record<string, string> }> = [];
+    const events: Array<{ type: string; pathname: string; params: Record<string, string>; error?: Error }> = [];
     router.addEventListener((event) => events.push(event));
 
     const error = new Error('Route not found');

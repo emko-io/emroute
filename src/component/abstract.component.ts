@@ -30,6 +30,8 @@ export const CSS_ERROR = 'c-error';
 export interface ComponentContext extends RouteInfo {
   readonly files?: Readonly<{ html?: string; md?: string; css?: string }>;
   readonly signal?: AbortSignal;
+  /** True when this component is the leaf (matched) route, false when rendered as a layout parent. */
+  readonly isLeaf?: boolean;
 }
 
 /**

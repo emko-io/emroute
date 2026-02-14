@@ -252,6 +252,7 @@ export class RouteCore {
     routeInfo: RouteInfo,
     route: RouteConfig,
     signal?: AbortSignal,
+    isLeaf?: boolean,
   ): Promise<ComponentContext> {
     const fetchFile = async (filePath: string): Promise<string> => {
       const url = this.baseUrl + this.toAbsolutePath(filePath);
@@ -269,7 +270,7 @@ export class RouteCore {
       rf?.css ? fetchFile(rf.css) : undefined,
     ]);
 
-    const base: ComponentContext = { ...routeInfo, files: { html, md, css }, signal };
+    const base: ComponentContext = { ...routeInfo, files: { html, md, css }, signal, isLeaf };
     return this.contextProvider ? this.contextProvider(base) : base;
   }
 }

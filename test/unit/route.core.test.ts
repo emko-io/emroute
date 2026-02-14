@@ -23,7 +23,7 @@ import {
   SSR_MD_PREFIX,
   stripSsrPrefix,
 } from '../../src/route/route.core.ts';
-import type { RouteConfig, RoutesManifest } from '../../src/type/route.type.ts';
+import type { RouteConfig, RouteInfo, RoutesManifest } from '../../src/type/route.type.ts';
 import type { ComponentContext } from '../../src/component/abstract.component.ts';
 
 /**
@@ -360,7 +360,7 @@ Deno.test('RouteCore - parent-child relationships', async (t) => {
       createRoute('/projects/:id/tasks', 'project-tasks', '/projects/:id'),
     ];
     const manifest = createTestManifest(routes);
-    const router = new RouteCore(manifest);
+    const _router = new RouteCore(manifest);
 
     assertEquals(routes[1].parent, '/projects');
     assertEquals(routes[2].parent, '/projects/:id');
@@ -523,7 +523,7 @@ Deno.test('RouteCore - route info building', async (t) => {
     const manifest = createTestManifest(routes);
     const router = new RouteCore(manifest);
 
-    const matched = { route: routes[0], params: {} } as any;
+    const matched = { route: routes[0], params: {} } as { route: typeof routes[0]; params: Record<string, string> };
     const info = router.toRouteInfo(matched, '/about');
 
     assertExists(info.searchParams);
@@ -546,7 +546,7 @@ Deno.test('RouteCore - module loading and caching', async (t) => {
     const manifest = createTestManifest();
     const router = new RouteCore(manifest);
 
-    const module = await router.loadModule('test-loader') as any;
+    const module = await router.loadModule('test-loader') as { test: boolean };
 
     assertEquals(module.test, true);
   });
@@ -563,8 +563,8 @@ Deno.test('RouteCore - module loading and caching', async (t) => {
     };
     const router = new RouteCore(manifest);
 
-    const mod1 = await router.loadModule('module-1') as any;
-    const mod2 = await router.loadModule('module-2') as any;
+    const mod1 = await router.loadModule('module-1') as { id: number };
+    const mod2 = await router.loadModule('module-2') as { id: number };
 
     assertEquals(mod1.id, 1);
     assertEquals(mod2.id, 2);
@@ -576,7 +576,7 @@ Deno.test('RouteCore - event emission', async (t) => {
     const manifest = createTestManifest([]);
     const router = new RouteCore(manifest);
 
-    const events: any[] = [];
+    const events: Array<{ type: string; pathname: string; params: Record<string, string> }> = [];
     router.addEventListener((event) => {
       events.push(event);
     });
@@ -592,8 +592,8 @@ Deno.test('RouteCore - event emission', async (t) => {
     const manifest = createTestManifest([]);
     const router = new RouteCore(manifest);
 
-    const events1: any[] = [];
-    const events2: any[] = [];
+    const events1: Array<{ type: string; pathname: string; params: Record<string, string> }> = [];
+    const events2: Array<{ type: string; pathname: string; params: Record<string, string> }> = [];
 
     router.addEventListener((event) => events1.push(event));
     router.addEventListener((event) => events2.push(event));
@@ -608,7 +608,7 @@ Deno.test('RouteCore - event emission', async (t) => {
     const manifest = createTestManifest([]);
     const router = new RouteCore(manifest);
 
-    const events: any[] = [];
+    const events: Array<{ type: string; pathname: string; params: Record<string, string> }> = [];
     const unsubscribe = router.addEventListener((event) => {
       events.push(event);
     });
@@ -626,9 +626,9 @@ Deno.test('RouteCore - event emission', async (t) => {
     const manifest = createTestManifest([]);
     const router = new RouteCore(manifest);
 
-    const errors: any[] = [];
+    const errors: Error[] = [];
     const originalError = console.error;
-    console.error = (msg: string, err: any) => {
+    console.error = (_msg: string, err: Error) => {
       errors.push(err);
     };
 
@@ -652,7 +652,7 @@ Deno.test('RouteCore - event emission', async (t) => {
     const manifest = createTestManifest([]);
     const router = new RouteCore(manifest);
 
-    const events: any[] = [];
+    const events: Array<{ type: string; pathname: string; params: Record<string, string> }> = [];
     router.addEventListener((event) => events.push(event));
 
     router.emit({
@@ -668,7 +668,7 @@ Deno.test('RouteCore - event emission', async (t) => {
     const manifest = createTestManifest([]);
     const router = new RouteCore(manifest);
 
-    const events: any[] = [];
+    const events: Array<{ type: string; pathname: string; params: Record<string, string> }> = [];
     router.addEventListener((event) => events.push(event));
 
     const error = new Error('Route not found');
@@ -685,7 +685,7 @@ Deno.test('RouteCore - event emission', async (t) => {
 });
 
 Deno.test('RouteCore - context provider integration', async (t) => {
-  await t.step('extends context with provider', async () => {
+  await t.step('extends context with provider', () => {
     const manifest = createTestManifest();
     const provider = (ctx: ComponentContext) => ({
       ...ctx,
@@ -702,7 +702,7 @@ Deno.test('RouteCore - context provider integration', async (t) => {
       searchParams: new URLSearchParams(),
     };
 
-    const extended = router.contextProvider!(baseContext) as any;
+    const extended = router.contextProvider!(baseContext) as ComponentContext & { userId: string; isAuthenticated: boolean };
 
     assertEquals(extended.userId, '123');
     assertEquals(extended.isAuthenticated, true);
@@ -723,7 +723,7 @@ Deno.test('RouteCore - context provider integration', async (t) => {
 
     const router = new RouteCore(manifest, { extendContext: provider });
 
-    const routeInfo: any = {
+    const routeInfo: RouteInfo = {
       pathname: '/home',
       pattern: '/home',
       params: {},
@@ -734,7 +734,7 @@ Deno.test('RouteCore - context provider integration', async (t) => {
 
     const context = await router.buildComponentContext(routeInfo, route);
 
-    assertEquals((context as any).appName, 'MyApp');
+    assertEquals((context as ComponentContext & { appName: string }).appName, 'MyApp');
     assertEquals(context.pathname, '/home');
   });
 
@@ -752,7 +752,7 @@ Deno.test('RouteCore - context provider integration', async (t) => {
 
     const router = new RouteCore(manifest, { extendContext: provider });
 
-    const routeInfo: any = {
+    const routeInfo: RouteInfo = {
       pathname: '/page',
       pattern: '/page',
       params: {},
@@ -762,7 +762,7 @@ Deno.test('RouteCore - context provider integration', async (t) => {
     const route = createRoute('/page');
     const context = await router.buildComponentContext(routeInfo, route);
 
-    assertEquals((context as any).custom, 'data');
+    assertEquals((context as ComponentContext & { custom: string }).custom, 'data');
     assertEquals(context.files?.html, undefined);
   });
 });

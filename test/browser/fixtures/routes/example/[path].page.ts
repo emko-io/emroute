@@ -3,9 +3,9 @@ import { PageComponent } from '@emkodev/emroute';
 class ExampleCatchAllPage extends PageComponent {
   override readonly name = 'example-catch-all';
 
-  override renderHTML(args: this['RenderArgs']): string {
-    const path = args.params.path ?? '(none)';
-    const rest = args.params.rest ?? '(none)';
+  override renderHTML({ params }: this['RenderArgs']): string {
+    const path = params.path ?? '(none)';
+    const rest = params.rest ?? '(none)';
     return `<div class="example-catch-all">
   <h2>Catch-All</h2>
   <p>path: <code>${path}</code></p>
@@ -14,9 +14,9 @@ class ExampleCatchAllPage extends PageComponent {
 </div>`;
   }
 
-  override renderMarkdown(args: this['RenderArgs']): string {
-    const path = args.params.path ?? '(none)';
-    const rest = args.params.rest ?? '(none)';
+  override renderMarkdown({ params }: this['RenderArgs']): string {
+    const path = params.path ?? '(none)';
+    const rest = params.rest ?? '(none)';
     return `## Catch-All
 
 path: \`${path}\`

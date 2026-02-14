@@ -332,6 +332,12 @@ export const routesManifest: RoutesManifest = {
     files: { md: 'routes/widget-files-md.page.md' },
   },
   {
+    pattern: '/nested-test',
+    type: 'page',
+    modulePath: 'routes/nested-test.page.ts',
+    files: { ts: 'routes/nested-test.page.ts' },
+  },
+  {
     pattern: '/layout-test',
     type: 'page',
     modulePath: 'routes/layout-test.page.ts',
@@ -342,6 +348,12 @@ export const routesManifest: RoutesManifest = {
     type: 'page',
     modulePath: 'routes/widget-files.page.html',
     files: { html: 'routes/widget-files.page.html' },
+  },
+  {
+    pattern: '/nested-test-md',
+    type: 'page',
+    modulePath: 'routes/nested-test-md.page.md',
+    files: { md: 'routes/nested-test-md.page.md' },
   },
   {
     pattern: '/hydration',
@@ -413,6 +425,7 @@ export const routesManifest: RoutesManifest = {
     'routes/blog.page.ts': () => import('./routes/blog.page.ts'),
     'routes/nesting-ts-md.page.ts': () => import('./routes/nesting-ts-md.page.ts'),
     'routes/nesting-ts-html.page.ts': () => import('./routes/nesting-ts-html.page.ts'),
+    'routes/nested-test.page.ts': () => import('./routes/nested-test.page.ts'),
     'routes/layout-test.page.ts': () => import('./routes/layout-test.page.ts'),
     'routes/hydration.page.ts': () => import('./routes/hydration.page.ts'),
     'routes/old.redirect.ts': () => import('./routes/old.redirect.ts'),

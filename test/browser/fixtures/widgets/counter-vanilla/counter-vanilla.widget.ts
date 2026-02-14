@@ -42,11 +42,11 @@ const STYLES = `<style>
 class CounterVanillaWidget extends WidgetComponent<{ start?: string }, CounterData> {
   override readonly name = 'counter-vanilla';
 
-  override getData({ params }: { params: { start?: string } }) {
+  override getData({ params }: this['DataArgs']) {
     return Promise.resolve({ initial: parseInt(params.start ?? '0', 10) });
   }
 
-  override renderHTML({ data }: { data: CounterData | null; params: { start?: string } }) {
+  override renderHTML({ data }: this['RenderArgs']) {
     if (!data) return '';
     const dec =
       `this.parentElement.querySelector('[data-count]').textContent=Number(this.parentElement.querySelector('[data-count]').textContent)-1`;
@@ -59,7 +59,7 @@ class CounterVanillaWidget extends WidgetComponent<{ start?: string }, CounterDa
 </div>`;
   }
 
-  override renderMarkdown({ data }: { data: CounterData | null; params: { start?: string } }) {
+  override renderMarkdown({ data }: this['RenderArgs']) {
     if (!data) return '';
     return `**Counter (vanilla):** ${data.initial}`;
   }

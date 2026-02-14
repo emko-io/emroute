@@ -1,4 +1,4 @@
-import { type ComponentContext, escapeHtml, PageComponent } from '@emkodev/emroute';
+import { escapeHtml, PageComponent } from '@emkodev/emroute';
 
 interface ArticleData {
   slug: string;
@@ -220,21 +220,15 @@ The key principle: if a feature can be built with standard platform APIs in unde
 class ArticleDetailPage extends PageComponent<{ slug: string }, ArticleData> {
   override readonly name = 'article-detail';
 
-  override getData({ params }: { params: { slug: string } }) {
+  override getData({ params }: this['DataArgs']) {
     return Promise.resolve(ARTICLES[params.slug] ?? null);
   }
 
-  override getTitle({ data }: { data: ArticleData | null }) {
+  override getTitle({ data }: this['RenderArgs']) {
     return data ? data.title : 'Article Not Found';
   }
 
-  override renderHTML(
-    { data, params, context }: {
-      data: ArticleData | null;
-      params: { slug: string };
-      context?: ComponentContext;
-    },
-  ) {
+  override renderHTML({ data, params, context }: this['RenderArgs']) {
     const template = context?.files?.html ?? '<h1>Article</h1>';
     const style = context?.files?.css ? `<style>${context.files.css}</style>\n` : '';
 
@@ -263,7 +257,7 @@ class ArticleDetailPage extends PageComponent<{ slug: string }, ArticleData> {
       .replaceAll('{{content}}', `<mark-down>${escapeHtml(data.content)}</mark-down>`);
   }
 
-  override renderMarkdown({ data }: { data: ArticleData | null; params: { slug: string } }) {
+  override renderMarkdown({ data }: this['RenderArgs']) {
     if (!data) return '# Article Not Found\n\n[Back to Articles](/articles)';
     const tags = data.tags.map((t) => `\`${t}\``).join(', ');
     return `# ${data.title}\n\nBy ${data.author} | ${data.date} | ${data.readTime} min read | ${tags}\n\n${data.content}`;

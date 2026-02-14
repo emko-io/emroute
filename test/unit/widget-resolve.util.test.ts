@@ -11,16 +11,22 @@
  * - Widget params extraction and conversion
  */
 
-import { assertEquals, assertStringIncludes } from '@std/assert';
+import { assertEquals, assertExists, assertStringIncludes } from '@std/assert';
 import { parseAttrsToParams, resolveWidgetTags } from '../../src/util/widget-resolve.util.ts';
 import { WidgetComponent } from '../../src/component/widget.component.ts';
+import { Component } from '../../src/component/abstract.component.ts';
 import type { ComponentContext, ContextProvider } from '../../src/component/abstract.component.ts';
 import type { RouteInfo } from '../../src/type/route.type.ts';
-import type { Component } from '../../src/component/abstract.component.ts';
 
 /**
  * Test Helpers
  */
+
+/** File loader type for widget file loading */
+type WidgetFileLoader = (
+  widgetName: string,
+  declaredFiles?: { html?: string; md?: string; css?: string },
+) => Promise<{ html?: string; md?: string; css?: string }>;
 
 /** Create a test RouteInfo for widget resolution */
 function createTestRouteInfo(
@@ -37,7 +43,7 @@ function createTestRouteInfo(
 }
 
 /** Create a test ComponentContext with optional files */
-function createTestContext(
+function _createTestContext(
   files?: ComponentContext['files'],
   routeInfo = createTestRouteInfo(),
 ): ComponentContext {
@@ -391,7 +397,7 @@ Deno.test('resolveWidgetTags - widget with kebab-case attributes', async () => {
   const html = '<widget-param-widget your-count="15" your-name="Bob"></widget-param-widget>';
   const registry = new MockRegistry(
     new (class extends ParamWidget {
-      override getData({ params }: any) {
+      override getData({ params }: this['DataArgs']) {
         return Promise.resolve({
           total: parseInt(params.yourCount ?? '0', 10),
           displayName: params.yourName ?? 'Anonymous',
@@ -452,19 +458,22 @@ Deno.test('resolveWidgetTags - escapes ampersands in data-ssr', async () => {
   assertStringIncludes(result, '&amp;');
 });
 
-Deno.test('resolveWidgetTags - escapes quotes in data-ssr', async () => {
+Deno.test('resolveWidgetTags - escapes single quotes in data-ssr', async () => {
   const html = '<widget-simple></widget-simple>';
   const registry = new MockRegistry(
     new (class extends SimpleWidget {
       override getData() {
-        return Promise.resolve({ message: 'Say "hello"' });
+        return Promise.resolve({ message: "It's working" });
       }
     })(),
   );
   const routeInfo = createTestRouteInfo();
 
   const result = await resolveWidgetTags(html, registry, routeInfo);
-  assertStringIncludes(result, '&quot;');
+  // Single quotes in JSON values should be escaped as &#39; since we use single quotes for attribute wrapper
+  assertStringIncludes(result, '&#39;');
+  // Should use single quotes for data-ssr attribute
+  assertStringIncludes(result, "data-ssr='");
 });
 
 /**
@@ -500,10 +509,10 @@ Deno.test('resolveWidgetTags - file loader is called if supplied', async () => {
   const routeInfo = createTestRouteInfo();
 
   let fileLoaderCalled = false;
-  const fileLoader = async (widgetName: string) => {
+  const fileLoader: WidgetFileLoader = (widgetName: string) => {
     fileLoaderCalled = true;
     assertEquals(widgetName, 'file-widget');
-    return { html: '<div>Loaded from file</div>' };
+    return Promise.resolve({ html: '<div>Loaded from file</div>' });
   };
 
   const result = await resolveWidgetTags(html, registry, routeInfo, fileLoader);
@@ -517,10 +526,10 @@ Deno.test('resolveWidgetTags - file loader receives declared files', async () =>
   const registry = new MockRegistry(fileWidget);
   const routeInfo = createTestRouteInfo();
 
-  let declaredFiles: any;
-  const fileLoader = async (widgetName: string, declared?: any) => {
+  let declaredFiles: { html?: string; md?: string; css?: string } | undefined;
+  const fileLoader: WidgetFileLoader = (_widgetName: string, declared) => {
     declaredFiles = declared;
-    return { html: '<div>Loaded</div>' };
+    return Promise.resolve({ html: '<div>Loaded</div>' });
   };
 
   await resolveWidgetTags(html, registry, routeInfo, fileLoader);
@@ -565,7 +574,7 @@ Deno.test('resolveWidgetTags - file loader error leaves tag unchanged', async ()
   const registry = new MockRegistry(new SimpleWidget());
   const routeInfo = createTestRouteInfo();
 
-  const fileLoader = async () => {
+  const fileLoader: WidgetFileLoader = () => {
     throw new Error('File load failed');
   };
 
@@ -687,7 +696,7 @@ Deno.test('resolveWidgetTags - concurrent widget resolution', async () => {
 
 Deno.test('resolveWidgetTags - widget with all attribute quote styles', async () => {
   const customWidget = new (class extends ParamWidget {
-    override getData({ params }: any) {
+    override getData({ params }: this['DataArgs']) {
       return Promise.resolve({
         total: parseInt(params.dQuote ?? '0', 10) +
           parseInt(params.sQuote ?? '0', 10) +
@@ -726,6 +735,170 @@ Deno.test('resolveWidgetTags - whitespace around widget tags', async () => {
   const result = await resolveWidgetTags(html, registry, routeInfo);
   assertStringIncludes(result, 'Hello Widget');
   assertStringIncludes(result, 'Anonymous: 5');
+});
+
+/**
+ * Test Suite: Nested Widget Resolution
+ */
+
+Deno.test('resolveWidgetTags - nested widgets are resolved', async () => {
+  class InnerWidget extends WidgetComponent<Record<string, unknown>, { text: string }> {
+    override readonly name = 'inner';
+    override getData(): Promise<{ text: string }> {
+      return Promise.resolve({ text: 'Inner' });
+    }
+    override renderHTML({ data }: this['RenderArgs']): string {
+      return data ? `<span>${data.text}</span>` : '';
+    }
+    override renderMarkdown(): string {
+      return '';
+    }
+  }
+
+  class OuterWidget extends WidgetComponent<Record<string, unknown>, { text: string }> {
+    override readonly name = 'outer';
+    override getData(): Promise<{ text: string }> {
+      return Promise.resolve({ text: 'Outer' });
+    }
+    override renderHTML({ data }: this['RenderArgs']): string {
+      return data ? `<div>${data.text}: <widget-inner></widget-inner></div>` : '';
+    }
+    override renderMarkdown(): string {
+      return '';
+    }
+  }
+
+  const html = '<widget-outer></widget-outer>';
+  const registry = new MockRegistry(new OuterWidget(), new InnerWidget());
+  const routeInfo = createTestRouteInfo();
+
+  const result = await resolveWidgetTags(html, registry, routeInfo);
+
+  // Both outer and inner should be resolved
+  assertStringIncludes(result, 'Outer:');
+  assertStringIncludes(result, '<span>Inner</span>');
+  assertStringIncludes(result, 'data-ssr=');
+});
+
+Deno.test('resolveWidgetTags - deeply nested widgets (3 levels)', async () => {
+  class Level3Widget extends WidgetComponent<Record<string, unknown>, { level: number }> {
+    override readonly name = 'level3';
+    override getData(): Promise<{ level: number }> {
+      return Promise.resolve({ level: 3 });
+    }
+    override renderHTML({ data }: this['RenderArgs']): string {
+      return data ? `<span>Level ${data.level}</span>` : '';
+    }
+    override renderMarkdown(): string {
+      return '';
+    }
+  }
+
+  class Level2Widget extends WidgetComponent<Record<string, unknown>, { level: number }> {
+    override readonly name = 'level2';
+    override getData(): Promise<{ level: number }> {
+      return Promise.resolve({ level: 2 });
+    }
+    override renderHTML({ data }: this['RenderArgs']): string {
+      return data ? `<div>Level ${data.level}: <widget-level3></widget-level3></div>` : '';
+    }
+    override renderMarkdown(): string {
+      return '';
+    }
+  }
+
+  class Level1Widget extends WidgetComponent<Record<string, unknown>, { level: number }> {
+    override readonly name = 'level1';
+    override getData(): Promise<{ level: number }> {
+      return Promise.resolve({ level: 1 });
+    }
+    override renderHTML({ data }: this['RenderArgs']): string {
+      return data ? `<div>Level ${data.level}: <widget-level2></widget-level2></div>` : '';
+    }
+    override renderMarkdown(): string {
+      return '';
+    }
+  }
+
+  const html = '<widget-level1></widget-level1>';
+  const registry = new MockRegistry(
+    new Level1Widget(),
+    new Level2Widget(),
+    new Level3Widget(),
+  );
+  const routeInfo = createTestRouteInfo();
+
+  const result = await resolveWidgetTags(html, registry, routeInfo);
+
+  // All three levels should be resolved
+  assertStringIncludes(result, 'Level 1:');
+  assertStringIncludes(result, 'Level 2:');
+  assertStringIncludes(result, '<span>Level 3</span>');
+});
+
+Deno.test('resolveWidgetTags - nested widgets with params', async () => {
+  class CounterWidget extends WidgetComponent<{ value?: number }, { count: number }> {
+    override readonly name = 'counter';
+    override getData({ params }: this['DataArgs']): Promise<{ count: number }> {
+      return Promise.resolve({ count: params.value || 0 });
+    }
+    override renderHTML({ data }: this['RenderArgs']): string {
+      return data ? `<span>Count: ${data.count}</span>` : '';
+    }
+    override renderMarkdown(): string {
+      return '';
+    }
+  }
+
+  class CardWidget extends WidgetComponent<Record<string, unknown>, { title: string }> {
+    override readonly name = 'card';
+    override getData(): Promise<{ title: string }> {
+      return Promise.resolve({ title: 'Card' });
+    }
+    override renderHTML({ data }: this['RenderArgs']): string {
+      return data
+        ? `<div class="card"><h3>${data.title}</h3><widget-counter value="42"></widget-counter></div>`
+        : '';
+    }
+    override renderMarkdown(): string {
+      return '';
+    }
+  }
+
+  const html = '<widget-card></widget-card>';
+  const registry = new MockRegistry(new CardWidget(), new CounterWidget());
+  const routeInfo = createTestRouteInfo();
+
+  const result = await resolveWidgetTags(html, registry, routeInfo);
+
+  assertStringIncludes(result, 'Card');
+  assertStringIncludes(result, 'Count: 42');
+});
+
+Deno.test('resolveWidgetTags - max depth limit prevents infinite loops', async () => {
+  class RecursiveWidget extends WidgetComponent<Record<string, unknown>, { text: string }> {
+    override readonly name = 'recursive';
+    override getData(): Promise<{ text: string }> {
+      return Promise.resolve({ text: 'loop' });
+    }
+    override renderHTML(): string {
+      // Widget that renders itself - would cause infinite loop
+      return '<widget-recursive></widget-recursive>';
+    }
+    override renderMarkdown(): string {
+      return '';
+    }
+  }
+
+  const html = '<widget-recursive></widget-recursive>';
+  const registry = new MockRegistry(new RecursiveWidget());
+  const routeInfo = createTestRouteInfo();
+
+  const result = await resolveWidgetTags(html, registry, routeInfo);
+
+  // Should stop after max depth and still return valid HTML
+  assertExists(result);
+  assertStringIncludes(result, 'widget-recursive');
 });
 
 /**

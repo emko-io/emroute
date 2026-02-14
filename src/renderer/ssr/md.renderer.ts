@@ -79,48 +79,47 @@ export class SsrMdRouter extends SsrRenderer {
    * Resolve fenced widget blocks in markdown content.
    * Replaces ```widget:name blocks with rendered markdown output.
    */
-  private async resolveWidgets(
+  private resolveWidgets(
     content: string,
     routeInfo: RouteInfo,
   ): Promise<string> {
-    const blocks = parseWidgetBlocks(content);
-    if (blocks.length === 0) return content;
-
-    const replacements = new Map<(typeof blocks)[0], string>();
-
-    await Promise.all(blocks.map(async (block) => {
-      if (block.parseError || !block.params) {
-        replacements.set(block, `> **Error** (\`${block.widgetName}\`): ${block.parseError}`);
-        return;
-      }
-
-      const widget = this.widgets!.get(block.widgetName);
-      if (!widget) {
-        replacements.set(block, `> **Error**: Unknown widget \`${block.widgetName}\``);
-        return;
-      }
-
-      try {
-        // Load widget files: discovered (merged) first, then declared fallback
-        let files: { html?: string; md?: string } | undefined;
-        const filePaths = this.widgetFiles[block.widgetName] ?? widget.files;
-        if (filePaths) {
-          files = await this.core.loadWidgetFiles(filePaths);
+    return this.resolveWidgetsRecursively(
+      content,
+      routeInfo,
+      // Parse function: find widget blocks in content
+      (content) => parseWidgetBlocks(content),
+      // Resolve function: resolve a single widget block
+      async (block, routeInfo) => {
+        if (block.parseError || !block.params) {
+          return `> **Error** (\`${block.widgetName}\`): ${block.parseError}`;
         }
 
-        const baseContext = { ...routeInfo, files };
-        const context = this.core.contextProvider
-          ? this.core.contextProvider(baseContext)
-          : baseContext;
-        const data = await widget.getData({ params: block.params, context });
-        const rendered = widget.renderMarkdown({ data, params: block.params, context });
-        replacements.set(block, rendered);
-      } catch (e) {
-        replacements.set(block, widget.renderMarkdownError(e));
-      }
-    }));
+        const widget = this.widgets!.get(block.widgetName);
+        if (!widget) {
+          return `> **Error**: Unknown widget \`${block.widgetName}\``;
+        }
 
-    return replaceWidgetBlocks(content, replacements);
+        try {
+          // Load widget files: discovered (merged) first, then declared fallback
+          let files: { html?: string; md?: string } | undefined;
+          const filePaths = this.widgetFiles[block.widgetName] ?? widget.files;
+          if (filePaths) {
+            files = await this.core.loadWidgetFiles(filePaths);
+          }
+
+          const baseContext = { ...routeInfo, files };
+          const context = this.core.contextProvider
+            ? this.core.contextProvider(baseContext)
+            : baseContext;
+          const data = await widget.getData({ params: block.params, context });
+          return widget.renderMarkdown({ data, params: block.params, context });
+        } catch (e) {
+          return widget.renderMarkdownError(e);
+        }
+      },
+      // Replace function: replace widget blocks with resolved content
+      (content, replacements) => replaceWidgetBlocks(content, replacements),
+    );
   }
 }
 

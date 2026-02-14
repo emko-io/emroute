@@ -10,7 +10,7 @@
  * - Merging of discovered and declared files
  */
 
-import { assertEquals, assertExists, assertObjectMatch, assertStringIncludes } from '@std/assert';
+import { assertEquals, assertExists, assertStringIncludes } from '@std/assert';
 import type { WidgetManifestEntry } from '../../src/type/widget.type.ts';
 import type { DirEntry, FileSystem } from '../../tool/fs.type.ts';
 import {
@@ -35,12 +35,13 @@ class MockFileSystem implements FileSystem {
     this.dirs.add(path);
   }
 
-  async exists(path: string): Promise<boolean> {
-    return this.files.has(path) || this.dirs.has(path);
+  exists(path: string): Promise<boolean> {
+    return Promise.resolve(this.files.has(path) || this.dirs.has(path));
   }
 
-  async writeTextFile(path: string, content: string): Promise<void> {
+  writeTextFile(path: string, _content: string): Promise<void> {
     this.files.add(path);
+    return Promise.resolve();
   }
 
   async *readDir(path: string): AsyncIterable<DirEntry> {

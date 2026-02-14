@@ -244,6 +244,68 @@ export abstract class SsrRenderer {
     return this.renderContent(component, { data, params: {} });
   }
 
+  /**
+   * Recursively resolve widgets in content with depth limit.
+   *
+   * Generic helper for both HTML and Markdown widget resolution.
+   * Supports nested widgets by recursively processing rendered output.
+   *
+   * @param content - Content containing widgets
+   * @param routeInfo - Route information for context
+   * @param parseWidgets - Function to find widgets in content
+   * @param resolveWidget - Function to resolve a single widget
+   * @param replaceWidgets - Function to replace widgets with resolved content
+   * @param depth - Current recursion depth (internal)
+   * @returns Content with all widgets recursively resolved
+   */
+  protected async resolveWidgetsRecursively<TWidget>(
+    content: string,
+    routeInfo: RouteInfo,
+    parseWidgets: (content: string) => TWidget[],
+    resolveWidget: (
+      widget: TWidget,
+      routeInfo: RouteInfo,
+    ) => Promise<string>,
+    replaceWidgets: (content: string, replacements: Map<TWidget, string>) => string,
+    depth = 0,
+  ): Promise<string> {
+    const MAX_WIDGET_DEPTH = 10;
+
+    // Safety check for recursion depth
+    if (depth >= MAX_WIDGET_DEPTH) {
+      logger.warn(
+        `[${this.label}] Widget nesting depth limit reached (${MAX_WIDGET_DEPTH}). ` +
+          'Possible circular dependency or excessive nesting.',
+      );
+      return content;
+    }
+
+    const widgets = parseWidgets(content);
+    if (widgets.length === 0) return content;
+
+    // Resolve all widgets at this depth concurrently
+    const replacements = new Map<TWidget, string>();
+    await Promise.all(
+      widgets.map(async (widget) => {
+        let rendered = await resolveWidget(widget, routeInfo);
+
+        // Recursively resolve any nested widgets in the rendered output
+        rendered = await this.resolveWidgetsRecursively(
+          rendered,
+          routeInfo,
+          parseWidgets,
+          resolveWidget,
+          replaceWidgets,
+          depth + 1,
+        );
+
+        replacements.set(widget, rendered);
+      }),
+    );
+
+    return replaceWidgets(content, replacements);
+  }
+
   protected abstract renderRedirect(to: string): string;
 
   protected abstract renderStatusPage(status: number, pathname: string): string;

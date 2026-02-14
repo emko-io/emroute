@@ -7,7 +7,7 @@ interface CommentData {
 class CommentPage extends PageComponent<{ slug: string }, CommentData> {
   override readonly name = 'comment';
 
-  override getData({ params }: { params: { slug: string } }) {
+  override getData({ params }: this['DataArgs']) {
     return Promise.resolve({
       comments: [
         {
@@ -32,9 +32,7 @@ class CommentPage extends PageComponent<{ slug: string }, CommentData> {
     });
   }
 
-  override renderHTML(
-    { data }: { data: CommentData | null; params: { slug: string } },
-  ): string {
+  override renderHTML({ data }: this['RenderArgs']): string {
     if (!data) return '<p>Loading comments...</p>';
     const items = data.comments.map((c) =>
       `<div style="padding:0.75rem;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:0.5rem">
@@ -51,9 +49,7 @@ class CommentPage extends PageComponent<{ slug: string }, CommentData> {
 </section>`;
   }
 
-  override renderMarkdown(
-    { data }: { data: CommentData | null; params: { slug: string } },
-  ): string {
+  override renderMarkdown({ data }: this['RenderArgs']): string {
     if (!data) return '';
     return `## Comments\n\n${
       data.comments.map((c) => `**${c.author}** (${c.date}): ${c.body}`).join('\n\n')

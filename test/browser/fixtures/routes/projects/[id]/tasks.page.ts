@@ -3,23 +3,17 @@ import { PageComponent } from '@emkodev/emroute';
 class TasksPage extends PageComponent<{ id: string }, { tasks: string[] }> {
   override readonly name = 'tasks';
 
-  override getData({ params }: { params: { id: string } }) {
+  override getData({ params }: this['DataArgs']) {
     return Promise.resolve({ tasks: [`Task A for ${params.id}`, `Task B for ${params.id}`] });
   }
 
-  override renderHTML({ data, params }: {
-    data: { tasks: string[] } | null;
-    params: { id: string };
-  }) {
+  override renderHTML({ data, params }: this['RenderArgs']) {
     if (!data) return '<p>Loading tasks...</p>';
     const items = data.tasks.map((t) => `<li>${t}</li>`).join('');
     return `<h1>Tasks for ${params.id}</h1><ul class="task-list">${items}</ul>`;
   }
 
-  override renderMarkdown({ data, params }: {
-    data: { tasks: string[] } | null;
-    params: { id: string };
-  }) {
+  override renderMarkdown({ data, params }: this['RenderArgs']) {
     if (!data) return '';
     return `# Tasks for ${params.id}\n\n${data.tasks.map((t) => `- ${t}`).join('\n')}`;
   }

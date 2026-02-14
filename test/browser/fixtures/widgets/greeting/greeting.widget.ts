@@ -29,7 +29,7 @@ interface GreetingData {
 class GreetingWidget extends WidgetComponent<{ name?: string }, GreetingData> {
   override readonly name = 'greeting';
 
-  override getData({ params }: { params: { name?: string } }) {
+  override getData({ params }: this['DataArgs']) {
     const name = params.name ?? 'World';
     return Promise.resolve({
       message: `Hello, ${name}!`,
@@ -37,7 +37,7 @@ class GreetingWidget extends WidgetComponent<{ name?: string }, GreetingData> {
     });
   }
 
-  override renderHTML({ data }: { data: GreetingData | null; params: { name?: string } }) {
+  override renderHTML({ data }: this['RenderArgs']) {
     if (!data) return '<p>Loading greeting...</p>';
     return `<div class="widget-greeting">
   <p class="greeting-message">${data.message}</p>
@@ -45,7 +45,7 @@ class GreetingWidget extends WidgetComponent<{ name?: string }, GreetingData> {
 </div>`;
   }
 
-  override renderMarkdown({ data }: { data: GreetingData | null; params: { name?: string } }) {
+  override renderMarkdown({ data }: this['RenderArgs']) {
     if (!data) return '';
     return `**${data.message}** (rendered at ${data.timestamp})`;
   }

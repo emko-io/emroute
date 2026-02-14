@@ -14,6 +14,11 @@ export const widgetsManifest: WidgetsManifest = {
       tagName: 'widget-article-card',
     },
     {
+      name: 'card-container',
+      modulePath: 'widgets/card-container/card-container.widget.ts',
+      tagName: 'widget-card-container',
+    },
+    {
       name: 'code-block',
       modulePath: 'widgets/code-block/code-block.widget.ts',
       tagName: 'widget-code-block',
@@ -118,6 +123,8 @@ export const widgetsManifest: WidgetsManifest = {
   moduleLoaders: {
     'widgets/article-card/article-card.widget.ts': () =>
       import('./widgets/article-card/article-card.widget.ts'),
+    'widgets/card-container/card-container.widget.ts': () =>
+      import('./widgets/card-container/card-container.widget.ts'),
     'widgets/code-block/code-block.widget.ts': () =>
       import('./widgets/code-block/code-block.widget.ts'),
     'widgets/content-tab/content-tab.widget.ts': () =>

@@ -411,7 +411,7 @@ Deno.test('SsrMdRouter - passes widget params to renderMarkdown', async () => {
       files: undefined,
       getData: () => Promise.resolve(null),
       renderHTML: () => '',
-      renderMarkdown: (args: any) => `Counter starts at: ${args.params?.start ?? 0}`,
+      renderMarkdown: (args: { params?: { start?: number } }) => `Counter starts at: ${args.params?.start ?? 0}`,
       getTitle: () => undefined,
       renderError: () => '',
       renderMarkdownError: () => '',
@@ -1277,12 +1277,12 @@ Deno.test('SsrMdRouter - passes context to widget getData', async () => {
     ];
 
     const widgets = new WidgetRegistry();
-    let capturedContext: any;
+    let capturedContext: ComponentContext | undefined;
 
     const ctxWidget: WidgetComponent = {
       name: 'ctx-aware',
       files: undefined,
-      getData: (args: any) => {
+      getData: (args: { context?: ComponentContext }) => {
         capturedContext = args.context;
         return Promise.resolve({ ok: true });
       },
@@ -1294,7 +1294,7 @@ Deno.test('SsrMdRouter - passes context to widget getData', async () => {
     } as unknown as WidgetComponent;
     widgets.add(ctxWidget);
 
-    const extendContext = (baseCtx: any) => ({ ...baseCtx, custom: true });
+    const extendContext = (baseCtx: ComponentContext) => ({ ...baseCtx, custom: true });
 
     const manifest = createTestManifest({ routes });
     const router = new SsrMdRouter(manifest, { widgets, extendContext });

@@ -6,7 +6,7 @@
  * file for styling, demonstrating the widget CSS feature.
  */
 
-import { type ComponentContext, WidgetComponent } from '@emkodev/emroute';
+import { WidgetComponent } from '@emkodev/emroute';
 
 interface NavLink {
   label: string;
@@ -21,9 +21,9 @@ interface NavData {
 class NavWidget extends WidgetComponent<Record<string, unknown>, NavData> {
   override readonly name = 'nav';
 
-  override getData(
-    args: { params: Record<string, unknown>; context?: ComponentContext },
-  ): Promise<NavData> {
+  override getData(args: this['DataArgs']): Promise<NavData> {
+    console.log('NavWidget.getData() args:', args);
+    console.log('NavWidget.getData() args keys:', Object.keys(args));
     const pathname = args.context?.pathname ?? '/';
 
     const links: NavLink[] = [
@@ -49,9 +49,9 @@ class NavWidget extends WidgetComponent<Record<string, unknown>, NavData> {
     return Promise.resolve({ links });
   }
 
-  override renderHTML(
-    args: { data: NavData | null; params: Record<string, unknown>; context?: ComponentContext },
-  ): string {
+  override renderHTML(args: this['RenderArgs']): string {
+    console.log('NavWidget.renderHTML() args:', args);
+    console.log('NavWidget.renderHTML() args keys:', Object.keys(args));
     const { data, context } = args;
     const style = context?.files?.css ? `<style>${context.files.css}</style>\n` : '';
 
@@ -67,11 +67,9 @@ class NavWidget extends WidgetComponent<Record<string, unknown>, NavData> {
     </nav>`;
   }
 
-  override renderMarkdown(
-    args: { data: NavData | null; params: Record<string, unknown> },
-  ): string {
-    if (!args.data) return '';
-    return args.data.links
+  override renderMarkdown({ data }: this['RenderArgs']): string {
+    if (!data) return '';
+    return data.links
       .map((l) => l.active ? `**${l.label}**` : `[${l.label}](/html${l.href})`)
       .join(' | ');
   }

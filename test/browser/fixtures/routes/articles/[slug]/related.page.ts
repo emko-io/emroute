@@ -40,15 +40,13 @@ const ALL_ARTICLES = [
 class RelatedPage extends PageComponent<{ slug: string }, RelatedData> {
   override readonly name = 'related';
 
-  override getData({ params }: { params: { slug: string } }) {
+  override getData({ params }: this['DataArgs']) {
     return Promise.resolve({
       related: ALL_ARTICLES.filter((a) => a.slug !== params.slug).slice(0, 3),
     });
   }
 
-  override renderHTML(
-    { data }: { data: RelatedData | null; params: { slug: string } },
-  ): string {
+  override renderHTML({ data }: this['RenderArgs']): string {
     if (!data) return '<p>Loading related articles...</p>';
     const items = data.related.map((a) =>
       `<li style="margin-bottom:0.5rem">
@@ -64,9 +62,7 @@ class RelatedPage extends PageComponent<{ slug: string }, RelatedData> {
 </section>`;
   }
 
-  override renderMarkdown(
-    { data }: { data: RelatedData | null; params: { slug: string } },
-  ): string {
+  override renderMarkdown({ data }: this['RenderArgs']): string {
     if (!data) return '';
     return `## Related Articles\n\n${
       data.related.map((a) => `- [${a.title}](/articles/${a.slug})`).join('\n')

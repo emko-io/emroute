@@ -12,7 +12,7 @@
  * the renderer's correct sequencing and error propagation.
  */
 
-import { assertEquals, assertRejects, assertStringIncludes } from '@std/assert';
+import { assertEquals, assertStringIncludes } from '@std/assert';
 import type { ComponentContext } from '../../src/component/abstract.component.ts';
 import { Component } from '../../src/component/abstract.component.ts';
 import {
@@ -76,22 +76,22 @@ class MockComponent extends Component {
   renderMarkdownErrorValue?: unknown;
   renderMarkdownErrorReturnValue = '> **Error**';
 
-  override validateParams(params: unknown): string | undefined {
+  override validateParams(_params: unknown): string | undefined {
     if (!this.hasValidateParams) return undefined;
     return this.validateParamsResult;
   }
 
-  async getData(args: { params: unknown; signal?: AbortSignal; context?: ComponentContext }) {
+  getData(args: { params: unknown; signal?: AbortSignal; context?: ComponentContext }) {
     this.getDataCalled = true;
     this.getDataParams = args.params;
     this.getDataSignal = args.signal;
     this.getDataContext = args.context;
 
     if (this.getDataReturnValue instanceof Error) {
-      throw this.getDataReturnValue;
+      return Promise.reject(this.getDataReturnValue);
     }
 
-    return this.getDataReturnValue;
+    return Promise.resolve(this.getDataReturnValue);
   }
 
   renderMarkdown(args: { data: unknown; params: unknown; context?: ComponentContext }): string {
@@ -739,12 +739,12 @@ Deno.test('renderComponent - Can abort rendering', async () => {
   const component = new MockComponent();
   let receivedSignal: AbortSignal | undefined;
 
-  component.getData = async (args) => {
+  component.getData = (args) => {
     receivedSignal = args.signal;
     if (args.signal?.aborted) {
-      throw new Error('Aborted');
+      return Promise.reject(new Error('Aborted'));
     }
-    return { data: 'test' };
+    return Promise.resolve({ data: 'test' });
   };
 
   const controller = new AbortController();
@@ -763,7 +763,7 @@ Deno.test('renderComponent - Can abort rendering', async () => {
 Deno.test('renderComponent - Component without validateParams', async () => {
   const component = new MockComponent();
   // Remove validateParams
-  component.validateParams = undefined as any;
+  component.validateParams = undefined as unknown as MockComponent['validateParams'];
 
   const result = await renderComponent(component, { id: '1' }, 'html');
 

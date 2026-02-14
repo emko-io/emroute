@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.4] - 2026-02-14
+
+### Changed
+
+- **Code quality improvements** — comprehensive lint error resolution across test suite and source code. Removed all `any` types in favor of proper type annotations, fixed async/await patterns, and eliminated unused variables. All 120 files now pass strict linting with zero errors.
+
+- **Type safety enhancements** — improved type annotations in test files, replacing generic `any` types with specific interface types for better compile-time safety and developer experience.
+
+- **Test code consistency** — standardized async patterns by removing unnecessary `async` keywords from synchronous functions and properly wrapping return values in `Promise.resolve()` where needed.
+
+## [1.4.3] - 2026-02-14
+
+### Added
+
+- **Recursive nested widget resolution in SSR (HTML + Markdown)** — widgets can now render other widgets in their `renderHTML()` and `renderMarkdown()` output. Both SSR renderers recursively resolve nested widgets up to `MAX_WIDGET_DEPTH=10`, enabling component composition and reusability across all three rendering modes (SPA, HTML, Markdown). Each widget maintains its own `data-ssr` attribute for independent hydration. Includes comprehensive test coverage with 5 new tests for nesting scenarios.
+
+- **Shared recursive resolver in `SsrRenderer` base class** — extracted common recursion logic into `resolveWidgetsRecursively()` helper method, eliminating code duplication between HTML and Markdown renderers while maintaining consistent nesting behavior across all SSR formats.
+
+### Changed
+
+- **Cleaner `data-ssr` attribute format** — switched from double-quoted to single-quoted HTML attributes for `data-ssr`, making the JSON values more readable in HTML source (e.g., `data-ssr='{"key":"value"}'` instead of `data-ssr="{&quot;key&quot;:&quot;value&quot;}"`).
+
+### Fixed
+
+- **Widget resolution edge cases** — updated attribute escaping to handle single quotes in JSON values when using single-quoted HTML attributes.
+
 ## [1.4.2] - 2026-02-14
 
 ### Added

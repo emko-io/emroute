@@ -16,7 +16,7 @@
  * - doc/nesting.md: Nested route patterns, slot rules, and hierarchy
  */
 
-import { assertEquals, assertExists, assertIsError } from '@std/assert';
+import { assertEquals, assertExists } from '@std/assert';
 import type { ErrorBoundary, RouteConfig, RoutesManifest } from '../../src/type/route.type.ts';
 import {
   filePathToPattern,

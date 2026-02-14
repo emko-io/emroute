@@ -12,7 +12,7 @@
  */
 
 import { assertEquals, assertExists, assertStringIncludes } from '@std/assert';
-import type { ComponentContext, ContextProvider } from '../../src/component/abstract.component.ts';
+import type { ComponentContext } from '../../src/component/abstract.component.ts';
 import { Component, CSS_ERROR } from '../../src/component/abstract.component.ts';
 
 // ============================================================================
@@ -40,11 +40,11 @@ function createMockContext<T extends ComponentContext = ComponentContext>(
 class TestComponent extends Component<{ id: string }, { name: string }> {
   override readonly name = 'test-component';
 
-  override async getData(args: this['DataArgs']): Promise<{ name: string } | null> {
+  override getData(args: this['DataArgs']): Promise<{ name: string } | null> {
     if (args.params.id === 'error') {
-      return null;
+      return Promise.resolve(null);
     }
-    return { name: `Item ${args.params.id}` };
+    return Promise.resolve({ name: `Item ${args.params.id}` });
   }
 
   override renderMarkdown(args: this['RenderArgs']): string {
@@ -61,8 +61,8 @@ class TestComponent extends Component<{ id: string }, { name: string }> {
 class CustomHtmlComponent extends Component<{ id: string }, { content: string }> {
   override readonly name = 'custom-html';
 
-  override async getData(args: this['DataArgs']): Promise<{ content: string } | null> {
-    return { content: `Content for ${args.params.id}` };
+  override getData(args: this['DataArgs']): Promise<{ content: string } | null> {
+    return Promise.resolve({ content: `Content for ${args.params.id}` });
   }
 
   override renderMarkdown(args: this['RenderArgs']): string {
@@ -87,12 +87,12 @@ class ValidatingComponent extends Component<
   override readonly name = 'validating';
   destroyCalled = false;
 
-  override async getData(args: this['DataArgs']): Promise<
+  override getData(args: this['DataArgs']): Promise<
     {
       value: number;
     } | null
   > {
-    return { value: parseInt(args.params.id, 10) };
+    return Promise.resolve({ value: parseInt(args.params.id, 10) });
   }
 
   override renderMarkdown(args: this['RenderArgs']): string {
@@ -129,17 +129,17 @@ class ContextAwareComponent extends Component<
 > {
   override readonly name = 'context-aware';
 
-  override async getData(args: this['DataArgs']): Promise<
+  override getData(args: this['DataArgs']): Promise<
     {
       userId?: string;
       isAdmin?: boolean;
     } | null
   > {
     const context = args.context as AppContext;
-    return {
+    return Promise.resolve({
       userId: context?.userId,
       isAdmin: context?.isAdmin,
-    };
+    });
   }
 
   override renderMarkdown(args: this['RenderArgs']): string {
@@ -315,8 +315,8 @@ Deno.test('Component - renderHTML() default: escapes markdown content for HTML s
   class EscapeTestComponent extends Component<unknown, { content: string }> {
     override readonly name = 'escape-test';
 
-    override async getData(): Promise<{ content: string } | null> {
-      return { content: '<script>alert("xss")</script>' };
+    override getData(): Promise<{ content: string } | null> {
+      return Promise.resolve({ content: '<script>alert("xss")</script>' });
     }
 
     override renderMarkdown(args: this['RenderArgs']): string {
@@ -515,8 +515,8 @@ Deno.test('Component - destroy() can clear resources', () => {
     override readonly name = 'resource';
     listeners: (() => void)[] = [];
 
-    override async getData(): Promise<null> {
-      return null;
+    override getData(): Promise<null> {
+      return Promise.resolve(null);
     }
 
     override renderMarkdown(): string {
@@ -672,8 +672,8 @@ Deno.test('Component - files property can contain file content', () => {
       css: '.style {}',
     };
 
-    override async getData(): Promise<null> {
-      return null;
+    override getData(): Promise<null> {
+      return Promise.resolve(null);
     }
 
     override renderMarkdown(): string {
@@ -810,12 +810,12 @@ Deno.test('Component - contract: error handling flow', () => {
 // Type Safety & Polymorphism Tests
 // ============================================================================
 
-Deno.test('Component - subclasses can have different TParams types', async () => {
+Deno.test('Component - subclasses can have different TParams types', () => {
   class StringParamComponent extends Component<{ query: string }, unknown> {
     override readonly name = 'string-params';
 
-    override async getData(args: this['DataArgs']): Promise<null> {
-      return null;
+    override getData(_args: this['DataArgs']): Promise<null> {
+      return Promise.resolve(null);
     }
 
     override renderMarkdown(args: this['RenderArgs']): string {
@@ -826,8 +826,8 @@ Deno.test('Component - subclasses can have different TParams types', async () =>
   class NumberParamComponent extends Component<{ id: number }, unknown> {
     override readonly name = 'number-params';
 
-    override async getData(args: this['DataArgs']): Promise<null> {
-      return null;
+    override getData(_args: this['DataArgs']): Promise<null> {
+      return Promise.resolve(null);
     }
 
     override renderMarkdown(args: this['RenderArgs']): string {
@@ -856,8 +856,8 @@ Deno.test('Component - subclasses can have different TData types', () => {
   class UserData extends Component<unknown, { userId: string; name: string }> {
     override readonly name = 'user-data';
 
-    override async getData(): Promise<{ userId: string; name: string } | null> {
-      return null;
+    override getData(): Promise<{ userId: string; name: string } | null> {
+      return Promise.resolve(null);
     }
 
     override renderMarkdown(args: this['RenderArgs']): string {
@@ -868,8 +868,8 @@ Deno.test('Component - subclasses can have different TData types', () => {
   class PostData extends Component<unknown, { title: string; body: string }> {
     override readonly name = 'post-data';
 
-    override async getData(): Promise<{ title: string; body: string } | null> {
-      return null;
+    override getData(): Promise<{ title: string; body: string } | null> {
+      return Promise.resolve(null);
     }
 
     override renderMarkdown(args: this['RenderArgs']): string {
@@ -907,14 +907,14 @@ Deno.test('Component - subclasses can extend ComponentContext with custom proper
   > {
     override readonly name = 'permission-aware';
 
-    override async getData(args: this['DataArgs']): Promise<
+    override getData(args: this['DataArgs']): Promise<
       {
         allowed: boolean;
       } | null
     > {
       const context = args.context as CustomContext;
       const allowed = context?.permissions.includes('edit') ?? false;
-      return { allowed };
+      return Promise.resolve({ allowed });
     }
 
     override renderMarkdown(args: this['RenderArgs']): string {

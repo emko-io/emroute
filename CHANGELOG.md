@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.5] - 2026-02-14
+
+### Added
+
+- **`isLeaf` context property** — `ComponentContext` now includes an `isLeaf` boolean flag that indicates whether a component is the matched (leaf) route (`true`) or a parent layout route (`false`). This allows pages and widgets to conditionally render content based on their position in the route hierarchy. Available in all rendering modes (SPA, SSR HTML, SSR Markdown) and passed through context providers.
+
 ## [1.4.4] - 2026-02-14
 
 ### Changed

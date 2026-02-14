@@ -95,7 +95,11 @@ MarkdownElement.setRenderer({
 
 ### markdown-it
 
-Feature-rich with extensive plugin ecosystem.
+CommonMark-compliant parser with a large plugin ecosystem. Custom fence rules
+support emroute's `widget:*` and `router-slot` fenced blocks.
+
+See [Setting Up markdown-it](./setup-markdown-it.md) for the full setup guide
+covering client-side, server-side, widget/slot expansion, and security.
 
 ```bash
 deno add npm:markdown-it
@@ -105,27 +109,7 @@ deno add npm:markdown-it
 import { MarkdownElement } from '@emkodev/emroute/spa';
 import MarkdownIt from 'markdown-it';
 
-const md = new MarkdownIt({
-  html: true, // Enable HTML tags in source
-  linkify: true, // Auto-convert URLs to links
-  typographer: true, // Smart quotes, dashes
-});
-
-MarkdownElement.setRenderer({
-  render: (markdown) => md.render(markdown),
-});
-```
-
-**With plugins:**
-
-```typescript
-import MarkdownIt from 'markdown-it';
-import anchor from 'markdown-it-anchor';
-import toc from 'markdown-it-toc-done-right';
-
-const md = new MarkdownIt()
-  .use(anchor, { permalink: true })
-  .use(toc);
+const md = new MarkdownIt({ html: false });
 
 MarkdownElement.setRenderer({
   render: (markdown) => md.render(markdown),
@@ -133,7 +117,7 @@ MarkdownElement.setRenderer({
 ```
 
 **Pros:** Highly extensible, CommonMark compliant, large plugin ecosystem
-**Cons:** Slightly larger bundle
+**Cons:** Larger bundle (~362KB vs ~129KB for marked)
 
 ---
 

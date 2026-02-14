@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.2] - 2026-02-14
+
+### Added
+
+- **`hydrate()` lifecycle hook** — new optional lifecycle method for components and
+  widgets to attach event listeners after SSR adoption or SPA rendering. Called after
+  `getData()` and `renderHTML()` complete, enabling interactive functionality without
+  re-rendering. Complements `destroy()` for proper memory management.
+  See `test/browser/SSR-ADOPTION-VS-HYDRATION.md` for full documentation.
+
+### Changed
+
+- **Widget hydration optimization** — `ComponentElement` now checks for `hydrate()`
+  method existence before queuing microtask, avoiding unnecessary async overhead for
+  widgets without interactivity.
+
+### Fixed
+
+- **Test coverage** — comprehensive test suite updates for SSR adoption, hydration
+  lifecycle, and widget rendering scenarios.
+
 ## [1.4.1] - 2026-02-13
 
 ### Fixed

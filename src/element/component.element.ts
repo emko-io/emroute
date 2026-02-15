@@ -46,6 +46,7 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
   private deferred: PromiseWithResolvers<void> | null = null;
   private abortController: AbortController | null = null;
   private intersectionObserver: IntersectionObserver | null = null;
+  private shadow: ShadowRoot;
 
   /** Promise that resolves with fetched data (available after loadData starts) */
   dataPromise: Promise<TData | null> | null = null;
@@ -54,6 +55,8 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
     super();
     this.component = component;
     this.effectiveFiles = files;
+    // Attach shadow root (real in browser, mock on server)
+    this.shadow = this.attachShadow({ mode: 'open' });
   }
 
   /**
@@ -161,7 +164,7 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
     };
     this.context = ComponentElement.extendContext ? ComponentElement.extendContext(base) : base;
 
-    // Hydrate from SSR: DOM is already correct, just restore state
+    // Hydrate from SSR: move Light DOM content into shadow root
     const ssrAttr = this.getAttribute(DATA_SSR_ATTR);
     if (ssrAttr) {
       try {
@@ -169,7 +172,10 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
         this.state = 'ready';
         this.removeAttribute(DATA_SSR_ATTR);
 
-        // Call hydrate() hook to attach event listeners without re-rendering
+        // Move SSR-rendered Light DOM content into shadow root
+        this.shadow.append(...this.childNodes);
+
+        // Call hydrate() hook to attach event listeners
         if (this.component.hydrate) {
           queueMicrotask(() => {
             this.component.hydrate!();
@@ -313,19 +319,19 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
 
   private render(): void {
     if (this.params === null) {
-      this.innerHTML = '';
+      this.shadow.innerHTML = '';
       return;
     }
 
     if (this.state === 'error') {
-      this.innerHTML = this.component.renderError({
+      this.shadow.innerHTML = this.component.renderError({
         error: new Error(this.errorMessage),
         params: this.params,
       });
       return;
     }
 
-    this.innerHTML = this.component.renderHTML({
+    this.shadow.innerHTML = this.component.renderHTML({
       data: this.state === 'ready' ? this.data : null,
       params: this.params,
       context: this.context,

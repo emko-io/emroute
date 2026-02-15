@@ -412,7 +412,8 @@ Deno.test('SsrMdRouter - passes widget params to renderMarkdown', async () => {
       files: undefined,
       getData: () => Promise.resolve(null),
       renderHTML: () => '',
-      renderMarkdown: (args: { params?: { start?: number } }) => `Counter starts at: ${args.params?.start ?? 0}`,
+      renderMarkdown: (args: { params?: { start?: number } }) =>
+        `Counter starts at: ${args.params?.start ?? 0}`,
       getTitle: () => undefined,
       renderError: () => '',
       renderMarkdownError: () => '',

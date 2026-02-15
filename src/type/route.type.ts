@@ -21,7 +21,6 @@ export interface RouteInfo {
 
   /** Query string parameters */
   readonly searchParams: URLSearchParams;
-
 }
 
 /** Supported file patterns in file-based routing */

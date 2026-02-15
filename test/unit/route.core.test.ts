@@ -523,7 +523,10 @@ Deno.test('RouteCore - route info building', async (t) => {
     const manifest = createTestManifest(routes);
     const router = new RouteCore(manifest);
 
-    const matched = { route: routes[0], params: {} } as { route: typeof routes[0]; params: Record<string, string> };
+    const matched = { route: routes[0], params: {} } as {
+      route: typeof routes[0];
+      params: Record<string, string>;
+    };
     const info = router.toRouteInfo(matched, '/about');
 
     assertExists(info.searchParams);
@@ -668,7 +671,9 @@ Deno.test('RouteCore - event emission', async (t) => {
     const manifest = createTestManifest([]);
     const router = new RouteCore(manifest);
 
-    const events: Array<{ type: string; pathname: string; params: Record<string, string>; error?: Error }> = [];
+    const events: Array<
+      { type: string; pathname: string; params: Record<string, string>; error?: Error }
+    > = [];
     router.addEventListener((event) => events.push(event));
 
     const error = new Error('Route not found');
@@ -702,7 +707,10 @@ Deno.test('RouteCore - context provider integration', async (t) => {
       searchParams: new URLSearchParams(),
     };
 
-    const extended = router.contextProvider!(baseContext) as ComponentContext & { userId: string; isAuthenticated: boolean };
+    const extended = router.contextProvider!(baseContext) as ComponentContext & {
+      userId: string;
+      isAuthenticated: boolean;
+    };
 
     assertEquals(extended.userId, '123');
     assertEquals(extended.isAuthenticated, true);

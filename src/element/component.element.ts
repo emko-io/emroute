@@ -46,7 +46,6 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
   private deferred: PromiseWithResolvers<void> | null = null;
   private abortController: AbortController | null = null;
   private intersectionObserver: IntersectionObserver | null = null;
-  private shadow: ShadowRoot;
 
   /** Promise that resolves with fetched data (available after loadData starts) */
   dataPromise: Promise<TData | null> | null = null;
@@ -56,7 +55,7 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
     this.component = component;
     this.effectiveFiles = files;
     // Attach shadow root (real in browser, mock on server)
-    this.shadow = this.attachShadow({ mode: 'open' });
+    this.attachShadow({ mode: 'open' });
   }
 
   /**
@@ -173,7 +172,7 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
         this.removeAttribute(DATA_SSR_ATTR);
 
         // Move SSR-rendered Light DOM content into shadow root
-        this.shadow.append(...this.childNodes);
+        this.shadowRoot!.append(...this.childNodes);
 
         // Call hydrate() hook to attach event listeners
         if (this.component.hydrate) {
@@ -319,19 +318,19 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
 
   private render(): void {
     if (this.params === null) {
-      this.shadow.innerHTML = '';
+      this.shadowRoot!.innerHTML = '';
       return;
     }
 
     if (this.state === 'error') {
-      this.shadow.innerHTML = this.component.renderError({
+      this.shadowRoot!.innerHTML = this.component.renderError({
         error: new Error(this.errorMessage),
         params: this.params,
       });
       return;
     }
 
-    this.shadow.innerHTML = this.component.renderHTML({
+    this.shadowRoot!.innerHTML = this.component.renderHTML({
       data: this.state === 'ready' ? this.data : null,
       params: this.params,
       context: this.context,

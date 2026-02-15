@@ -2,173 +2,262 @@
 
 ## Overview
 
-emroute now uses a unified Shadow DOM architecture that works seamlessly across both SSR and SPA contexts.
+emroute uses a **unified Shadow DOM architecture** with Web Components that work
+seamlessly across SSR and SPA contexts. The key insight: `shadowRoot.innerHTML`
+is just a string property to SSR, enabling the same code to work everywhere.
+
+## Core Principles
+
+1. **ComponentElement always uses Shadow DOM** (real or mock)
+2. **WidgetComponent stays DOM-agnostic** (returns HTML strings)
+3. **SSR formats output based on SpaMode** (none/root/leaf/only)
+4. **Full Web Components spec compliance**
 
 ## Key Components
 
 ### 1. SsrHTMLElement & SsrShadowRoot (Server-Side Mocks)
 
-Located in `src/util/html.util.ts`, these classes provide a server-compatible DOM API:
+Located in `src/util/html.util.ts`:
 
 ```typescript
 class SsrShadowRoot {
-  innerHTML: string;  // Captures rendered content
+  innerHTML: string; // Just text to SSR
   host: SsrHTMLElement;
-  querySelector(selector: string): Element | null;
-  // ... minimal DOM API
+  // Minimal DOM API for compatibility
 }
 
 class SsrHTMLElement {
-  innerHTML: string;
   shadowRoot: ShadowRoot | null;
   attachShadow(init: ShadowRootInit): ShadowRoot;
-  getAttribute/setAttribute/removeAttribute/hasAttribute;
-  // ... minimal DOM API
+  // Minimal DOM API matching browser HTMLElement
 }
 ```
+
+**Key insight:** `shadowRoot.innerHTML` is identical from SSR's perspective
+whether it's a real ShadowRoot or mock - both are just strings.
 
 ### 2. HTMLElementBase
 
 ```typescript
 // Browser: real HTMLElement
-// Server: SsrHTMLElement mock
+// Server: SsrHTMLElement mock (not empty class)
 export const HTMLElementBase = globalThis.HTMLElement ??
   (SsrHTMLElement as unknown as typeof HTMLElement);
 ```
 
-### 3. ComponentElement (Unified)
+### 3. ComponentElement (Web Component Wrapper)
 
-Now **always uses Shadow DOM** (real or mock):
+**Always uses Shadow DOM** - no flags, no conditionals:
 
 ```typescript
 class ComponentElement extends HTMLElementBase {
-  private shadow: ShadowRoot;
-
   constructor(component, files) {
     super();
-    this.shadow = this.attachShadow({ mode: 'open' });
+    this.attachShadow({ mode: "open" }); // Always
   }
 
   render() {
-    // Always render to shadow (real or mock)
-    this.shadow.innerHTML = this.component.renderHTML(...);
+    // Always render to shadowRoot
+    this.shadowRoot!.innerHTML = this.component.renderHTML(...);
   }
 }
 ```
 
-## Rendering Flow
+ComponentElement is **thin** - just assigns widget output to shadowRoot.
 
-### SSR (Server-Side)
+### 4. WidgetComponent (Developer API)
 
-1. Instantiate Component (plain class)
-2. Call `component.getData()` → `component.renderHTML()`
-3. Output `shadow.innerHTML` as Light DOM string
-4. CSS is scoped with `@scope` for Light DOM isolation
+Stays **DOM-agnostic** - returns strings:
 
 ```typescript
-// SSR rendering
-const component = new PriceWidget();
-const data = await component.getData({ params });
-const html = component.renderHTML({ data, params });
-// html contains @scope-wrapped CSS for Light DOM
+class PriceWidget extends WidgetComponent {
+  getData({ params }) {
+    return { price: 50000 };
+  }
+  renderHTML({ data }) {
+    return `<span>$${data.price}</span>`;
+  }
+  renderMarkdown({ data }) {
+    return `$${data.price}`;
+  } // For /md/ mode
+}
 ```
 
-### SPA (Browser)
+No knowledge of Shadow DOM - just returns HTML/Markdown strings.
 
-1. Register ComponentElement as custom element
-2. Browser lifecycle: `connectedCallback()`
-3. Render to **real Shadow DOM**
-4. CSS is scoped by Shadow DOM (+ redundant `@scope`)
+## SpaMode: The Four Rendering Strategies
 
-**SSR Adoption:**
-- SSR renders to Light DOM (server output)
-- Client finds Light DOM children
-- Moves them into Shadow DOM: `this.shadow.append(...this.childNodes)`
+### `none` - Progressive Enhancement (Light DOM)
+
+**Server:**
 
 ```typescript
-// SPA hydration
-if (ssrAttr) {
-  this.data = JSON.parse(ssrAttr);
-  // Move SSR Light DOM into Shadow DOM
-  this.shadow.append(...this.childNodes);
-  this.component.hydrate?.();
-}
+const element = new ComponentElement(widget);
+await element.connectedCallback();
+
+// Extract shadow content as Light DOM
+output = `<widget-price>${element.shadowRoot.innerHTML}</widget-price>`;
+```
+
+**Client:**
+
+- Hydrates existing Light DOM (moves into shadowRoot)
+- Works **without JavaScript** (forms submit, links reload)
+- Same visual experience as other modes
+
+### `root` - Shell + Islands (Shadow DOM)
+
+**Server:**
+
+```typescript
+// Output empty tags only
+output = `<widget-price coin="BTC"></widget-price>`;
+```
+
+**Client:**
+
+- ComponentElement renders into Shadow DOM
+- SPA router active
+- Enhanced interactivity
+
+### `leaf` - Hybrid SSR + SPA (Shadow DOM)
+
+**Server:**
+
+- Renders full page content
+- Widgets output as empty tags
+
+**Client:**
+
+- Can switch between real SSR URLs (`/html/about`) and virtual (`/about`)
+- Widgets in Shadow DOM
+
+### `only` - Full SPA/PWA (Shadow DOM)
+
+**Server:**
+
+- Cached `index.html` shell only
+- No SSR rendering
+
+**Client:**
+
+- Everything virtual
+- Full PWA mode
+
+## The Spectrum
+
+```
+none          root          leaf          only
+│             │             │             │
+SSR Everything → SSR Shell → SSR Pages → SSR Nothing
+Light DOM     → Shadow DOM  → Shadow DOM → Shadow DOM
+Hydration     → Islands     → Hybrid     → Full Client
+Works no JS   → Requires JS → Requires JS → Requires JS
 ```
 
 ## Benefits
 
-### ✅ True Web Components in SPA
-- Real Shadow DOM encapsulation
-- Native CSS scoping
-- Standard browser API compliance
+### ✅ Less Moving Parts
 
-### ✅ SSR Still Works
-- Mock shadow on server
-- Output as Light DOM strings
-- `@scope` provides CSS isolation
+- One ComponentElement implementation
+- No conditionals based on mode
+- Mode handled at SSR output layer only
 
-### ✅ Unified Codebase
-- Same ComponentElement class everywhere
-- No environment checks in component code
-- One rendering path for both contexts
+### ✅ Full Spec Compliance
 
-### ✅ Seamless Hydration
-- SSR renders Light DOM
-- Client moves content into Shadow DOM
-- No re-rendering needed (unless data is invalid)
+- Real Web Components with Shadow DOM
+- Standard `shadowRoot` property
+- Browser DevTools work correctly
 
-## CSS Scoping
+### ✅ Exact Same Behavior
+
+- SSR mock matches browser API exactly
+- No divergence between environments
+- Same rendering code everywhere
+
+### ✅ Less Code
+
+- No separate Light DOM path
+- No useShadow flags
+- Simpler, more maintainable
+
+### ✅ Progressive Enhancement
+
+- `mode=none` works without JavaScript
+- Same visual experience across all modes
+- Graceful degradation built-in
+
+## SSR Output Strategy
 
 ```typescript
-// Widget renderHTML always uses @scope
-const style = files?.css
-  ? `<style>${scopeWidgetCss(files.css, this.name)}</style>\n`
-  : '';
+// ComponentElement always renders to shadowRoot
+const element = new ComponentElement(widget);
+await element.connectedCallback();
+
+// SSR decides output format based on mode
+if (mode === "none") {
+  // Extract shadow content as Light DOM
+  html = `<widget-price>${element.shadowRoot.innerHTML}</widget-price>`;
+} else {
+  // mode=root/leaf/only: Empty tag for client rendering
+  html = `<widget-price coin="BTC"></widget-price>`;
+}
 ```
 
-- **SSR**: `@scope` needed for Light DOM isolation
-- **SPA**: `@scope` redundant (Shadow DOM already scopes) but harmless
+**Key insight:** ComponentElement doesn't know about modes - SSR output
+formatting knows.
 
 ## Architecture Diagram
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                         Component                            │
-│                   (Plain Class - Universal)                  │
-│  getData() → renderHTML() → renderMarkdown()                │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                    ┌─────────┴─────────┐
-                    │                   │
-            ┌───────▼──────┐    ┌──────▼────────┐
-            │ SSR Context  │    │  SPA Context  │
-            └──────────────┘    └───────────────┘
-                    │                   │
-         ┌──────────▼─────────┐  ┌─────▼─────────────┐
-         │  SsrHTMLElement    │  │  HTMLElement      │
-         │  + SsrShadowRoot   │  │  + ShadowRoot     │
-         │  (Mock)            │  │  (Real)           │
-         └────────────────────┘  └───────────────────┘
-                    │                   │
-                    │                   │
-         ┌──────────▼─────────┐  ┌─────▼─────────────┐
-         │ shadow.innerHTML   │  │  Shadow DOM       │
-         │ → Light DOM string │  │  (Encapsulated)   │
-         └────────────────────┘  └───────────────────┘
+Developer writes:
+┌─────────────────────────┐
+│   WidgetComponent       │
+│   getData()             │
+│   renderHTML() → string │
+│   renderMarkdown()      │
+└─────────────────────────┘
+            │
+            │ Wrapped by
+            ▼
+┌─────────────────────────────────┐
+│   ComponentElement              │
+│   (Web Component)               │
+│   attachShadow() always         │
+│   shadowRoot.innerHTML = ...    │
+└─────────────────────────────────┘
+            │
+      ┌─────┴─────┐
+      │           │
+   Server      Browser
+      │           │
+   SsrHTMLEl   HTMLElement
+   (mock)      (real)
+      │           │
+   shadowRoot  shadowRoot
+   (mock)      (real)
+      │           │
+   .innerHTML  .innerHTML
+   (string)    (string)
+      │           │
+      │           └─→ Parsed to DOM nodes
+      │
+      └─→ SSR formats based on mode:
+          mode=none: output as Light DOM
+          mode=root/leaf/only: empty tag
 ```
 
 ## Migration Impact
 
-### Breaking Changes
-- None for end users (Component API unchanged)
-- ComponentElement now always uses Shadow DOM internally
+### No Breaking Changes
 
-### Behavioral Changes
-- Widgets now render in Shadow DOM in browser
-- Better style encapsulation
-- Query selectors from page can't reach widget internals
-
-### Compatibility
+- Component/WidgetComponent API unchanged
+- Developers write same code
 - All 811 unit tests pass
-- SSR output unchanged (still Light DOM)
-- SPA gets Shadow DOM benefits
+
+### Behavioral Improvements
+
+- True Shadow DOM in browser (better encapsulation)
+- Progressive enhancement support (mode=none)
+- Cleaner, more maintainable codebase
+- Full Web Components spec compliance

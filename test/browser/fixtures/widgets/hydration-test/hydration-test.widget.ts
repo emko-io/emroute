@@ -27,7 +27,7 @@ class HydrationTestWidget extends WidgetComponent<Record<string, never>, Hydrati
       globalThis.__hydration_test_calls = (globalThis.__hydration_test_calls || 0) + 1;
     }
 
-    const ssrRendered = typeof globalThis === 'undefined';
+    const ssrRendered = typeof document === 'undefined';
     return Promise.resolve({
       ssrRendered,
       renderTime: Date.now(),
@@ -50,14 +50,16 @@ class HydrationTestWidget extends WidgetComponent<Record<string, never>, Hydrati
   override renderHTML({ data }: this['RenderArgs']) {
     if (!data) return '<p>Loading...</p>';
 
-    const browserCalls = typeof globalThis !== 'undefined'
+    // In SSR (no document), render 0 — browser-side counter hasn't started yet
+    const browserCalls = typeof document !== 'undefined'
       ? globalThis.__hydration_test_calls || 0
-      : 'N/A';
+      : 0;
 
     return `<div id="hydration-content" data-ssr="${data.ssrRendered}">
   <h1>Hydration Test</h1>
   <p id="render-context">${data.ssrRendered ? 'SSR rendered' : 'SPA rendered'}</p>
   <p id="render-time">Render time: ${data.renderTime}</p>
+  <p id="timestamp">Timestamp: ${data.renderTime}</p>
   <p id="browser-calls">Browser getData calls: <span id="call-count">${browserCalls}</span></p>
 
   <div id="interaction-test">

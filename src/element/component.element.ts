@@ -124,7 +124,8 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
   async connectedCallback(): Promise<void> {
     this.component.element = this;
     this.style.contentVisibility = 'auto';
-    this.style.containerType = 'inline-size';
+    // Note: container-type inline-size breaks flex layouts (widgets collapse to 0 width)
+    // this.style.containerType = 'inline-size';
     this.abortController = new AbortController();
     const signal = this.abortController.signal;
 

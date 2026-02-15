@@ -75,33 +75,39 @@ Deno.test(
     await t.step('SPA adopts SSR content without re-rendering', async () => {
       // Navigate to SSR URL in browser
       await page.goto(baseUrl('/html/hydration'));
-      await page.waitForSelector('#hydration-content', { timeout: 5000 });
+      await page.waitForSelector('widget-hydration-test', { timeout: 5000 });
 
-      // Verify content exists
-      const heading = await page.textContent('#hydration-content h1');
-      assertEquals(heading, 'Hydration Test');
+      // Verify content exists in Shadow DOM
+      const result = await page.evaluate(() => {
+        const widget = document.querySelector('widget-hydration-test');
+        const shadow = widget?.shadowRoot;
+        const heading = shadow?.querySelector('#hydration-content h1')?.textContent;
+        const callCount = shadow?.querySelector('#call-count')?.textContent;
+        const renderContext = shadow?.querySelector('#render-context')?.textContent;
+        const ssrAttr = shadow?.querySelector('#hydration-content')?.getAttribute('data-ssr');
+
+        return {
+          heading,
+          callCount: parseInt(callCount || '0'),
+          renderContext,
+          ssrAttr,
+        };
+      });
+
+      assertEquals(result.heading, 'Hydration Test', 'Heading should exist in shadow root');
 
       // KEY TEST: Verify getData was NOT called in browser (only in SSR)
-      const browserCalls = await page.evaluate(() => {
-        const el = document.querySelector('#call-count');
-        return parseInt(el?.textContent || '0');
-      });
       assertEquals(
-        browserCalls,
+        result.callCount,
         0,
         'getData should NOT be called in browser during SSR adoption - browser counter should be 0',
       );
 
-      // Verify content is marked as SSR-rendered
-      const isSSR = await page.evaluate(() => {
-        const el = document.querySelector('#hydration-content');
-        return el?.getAttribute('data-ssr') === 'true';
-      });
-      assert(isSSR, 'Content should be marked as SSR-rendered');
+      // Verify content is marked as SSR-rendered (in shadow root)
+      assert(result.ssrAttr === 'true', 'Content should be marked as SSR-rendered in shadow root');
 
       // Verify render context shows SSR
-      const renderContext = await page.textContent('#render-context');
-      assertEquals(renderContext, 'SSR rendered', 'Should show SSR rendered context');
+      assertEquals(result.renderContext, 'SSR rendered', 'Should show SSR rendered context');
     });
 
     await t.step('data-ssr-route attribute is removed after adoption', async () => {
@@ -147,28 +153,33 @@ Deno.test(
           };
           return router.navigate('/hydration');
         });
-        await page.waitForSelector('#hydration-content', { timeout: 5000 });
+        await page.waitForSelector('widget-hydration-test', { timeout: 5000 });
 
-        // NOW getData should have been called in browser
-        const browserCalls = await page.evaluate(() => {
-          const el = document.querySelector('#call-count');
-          return parseInt(el?.textContent || '0');
+        // NOW getData should have been called in browser - check shadow root
+        const result = await page.evaluate(() => {
+          const widget = document.querySelector('widget-hydration-test');
+          const shadow = widget?.shadowRoot;
+          const callCount = shadow?.querySelector('#call-count')?.textContent;
+          const ssrAttr = shadow?.querySelector('#hydration-content')?.getAttribute('data-ssr');
+          const renderContext = shadow?.querySelector('#render-context')?.textContent;
+
+          return {
+            callCount: parseInt(callCount || '0'),
+            ssrAttr,
+            renderContext,
+          };
         });
+
         assertEquals(
-          browserCalls,
+          result.callCount,
           1,
           'getData SHOULD be called during SPA navigation - browser counter should be 1',
         );
 
         // Content should now be marked as SPA-rendered
-        const isSSR = await page.evaluate(() => {
-          const el = document.querySelector('#hydration-content');
-          return el?.getAttribute('data-ssr') === 'true';
-        });
-        assertEquals(isSSR, false, 'Content should now be marked as SPA-rendered (not SSR)');
+        assertEquals(result.ssrAttr, 'false', 'Content should now be marked as SPA-rendered (not SSR)');
 
-        const renderContext = await page.textContent('#render-context');
-        assertEquals(renderContext, 'SPA rendered', 'Should show SPA rendered context');
+        assertEquals(result.renderContext, 'SPA rendered', 'Should show SPA rendered context');
       },
     );
 
@@ -193,15 +204,14 @@ Deno.test(
       await page.goto(baseUrl('/html/'));
       await page.waitForSelector('widget-nav', { timeout: 5000 });
 
-      // data-ssr attribute is consumed and removed during adoption,
-      // so we verify the widget content was preserved from SSR instead
-
-      // Widget content should be preserved
+      // Widget content is now in Shadow DOM - check shadowRoot
       const navLinks = await page.evaluate(() => {
-        const nav = document.querySelector('widget-nav nav');
+        const widget = document.querySelector('widget-nav');
+        const shadow = widget?.shadowRoot;
+        const nav = shadow?.querySelector('nav');
         return nav?.querySelectorAll('a').length ?? 0;
       });
-      assert(navLinks > 0, 'widget content should be preserved from SSR');
+      assert(navLinks > 0, 'widget content should be preserved from SSR in shadow root');
     });
 
     await t.step('widget params are preserved during hydration', async () => {
@@ -210,27 +220,29 @@ Deno.test(
       // Wait for widgets to render
       await page.waitForSelector('widget-greeting', { timeout: 5000 });
 
-      // Check that widget with params rendered correctly
+      // Check shadow root for widget content with params
       const greetingWithParam = await page.evaluate(() => {
         const widgets = Array.from(document.querySelectorAll('widget-greeting'));
         for (const widget of widgets) {
-          if (widget.innerHTML.includes('Developer')) {
+          const shadow = widget.shadowRoot;
+          if (shadow?.innerHTML.includes('Developer')) {
             return true;
           }
         }
         return false;
       });
-      assert(greetingWithParam, 'widget with params should render correctly');
+      assert(greetingWithParam, 'widget with params should render correctly in shadow root');
     });
 
     await t.step('widget inline styles are preserved', async () => {
       await page.goto(baseUrl('/html/vanilla/counter'));
       await page.waitForSelector('widget-counter-vanilla', { timeout: 5000 });
 
-      // Counter widget has inline styles
+      // Counter widget has inline styles - check shadow root
       const hasStyles = await page.evaluate(() => {
         const widget = document.querySelector('widget-counter-vanilla');
-        const style = widget?.querySelector('style');
+        const shadow = widget?.shadowRoot;
+        const style = shadow?.querySelector('style');
         return style !== null && style?.textContent?.includes('c-counter-vanilla');
       });
       assert(hasStyles, 'widget inline styles should be preserved');
@@ -289,11 +301,13 @@ Deno.test(
 
       // Navigate in browser (triggers SPA hydration)
       await page.goto(baseUrl('/html/hydration'));
-      await page.waitForSelector('#timestamp', { timeout: 5000 });
+      await page.waitForSelector('widget-hydration-test', { timeout: 5000 });
 
-      // Get DOM timestamp
+      // Get DOM timestamp from shadow root
       const domTimestamp = await page.evaluate(() => {
-        const el = document.querySelector('#timestamp');
+        const widget = document.querySelector('widget-hydration-test');
+        const shadow = widget?.shadowRoot;
+        const el = shadow?.querySelector('#timestamp');
         const match = el?.textContent?.match(/Timestamp: (\d+)/);
         return match ? parseInt(match[1]) : 0;
       });

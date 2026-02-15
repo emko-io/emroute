@@ -334,7 +334,7 @@ Deno.test({ name: 'SPA renderer', sanitizeResources: false, sanitizeOps: false }
     await page.waitForSelector('router-slot router-slot router-slot h1', { timeout: 5000 });
 
     await page.evaluate(async () =>
-      await (globalThis as { __emroute_router: { navigate: (path: string) => Promise<void> } })
+      await (globalThis as unknown as { __emroute_router: { navigate: (path: string) => Promise<void> } })
         .__emroute_router.navigate('/projects/99')
     );
     await page.waitForFunction(

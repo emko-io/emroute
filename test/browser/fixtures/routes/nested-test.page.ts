@@ -6,7 +6,7 @@
 
 import { PageComponent } from '@emkodev/emroute';
 
-class NestedTestPage extends PageComponent<Record<string, unknown>, { title: string }> {
+class NestedTestPage extends PageComponent<Record<string, string>, { title: string }> {
   override readonly name = 'nested-test';
 
   override getData(): Promise<{ title: string }> {

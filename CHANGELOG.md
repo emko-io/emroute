@@ -5,6 +5,51 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-02-15
+
+### Changed
+
+- **Unified Shadow DOM architecture** — `ComponentElement` now always uses Shadow DOM (real in browser, mock on server). Content renders to `this.shadowRoot.innerHTML` instead of `this.innerHTML`. Provides true Web Components spec compliance, better CSS encapsulation, and consistent behavior across SSR and SPA rendering modes. See `SHADOW-DOM-ARCHITECTURE.md` for full architecture details.
+
+- **Built-in widgets are now opt-in** — `PageTitleWidget` and `BreadcrumbWidget` are no longer auto-registered when importing `@emkodev/emroute/spa`. Import and register them explicitly if needed. Reduces default bundle size by ~5KB.
+
+### Breaking Changes
+
+- **Widget content queries must use `shadowRoot`** — widgets that query their own rendered content must change from `this.element.querySelector()` to `this.element.shadowRoot?.querySelector()`. This applies to interactive widgets that need to attach event listeners or manipulate their rendered DOM.
+
+  ```typescript
+  // Before (1.4.x):
+  override hydrate(): void {
+    const button = this.element.querySelector('button');
+    button?.addEventListener('click', this.handleClick);
+  }
+
+  // After (1.5.0):
+  override hydrate(): void {
+    const button = this.element.shadowRoot?.querySelector('button');
+    button?.addEventListener('click', this.handleClick);
+  }
+  ```
+
+- **Built-in widget registration** — if you rely on `PageTitleWidget` or `BreadcrumbWidget`, you must now register them explicitly:
+
+  ```typescript
+  // Before (1.4.x): automatic
+  import { createSpaHtmlRouter } from '@emkodev/emroute/spa';
+
+  // After (1.5.0): explicit opt-in
+  import { createSpaHtmlRouter, PageTitleWidget, ComponentElement } from '@emkodev/emroute/spa';
+  ComponentElement.register(new PageTitleWidget());
+  ```
+
+### Fixed
+
+- **Container type layout bug** — removed `container-type: inline-size` from `ComponentElement` default styles. This CSS property was causing widgets to collapse to 0 width in flex layouts. Widgets now render with proper dimensions in all layout contexts.
+
+### Added
+
+- **`SHADOW-DOM-ARCHITECTURE.md`** — comprehensive documentation of the unified Shadow DOM architecture, SSR mocks, rendering strategies, and migration patterns.
+
 ## [1.4.5] - 2026-02-14
 
 ### Added

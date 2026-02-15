@@ -112,7 +112,7 @@ class CounterHtmWidget extends WidgetComponent<{ start?: string }, CounterData> 
     // Called after SSR adoption - render Preact to existing container
     if (!this.element) return;
 
-    const container = this.element.querySelector('[data-island="counter-htm"]');
+    const container = this.element.shadowRoot?.querySelector('[data-island="counter-htm"]');
     if (!container || container.hasAttribute('data-hydrated')) return;
 
     container.setAttribute('data-hydrated', '');
@@ -143,7 +143,7 @@ class CounterHtmWidget extends WidgetComponent<{ start?: string }, CounterData> 
     const { html, render, useState, useEffect } = CounterHtmWidget.preact!;
     if (typeof document !== 'undefined') {
       queueMicrotask(() => {
-        const el = this.element?.querySelector(
+        const el = this.element?.shadowRoot?.querySelector(
           '[data-island="counter-htm"]:not([data-hydrated])',
         );
         if (!el) return;

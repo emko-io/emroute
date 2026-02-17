@@ -86,14 +86,14 @@ class ArticlesPage extends PageComponent<Record<string, string>, ArticlesData> {
     { data, context }: {
       data: ArticlesData | null;
       params: Record<string, string>;
-      context?: ComponentContext;
+      context: ComponentContext;
     },
   ) {
-    if (!context?.isLeaf) {
+    if (!context.isLeaf) {
       return '<router-slot></router-slot>';
     }
 
-    const template = context?.files?.html ?? '<h1>Articles</h1>';
+    const template = context.files?.html ?? '<h1>Articles</h1>';
     if (!data) return template;
 
     const cards = data.articles

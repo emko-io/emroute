@@ -40,10 +40,10 @@ export class BreadcrumbWidget extends WidgetComponent<BreadcrumbParams, Breadcru
   override readonly name = 'breadcrumb';
 
   override getData(
-    args: { params: BreadcrumbParams; signal?: AbortSignal; context?: ComponentContext },
+    args: { params: BreadcrumbParams; signal?: AbortSignal; context: ComponentContext },
   ): Promise<BreadcrumbData | null> {
-    const htmlBase = args.context?.basePath ?? DEFAULT_BASE_PATH.html;
-    const pathname = args.context?.pathname ?? this.resolvePathname(htmlBase);
+    const htmlBase = args.context.basePath ?? DEFAULT_BASE_PATH.html;
+    const pathname = args.context.pathname ?? this.resolvePathname(htmlBase);
 
     // Skip basePath segments for display — only show route segments
     const barePathname = htmlBase && pathname.startsWith(htmlBase)
@@ -73,7 +73,7 @@ export class BreadcrumbWidget extends WidgetComponent<BreadcrumbParams, Breadcru
   }
 
   override renderHTML(
-    args: { data: BreadcrumbData | null; params: BreadcrumbParams; context?: ComponentContext },
+    args: { data: BreadcrumbData | null; params: BreadcrumbParams; context: ComponentContext },
   ): string {
     if (!args.data || args.data.segments.length === 0) return '';
 
@@ -92,7 +92,7 @@ export class BreadcrumbWidget extends WidgetComponent<BreadcrumbParams, Breadcru
   }
 
   override renderMarkdown(
-    args: { data: BreadcrumbData | null; params: BreadcrumbParams; context?: ComponentContext },
+    args: { data: BreadcrumbData | null; params: BreadcrumbParams; context: ComponentContext },
   ): string {
     if (!args.data || args.data.segments.length === 0) return '';
 

@@ -21,10 +21,10 @@ class ProfilePage extends PageComponent<Record<string, string>, ProfileData> {
     { data, context }: {
       data: ProfileData | null;
       params: Record<string, string>;
-      context?: ComponentContext;
+      context: ComponentContext;
     },
   ) {
-    const template = context?.files?.html ?? '<h1>Profile</h1>';
+    const template = context.files?.html ?? '<h1>Profile</h1>';
     if (!data) return template;
     return template
       .replaceAll('{{name}}', data.name)

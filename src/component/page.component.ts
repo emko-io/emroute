@@ -57,7 +57,7 @@ export class PageComponent<
   override renderHTML(
     args: this['RenderArgs'],
   ): string {
-    const files = args.context?.files;
+    const files = args.context.files;
     const style = files?.css ? `<style>${files.css}</style>\n` : '';
 
     if (files?.html) {
@@ -72,11 +72,11 @@ export class PageComponent<
     }
 
     if (files?.md) {
-      const slot = args.context?.isLeaf ? '' : '\n<router-slot></router-slot>';
+      const slot = args.context.isLeaf ? '' : '\n<router-slot></router-slot>';
       return `${style}<mark-down>${escapeHtml(files.md)}</mark-down>${slot}`;
     }
 
-    return args.context?.isLeaf ? '' : '<router-slot></router-slot>';
+    return args.context.isLeaf ? '' : '<router-slot></router-slot>';
   }
 
   /**
@@ -96,13 +96,13 @@ export class PageComponent<
   override renderMarkdown(
     args: this['RenderArgs'],
   ): string {
-    const files = args.context?.files;
+    const files = args.context.files;
 
     if (files?.md) {
       return files.md;
     }
 
-    return args.context?.isLeaf ? '' : '```router-slot\n```';
+    return args.context.isLeaf ? '' : '```router-slot\n```';
   }
 
   /**

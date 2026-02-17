@@ -32,7 +32,11 @@ export const widgetsManifest: WidgetsManifest = {
       name: 'file-widget',
       modulePath: 'widgets/file-widget/file-widget.widget.ts',
       tagName: 'widget-file-widget',
-      files: { html: 'widgets/file-widget/file-widget.widget.html', md: 'widgets/file-widget/file-widget.widget.md', css: 'widgets/file-widget/file-widget.widget.css' },
+      files: {
+        html: 'widgets/file-widget/file-widget.widget.html',
+        md: 'widgets/file-widget/file-widget.widget.md',
+        css: 'widgets/file-widget/file-widget.widget.css',
+      },
     },
     {
       name: 'greeting',
@@ -59,26 +63,37 @@ export const widgetsManifest: WidgetsManifest = {
       name: 'remote-widget',
       modulePath: 'widgets/remote-widget/remote-widget.widget.ts',
       tagName: 'widget-remote-widget',
-      files: { html: 'widgets/remote-widget/remote-widget.widget.html', css: 'widgets/remote-widget/remote-widget.widget.css' },
+      files: {
+        html: 'widgets/remote-widget/remote-widget.widget.html',
+        css: 'widgets/remote-widget/remote-widget.widget.css',
+      },
     },
     {
       name: 'search-filter',
       modulePath: 'widgets/search-filter/search-filter.widget.ts',
       tagName: 'widget-search-filter',
-    }
+    },
   ],
 
   moduleLoaders: {
-    'widgets/article-card/article-card.widget.ts': () => import('./widgets/article-card/article-card.widget.ts'),
-    'widgets/counter-vanilla/counter-vanilla.widget.ts': () => import('./widgets/counter-vanilla/counter-vanilla.widget.ts'),
-    'widgets/element-ref/element-ref.widget.ts': () => import('./widgets/element-ref/element-ref.widget.ts'),
+    'widgets/article-card/article-card.widget.ts': () =>
+      import('./widgets/article-card/article-card.widget.ts'),
+    'widgets/counter-vanilla/counter-vanilla.widget.ts': () =>
+      import('./widgets/counter-vanilla/counter-vanilla.widget.ts'),
+    'widgets/element-ref/element-ref.widget.ts': () =>
+      import('./widgets/element-ref/element-ref.widget.ts'),
     'widgets/failing/failing.widget.ts': () => import('./widgets/failing/failing.widget.ts'),
-    'widgets/file-widget/file-widget.widget.ts': () => import('./widgets/file-widget/file-widget.widget.ts'),
+    'widgets/file-widget/file-widget.widget.ts': () =>
+      import('./widgets/file-widget/file-widget.widget.ts'),
     'widgets/greeting/greeting.widget.ts': () => import('./widgets/greeting/greeting.widget.ts'),
-    'widgets/hydration-test/hydration-test.widget.ts': () => import('./widgets/hydration-test/hydration-test.widget.ts'),
-    'widgets/info-card/info-card.widget.ts': () => import('./widgets/info-card/info-card.widget.ts'),
+    'widgets/hydration-test/hydration-test.widget.ts': () =>
+      import('./widgets/hydration-test/hydration-test.widget.ts'),
+    'widgets/info-card/info-card.widget.ts': () =>
+      import('./widgets/info-card/info-card.widget.ts'),
     'widgets/nav/nav.widget.ts': () => import('./widgets/nav/nav.widget.ts'),
-    'widgets/remote-widget/remote-widget.widget.ts': () => import('./widgets/remote-widget/remote-widget.widget.ts'),
-    'widgets/search-filter/search-filter.widget.ts': () => import('./widgets/search-filter/search-filter.widget.ts'),
+    'widgets/remote-widget/remote-widget.widget.ts': () =>
+      import('./widgets/remote-widget/remote-widget.widget.ts'),
+    'widgets/search-filter/search-filter.widget.ts': () =>
+      import('./widgets/search-filter/search-filter.widget.ts'),
   },
 };

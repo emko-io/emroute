@@ -484,8 +484,14 @@ export class SpaHtmlRouter {
           boundary.modulePath,
         );
         const component = module.default;
-        const data = await component.getData({ params: {} });
-        const html = component.renderHTML({ data, params: {} });
+        const minCtx = {
+          pathname: '',
+          pattern: '',
+          params: {},
+          searchParams: new URLSearchParams(),
+        };
+        const data = await component.getData({ params: {}, context: minCtx });
+        const html = component.renderHTML({ data, params: {}, context: minCtx });
 
         if (this.slot) {
           this.slot.setHTMLUnsafe(html);
@@ -505,8 +511,14 @@ export class SpaHtmlRouter {
           errorHandler.modulePath,
         );
         const component = module.default;
-        const data = await component.getData({ params: {} });
-        const html = component.renderHTML({ data, params: {} });
+        const minCtx = {
+          pathname: '',
+          pattern: '',
+          params: {},
+          searchParams: new URLSearchParams(),
+        };
+        const data = await component.getData({ params: {}, context: minCtx });
+        const html = component.renderHTML({ data, params: {}, context: minCtx });
 
         if (this.slot) {
           this.slot.setHTMLUnsafe(html);

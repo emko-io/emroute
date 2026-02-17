@@ -229,8 +229,8 @@ class ArticleDetailPage extends PageComponent<{ slug: string }, ArticleData> {
   }
 
   override renderHTML({ data, params, context }: this['RenderArgs']) {
-    const template = context?.files?.html ?? '<h1>Article</h1>';
-    const style = context?.files?.css ? `<style>${context.files.css}</style>\n` : '';
+    const template = context.files?.html ?? '<h1>Article</h1>';
+    const style = context.files?.css ? `<style>${context.files.css}</style>\n` : '';
 
     if (!data) {
       return style +

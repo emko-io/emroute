@@ -81,7 +81,7 @@ class MockComponent extends Component {
     return this.validateParamsResult;
   }
 
-  getData(args: { params: unknown; signal?: AbortSignal; context?: ComponentContext }) {
+  getData(args: { params: unknown; signal?: AbortSignal; context: ComponentContext }) {
     this.getDataCalled = true;
     this.getDataParams = args.params;
     this.getDataSignal = args.signal;
@@ -94,7 +94,7 @@ class MockComponent extends Component {
     return Promise.resolve(this.getDataReturnValue);
   }
 
-  renderMarkdown(args: { data: unknown; params: unknown; context?: ComponentContext }): string {
+  renderMarkdown(args: { data: unknown; params: unknown; context: ComponentContext }): string {
     this.renderMarkdownCalled = true;
     this.renderMarkdownData = args.data;
     this.renderMarkdownParams = args.params;
@@ -103,7 +103,7 @@ class MockComponent extends Component {
   }
 
   override renderHTML(
-    args: { data: unknown; params: unknown; context?: ComponentContext },
+    args: { data: unknown; params: unknown; context: ComponentContext },
   ): string {
     this.renderHTMLCalled = true;
     this.renderHTMLData = args.data;
@@ -164,7 +164,7 @@ Deno.test('renderComponent - Passes params to getData', async () => {
   const component = new MockComponent();
   const params = { id: '789', name: 'test' };
 
-  await renderComponent(component, params, 'html');
+  await renderComponent(component, params, 'html', { componentContext: createMockContext() });
 
   assertEquals(component.getDataParams, params);
 });
@@ -182,7 +182,10 @@ Deno.test('renderComponent - Passes signal to getData', async () => {
   const component = new MockComponent();
   const controller = new AbortController();
 
-  await renderComponent(component, {}, 'html', { signal: controller.signal });
+  await renderComponent(component, {}, 'html', {
+    signal: controller.signal,
+    componentContext: createMockContext(),
+  });
 
   assertEquals(component.getDataSignal, controller.signal);
 });
@@ -195,7 +198,7 @@ Deno.test('renderComponent - Passes getData result to renderHTML', async () => {
   const component = new MockComponent();
   component.getDataReturnValue = { title: 'Custom Data' };
 
-  await renderComponent(component, {}, 'html');
+  await renderComponent(component, {}, 'html', { componentContext: createMockContext() });
 
   assertEquals(component.renderHTMLData, { title: 'Custom Data' });
 });
@@ -204,7 +207,7 @@ Deno.test('renderComponent - Passes getData result to renderMarkdown', async () 
   const component = new MockComponent();
   component.getDataReturnValue = { title: 'Custom Data' };
 
-  await renderComponent(component, {}, 'markdown');
+  await renderComponent(component, {}, 'markdown', { componentContext: createMockContext() });
 
   assertEquals(component.renderMarkdownData, { title: 'Custom Data' });
 });
@@ -213,7 +216,7 @@ Deno.test('renderComponent - Passes null data to render when getData returns nul
   const component = new MockComponent();
   component.getDataReturnValue = null;
 
-  await renderComponent(component, {}, 'html');
+  await renderComponent(component, {}, 'html', { componentContext: createMockContext() });
 
   assertEquals(component.renderHTMLData, null);
 });
@@ -248,7 +251,9 @@ Deno.test('renderComponent - HTML: validation passes, continues to getData', asy
   const component = new MockComponent();
   component.validateParamsResult = undefined;
 
-  const result = await renderComponent(component, { id: '1' }, 'html');
+  const result = await renderComponent(component, { id: '1' }, 'html', {
+    componentContext: createMockContext(),
+  });
 
   assertEquals(component.getDataCalled, true);
   assertEquals(result, '<div>Mock HTML</div>');
@@ -258,7 +263,9 @@ Deno.test('renderComponent - Markdown: validation passes, continues to getData',
   const component = new MockComponent();
   component.validateParamsResult = undefined;
 
-  const result = await renderComponent(component, { id: '1' }, 'markdown');
+  const result = await renderComponent(component, { id: '1' }, 'markdown', {
+    componentContext: createMockContext(),
+  });
 
   assertEquals(component.getDataCalled, true);
   assertEquals(result, '# Mock Markdown');
@@ -268,7 +275,9 @@ Deno.test('renderComponent - HTML: validation fails, calls renderError', async (
   const component = new MockComponent();
   component.validateParamsResult = 'Invalid ID';
 
-  const result = await renderComponent(component, { id: 'invalid' }, 'html');
+  const result = await renderComponent(component, { id: 'invalid' }, 'html', {
+    componentContext: createMockContext(),
+  });
 
   assertEquals(component.getDataCalled, false);
   assertEquals(component.renderHTMLCalled, false);
@@ -280,7 +289,9 @@ Deno.test('renderComponent - Markdown: validation fails, calls renderMarkdownErr
   const component = new MockComponent();
   component.validateParamsResult = 'Invalid ID';
 
-  const result = await renderComponent(component, { id: 'invalid' }, 'markdown');
+  const result = await renderComponent(component, { id: 'invalid' }, 'markdown', {
+    componentContext: createMockContext(),
+  });
 
   assertEquals(component.getDataCalled, false);
   assertEquals(component.renderMarkdownCalled, false);
@@ -293,7 +304,7 @@ Deno.test('renderComponent - Validation error passed to renderError with params'
   component.validateParamsResult = 'ID must be numeric';
   const params = { id: 'abc' };
 
-  await renderComponent(component, params, 'html');
+  await renderComponent(component, params, 'html', { componentContext: createMockContext() });
 
   assertEquals(component.renderErrorValue instanceof Error, true);
   assertEquals((component.renderErrorValue as Error).message, 'ID must be numeric');
@@ -304,7 +315,9 @@ Deno.test('renderComponent - No validateParams method: skips validation', async 
   const component = new MockComponent();
   component.hasValidateParams = false;
 
-  const result = await renderComponent(component, { id: '1' }, 'html');
+  const result = await renderComponent(component, { id: '1' }, 'html', {
+    componentContext: createMockContext(),
+  });
 
   assertEquals(component.getDataCalled, true);
   assertEquals(result, '<div>Mock HTML</div>');
@@ -319,7 +332,9 @@ Deno.test('renderComponent - HTML: getData throws, calls renderError', async () 
   const error = new Error('Data fetch failed');
   component.getDataReturnValue = error;
 
-  const result = await renderComponent(component, {}, 'html');
+  const result = await renderComponent(component, {}, 'html', {
+    componentContext: createMockContext(),
+  });
 
   assertEquals(component.renderHTMLCalled, false);
   assertEquals(component.renderErrorCalled, true);
@@ -332,7 +347,9 @@ Deno.test('renderComponent - Markdown: getData throws, calls renderMarkdownError
   const error = new Error('Data fetch failed');
   component.getDataReturnValue = error;
 
-  const result = await renderComponent(component, {}, 'markdown');
+  const result = await renderComponent(component, {}, 'markdown', {
+    componentContext: createMockContext(),
+  });
 
   assertEquals(component.renderMarkdownCalled, false);
   assertEquals(component.renderMarkdownErrorCalled, true);
@@ -346,7 +363,7 @@ Deno.test('renderComponent - getData error passed to renderError with params', a
   component.getDataReturnValue = error;
   const params = { id: '1' };
 
-  await renderComponent(component, params, 'html');
+  await renderComponent(component, params, 'html', { componentContext: createMockContext() });
 
   assertEquals(component.renderErrorParams, params);
 });
@@ -730,7 +747,10 @@ Deno.test('renderComponent - Passes AbortSignal through to getData', async () =>
   const component = new MockComponent();
   const controller = new AbortController();
 
-  await renderComponent(component, {}, 'html', { signal: controller.signal });
+  await renderComponent(component, {}, 'html', {
+    signal: controller.signal,
+    componentContext: createMockContext(),
+  });
 
   assertEquals(component.getDataSignal, controller.signal);
 });
@@ -750,7 +770,10 @@ Deno.test('renderComponent - Can abort rendering', async () => {
   const controller = new AbortController();
   controller.abort();
 
-  await renderComponent(component, {}, 'html', { signal: controller.signal });
+  await renderComponent(component, {}, 'html', {
+    signal: controller.signal,
+    componentContext: createMockContext(),
+  });
 
   assertEquals(receivedSignal?.aborted, true);
   assertEquals(component.renderErrorCalled, true);
@@ -765,7 +788,9 @@ Deno.test('renderComponent - Component without validateParams', async () => {
   // Remove validateParams
   component.validateParams = undefined as unknown as MockComponent['validateParams'];
 
-  const result = await renderComponent(component, { id: '1' }, 'html');
+  const result = await renderComponent(component, { id: '1' }, 'html', {
+    componentContext: createMockContext(),
+  });
 
   assertEquals(component.getDataCalled, true);
   assertEquals(result, '<div>Mock HTML</div>');
@@ -778,7 +803,7 @@ Deno.test('renderComponent - Component without validateParams', async () => {
 Deno.test('renderComponent - Empty params object', async () => {
   const component = new MockComponent();
 
-  await renderComponent(component, {}, 'html');
+  await renderComponent(component, {}, 'html', { componentContext: createMockContext() });
 
   assertEquals(component.getDataParams, {});
   assertEquals(component.renderHTMLParams, {});
@@ -847,8 +872,13 @@ Deno.test('Real world - Render page with multiple widgets', async () => {
   const component2 = new MockComponent();
   component2.renderHTMLReturnValue = '<div class="cards">3 items</div>';
 
-  const rendered1 = await renderComponent(component1, blocks[0].params!, 'html');
-  const rendered2 = await renderComponent(component2, blocks[1].params!, 'html');
+  const ctx = createMockContext();
+  const rendered1 = await renderComponent(component1, blocks[0].params!, 'html', {
+    componentContext: ctx,
+  });
+  const rendered2 = await renderComponent(component2, blocks[1].params!, 'html', {
+    componentContext: ctx,
+  });
 
   const replacements = new Map([
     [blocks[0], rendered1],
@@ -870,7 +900,9 @@ Deno.test('Real world - Markdown rendering pipeline', async () => {
   const component = new MockComponent();
   component.renderMarkdownReturnValue = '> Article Preview';
 
-  const rendered = await renderComponent(component, blocks[0].params!, 'markdown');
+  const rendered = await renderComponent(component, blocks[0].params!, 'markdown', {
+    componentContext: createMockContext(),
+  });
 
   const replacements = new Map([[blocks[0], rendered]]);
   const result = replaceComponentBlocks(markdown, replacements);
@@ -886,7 +918,9 @@ Deno.test('Real world - Error recovery in component rendering', async () => {
   component.getDataReturnValue = new Error('API unavailable');
   component.renderErrorReturnValue = '<div class="error">Service unavailable</div>';
 
-  const rendered = await renderComponent(component, blocks[0].params!, 'html');
+  const rendered = await renderComponent(component, blocks[0].params!, 'html', {
+    componentContext: createMockContext(),
+  });
 
   const replacements = new Map([[blocks[0], rendered]]);
   const result = replaceComponentBlocks(markdown, replacements);

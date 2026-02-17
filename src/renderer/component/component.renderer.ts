@@ -21,7 +21,7 @@ export async function renderComponent<TParams, TData>(
   component: Component<TParams, TData>,
   params: TParams,
   context: RenderContext,
-  options?: { signal?: AbortSignal; componentContext?: ComponentContext },
+  options: { signal?: AbortSignal; componentContext: ComponentContext },
 ): Promise<string> {
   // Validate params
   if (component.validateParams) {
@@ -36,14 +36,14 @@ export async function renderComponent<TParams, TData>(
   try {
     const data = await component.getData({
       params,
-      signal: options?.signal,
-      context: options?.componentContext,
+      signal: options.signal,
+      context: options.componentContext,
     });
 
     if (context === 'markdown') {
-      return component.renderMarkdown({ data, params, context: options?.componentContext });
+      return component.renderMarkdown({ data, params, context: options.componentContext });
     } else {
-      return component.renderHTML({ data, params, context: options?.componentContext });
+      return component.renderHTML({ data, params, context: options.componentContext });
     }
   } catch (e) {
     return context === 'markdown'

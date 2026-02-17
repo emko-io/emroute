@@ -16,26 +16,16 @@ class ExternalWidget extends WidgetComponent<
 > {
   override readonly name = 'external';
 
-  override getData(): Promise<ExternalData> {
+  override getData(_args: this['DataArgs']): Promise<ExternalData> {
     return Promise.resolve({ source: 'manual-registry' });
   }
 
-  override renderHTML({
-    data,
-  }: {
-    data: ExternalData | null;
-    params: Record<string, unknown>;
-  }) {
+  override renderHTML({ data }: this['RenderArgs']) {
     if (!data) return '<p>Loading...</p>';
     return `<div class="external-widget">External widget from ${data.source}</div>`;
   }
 
-  override renderMarkdown({
-    data,
-  }: {
-    data: ExternalData | null;
-    params: Record<string, unknown>;
-  }) {
+  override renderMarkdown({ data }: this['RenderArgs']) {
     if (!data) return '';
     return `External widget from ${data.source}`;
   }

@@ -91,14 +91,14 @@ export abstract class Component<
   declare readonly DataArgs: {
     params: TParams;
     signal?: AbortSignal;
-    context?: TContext;
+    context: TContext;
   };
 
   /** Type carrier for render args — use as `this['RenderArgs']` in overrides. */
   declare readonly RenderArgs: {
     data: TData | null;
     params: TParams;
-    context?: TContext;
+    context: TContext;
   };
 
   /** Unique name in kebab-case. Used for custom element: `<widget-{name}>` */

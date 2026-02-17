@@ -175,6 +175,7 @@ Deno.test('Component - getData() must be implemented by subclass', async () => {
   const component = new TestComponent();
   const data = await component.getData({
     params: { id: '123' },
+    context: createMockContext(),
   });
 
   assertEquals(data, { name: 'Item 123' });
@@ -184,6 +185,7 @@ Deno.test('Component - getData() receives params', async () => {
   const component = new TestComponent();
   const data = await component.getData({
     params: { id: 'custom-id' },
+    context: createMockContext(),
   });
 
   assertStringIncludes(data?.name || '', 'custom-id');
@@ -193,6 +195,7 @@ Deno.test('Component - getData() can return null for loading/missing states', as
   const component = new TestComponent();
   const data = await component.getData({
     params: { id: 'error' },
+    context: createMockContext(),
   });
 
   assertEquals(data, null);
@@ -205,6 +208,7 @@ Deno.test('Component - getData() receives abort signal', async () => {
   const data = await component.getData({
     params: { id: '123' },
     signal: controller.signal,
+    context: createMockContext(),
   });
 
   assertEquals(data, { name: 'Item 123' });
@@ -235,6 +239,7 @@ Deno.test('Component - renderMarkdown() must be implemented by subclass', () => 
   const markdown = component.renderMarkdown({
     data: { name: 'Test Item' },
     params: { id: '123' },
+    context: createMockContext(),
   });
 
   assertStringIncludes(markdown, 'Test Item');
@@ -245,6 +250,7 @@ Deno.test('Component - renderMarkdown() receives data', () => {
   const markdown = component.renderMarkdown({
     data: { name: 'Custom Name' },
     params: { id: '123' },
+    context: createMockContext(),
   });
 
   assertEquals(markdown, '# Custom Name');
@@ -255,6 +261,7 @@ Deno.test('Component - renderMarkdown() handles null data', () => {
   const markdown = component.renderMarkdown({
     data: null,
     params: { id: '123' },
+    context: createMockContext(),
   });
 
   assertEquals(markdown, '# Loading...');
@@ -265,6 +272,7 @@ Deno.test('Component - renderMarkdown() receives params', () => {
   const markdown = component.renderMarkdown({
     data: { name: 'Item' },
     params: { id: 'special-id' },
+    context: createMockContext(),
   });
 
   assertStringIncludes(markdown, 'Item');
@@ -292,6 +300,7 @@ Deno.test('Component - renderHTML() default: returns loading state when data is 
   const html = component.renderHTML({
     data: null,
     params: { id: '123' },
+    context: createMockContext(),
   });
 
   assertStringIncludes(html, 'Loading...');
@@ -304,6 +313,7 @@ Deno.test('Component - renderHTML() default: wraps markdown in container', () =>
   const html = component.renderHTML({
     data: { name: 'Test Content' },
     params: { id: '123' },
+    context: createMockContext(),
   });
 
   assertStringIncludes(html, 'c-markdown');
@@ -328,6 +338,7 @@ Deno.test('Component - renderHTML() default: escapes markdown content for HTML s
   const html = component.renderHTML({
     data: { content: '<script>alert("xss")</script>' },
     params: {},
+    context: createMockContext(),
   });
 
   assertEquals(html.includes('<script>'), false);
@@ -339,6 +350,7 @@ Deno.test('Component - renderHTML() can be overridden for custom HTML', () => {
   const html = component.renderHTML({
     data: { content: 'Custom Content' },
     params: { id: '123' },
+    context: createMockContext(),
   });
 
   assertEquals(html, '<custom-wrapper>Custom Content</custom-wrapper>');
@@ -350,6 +362,7 @@ Deno.test('Component - renderHTML() custom: can have custom loading state', () =
   const html = component.renderHTML({
     data: null,
     params: { id: '123' },
+    context: createMockContext(),
   });
 
   assertStringIncludes(html, 'custom-loading');
@@ -551,6 +564,7 @@ Deno.test('Component - Generic TParams is used in getData', async () => {
   const component = new TestComponent();
   const data = await component.getData({
     params: { id: '456' },
+    context: createMockContext(),
   });
 
   assertStringIncludes(data?.name || '', '456');
@@ -561,6 +575,7 @@ Deno.test('Component - Generic TData is used in renderMarkdown', () => {
   const markdown = component.renderMarkdown({
     data: { name: 'Typed Data' },
     params: { id: '1' },
+    context: createMockContext(),
   });
 
   assertStringIncludes(markdown, 'Typed Data');
@@ -731,12 +746,14 @@ Deno.test('Component - contract: getData → renderMarkdown pipeline works', asy
   // Get data
   const data = await component.getData({
     params: { id: 'integration' },
+    context: createMockContext(),
   });
 
   // Render markdown with that data
   const markdown = component.renderMarkdown({
     data,
     params: { id: 'integration' },
+    context: createMockContext(),
   });
 
   assertStringIncludes(markdown, 'integration');
@@ -748,12 +765,14 @@ Deno.test('Component - contract: getData → renderHTML pipeline works', async (
   // Get data
   const data = await component.getData({
     params: { id: 'html-test' },
+    context: createMockContext(),
   });
 
   // Render HTML with that data
   const html = component.renderHTML({
     data,
     params: { id: 'html-test' },
+    context: createMockContext(),
   });
 
   assertStringIncludes(html, 'c-markdown');
@@ -765,6 +784,7 @@ Deno.test('Component - contract: null data flows through pipeline', async () => 
   // Get null data
   const data = await component.getData({
     params: { id: 'error' },
+    context: createMockContext(),
   });
 
   assertEquals(data, null);
@@ -773,6 +793,7 @@ Deno.test('Component - contract: null data flows through pipeline', async () => 
   const markdown = component.renderMarkdown({
     data,
     params: { id: 'error' },
+    context: createMockContext(),
   });
 
   assertStringIncludes(markdown, 'Loading');
@@ -781,6 +802,7 @@ Deno.test('Component - contract: null data flows through pipeline', async () => 
   const html = component.renderHTML({
     data,
     params: { id: 'error' },
+    context: createMockContext(),
   });
 
   assertStringIncludes(html, 'Loading');
@@ -841,11 +863,13 @@ Deno.test('Component - subclasses can have different TParams types', () => {
   const strMd = stringComp.renderMarkdown({
     data: null,
     params: { query: 'search' },
+    context: createMockContext(),
   });
 
   const numMd = numComp.renderMarkdown({
     data: null,
     params: { id: 42 },
+    context: createMockContext(),
   });
 
   assertStringIncludes(strMd, 'search');
@@ -883,11 +907,13 @@ Deno.test('Component - subclasses can have different TData types', () => {
   const userMd = userComp.renderMarkdown({
     data: { userId: 'u1', name: 'Alice' },
     params: {},
+    context: createMockContext(),
   });
 
   const postMd = postComp.renderMarkdown({
     data: { title: 'My Post', body: 'Content' },
     params: {},
+    context: createMockContext(),
   });
 
   assertStringIncludes(userMd, 'Alice');

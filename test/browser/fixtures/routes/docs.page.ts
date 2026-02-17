@@ -11,10 +11,10 @@ class DocsPage extends PageComponent {
     { params, context }: {
       data: unknown;
       params: Record<string, string>;
-      context?: ComponentContext;
+      context: ComponentContext;
     },
   ) {
-    const template = context?.files?.html ?? '<h1>Docs</h1>';
+    const template = context.files?.html ?? '<h1>Docs</h1>';
     return template.replaceAll('{{topic}}', params.topic ?? 'general');
   }
 

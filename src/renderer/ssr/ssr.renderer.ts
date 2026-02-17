@@ -12,6 +12,7 @@ import type {
   RoutesManifest,
 } from '../../type/route.type.ts';
 import { logger } from '../../type/logger.type.ts';
+import type { ComponentContext } from '../../component/abstract.component.ts';
 import defaultPageComponent, { type PageComponent } from '../../component/page.component.ts';
 import {
   assertSafeRedirect,
@@ -139,8 +140,14 @@ export abstract class SsrRenderer {
             boundary.modulePath,
           );
           const component = module.default;
-          const data = await component.getData({ params: {} });
-          const content = this.renderComponent(component, data);
+          const minCtx = {
+            pathname: '',
+            pattern: '',
+            params: {},
+            searchParams: new URLSearchParams(),
+          };
+          const data = await component.getData({ params: {}, context: minCtx });
+          const content = this.renderComponent(component, data, minCtx);
           return { content, status: 500 };
         } catch (e) {
           logger.error(
@@ -157,8 +164,14 @@ export abstract class SsrRenderer {
             errorHandler.modulePath,
           );
           const component = module.default;
-          const data = await component.getData({ params: {} });
-          const content = this.renderComponent(component, data);
+          const minCtx = {
+            pathname: '',
+            pattern: '',
+            params: {},
+            searchParams: new URLSearchParams(),
+          };
+          const data = await component.getData({ params: {}, context: minCtx });
+          const content = this.renderComponent(component, data, minCtx);
           return { content, status: 500 };
         } catch (e) {
           logger.error(
@@ -260,9 +273,13 @@ export abstract class SsrRenderer {
     args: PageComponent['RenderArgs'],
   ): string;
 
-  /** Render a component for error boundary/handler (no params or context). */
-  protected renderComponent(component: PageComponent, data: unknown): string {
-    return this.renderContent(component, { data, params: {} });
+  /** Render a component for error boundary/handler with minimal context. */
+  protected renderComponent(
+    component: PageComponent,
+    data: unknown,
+    context: ComponentContext,
+  ): string {
+    return this.renderContent(component, { data, params: {}, context });
   }
 
   protected abstract renderRedirect(to: string): string;

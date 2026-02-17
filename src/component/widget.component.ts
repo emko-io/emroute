@@ -38,7 +38,7 @@ export abstract class WidgetComponent<
   override renderHTML(
     args: this['RenderArgs'],
   ): string {
-    const files = args.context?.files;
+    const files = args.context.files;
     // @scope needed for SSR Light DOM output; redundant but harmless in SPA Shadow DOM
     const style = files?.css ? `<style>${scopeWidgetCss(files.css, this.name)}</style>\n` : '';
 
@@ -74,7 +74,7 @@ export abstract class WidgetComponent<
   override renderMarkdown(
     args: this['RenderArgs'],
   ): string {
-    const files = args.context?.files;
+    const files = args.context.files;
 
     if (files?.md) {
       return files.md;

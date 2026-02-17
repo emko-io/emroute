@@ -40,7 +40,7 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
   private effectiveFiles?: WidgetFiles;
   private params: TParams | null = null;
   private data: TData | null = null;
-  private context: ComponentContext | undefined;
+  private context!: ComponentContext;
   private state: ComponentState = 'idle';
   private errorMessage = '';
   private deferred: PromiseWithResolvers<void> | null = null;
@@ -220,7 +220,7 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
     this.abortController = null;
     this.state = 'idle';
     this.data = null;
-    this.context = undefined;
+    this.context = undefined!;
     this.dataPromise = null;
     this.errorMessage = '';
     this.signalReady();

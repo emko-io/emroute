@@ -1288,7 +1288,7 @@ Deno.test('SsrMdRouter - passes context to widget getData', async () => {
     const ctxWidget: WidgetComponent = {
       name: 'ctx-aware',
       files: undefined,
-      getData: (args: { context?: ComponentContext }) => {
+      getData: (args: { context: ComponentContext }) => {
         capturedContext = args.context;
         return Promise.resolve({ ok: true });
       },

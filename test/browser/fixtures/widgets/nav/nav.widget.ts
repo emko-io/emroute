@@ -22,7 +22,7 @@ class NavWidget extends WidgetComponent<Record<string, unknown>, NavData> {
   override readonly name = 'nav';
 
   override getData(args: this['DataArgs']): Promise<NavData> {
-    const pathname = args.context?.pathname ?? '/';
+    const pathname = args.context.pathname ?? '/';
 
     const links: NavLink[] = [
       { label: 'Home', href: '/', active: false },
@@ -49,7 +49,7 @@ class NavWidget extends WidgetComponent<Record<string, unknown>, NavData> {
 
   override renderHTML(args: this['RenderArgs']): string {
     const { data, context } = args;
-    const style = context?.files?.css
+    const style = context.files?.css
       ? `<style>${scopeWidgetCss(context.files.css, this.name)}</style>\n`
       : '';
 

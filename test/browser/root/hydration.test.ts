@@ -1,11 +1,14 @@
 /**
- * SSR-to-SPA Hydration Tests
+ * SPA Mode: root — SSR-to-SPA Hydration Tests
  *
  * Comprehensive test suite verifying that the SPA router correctly adopts
  * SSR-rendered content without re-rendering, preserving widgets, CSS,
  * router slots, and all DOM attributes.
  *
+ * Also verifies 'root' mode HTTP behavior (redirects, SSR + SPA adoption).
+ *
  * Test coverage:
+ * - Mode behavior (redirects, SSR + SPA adoption)
  * - SSR content adoption on fresh load
  * - data-ssr-route attribute lifecycle (present → removed)
  * - Widget hydration without re-render (data-ssr preservation)
@@ -19,8 +22,67 @@
  */
 
 import { assert, assertEquals } from '@std/assert';
-import { baseUrl, closeBrowser, launchBrowser, newPage, startServer, stopServer } from './setup.ts';
+import {
+  createTestBrowser,
+  createTestServer,
+  type TestBrowser,
+  type TestServer,
+} from '../shared/setup.ts';
 import type { Page } from 'npm:playwright@1.58.2';
+
+let server: TestServer;
+let tb: TestBrowser;
+
+function baseUrl(path = '/'): string {
+  return server.baseUrl(path);
+}
+
+// ── Mode Behavior ───────────────────────────────────────────────────
+
+Deno.test(
+  { name: "SPA mode 'root' — HTTP behavior", sanitizeResources: false, sanitizeOps: false },
+  async (t) => {
+    server = await createTestServer({ mode: 'root', port: 4103 });
+
+    await t.step('GET / redirects to /html/', async () => {
+      const res = await fetch(baseUrl('/'), { redirect: 'manual' });
+      assertEquals(res.status, 302);
+      const location = res.headers.get('location');
+      assert(location?.endsWith('/html/'), `expected redirect to /html/, got ${location}`);
+    });
+
+    await t.step('GET /about redirects to /html/about', async () => {
+      const res = await fetch(baseUrl('/about'), { redirect: 'manual' });
+      assertEquals(res.status, 302);
+      const location = res.headers.get('location');
+      assert(
+        location?.endsWith('/html/about'),
+        `expected redirect to /html/about, got ${location}`,
+      );
+    });
+
+    await t.step('GET /html/about serves SSR HTML', async () => {
+      const res = await fetch(baseUrl('/html/about'));
+      assertEquals(res.status, 200);
+      const html = await res.text();
+      assert(html.includes('<h1'), 'SSR HTML should contain rendered content');
+    });
+
+    await t.step('GET /md/about serves SSR Markdown', async () => {
+      const res = await fetch(baseUrl('/md/about'));
+      assertEquals(res.status, 200);
+      assert(
+        res.headers.get('content-type')?.includes('text/markdown'),
+        'should have markdown content type',
+      );
+      await res.text(); // consume body
+    });
+
+    server.stop();
+  },
+);
+
+// ── SSR-to-SPA Hydration ────────────────────────────────────────────
 
 Deno.test(
   {
@@ -29,13 +91,13 @@ Deno.test(
     sanitizeOps: false,
   },
   async (t) => {
-    await startServer({ spa: 'root' });
-    await launchBrowser();
+    server = await createTestServer({ mode: 'root', port: 4103 });
+    tb = await createTestBrowser();
 
     let page!: Page;
 
     await t.step('setup: create page', async () => {
-      page = await newPage();
+      page = await tb.newPage();
     });
 
     // ── SSR HTML Response ─────────────────────────────────────────────
@@ -255,7 +317,6 @@ Deno.test(
     // ── Nested Router Slots ───────────────────────────────────────────
 
     await t.step('nested route content is composed correctly', async () => {
-      // articles/[slug] renders a layout with <router-slot>, SSR fills child content into it
       await page.goto(baseUrl('/html/articles/getting-started/comment'));
       await page.waitForSelector('router-slot', { timeout: 5000 });
 
@@ -361,7 +422,6 @@ Deno.test(
       await page.waitForSelector('h1', { timeout: 5000 });
 
       const homeHeading = await page.textContent('h1');
-      // Just verify we're back at home with a heading
       assert(homeHeading && homeHeading.length > 0, 'navigate back should work');
     });
 
@@ -390,7 +450,6 @@ Deno.test(
         false,
         'link click should not trigger full page load',
       );
-      // URL keeps /html/ prefix — progressive enhancement
       assertEquals(
         new URL(page.url()).pathname,
         '/html/about',
@@ -469,7 +528,6 @@ Deno.test(
       await page.goto(baseUrl('/html/'));
       await page.waitForSelector('h1', { timeout: 5000 });
 
-      // Markdown should be already rendered as HTML in SSR
       const h1Text = await page.textContent('h1');
 
       assert(
@@ -486,13 +544,11 @@ Deno.test(
       await page.goto(baseUrl('/html/'));
       await page.waitForSelector('h1', { timeout: 5000 });
 
-      // Get initial HTML of main content area
       const initialHTML = await page.evaluate(() => {
         const slot = document.querySelector('router-slot');
         return slot?.innerHTML ?? '';
       });
 
-      // Wait for potential re-render
       await page.waitForTimeout(500);
 
       const finalHTML = await page.evaluate(() => {
@@ -509,7 +565,7 @@ Deno.test(
 
     // ── Cleanup ───────────────────────────────────────────────────────
 
-    await closeBrowser();
-    await stopServer();
+    await tb.close();
+    server.stop();
   },
 );

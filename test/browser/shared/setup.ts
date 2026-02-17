@@ -1,28 +1,25 @@
 /**
- * Browser Test Setup
+ * Browser Test Setup — Shared Factory
  *
- * Generates routes manifest from fixture files using the route generator,
- * starts the dev server, and manages Playwright browser lifecycle.
+ * Provides factory functions for creating test servers and browsers.
+ * Each test file creates its own server instance with a specific SPA mode and port.
  */
 
-import { createDevServer, type DevServer } from '../../server/dev.server.ts';
-import { denoServerRuntime } from '../../server/server.deno.ts';
-import { generateManifestCode, generateRoutesManifest } from '../../tool/route.generator.ts';
-import { DEFAULT_BASE_PATH } from '../../src/route/route.core.ts';
-import type { FileSystem } from '../../tool/fs.type.ts';
-import { WidgetRegistry } from '../../src/widget/widget.registry.ts';
-import type { MarkdownRenderer } from '../../src/type/markdown.type.ts';
+import { createDevServer, type DevServer } from '../../../server/dev.server.ts';
+import { denoServerRuntime } from '../../../server/server.deno.ts';
+import { generateManifestCode, generateRoutesManifest } from '../../../tool/route.generator.ts';
+import { DEFAULT_BASE_PATH } from '../../../src/route/route.core.ts';
+import type { FileSystem } from '../../../tool/fs.type.ts';
+import { WidgetRegistry } from '../../../src/widget/widget.registry.ts';
+import type { MarkdownRenderer } from '../../../src/type/markdown.type.ts';
 import { AstRenderer, initParser, MarkdownParser } from 'jsr:@emkodev/emko-md@0.1.0-beta.4/parser';
-import { externalWidget } from './fixtures/assets/external.widget.ts';
+import { externalWidget } from '../fixtures/assets/external.widget.ts';
+import type { SpaMode } from '../../../src/type/widget.type.ts';
 
 import { type Browser, chromium, type Page } from 'npm:playwright@1.58.2';
 
-const PORT = Deno.env.get('TEST_PORT') ? Number(Deno.env.get('TEST_PORT')) : 4100;
 const FIXTURES_DIR = 'test/browser/fixtures';
 const ROUTES_DIR = `${FIXTURES_DIR}/routes`;
-
-let server: DevServer | null = null;
-let browser: Browser | null = null;
 
 /** Adapt Deno APIs to the FileSystem interface used by the route generator. */
 function createFs(): FileSystem {
@@ -49,11 +46,18 @@ function stripPrefix(path: string): string {
   return path.startsWith(`${FIXTURES_DIR}/`) ? path.slice(FIXTURES_DIR.length + 1) : path;
 }
 
-export async function startServer(options?: {
+export interface TestServer {
+  handle: DevServer;
+  stop(): void;
+  baseUrl(path?: string): string;
+}
+
+export async function createTestServer(options: {
+  mode: SpaMode;
+  port: number;
   watch?: boolean;
-  spa?: 'none' | 'leaf' | 'root' | 'only';
-}): Promise<void> {
-  if (server) return;
+}): Promise<TestServer> {
+  const { mode, port, watch = false } = options;
 
   // Generate manifest from fixture route files
   const fs = createFs();
@@ -122,7 +126,7 @@ export async function startServer(options?: {
 
   // Create server-side emko-md renderer
   const wasmUrl = new URL(
-    './fixtures/assets/emko_md_parser_bg.wasm',
+    '../fixtures/assets/emko_md_parser_bg.wasm',
     import.meta.url,
   );
   await initParser({ module_or_path: wasmUrl });
@@ -142,18 +146,17 @@ export async function startServer(options?: {
 
   // Consumer main.ts creates the SPA router — only use it for modes that need routing.
   // For 'none'/'leaf', let the server generate a mode-appropriate entry point.
-  const mode = options?.spa;
-  const needsConsumerEntry = mode === undefined || mode === 'root' || mode === 'only';
+  const needsConsumerEntry = mode === 'root' || mode === 'only';
 
-  server = await createDevServer(
+  const server = await createDevServer(
     {
-      port: PORT,
+      port,
       entryPoint: needsConsumerEntry ? 'main.ts' : undefined,
       routesManifest: result,
       appRoot: FIXTURES_DIR,
       widgetsDir: `${FIXTURES_DIR}/widgets`,
       widgets: manualWidgets,
-      watch: options?.watch ?? false,
+      watch,
       markdownRenderer,
       spa: mode,
     },
@@ -162,47 +165,39 @@ export async function startServer(options?: {
 
   // Wait for bundle to complete
   await new Promise((resolve) => setTimeout(resolve, 3000));
+
+  return {
+    handle: server,
+    stop() {
+      try {
+        server.bundleProcess?.kill();
+      } catch {
+        // Bundle process may have already exited
+      }
+      server.watchHandle?.close();
+      server.handle.shutdown();
+    },
+    baseUrl(path = '/') {
+      return `http://localhost:${port}${path}`;
+    },
+  };
 }
 
-export function stopServer(): void {
-  if (!server) return;
-  try {
-    server.bundleProcess?.kill();
-  } catch {
-    // Bundle process may have already exited
-  }
-  server.watchHandle?.close();
-  server.handle.shutdown();
-  server = null;
+export interface TestBrowser {
+  browser: Browser;
+  close(): Promise<void>;
+  newPage(): Promise<Page>;
 }
 
-export async function launchBrowser(): Promise<Browser> {
-  browser = await chromium.launch();
-  return browser;
+export async function createTestBrowser(): Promise<TestBrowser> {
+  const browser = await chromium.launch();
+  return {
+    browser,
+    async close() {
+      await browser.close();
+    },
+    async newPage() {
+      return await browser.newPage();
+    },
+  };
 }
-
-export async function closeBrowser(): Promise<void> {
-  if (browser) {
-    await browser.close();
-    browser = null;
-  }
-}
-
-export async function newPage(): Promise<Page> {
-  if (!browser) throw new Error('Browser not launched');
-  return await browser.newPage();
-}
-
-export function baseUrl(path = '/'): string {
-  return `http://localhost:${PORT}${path}`;
-}
-
-globalThis.addEventListener('unload', () => {
-  try {
-    server?.bundleProcess?.kill();
-  } catch {
-    // Bundle process may have already exited (watch: false)
-  }
-  server?.handle?.shutdown();
-  server = null;
-});

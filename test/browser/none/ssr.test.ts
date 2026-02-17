@@ -1,8 +1,8 @@
 /**
- * SSR Renderers — Integration Tests
+ * SPA Mode: none — SSR Renderers Integration Tests
  *
- * Tests SSR HTML (/html/*) and SSR Markdown (/md/*) renderers
- * against the dev server using the same fixtures as the SPA tests.
+ * Tests SSR HTML (/html/*) and SSR Markdown (/md/*) renderers in 'none' mode.
+ * No JavaScript bundles are served — pure server-side rendering.
  *
  * Coverage matrix — every route type x both SSR renderers:
  * - .page.md (markdown fallback)
@@ -20,14 +20,67 @@
  */
 
 import { assert, assertEquals } from '@std/assert';
-import { baseUrl, startServer, stopServer } from './setup.ts';
+import { createTestServer, type TestServer } from '../shared/setup.ts';
+
+let server: TestServer;
+
+function baseUrl(path = '/'): string {
+  return server.baseUrl(path);
+}
+
+// ── Mode Behavior ───────────────────────────────────────────────────
+
+Deno.test(
+  { name: "SPA mode 'none' — SSR behavior", sanitizeResources: false, sanitizeOps: false },
+  async (t) => {
+    server = await createTestServer({ mode: 'none', port: 4101 });
+
+    await t.step('GET / redirects to /html/', async () => {
+      const res = await fetch(baseUrl('/'), { redirect: 'manual' });
+      assertEquals(res.status, 302);
+      const location = res.headers.get('location');
+      assert(location?.endsWith('/html/'), `expected redirect to /html/, got ${location}`);
+    });
+
+    await t.step('GET /about redirects to /html/about', async () => {
+      const res = await fetch(baseUrl('/about'), { redirect: 'manual' });
+      assertEquals(res.status, 302);
+      const location = res.headers.get('location');
+      assert(
+        location?.endsWith('/html/about'),
+        `expected redirect to /html/about, got ${location}`,
+      );
+    });
+
+    await t.step('GET /html/about serves SSR HTML', async () => {
+      const res = await fetch(baseUrl('/html/about'));
+      assertEquals(res.status, 200);
+      const html = await res.text();
+      assert(html.includes('<h1'), 'SSR HTML response should contain rendered content');
+      assertEquals(res.headers.get('content-type'), 'text/html; charset=utf-8');
+    });
+
+    await t.step('GET /md/about serves SSR Markdown', async () => {
+      const res = await fetch(baseUrl('/md/about'));
+      assertEquals(res.status, 200);
+      const md = await res.text();
+      assert(md.includes('About'), 'SSR Markdown response should contain content');
+      assert(
+        res.headers.get('content-type')?.includes('text/markdown'),
+        'should have markdown content type',
+      );
+    });
+
+    server.stop();
+  },
+);
 
 // ── SSR HTML ─────────────────────────────────────────────────────────
 
 Deno.test(
   { name: 'SSR HTML renderer', sanitizeResources: false, sanitizeOps: false },
   async (t) => {
-    await startServer();
+    server = await createTestServer({ mode: 'none', port: 4101 });
 
     // --- .page.md ---
 
@@ -500,7 +553,7 @@ Deno.test(
       assert(html.includes('Something Went Wrong'), 'should render root error handler');
     });
 
-    await stopServer();
+    server.stop();
   },
 );
 
@@ -509,7 +562,7 @@ Deno.test(
 Deno.test(
   { name: 'SSR Markdown renderer', sanitizeResources: false, sanitizeOps: false },
   async (t) => {
-    await startServer();
+    server = await createTestServer({ mode: 'none', port: 4101 });
 
     // --- .page.md ---
 
@@ -655,15 +708,12 @@ Deno.test(
         md.includes('[nesting-ts-html] .md BEFORE slot') === false,
         'should not have markdown content (no .md file)',
       );
-      // Expected: falls back to router-slot placeholder with no visible content
     });
 
     await t.step('nesting-ts-html — level 1 (root-only expected)', async () => {
       const res = await fetch(baseUrl('/md/nesting-ts-html/lvl-one'));
       assertEquals(res.status, 200);
       const md = await res.text();
-      // Expected: pages without .md files produce invisible slot placeholders
-      // Only root page's markdown is visible (if any)
       const hasNoVisibleNesting = !md.includes('[lvl-one] .md BEFORE slot');
       assert(
         hasNoVisibleNesting,
@@ -740,7 +790,6 @@ Deno.test(
       const res = await fetch(baseUrl('/md/nesting-ts/lvl-one/level-two/level-three/html'));
       assertEquals(res.status, 200);
       const md = await res.text();
-      // Expected: html-only leaf has no .md file, produces invisible slot placeholder
       const hasNoVisibleContent = !md.includes('[html-leaf] .md');
       assert(hasNoVisibleContent, 'html-only leaf should be invisible in SSR Markdown');
     });
@@ -770,19 +819,16 @@ Deno.test(
       assertEquals(res.status, 200);
       const md = await res.text();
       assert(md.includes('Widgets in Markdown'), 'should contain page heading');
-      // Fenced widget blocks should be replaced with renderMarkdown() output
       assert(md.includes('Hello, World!'), 'should resolve greeting widget (no params)');
       assert(md.includes('Hello, Developer!'), 'should resolve greeting widget (with name)');
       assert(
         md.includes('[SSR] Widget Rendering'),
         'should resolve info card with badge and title',
       );
-      // Failing widget should show error output
       assert(
         md.includes('Widget data fetch failed') || md.includes('Error'),
         'should show error for failing widget',
       );
-      // No fenced widget blocks should remain
       assert(!md.includes('```widget:'), 'should have no unresolved widget blocks');
     });
 
@@ -793,14 +839,11 @@ Deno.test(
       assertEquals(res.status, 200);
       const md = await res.text();
       assert(md.includes('Widget Files in Markdown'), 'should contain page heading');
-      // File widget should render its md file content
       assert(
         md.includes('This markdown was loaded from a static file'),
         'should render file widget from static MD file',
       );
-      // Greeting widget (no files) should still work
       assert(md.includes('Hello, World!'), 'greeting widget without files still works');
-      // No unresolved widget blocks should remain
       assert(!md.includes('```widget:'), 'should have no unresolved widget blocks');
     });
 
@@ -826,6 +869,6 @@ Deno.test(
       assert(md.includes('Something Went Wrong'), 'should render root error handler');
     });
 
-    await stopServer();
+    server.stop();
   },
 );

@@ -32,9 +32,14 @@ import { build } from './prod.server.ts';
 import { denoServerRuntime } from './server.deno.ts';
 import type { SpaMode } from '../src/type/widget.type.ts';
 import type { BasePath } from '../src/route/route.core.ts';
+import type { MarkdownRenderer } from '../src/type/markdown.type.ts';
 import { generateManifestCode, generateRoutesManifest } from '../tool/route.generator.ts';
 import { discoverWidgets, generateWidgetsManifestCode } from '../tool/widget.generator.ts';
 import { denoFs } from '../tool/fs.deno.ts';
+// @ts-types="./emko-md.vendor.d.ts"
+import { createMarkdownRender } from './emko-md.vendor.js';
+
+const markdownRenderer: MarkdownRenderer = { render: createMarkdownRender() };
 
 // ── Arg parsing ──────────────────────────────────────────────────────
 
@@ -197,6 +202,7 @@ async function commandStart(flags: CliFlags): Promise<void> {
       appRoot: '.',
       spa: project.spaMode,
       basePath,
+      markdownRenderer,
     },
     denoServerRuntime,
   );

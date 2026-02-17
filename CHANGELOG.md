@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0-beta.5] - 2026-02-18
+
+### Added
+
+- **Built-in markdown renderer** — CLI ships a vendored emko-md@0.3.0 bundle
+  (~7.5KB minified) for server-side `<mark-down>` expansion. Markdown content
+  renders to HTML during SSR with zero JS required in the browser. Only used by
+  the CLI — library consumers are not affected.
+
 ## [1.5.0-beta.4] - 2026-02-18
 
 ### Added

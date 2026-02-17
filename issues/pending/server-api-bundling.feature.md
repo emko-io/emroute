@@ -642,38 +642,47 @@ The core bundle is built once at startup (or cached from a previous run).
 The static SPA bundle serves as the "offline" or "CDN" mode. SSR routes require
 a server but give you SEO, no-JS support, and markdown rendering.
 
-## Implementation Order
+## Implementation Status
 
-1. **Extract `createEmrouteServer`** from dev server internals. This is mostly
-   a refactor — the logic already exists, just entangled with dev concerns.
-2. **Migrate dev server** to use `createEmrouteServer` internally.
-3. **Validate with emkoord** — replace `EmrouteHandler` with
-   `createEmrouteServer`. This is the acid test.
-4. **Add `build` command** — extract bundling from dev server into standalone
-   build tool.
-5. **Add pre-rendering (SSG)** — use `EmrouteServer.htmlRouter.render()` to
-   crawl all routes and emit static HTML.
+1. **Extract `createEmrouteServer`** — Done. `server/prod.server.ts`.
+   Full-featured server: SSR rendering, manifest generation, static file
+   serving, `serve(port)`, `handleRequest(req)`.
 
-## Open Questions
+2. **Migrate dev server** — Done. `server/dev.server.ts` is now a thin
+   wrapper (~310 lines, down from ~860) around `createEmrouteServer`. Only
+   handles dev concerns: entry point generation, bundling, `.build/` serving,
+   aliases, file watching, dev CORS.
 
-- **Self-fetch problem**: SSR currently resolves companion files (`.html`,
-  `.md`, `.css`) via HTTP self-fetch (`fetch('http://localhost:PORT/...')`).
-  For `createEmrouteServer` (no HTTP server of its own), this needs an
-  alternative — likely direct filesystem reads. The `moduleLoaders` pattern
-  already handles `.ts` files this way; companion files should follow suit.
+3. **Add `build` command** — Done. `build()` in `server/prod.server.ts`.
+   Split bundles (core `emroute.js` + app `app.js`), pluggable `Bundler`
+   interface, import maps, CDN core option (`coreBundle: 'cdn' | 'build' | URL`).
+   Default output dir is `appRoot` so `serve()` picks up bundles automatically.
 
-- **Entry point generation**: Should `build` generate `_main.g.ts` or
-  should consumers always provide their own? ADR-0012 envisions convention-based
-  detection making `main.ts` a generated implementation detail. The build
-  command is the natural place for this.
+4. **Response compression** — Done. `CompressionStream`-based, negotiated
+   via `Accept-Encoding`. Supports `br`, `gzip`, `deflate`. Opt-in via
+   `compression: true` in config. Only compresses text types > 1KB.
 
-- **Pre-rendering scope**: Pre-render all routes? Only static ones (no
-  `getData`)? Let consumers specify? A pragmatic default: pre-render routes
-  that have no dynamic params (`:id`).
+5. **`.g.ts` naming convention** — Done. All generated files use `.g.ts`
+   suffix: `routes.manifest.g.ts`, `widgets.manifest.g.ts`, `_main.g.ts`.
+   `.gitignore` uses `*.g.ts` pattern.
 
-- **CSS bundling**: Currently `main.css` is served as-is. Should the build step
-  bundle/minify CSS? Or leave that to consumers? Leaning toward: leave it.
-  emroute doesn't own CSS tooling.
+6. **Validate with emkoord** — Pending. Replace `EmrouteHandler` with
+   `createEmrouteServer`.
+
+## Resolved Questions
+
+- **Self-fetch**: Solved with `file://` URLs. Deno's `fetch()` supports
+  `file://` natively. `baseUrl` defaults to `file://${cwd}`, dev server
+  overrides with `http://localhost:${port}` for self-fetch.
+
+- **Entry point generation**: `build()` auto-generates `_main.g.ts` when no
+  `entryPoint` is provided. Uses `generateMainTs()` (shared with dev server).
+
+- **Pre-rendering (SSG)**: Dropped. The server is the product — SSG bolted
+  onto an SSR framework adds complexity without clear value. If all content
+  is static, the SPA shell handles it client-side.
+
+- **CSS bundling**: Left to consumers. emroute doesn't own CSS tooling.
 
 ## Conventions
 

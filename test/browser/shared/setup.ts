@@ -91,7 +91,7 @@ export async function createTestServer(options: {
 
   // Write manifest for the bundler to pick up (with /html basePath for SPA patterns)
   const code = generateManifestCode(result, '@emkodev/emroute', DEFAULT_BASE_PATH.html);
-  await Deno.writeTextFile(`${FIXTURES_DIR}/routes.manifest.ts`, code);
+  await Deno.writeTextFile(`${FIXTURES_DIR}/routes.manifest.g.ts`, code);
 
   // Create server-side module loaders for SSR
   const rootUrl = new URL(FIXTURES_DIR + '/', `file://${Deno.cwd()}/`);

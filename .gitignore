@@ -4,8 +4,7 @@ node_modules/
 .playwright-mcp/
 *.png
 !doc/*.png
-routes.manifest.ts
-test/browser/fixtures/routes.manifest.ts
-test/browser/fixtures/_main.generated.ts
+*.g.ts
+test/browser/fixtures/_main.g.ts
 test/browser/fixtures/assets/*.wasm
 .claude/

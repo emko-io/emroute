@@ -10,11 +10,11 @@
  *
  * Arguments:
  *   routesDir      - Directory to scan for routes (default: "routes")
- *   outputFile     - Output routes manifest file (default: "routes.manifest.ts")
+ *   outputFile     - Output routes manifest file (default: "routes.manifest.g.ts")
  *   importPath     - Import path for types (default: "@emkodev/emroute")
  *   --widgets      - Enable widget manifest generation
  *   widgetsDir     - Directory to scan for widgets (default: "widgets")
- *   widgetsOutput  - Output widgets manifest file (default: "widgets.manifest.ts")
+ *   widgetsOutput  - Output widgets manifest file (default: "widgets.manifest.g.ts")
  */
 
 import {
@@ -30,7 +30,7 @@ async function main() {
   const positionalArgs = widgetsIdx >= 0 ? Deno.args.slice(0, widgetsIdx) : [...Deno.args];
 
   const routesDir = positionalArgs[0] ?? 'routes';
-  const outputFile = positionalArgs[1] ?? 'routes.manifest.ts';
+  const outputFile = positionalArgs[1] ?? 'routes.manifest.g.ts';
   const importPath = positionalArgs[2] ?? '@emkodev/emroute';
 
   console.log(`[Routes Generator] Scanning: ${routesDir}/`);
@@ -106,7 +106,7 @@ async function main() {
   if (widgetsIdx >= 0) {
     const widgetArgs = Deno.args.slice(widgetsIdx + 1);
     const widgetsDir = widgetArgs[0] ?? 'widgets';
-    const widgetsOutput = widgetArgs[1] ?? 'widgets.manifest.ts';
+    const widgetsOutput = widgetArgs[1] ?? 'widgets.manifest.g.ts';
 
     console.log(`\n[Widgets Generator] Scanning: ${widgetsDir}/`);
 

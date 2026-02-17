@@ -1,5 +1,4 @@
 #!/usr/bin/env -S deno run -A
-/// <reference lib="deno.ns" />
 
 /**
  * Emroute CLI — zero-config dev server, build, and manifest generation.

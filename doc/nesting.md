@@ -344,12 +344,12 @@ class DocsPage extends PageComponent<Record<string, never>, DocList> {
 
   override async getData({ context }: this['DataArgs']) {
     // Skip expensive calls when just passing through to a child
-    if (!context?.isLeaf) return null;
+    if (!context.isLeaf) return null;
     return fetchDocsList();
   }
 
   override renderHTML({ data, context }: this['RenderArgs']) {
-    if (!context?.isLeaf) {
+    if (!context.isLeaf) {
       // Layout role: just provide a slot for the child
       return '<div class="docs-layout"><nav>...</nav><router-slot></router-slot></div>';
     }

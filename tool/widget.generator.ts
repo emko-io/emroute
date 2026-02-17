@@ -200,29 +200,35 @@ function escapeForCodeString(value: string): string {
 export function generateWidgetsManifestCode(
   entries: WidgetManifestEntry[],
   importPath = '@emkodev/emroute',
+  /** Directory where the manifest file will be written (for resolving relative imports). */
+  manifestDir = '',
 ): string {
+  const stripPrefix = manifestDir ? manifestDir.replace(/\/$/, '') + '/' : '';
+  const strip = (p: string): string =>
+    stripPrefix && p.startsWith(stripPrefix) ? p.slice(stripPrefix.length) : p;
+
   const widgetEntries = entries.map((e) => {
     const filesStr = e.files
       ? `\n      files: { ${
         Object.entries(e.files)
           .filter(([_, v]) => v)
-          .map(([k, v]) => `${k}: '${escapeForCodeString(v!)}'`)
+          .map(([k, v]) => `${k}: '${escapeForCodeString(strip(v!))}'`)
           .join(', ')
       } },`
       : '';
 
     return `    {
       name: '${escapeForCodeString(e.name)}',
-      modulePath: '${escapeForCodeString(e.modulePath)}',
+      modulePath: '${escapeForCodeString(strip(e.modulePath))}',
       tagName: '${escapeForCodeString(e.tagName)}',${filesStr}
     }`;
   }).join(',\n');
 
-  const loaderEntries = entries.map((e) =>
-    `    '${escapeForCodeString(e.modulePath)}': () => import('./${
-      escapeForCodeString(e.modulePath.replace(/^\.\//, ''))
-    }'),`
-  ).join('\n');
+  const loaderEntries = entries.map((e) => {
+    const key = strip(e.modulePath);
+    const rel = key.replace(/^\.\//, '');
+    return `    '${escapeForCodeString(key)}': () => import('./${escapeForCodeString(rel)}'),`;
+  }).join('\n');
 
   return `/**
  * Generated Widgets Manifest

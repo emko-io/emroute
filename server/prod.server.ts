@@ -382,7 +382,7 @@ export async function createEmrouteServer(
     routesManifest.moduleLoaders = createModuleLoaders(routesManifest, appRoot, runtime);
 
     // Write manifest file for the SPA bundle
-    const code = generateManifestCode(result, '@emkodev/emroute', htmlBase);
+    const code = generateManifestCode(result, '@emkodev/emroute', htmlBase, appRoot);
     await runtime.writeTextFile(`${appRoot}/routes.manifest.g.ts`, code);
 
     console.log(`Scanned ${config.routesDir}/`);
@@ -422,6 +422,7 @@ export async function createEmrouteServer(
     const widgetManifestCode = generateWidgetsManifestCode(
       discoveredWidgetEntries,
       '@emkodev/emroute',
+      appRoot,
     );
     await runtime.writeTextFile(`${appRoot}/widgets.manifest.g.ts`, widgetManifestCode);
 
@@ -609,7 +610,7 @@ export async function createEmrouteServer(
       routesManifest = result;
       routesManifest.moduleLoaders = createModuleLoaders(routesManifest, appRoot, runtime);
 
-      const code = generateManifestCode(result, '@emkodev/emroute', htmlBase);
+      const code = generateManifestCode(result, '@emkodev/emroute', htmlBase, appRoot);
       await runtime.writeTextFile(`${appRoot}/routes.manifest.g.ts`, code);
     }
 
@@ -628,6 +629,7 @@ export async function createEmrouteServer(
       const widgetManifestCode = generateWidgetsManifestCode(
         discoveredWidgetEntries,
         '@emkodev/emroute',
+        appRoot,
       );
       await runtime.writeTextFile(`${appRoot}/widgets.manifest.g.ts`, widgetManifestCode);
     }
@@ -674,7 +676,7 @@ export function generateMainTs(
   const imports: string[] = [];
   const body: string[] = [];
 
-  imports.push(`import { ComponentElement } from '${importPath}/spa';`);
+  imports.push(`import { ComponentElement } from '${importPath}';`);
 
   if (hasRoutes) {
     imports.push(`import { routesManifest } from './routes.manifest.g.ts';`);
@@ -702,7 +704,7 @@ export function generateMainTs(
   }
 
   if ((spa === 'root' || spa === 'only') && hasRoutes) {
-    imports.push(`import { createSpaHtmlRouter } from '${importPath}/spa';`);
+    imports.push(`import { createSpaHtmlRouter } from '${importPath}';`);
     const bpOpt = basePath ? `basePath: { html: '${basePath.html}', md: '${basePath.md}' }` : '';
     const opts = bpOpt ? `{ ${bpOpt} }` : '';
     body.push(`await createSpaHtmlRouter(routesManifest${opts ? `, ${opts}` : ''});`);
@@ -818,9 +820,15 @@ export async function build(
   // Create output directory
   await runtime.mkdir(outDir, { recursive: true });
 
+  // Detect main.css for style injection
+  const hasMainCss = (await runtime.stat(`${appRoot}/main.css`)) !== null;
+  const styleTag = hasMainCss ? `<link rel="stylesheet" href="/main.css">` : '';
+
   if (spa === 'none') {
+    let noneShell = emroute.shell;
+    if (styleTag) noneShell = noneShell.replace('</head>', `  ${styleTag}\n</head>`);
     const shellPath = `${outDir}/index.html`;
-    await runtime.writeTextFile(shellPath, emroute.shell);
+    await runtime.writeTextFile(shellPath, noneShell);
     console.log(`Build complete → ${outDir}/ (no JS — spa='none')`);
     return {
       coreBundle: null,
@@ -882,13 +890,16 @@ export async function build(
     appBundle.replace(outDir + '/', '')
   }"></script>`;
 
-  const shellHtml = emroute.shell.replace(
+  let shellHtml = emroute.shell.replace(
     '</head>',
     `  ${importMapTag}\n</head>`,
   ).replace(
     '</body>',
     `${appScriptTag}\n</body>`,
   );
+  if (styleTag) {
+    shellHtml = shellHtml.replace('</head>', `  ${styleTag}\n</head>`);
+  }
 
   const shellPath = `${outDir}/index.html`;
   await runtime.writeTextFile(shellPath, shellHtml);

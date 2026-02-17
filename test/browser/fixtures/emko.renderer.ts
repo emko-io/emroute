@@ -1,22 +1,17 @@
-import { AstRenderer, initParser, MarkdownParser } from 'jsr:@emkodev/emko-md@0.1.0-beta.4/parser';
+import { createMarkdownRender } from 'jsr:@emkodev/emko-md@^0.3.0/render';
 import { MarkdownElement } from '@emkodev/emroute/spa';
 import type { MarkdownRenderer } from '@emkodev/emroute';
 
-const renderer = new AstRenderer();
-let parser: MarkdownParser;
+let render: (markdown: string) => string;
 
 MarkdownElement.setRenderer(
   {
-    async init() {
-      await initParser({
-        module_or_path: new URL('/assets/emko_md_parser_bg.wasm', location.origin),
-      });
-      parser = new MarkdownParser();
+    init() {
+      render = createMarkdownRender();
+      return Promise.resolve();
     },
     render(markdown: string): string {
-      parser.set_text(markdown);
-      const ast = JSON.parse(parser.parse_to_json());
-      return renderer.render(ast);
+      return render(markdown);
     },
   } satisfies MarkdownRenderer,
 );

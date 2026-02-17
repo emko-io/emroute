@@ -69,13 +69,13 @@ class ProjectPage extends PageComponent<{ id: string }, ProjectData> {
 
   override renderHTML({ data, params, context }: this['RenderArgs']) {
     // context.files.html has the companion .page.html template if it exists
-    const template = context?.files?.html ?? `<h1>\${data.name}</h1>`;
+    const template = context.files?.html ?? `<h1>\${data.name}</h1>`;
     return template.replaceAll('{{id}}', params.id) + '<router-slot></router-slot>';
   }
 
   override renderMarkdown({ data, context }: this['RenderArgs']) {
     // context.files.md has the companion .page.md content if it exists
-    return context?.files?.md ?? `# ${data.name}\n\nStatus: ${data.status}`;
+    return context.files?.md ?? `# ${data.name}\n\nStatus: ${data.status}`;
   }
 }
 

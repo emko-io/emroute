@@ -77,7 +77,7 @@ file content via `context.files`:
 
 ```ts
 override renderHTML({ data, context }: this['RenderArgs']) {
-  const template = context?.files?.html ?? '<h1>Fallback</h1>';
+  const template = context.files?.html ?? '<h1>Fallback</h1>';
   return template.replaceAll('{{name}}', data.name);
 }
 ```
@@ -87,8 +87,8 @@ When all three files exist, the `.ts` component can combine them — use the
 
 ```ts
 override renderHTML({ data, context }: this['RenderArgs']) {
-  const html = context?.files?.html ?? '';
-  const md = context?.files?.md ?? '';
+  const html = context.files?.html ?? '';
+  const md = context.files?.md ?? '';
   return html.replace('{{content}}', `<mark-down>${md}</mark-down>`);
 }
 ```
@@ -170,7 +170,7 @@ class ProfilePage extends PageComponent<Record<string, string>, ProfileData> {
   }
 
   override renderHTML({ data, context }: this['RenderArgs']) {
-    const template = context?.files?.html ?? '<h1>Profile</h1>';
+    const template = context.files?.html ?? '<h1>Profile</h1>';
     if (!data) return template;
     return template
       .replaceAll('{{name}}', data.name)
@@ -201,12 +201,12 @@ class BlogPage extends PageComponent {
   override readonly name = 'blog';
 
   override renderHTML({ context }: this['RenderArgs']) {
-    const md = context?.files?.md ?? '';
+    const md = context.files?.md ?? '';
     return `<mark-down>${md}</mark-down>\n<p class="blog-footer">Posts: 0</p>`;
   }
 
   override renderMarkdown({ context }: this['RenderArgs']) {
-    return context?.files?.md ?? '';
+    return context.files?.md ?? '';
   }
 }
 
@@ -410,8 +410,8 @@ class NavWidget extends WidgetComponent<Record<string, unknown>, NavData> {
   };
 
   override renderHTML({ data, context }: this['RenderArgs']) {
-    const style = context?.files?.css ? `<style>${context.files.css}</style>` : '';
-    const html = context?.files?.html ?? '<nav>Loading...</nav>';
+    const style = context.files?.css ? `<style>${context.files.css}</style>` : '';
+    const html = context.files?.html ?? '<nav>Loading...</nav>';
     return style + html;
   }
 }

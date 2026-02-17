@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0-beta.4] - 2026-02-18
+
+### Added
+
+- **Zero-config CLI** (experimental) — `deno run -A jsr:@emkodev/emroute/server/cli start`
+  starts a dev server by scanning `routes/` and `widgets/` in the current
+  directory. No config file, no `main.ts`, no `deno.json` required. Supports
+  subcommands: `start` (default), `build`, `generate`. SPA mode is inferred
+  automatically (`none` for markdown-only projects, `root` when `.page.ts` or
+  `widgets/` exist), overridable via `--spa`. The server CLI is experimental and
+  not intended for production use.
+
+### Changed
+
+- **Build produces relative manifest imports** — `generateManifestCode()` and
+  `generateWidgetsManifestCode()` accept a `manifestDir` parameter, stripping
+  the `appRoot` prefix from `modulePath` and `files` entries so generated
+  manifests use relative imports.
+
+- **Build auto-detects `main.css`** — when `main.css` exists in the app root,
+  the build injects a `<link rel="stylesheet">` tag into the HTML shell.
+
+- **Generated `main.ts` imports from root export** — `generateMainTs()` now
+  imports `ComponentElement` and `createSpaHtmlRouter` from `@emkodev/emroute`
+  instead of `@emkodev/emroute/spa`.
+
+- **Docs updated for required context** — `README.md`, `doc/guide.md`, and
+  `doc/nesting.md` updated `context?.` to `context.` after beta.3 made context
+  required on `DataArgs` and `RenderArgs`.
+
+### Fixed
+
+- **emko-md renderer upgraded** — test fixture `emko.renderer.ts` updated from
+  `emko-md@0.1.0-beta.4` (WASM parser) to `emko-md@^0.3.0` (pure JS
+  `createMarkdownRender()`).
+
 ## [1.5.0-beta.3] - 2026-02-17
 
 ### Changed

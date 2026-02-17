@@ -290,10 +290,17 @@ export function generateManifestCode(
   manifest: RoutesManifest,
   importPath = '@emkodev/emroute',
   basePath = '',
+  /** Directory where the manifest file will be written (for resolving relative imports). */
+  manifestDir = '',
 ): string {
   /** Prefix a pattern with basePath. Root '/' becomes basePath itself. */
   const prefix = (pattern: string): string =>
     basePath ? (pattern === '/' ? basePath : basePath + pattern) : pattern;
+
+  /** Strip manifestDir prefix from file paths so imports are relative to manifest location. */
+  const stripPrefix = manifestDir ? manifestDir.replace(/\/$/, '') + '/' : '';
+  const strip = (p: string): string =>
+    stripPrefix && p.startsWith(stripPrefix) ? p.slice(stripPrefix.length) : p;
 
   const routesArray = manifest.routes
     .map((r) => {
@@ -301,7 +308,7 @@ export function generateManifestCode(
         ? `\n    files: { ${
           Object.entries(r.files)
             .filter(([_, v]) => v)
-            .map(([k, v]) => `${k}: '${escapeForCodeString(v!)}'`)
+            .map(([k, v]) => `${k}: '${escapeForCodeString(strip(v!))}'`)
             .join(', ')
         } },`
         : '';
@@ -309,7 +316,7 @@ export function generateManifestCode(
       return `  {
     pattern: '${escapeForCodeString(prefix(r.pattern))}',
     type: '${escapeForCodeString(r.type)}',
-    modulePath: '${escapeForCodeString(r.modulePath)}',${filesStr}${
+    modulePath: '${escapeForCodeString(strip(r.modulePath))}',${filesStr}${
         r.parent ? `\n    parent: '${escapeForCodeString(prefix(r.parent))}',` : ''
       }${r.statusCode ? `\n    statusCode: ${r.statusCode},` : ''}
   }`;
@@ -321,7 +328,7 @@ export function generateManifestCode(
       (e) =>
         `  {
     pattern: '${escapeForCodeString(prefix(e.pattern))}',
-    modulePath: '${escapeForCodeString(e.modulePath)}',
+    modulePath: '${escapeForCodeString(strip(e.modulePath))}',
   }`,
     )
     .join(',\n');
@@ -331,15 +338,16 @@ export function generateManifestCode(
       ([status, route]) => {
         const filesStr = route.files
           ? `, files: { ${
-            Object.entries(route.files).map(([k, v]) => `${k}: '${escapeForCodeString(v!)}'`).join(
-              ', ',
-            )
+            Object.entries(route.files).map(([k, v]) => `${k}: '${escapeForCodeString(strip(v!))}'`)
+              .join(
+                ', ',
+              )
           } }`
           : '';
         return `  [${status}, { pattern: '${escapeForCodeString(prefix(route.pattern))}', type: '${
           escapeForCodeString(route.type)
         }', modulePath: '${
-          escapeForCodeString(route.modulePath)
+          escapeForCodeString(strip(route.modulePath))
         }', statusCode: ${status}${filesStr} }]`;
       },
     )
@@ -349,7 +357,7 @@ export function generateManifestCode(
     ? `{
   pattern: '${escapeForCodeString(prefix(manifest.errorHandler.pattern))}',
   type: '${escapeForCodeString(manifest.errorHandler.type)}',
-  modulePath: '${escapeForCodeString(manifest.errorHandler.modulePath)}',
+  modulePath: '${escapeForCodeString(strip(manifest.errorHandler.modulePath))}',
 }`
     : 'undefined';
 
@@ -372,11 +380,11 @@ export function generateManifestCode(
   }
 
   const moduleLoadersCode = [...tsModulePaths]
-    .map((p) =>
-      `    '${escapeForCodeString(p)}': () => import('./${
-        escapeForCodeString(p.replace(/^\.\//, ''))
-      }'),`
-    )
+    .map((p) => {
+      const key = strip(p);
+      const rel = key.replace(/^\.\//, '');
+      return `    '${escapeForCodeString(key)}': () => import('./${escapeForCodeString(rel)}'),`;
+    })
     .join('\n');
 
   return `/**

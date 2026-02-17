@@ -35,7 +35,8 @@ class OverlayDemoWidget extends WidgetComponent {
   }
 
   private bind(host: HTMLElement, overlay: OverlayService): void {
-    for (const btn of host.querySelectorAll<HTMLElement>('[data-action]')) {
+    const root = host.shadowRoot ?? host;
+    for (const btn of root.querySelectorAll<HTMLElement>('[data-action]')) {
       const action = btn.dataset.action!;
       btn.addEventListener('click', () => this.handleAction(action, overlay, btn));
     }

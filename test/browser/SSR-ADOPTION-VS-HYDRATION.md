@@ -95,8 +95,8 @@ class InteractiveWidget extends WidgetComponent<ParamsType, DataType> {
 
   // Called after ALL renders (both SSR adoption and SPA navigation)
   override hydrate(): void {
-    const button = this.element?.querySelector<HTMLElement>('#my-button');
-    const display = this.element?.querySelector<HTMLElement>('#display');
+    const button = this.element?.shadowRoot?.querySelector<HTMLElement>('#my-button');
+    const display = this.element?.shadowRoot?.querySelector<HTMLElement>('#display');
 
     if (button && display) {
       button.addEventListener('click', () => {

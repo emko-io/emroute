@@ -10,7 +10,7 @@ class ExampleCatchAllPage extends PageComponent {
   <h2>Catch-All</h2>
   <p>path: <code>${path}</code></p>
   <p>rest: <code>${rest}</code></p>
-  <p><a href="/example">Back to index</a></p>
+  <p><a href="/html/example">Back to index</a></p>
 </div>`;
   }
 
@@ -22,7 +22,7 @@ class ExampleCatchAllPage extends PageComponent {
 path: \`${path}\`
 rest: \`${rest}\`
 
-[Back to index](/example)`;
+[Back to index](/html/example)`;
   }
 }
 

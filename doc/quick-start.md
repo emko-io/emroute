@@ -15,7 +15,7 @@ This adds emroute to your `deno.json` imports:
 ```json
 {
   "imports": {
-    "@emkodev/emroute": "jsr:@emkodev/emroute@^1.1.0"
+    "@emkodev/emroute": "jsr:@emkodev/emroute@^1.5.0"
   }
 }
 ```

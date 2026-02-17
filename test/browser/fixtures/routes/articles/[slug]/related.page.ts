@@ -50,7 +50,7 @@ class RelatedPage extends PageComponent<{ slug: string }, RelatedData> {
     if (!data) return '<p>Loading related articles...</p>';
     const items = data.related.map((a) =>
       `<li style="margin-bottom:0.5rem">
-        <a href="/articles/${
+        <a href="/html/articles/${
         escapeHtml(a.slug)
       }" style="color:#0f172a;font-weight:500;text-decoration:none">${escapeHtml(a.title)}</a>
         <br><small style="color:#94a3b8">${escapeHtml(a.summary)}</small>
@@ -65,7 +65,7 @@ class RelatedPage extends PageComponent<{ slug: string }, RelatedData> {
   override renderMarkdown({ data }: this['RenderArgs']): string {
     if (!data) return '';
     return `## Related Articles\n\n${
-      data.related.map((a) => `- [${a.title}](/articles/${a.slug})`).join('\n')
+      data.related.map((a) => `- [${a.title}](/html/articles/${a.slug})`).join('\n')
     }`;
   }
 }

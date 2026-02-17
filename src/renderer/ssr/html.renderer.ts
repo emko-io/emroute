@@ -37,12 +37,16 @@ export class SsrHtmlRouter extends SsrRenderer {
     }
   }
 
-  protected override injectSlot(parent: string, child: string): string {
-    return parent.replace(/<router-slot[^>]*><\/router-slot>/, child);
+  protected override injectSlot(parent: string, child: string, parentPattern: string): string {
+    const escaped = parentPattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return parent.replace(
+      new RegExp(`<router-slot\\b[^>]*\\bpattern="${escaped}"[^>]*></router-slot>`),
+      child,
+    );
   }
 
   protected override stripSlots(result: string): string {
-    return result;
+    return result.replace(/<router-slot[^>]*><\/router-slot>/g, '');
   }
 
   /**
@@ -54,13 +58,17 @@ export class SsrHtmlRouter extends SsrRenderer {
     isLeaf?: boolean,
   ): Promise<{ content: string; title?: string }> {
     if (route.modulePath === DEFAULT_ROOT_ROUTE.modulePath) {
-      return { content: '<router-slot></router-slot>' };
+      return { content: `<router-slot pattern="${route.pattern}"></router-slot>` };
     }
 
     let { content, title } = await this.loadRouteContent(routeInfo, route, isLeaf);
 
     // Expand <mark-down> tags server-side
     content = await this.expandMarkdown(content);
+
+    // Attribute bare <router-slot> tags with this route's pattern (before widget
+    // resolution so widget-internal slots inside <template> are not affected)
+    content = this.attributeSlots(content, route.pattern);
 
     // Resolve <widget-*> tags: call getData() + renderHTML(), inject data-ssr
     if (this.widgets) {
@@ -104,6 +112,14 @@ export class SsrHtmlRouter extends SsrRenderer {
       <p>Path: ${escapeHtml(pathname)}</p>
       <p>${escapeHtml(message)}</p>
     `;
+  }
+
+  /** Add pattern attribute to bare <router-slot> tags. */
+  private attributeSlots(content: string, routePattern: string): string {
+    return content.replace(
+      /<router-slot(?![^>]*\bpattern=)([^>]*)><\/router-slot>/g,
+      `<router-slot pattern="${routePattern}"$1></router-slot>`,
+    );
   }
 
   /**

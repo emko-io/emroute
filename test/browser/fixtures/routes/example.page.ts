@@ -8,9 +8,9 @@ class ExamplePage extends PageComponent {
   <h2>Example Index</h2>
   <p>This is the exact /example page.</p>
   <ul>
-    <li><a href="/example/foo">foo</a></li>
-    <li><a href="/example/bar">bar</a></li>
-    <li><a href="/example/deep/nested/path">deep/nested/path</a></li>
+    <li><a href="/html/example/foo">foo</a></li>
+    <li><a href="/html/example/bar">bar</a></li>
+    <li><a href="/html/example/deep/nested/path">deep/nested/path</a></li>
   </ul>
   <router-slot></router-slot>
 </div>`;
@@ -21,9 +21,9 @@ class ExamplePage extends PageComponent {
 
 This is the exact /example page.
 
-- [foo](/example/foo)
-- [bar](/example/bar)
-- [deep/nested/path](/example/deep/nested/path)
+- [foo](/html/example/foo)
+- [bar](/html/example/bar)
+- [deep/nested/path](/html/example/deep/nested/path)
 
 \`\`\`router-slot
 \`\`\``;

@@ -331,6 +331,61 @@ export default new DocsCatchAllPage();
 The catch-all nests inside the flat file's `<router-slot>`, so the docs layout
 wraps every sub-page automatically.
 
+### Leaf vs Layout: `context.isLeaf`
+
+When a flat file like `docs.page.ts` exists alongside a `docs/` directory, it
+renders as a **layout parent** for child routes and as a **leaf page** for the
+exact path. The component can tell which role it's playing via
+`context.isLeaf`:
+
+```ts
+class DocsPage extends PageComponent<Record<string, never>, DocList> {
+  override readonly name = 'docs';
+
+  override async getData({ context }: this['DataArgs']) {
+    // Skip expensive calls when just passing through to a child
+    if (!context?.isLeaf) return null;
+    return fetchDocsList();
+  }
+
+  override renderHTML({ data, context }: this['RenderArgs']) {
+    if (!context?.isLeaf) {
+      // Layout role: just provide a slot for the child
+      return '<div class="docs-layout"><nav>...</nav><router-slot></router-slot></div>';
+    }
+    // Leaf role: render the actual docs index
+    return `<div class="docs-layout"><nav>...</nav><h1>Documentation</h1>...</div>`;
+  }
+}
+
+export default new DocsPage();
+```
+
+| URL                     | `isLeaf` | Behavior                           |
+| ----------------------- | -------- | ---------------------------------- |
+| `/docs`                 | `true`   | Renders docs index content         |
+| `/docs/getting-started` | `false`  | Renders layout with slot for child |
+
+`isLeaf` is available on `ComponentContext`, so it works in both `getData` and
+render methods. Use it in `getData` to skip expensive work (database queries,
+API calls) when the page is just a passthrough.
+
+### Exact Routes vs Catch-Alls: 404 Semantics
+
+An exact route implicitly 404s any child path — children don't exist unless
+explicitly defined as files. A catch-all accepts all children by default and
+explicitly decides which to handle and which to reject.
+
+This follows REST conventions. `/books` returns the collection. `/books/123`
+returns one resource — no list wrapping the detail. The URL structure
+communicates the resource model:
+
+- **Exact route** (`books.page.ts`): "I am the `/books` resource. Nothing
+  else exists here unless you create a file for it."
+- **Catch-all** (`books/index.page.ts`): "I own everything under `/books/`.
+  Give me a path and I'll figure it out — from a database, a CMS, or
+  whatever."
+
 ### Dynamic Segment vs Catch-All
 
 A `[param]` file matches a **single** URL segment. A directory `index` file

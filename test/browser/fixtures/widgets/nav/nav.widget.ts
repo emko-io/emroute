@@ -6,7 +6,7 @@
  * file for styling, demonstrating the widget CSS feature.
  */
 
-import { WidgetComponent } from '@emkodev/emroute';
+import { scopeWidgetCss, WidgetComponent } from '@emkodev/emroute';
 
 interface NavLink {
   label: string;
@@ -22,8 +22,6 @@ class NavWidget extends WidgetComponent<Record<string, unknown>, NavData> {
   override readonly name = 'nav';
 
   override getData(args: this['DataArgs']): Promise<NavData> {
-    console.log('NavWidget.getData() args:', args);
-    console.log('NavWidget.getData() args keys:', Object.keys(args));
     const pathname = args.context?.pathname ?? '/';
 
     const links: NavLink[] = [
@@ -50,17 +48,19 @@ class NavWidget extends WidgetComponent<Record<string, unknown>, NavData> {
   }
 
   override renderHTML(args: this['RenderArgs']): string {
-    console.log('NavWidget.renderHTML() args:', args);
-    console.log('NavWidget.renderHTML() args keys:', Object.keys(args));
     const { data, context } = args;
-    const style = context?.files?.css ? `<style>${context.files.css}</style>\n` : '';
+    const style = context?.files?.css
+      ? `<style>${scopeWidgetCss(context.files.css, this.name)}</style>\n`
+      : '';
 
     if (!data) return `${style}<nav class="site-nav">Loading...</nav>`;
 
-    const items = data.links.map((link) => {
-      const cls = link.active ? ' class="active"' : '';
-      return `<a href="/html${link.href}"${cls}>${link.label}</a>`;
-    }).join('\n      ');
+    const items = data.links
+      .map((link) => {
+        const cls = link.active ? ' class="active"' : '';
+        return `<a href="/html${link.href}"${cls}>${link.label}</a>`;
+      })
+      .join('\n      ');
 
     return `${style}<nav class="site-nav">
       ${items}

@@ -1,16 +1,20 @@
 /**
  * Overlay Service
  *
- * Factory function that creates an OverlayService instance managing
- * modals (<dialog>), toasts (<div> stack), and popovers (<div popover>).
- * DOM elements are lazily created on first use and appended to document.body.
+ * Programmatic API for modals, toasts, and popovers. For simple trigger
+ * patterns, use declarative HTML (commandfor/command + popover/dialog)
+ * with zero JS. This service covers dynamic content, programmatic
+ * triggers, and complex workflows.
+ *
+ * dismissAll() is DOM-aware: it closes both programmatic overlays
+ * managed by this service AND declarative popovers/dialogs found
+ * via DOM queries.
  */
 
 import type { ModalOptions, OverlayService, PopoverOptions, ToastOptions } from './overlay.type.ts';
 import { overlayCSS } from './overlay.css.ts';
 
 const ANIMATION_SAFETY_TIMEOUT = 300;
-const DEFAULT_TOAST_TIMEOUT = 5000;
 
 /**
  * Animate an element out by setting `data-dismissing`, waiting for
@@ -47,11 +51,6 @@ export function createOverlayService(): OverlayService {
 
   // Toast state
   let toastContainer: HTMLDivElement | null = null;
-  interface ToastEntry {
-    el: HTMLDivElement;
-    timerId: ReturnType<typeof setTimeout> | null;
-  }
-  const activeToasts = new Set<ToastEntry>();
 
   // Popover state
   let popoverEl: HTMLDivElement | null = null;
@@ -158,32 +157,41 @@ export function createOverlayService(): OverlayService {
 
   // --- Toast ---
 
+  /** Remove dead toasts (dismissed or animation-finished) from container. */
+  function clearDeadToasts(container: HTMLDivElement): void {
+    for (const child of [...container.children]) {
+      const el = child as HTMLElement;
+      if (el.hasAttribute('data-dismissing')) {
+        el.remove();
+      }
+    }
+  }
+
   function toast(options: ToastOptions): { dismiss(): void } {
     const container = ensureToastContainer();
 
+    // Clean up dead toasts before adding a new one
+    clearDeadToasts(container);
+
     const el = document.createElement('div');
     el.setAttribute('data-overlay-toast', '');
+
+    const timeout = options.timeout ?? 0;
+    if (timeout === 0) {
+      el.setAttribute('data-toast-manual', '');
+    } else {
+      el.style.setProperty('--overlay-toast-duration', `${timeout}ms`);
+    }
+
     options.render(el);
     container.appendChild(el);
 
-    const timeout = options.timeout ?? DEFAULT_TOAST_TIMEOUT;
-
-    const entry: ToastEntry = { el, timerId: null };
-    activeToasts.add(entry);
-
+    let dismissed = false;
     const dismiss = () => {
-      if (!activeToasts.has(entry)) return;
-      activeToasts.delete(entry);
-      if (entry.timerId) clearTimeout(entry.timerId);
-
-      animateDismiss(el, () => {
-        el.remove();
-      });
+      if (dismissed) return;
+      dismissed = true;
+      el.setAttribute('data-dismissing', '');
     };
-
-    if (timeout > 0) {
-      entry.timerId = setTimeout(dismiss, timeout);
-    }
 
     return { dismiss };
   }
@@ -290,7 +298,7 @@ export function createOverlayService(): OverlayService {
   // --- Dismiss all ---
 
   function dismissAll(): void {
-    // Close modal
+    // Close programmatic modal
     if (dialog && dialog.open) {
       const resolve = modalResolve;
       const onClose = modalOnClose;
@@ -304,15 +312,29 @@ export function createOverlayService(): OverlayService {
       if (onClose) onClose();
     }
 
-    // Remove all toasts
-    for (const entry of activeToasts) {
-      if (entry.timerId) clearTimeout(entry.timerId);
-      entry.el.remove();
-    }
-    activeToasts.clear();
-
-    // Hide popover
+    // Hide programmatic popover
     hidePopoverImmediate();
+
+    // Dismiss all toasts via CSS
+    if (toastContainer) {
+      for (const child of toastContainer.children) {
+        (child as HTMLElement).setAttribute('data-dismissing', '');
+      }
+    }
+
+    // Close declarative popovers found in the DOM
+    try {
+      for (const el of document.querySelectorAll(':popover-open')) {
+        (el as HTMLElement).hidePopover();
+      }
+    } catch {
+      // :popover-open not supported
+    }
+
+    // Close declarative dialogs found in the DOM (skip our own)
+    for (const el of document.querySelectorAll<HTMLDialogElement>('dialog[open]')) {
+      if (el !== dialog) el.close();
+    }
   }
 
   return {

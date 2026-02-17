@@ -52,5 +52,8 @@ export { PageComponent } from './component/page.component.ts';
 export { WidgetComponent } from './component/widget.component.ts';
 export { WidgetRegistry } from './widget/widget.registry.ts';
 
+// Route config
+export { type BasePath, DEFAULT_BASE_PATH, prefixManifest } from './route/route.core.ts';
+
 // Utils
 export { escapeHtml, scopeWidgetCss } from './util/html.util.ts';

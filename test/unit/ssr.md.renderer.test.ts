@@ -16,6 +16,7 @@
 import { assertEquals, assertExists, assertStringIncludes } from '@std/assert';
 import { createSsrMdRouter, SsrMdRouter } from '../../src/renderer/ssr/md.renderer.ts';
 import type { RouteConfig, RoutesManifest } from '../../src/type/route.type.ts';
+import { prefixManifest } from '../../src/route/route.core.ts';
 import { WidgetRegistry } from '../../src/widget/widget.registry.ts';
 import type { WidgetComponent } from '../../src/component/widget.component.ts';
 import type { ComponentContext } from '../../src/component/abstract.component.ts';
@@ -841,7 +842,7 @@ Deno.test('SsrMdRouter - skips routes without content in hierarchy', async () =>
 // URL Normalization Tests
 // ============================================================================
 
-Deno.test('SsrMdRouter - strips /md/ prefix from pathname', async () => {
+Deno.test('SsrMdRouter - matches /md/ prefixed routes with basePath', async () => {
   const restore = mockFetch({
     '/page.md': 'Page content',
   });
@@ -855,8 +856,9 @@ Deno.test('SsrMdRouter - strips /md/ prefix from pathname', async () => {
       }),
     ];
 
-    const manifest = createTestManifest({ routes });
-    const router = new SsrMdRouter(manifest);
+    const bare = createTestManifest({ routes });
+    const manifest = prefixManifest(bare, '/md');
+    const router = new SsrMdRouter(manifest, { basePath: '/md' });
 
     const result = await router.render('/md/page');
 
@@ -867,7 +869,7 @@ Deno.test('SsrMdRouter - strips /md/ prefix from pathname', async () => {
   }
 });
 
-Deno.test('SsrMdRouter - strips /md/ prefix with nested path', async () => {
+Deno.test('SsrMdRouter - matches /md/ prefixed nested path', async () => {
   const restore = mockFetch({
     '/docs/guide.md': 'Guide',
   });
@@ -881,8 +883,9 @@ Deno.test('SsrMdRouter - strips /md/ prefix with nested path', async () => {
       }),
     ];
 
-    const manifest = createTestManifest({ routes });
-    const router = new SsrMdRouter(manifest);
+    const bare = createTestManifest({ routes });
+    const manifest = prefixManifest(bare, '/md');
+    const router = new SsrMdRouter(manifest, { basePath: '/md' });
 
     const result = await router.render('/md/docs/guide');
 
@@ -893,16 +896,17 @@ Deno.test('SsrMdRouter - strips /md/ prefix with nested path', async () => {
   }
 });
 
-Deno.test('SsrMdRouter - handles /md/ as root path', async () => {
-  const routes = [
-    createTestRoute({ pattern: '/', modulePath: '__default_root__' }),
-  ];
+Deno.test('SsrMdRouter - handles /md/ as root path with basePath', async () => {
+  const manifest = createTestManifest({ routes: [] });
+  const router = new SsrMdRouter(manifest, { basePath: '/md' });
 
-  const manifest = createTestManifest({ routes });
-  const router = new SsrMdRouter(manifest);
+  // Trailing slash redirects to canonical form
+  const redirect = await router.render('/md/');
+  assertEquals(redirect.status, 301);
+  assertEquals(redirect.redirect, '/md');
 
-  const result = await router.render('/md/');
-
+  // Canonical form renders normally
+  const result = await router.render('/md');
   assertEquals(result.status, 200);
 });
 

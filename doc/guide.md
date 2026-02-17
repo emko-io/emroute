@@ -471,27 +471,6 @@ exported `scopeWidgetCss(css, widgetName)` utility for the same effect.
 paint entirely; visible widgets render normally. Override per-widget with CSS
 if needed (`widget-nav { content-visibility: visible; }`).
 
-**Container queries:** All widget elements have `container-type: inline-size`
-set by default. Widget CSS can use `@container` queries to respond to the
-widget's own width:
-
-```css
-/* in greeting.widget.css */
-.greeting {
-  font-size: 1rem;
-}
-
-@container (min-width: 600px) {
-  .greeting {
-    font-size: 1.25rem;
-    display: flex;
-    gap: 1rem;
-  }
-}
-```
-
-No opt-in needed — every widget is a container out of the box.
-
 Widget errors are contained — a failing widget renders its error state inline
 without breaking the surrounding page.
 
@@ -527,10 +506,10 @@ class CounterWidget extends WidgetComponent<{ start?: string }, { count: number 
 }
 ```
 
-Use `this.element` to attach event listeners, query rendered children, integrate
-third-party libraries, or perform any imperative DOM work after rendering.
-Components that don't need DOM access simply ignore the property — it's
-opt-in by nature.
+Use `this.element` to attach event listeners, query rendered children (via
+`this.element.shadowRoot`), integrate third-party libraries, or perform any
+imperative DOM work after rendering. Components that don't need DOM access
+simply ignore the property — it's opt-in by nature.
 
 ### Hydration Lifecycle
 
@@ -547,7 +526,7 @@ class InteractiveWidget extends WidgetComponent<{ start?: string }, { initial: n
   // Store method reference for proper cleanup
   private handleClick = () => {
     this.clickCount++;
-    const display = this.element?.querySelector('#count');
+    const display = this.element?.shadowRoot?.querySelector('#count');
     if (display) display.textContent = String(this.clickCount);
   };
 
@@ -564,8 +543,9 @@ class InteractiveWidget extends WidgetComponent<{ start?: string }, { initial: n
   }
 
   // Called after SSR adoption AND after fresh SPA rendering
-  override hydrate() {
-    const button = this.element?.querySelector('#btn');
+  override hydrate({ data }: this['RenderArgs']) {
+    this.clickCount = data?.initial ?? 0;
+    const button = this.element?.shadowRoot?.querySelector('#btn');
     if (button) {
       button.addEventListener('click', this.handleClick);
     }
@@ -573,7 +553,7 @@ class InteractiveWidget extends WidgetComponent<{ start?: string }, { initial: n
 
   // Remove listeners to prevent memory leaks
   override destroy() {
-    const button = this.element?.querySelector('#btn');
+    const button = this.element?.shadowRoot?.querySelector('#btn');
     if (button) {
       button.removeEventListener('click', this.handleClick);
     }
@@ -584,13 +564,13 @@ class InteractiveWidget extends WidgetComponent<{ start?: string }, { initial: n
 **Lifecycle flow:**
 
 - **SSR mode (`/html/*`)**: Server renders HTML → Browser adopts via `data-ssr`
-  → `hydrate()` called → widget is interactive
-- **SPA mode (`/*`)**: `getData()` → `renderHTML()` → `hydrate()` called →
+  → `hydrate(args)` called with `{ data, params, context }` → widget is interactive
+- **SPA mode (`/*`)**: `getData()` → `renderHTML()` → `hydrate(args)` called →
   widget is interactive
 
-The `hydrate()` hook is called after rendering in both modes, making it the
-single place to attach all event listeners. This gives you the best of both
-worlds: fast SSR adoption (DOM reuse) with full interactivity.
+The `hydrate(args)` hook is called after rendering in both modes, receiving the
+same `{ data, params, context }` as render methods. This makes it the single
+place to attach all event listeners and access widget state.
 
 **Key patterns:**
 
@@ -844,12 +824,11 @@ console warning.
 
 The SPA router:
 
-- Intercepts same-origin link clicks for client-side navigation
-- Uses the History API for back/forward
+- Uses the Navigation API for client-side navigation (intercepts link clicks, form GETs, and back/forward)
 - Matches the URL against the routes manifest
 - Builds the route hierarchy and renders parent → child into nested `<router-slot>` elements
-- Strips `/html/` prefix from links (so SSR links work in SPA context)
-- Redirects `/md/` links to the server for plain text output
+- Intercepts `/html/` links for client-side navigation (SSR links work transparently in SPA context)
+- Passes `/md/` links through to the server for plain text output
 - Fires `navigate`, `load`, and `error` events
 - Wraps route changes in `document.startViewTransition()` for animated
   cross-fades (progressive enhancement — instant fallback in older browsers)
@@ -913,7 +892,7 @@ const { html, status, title } = await htmlRouter.render('/html/projects/42');
 const { markdown, status } = await mdRouter.render('/md/projects/42');
 ```
 
-The SSR renderers strip their prefix (`/html/` or `/md/`) before matching.
+Route patterns in the manifest include the base path prefix (e.g. `/html/projects/:id`), so the SSR renderers match against the full pathname.
 
 **SSR HTML renders widgets server-side.** The HTML renderer calls each
 component's `renderHTML()` and assembles the route hierarchy. When a
@@ -1063,7 +1042,7 @@ deno run --allow-net --allow-read --allow-write --allow-run --allow-env dev.ts
 ## Design Principles
 
 1. **Native APIs only.** URLPattern for routing, custom elements for rendering,
-   History API for navigation. No framework runtime.
+   Navigation API for client-side navigation. No framework runtime.
 
 2. **Content-first.** Markdown is the canonical content format. Every page can
    render as markdown, making content inherently portable and machine-readable.

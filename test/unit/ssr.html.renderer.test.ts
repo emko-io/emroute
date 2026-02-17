@@ -169,7 +169,7 @@ Deno.test('SsrHtmlRouter - injectSlot replaces <router-slot> with child content'
   }
 });
 
-Deno.test('SsrHtmlRouter - stripSlots preserves unconsumed <router-slot> tags in HTML mode', async () => {
+Deno.test('SsrHtmlRouter - stripSlots removes unconsumed <router-slot> tags', async () => {
   const routes: RouteConfig[] = [
     createTestRoute({
       pattern: '/leaf',
@@ -188,8 +188,7 @@ Deno.test('SsrHtmlRouter - stripSlots preserves unconsumed <router-slot> tags in
     const result = await router.render('http://localhost/leaf');
     assertEquals(result.status, 200);
     assertStringIncludes(result.content, 'Leaf Page');
-    // HTML renderer preserves unconsumed slots (unlike markdown renderer)
-    assertStringIncludes(result.content, '<router-slot>');
+    assertEquals(result.content.includes('<router-slot'), false);
   } finally {
     restore();
   }
@@ -945,7 +944,7 @@ Deno.test('SsrHtmlRouter - markdown renderer output with widget tags is processe
   }
 });
 
-Deno.test('SsrHtmlRouter - markdown renderer output with router-slot is preserved', async () => {
+Deno.test('SsrHtmlRouter - markdown router-slot in leaf route is stripped as unconsumed', async () => {
   const routes: RouteConfig[] = [
     createTestRoute({
       pattern: '/nested-md',
@@ -966,7 +965,8 @@ Deno.test('SsrHtmlRouter - markdown renderer output with router-slot is preserve
   try {
     const result = await router.render('http://localhost/nested-md');
     assertEquals(result.status, 200);
-    assertStringIncludes(result.content, '<router-slot></router-slot>');
+    // Leaf route — unconsumed slots are stripped from final output
+    assertEquals(result.content.includes('<router-slot'), false);
   } finally {
     restore();
   }
@@ -1101,7 +1101,7 @@ Deno.test('SsrHtmlRouter - markdown with <mark-down> placeholder in HTML', async
   }
 });
 
-Deno.test('SsrHtmlRouter - default to bare <router-slot> when no files present', async () => {
+Deno.test('SsrHtmlRouter - leaf route with no files renders empty content', async () => {
   const routes: RouteConfig[] = [
     createTestRoute({
       pattern: '/empty',
@@ -1118,7 +1118,7 @@ Deno.test('SsrHtmlRouter - default to bare <router-slot> when no files present',
   try {
     const result = await router.render('http://localhost/empty');
     assertEquals(result.status, 200);
-    assertStringIncludes(result.content, '<router-slot></router-slot>');
+    assertEquals(result.content, '');
   } finally {
     restore();
   }

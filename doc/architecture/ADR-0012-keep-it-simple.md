@@ -42,6 +42,63 @@ Each archetype implies different bundling, server config, element
 registration strategy, and file generation — far beyond what a router
 click handler should decide.
 
+## URL Architecture: basePath as the source of truth
+
+The manifest is the source of truth for application URLs. Route patterns
+include the basePath prefix — `/html/about`, not `/about`. There is no
+stripping, no translation, no dual URL space.
+
+### basePath: { html, md }
+
+Configurable base paths replace the hardcoded `/html/` and `/md/`
+prefixes. The `BasePath` type:
+
+    interface BasePath {
+      html: string;  // default '/html'
+      md: string;    // default '/md'
+    }
+
+### How patterns get their prefix
+
+Two paths to prefixed patterns, same result:
+
+- **SPA bundle**: `generateManifestCode(manifest, importPath, basePath)`
+  bakes `/html/about` into the generated `routes.manifest.ts`. The SPA
+  router works with these directly — no stripping, no translation.
+
+- **Server SSR**: `prefixManifest(manifest, basePath)` creates a
+  prefixed copy at runtime. SSR renderers receive already-prefixed
+  patterns and match against the full pathname.
+
+### No stripping anywhere
+
+Previously `stripSsrPrefix` removed `/html/` from pathnames before
+matching against bare patterns. This was removed entirely:
+
+- `stripSsrPrefix` — deleted
+- `toBarePathname` on SPA router — deleted
+- RouteMatcher compiles patterns as-is, no basePath option
+
+The pathname `/html/about` matches pattern `/html/about`. Simple.
+
+### All modes redirect bare paths
+
+Every server mode (none, leaf, root, only) redirects bare paths to the
+HTML base path. `/about` → 302 → `/html/about`. The SPA never sees bare
+paths.
+
+### Route hierarchy with basePath
+
+`buildRouteHierarchy('/html/about')` with `basePath='/html'` produces
+`['/html', '/html/about']`. The root route pattern equals the basePath.
+
+### SSR adoption
+
+`data-ssr-route` stores the full path (`/html/about`). The SPA compares
+`location.pathname` directly — no translation needed.
+
+## Framework vision
+
 Experimental work preserved:
 
 - Branch: experimental/spa-prefix-intent

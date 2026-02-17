@@ -236,7 +236,7 @@ class ArticleDetailPage extends PageComponent<{ slug: string }, ArticleData> {
       return style +
         `<widget-nav></widget-nav><div style="max-width:800px;margin:0 auto;padding:0 1.5rem"><h1>Article Not Found</h1><p>No article for "${
           escapeHtml(params.slug)
-        }".</p><p><a href="/articles">Back to Articles</a></p></div>`;
+        }".</p><p><a href="/html/articles">Back to Articles</a></p></div>`;
     }
 
     const tags = data.tags
@@ -258,7 +258,7 @@ class ArticleDetailPage extends PageComponent<{ slug: string }, ArticleData> {
   }
 
   override renderMarkdown({ data }: this['RenderArgs']) {
-    if (!data) return '# Article Not Found\n\n[Back to Articles](/articles)';
+    if (!data) return '# Article Not Found\n\n[Back to Articles](/html/articles)';
     const tags = data.tags.map((t) => `\`${t}\``).join(', ');
     return `# ${data.title}\n\nBy ${data.author} | ${data.date} | ${data.readTime} min read | ${tags}\n\n${data.content}`;
   }

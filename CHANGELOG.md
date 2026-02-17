@@ -5,17 +5,126 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.5.0] - 2026-02-15
+## [1.5.0] - 2026-02-17
 
 ### Changed
 
-- **Unified Shadow DOM architecture** — `ComponentElement` now always uses Shadow DOM (real in browser, mock on server). Content renders to `this.shadowRoot.innerHTML` instead of `this.innerHTML`. Provides true Web Components spec compliance, better CSS encapsulation, and consistent behavior across SSR and SPA rendering modes. See `SHADOW-DOM-ARCHITECTURE.md` for full architecture details.
+- **Unified Shadow DOM architecture** — `ComponentElement` now always uses Shadow
+  DOM (real in browser, mock on server). Content renders to
+  `this.shadowRoot.innerHTML` instead of `this.innerHTML`. Provides true Web
+  Components spec compliance, better CSS encapsulation, and consistent behavior
+  across SSR and SPA rendering modes. See `SHADOW-DOM-ARCHITECTURE.md`.
 
-- **Built-in widgets are now opt-in** — `PageTitleWidget` and `BreadcrumbWidget` are no longer auto-registered when importing `@emkodev/emroute/spa`. Import and register them explicitly if needed. Reduces default bundle size by ~5KB.
+- **Navigation API replaces History API** — the SPA router now uses the browser's
+  Navigation API (`window.navigation`) instead of `pushState`/`replaceState`/
+  `popstate`. Single `navigate` event handler replaces the `click` listener
+  (with `composedPath()` traversal) and `popstate` listener. Scroll restoration
+  handled by `event.scroll()`. Browsers without the Navigation API gracefully
+  fall back to SSR full-page navigation. See ADR-0014.
+
+- **Scoped `<router-slot pattern="...">`** — each `<router-slot>` is now
+  attributed with the `pattern` of the route that produced it. SSR `injectSlot`
+  targets slots by pattern instead of replacing the first match, preventing
+  child content from rendering into ancestor slots. SPA renderer uses
+  `querySelector('[pattern="..."]')` for the same scoped descent.
+
+- **Configurable base paths** — `/html/` and `/md/` are now configurable via
+  `BasePath` instead of hardcoded constants. `prefixManifest()` applies base
+  paths to route manifests.
+
+- **`hydrate()` receives render args** — signature changed from `hydrate?()` to
+  `hydrate?(args: RenderArgs)`, providing `{ data, params, context }`. Existing
+  widgets that ignore the argument still compile.
+
+- **Built-in widgets are now opt-in** — `PageTitleWidget` and
+  `BreadcrumbWidget` are no longer auto-registered when importing
+  `@emkodev/emroute/spa`. Import and register them explicitly if needed.
+
+- **Trailing slash normalization** — canonical URLs no longer have trailing
+  slashes. SSR renderers return 301 redirects for trailing-slash URLs (e.g.
+  `/html/about/` → `/html/about`). SPA `normalizeUrl()` strips trailing slashes.
+
+- **Shared recursive widget resolver** — extracted `resolveRecursively<T>()` in
+  `widget-resolve.util.ts`, used by both HTML and Markdown widget resolution.
+  Resolve and wrap phases are now separated: inner HTML is resolved and recursed
+  into first, then wrapped in the outer DSD template.
+
+- **`isLeaf` check in default rendering** — `PageComponent.renderHTML` and
+  `renderMarkdown` fallbacks no longer emit `<router-slot>` when
+  `context.isLeaf` is `true`. Leaf routes produce clean output without unused
+  slot placeholders.
+
+- **`stripSlots` now strips unconsumed slots** — SSR HTML `stripSlots` changed
+  from no-op to removing all unconsumed `<router-slot>` tags from final output.
+  Markdown `stripSlots` handles both bare and parameterized slot blocks.
+
+- **Toast dismiss is CSS-only** — `dismiss()` sets `data-dismissing` attribute,
+  CSS `overlay-toast-exit` animation handles the exit. Dead toasts (with
+  `data-dismissing`) are cleaned up before appending new ones.
+
+- **Dev server mode-aware bundling** — `spa: 'none'` mode no longer spawns a
+  bundle process or injects `<script>` tags. `spa: 'leaf'` mode uses generated
+  `_main.generated.ts` (widget hydration only, no router) instead of consumer
+  `main.ts`.
+
+- **Dev server deduplication** — SSR router construction extracted into
+  `rebuildSsrRouters()`, widget SSR import loop extracted into
+  `importWidgetsForSsr()`.
+
+- **`RouteCore.root` getter** — `get root(): string` returns `basePath || '/'`,
+  replacing inline calculations across renderers.
+
+- **`SpaHtmlRouter` no longer stores `mode`** — mode only lives on
+  `DevServerConfig` to control whether the router is created at all.
+
+- **BreadcrumbWidget reads `context.basePath`** — no longer hardcodes
+  `DEFAULT_BASE_PATH.html`.
+
+- **Improved SSR HTMLElement mock** — `SsrHTMLElement.style` uses a `Proxy` that
+  accepts any CSS property assignment. `append()`, `childNodes`, `firstChild`
+  stubs added for spec completeness.
+
+### Added
+
+- **Declarative overlays** — popovers, modals, and toasts work with zero JS via
+  Invoker Commands API (`commandfor`/`command`), `<form method="dialog">`, and
+  CSS keyframe animations. See ADR-0013.
+
+- **CSS-driven toast lifecycle** — toast auto-dismiss uses CSS `@keyframes`
+  instead of JS timers. `--overlay-toast-duration` custom property controls
+  timing (default 5s). `data-toast-manual` attribute opts out of auto-dismiss.
+
+- **DOM-aware `dismissAll()`** — closes both programmatic overlays (managed by
+  `OverlayService`) and declarative popovers/dialogs found via DOM queries
+  (`:popover-open`, `dialog[open]`).
+
+- **CSS anchor positioning for popovers** — declarative popovers use CSS anchor
+  positioning for automatic anchor placement from `commandfor`.
+
+- **Server-rendered flash toast** — `<div data-overlay-toast>` in SSR HTML
+  auto-animates on page load via CSS. No JS required. Covers the flash message
+  pattern for `spa: 'none'` mode.
+
+- **Navigation API type declarations** — `src/type/navigation-api.d.ts` provides
+  TypeScript types for the Navigation API (not yet in TypeScript's lib.dom.d.ts).
+  Published as `@emkodev/emroute/types/navigation-api`.
+
+- **Form GET interception** — `<form method="get">` submissions in `spa: 'root'`
+  and `spa: 'only'` modes are now intercepted as SPA transitions instead of
+  causing full page loads.
+
+- **`logger.warn()` in SPA logger** — always logs via `console.warn` (not gated
+  by debug flag). Used for missing slot warnings during SPA navigation.
+
+- **`SHADOW-DOM-ARCHITECTURE.md`** — comprehensive documentation of the unified
+  Shadow DOM architecture, SSR mocks, rendering strategies, and migration
+  patterns.
 
 ### Breaking Changes
 
-- **Widget content queries must use `shadowRoot`** — widgets that query their own rendered content must change from `this.element.querySelector()` to `this.element.shadowRoot?.querySelector()`. This applies to interactive widgets that need to attach event listeners or manipulate their rendered DOM.
+- **Widget content queries must use `shadowRoot`** — widgets that query their own
+  rendered content must change from `this.element.querySelector()` to
+  `this.element.shadowRoot?.querySelector()`.
 
   ```typescript
   // Before (1.4.x):
@@ -31,24 +140,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   }
   ```
 
-- **Built-in widget registration** — if you rely on `PageTitleWidget` or `BreadcrumbWidget`, you must now register them explicitly:
+- **Built-in widget registration** — if you rely on `PageTitleWidget` or
+  `BreadcrumbWidget`, you must now register them explicitly:
 
   ```typescript
   // Before (1.4.x): automatic
   import { createSpaHtmlRouter } from '@emkodev/emroute/spa';
 
   // After (1.5.0): explicit opt-in
-  import { createSpaHtmlRouter, PageTitleWidget, ComponentElement } from '@emkodev/emroute/spa';
+  import { ComponentElement, createSpaHtmlRouter, PageTitleWidget } from '@emkodev/emroute/spa';
   ComponentElement.register(new PageTitleWidget());
   ```
 
+### Removed
+
+- **History API code** — `history.pushState`, `history.replaceState`, `popstate`
+  listener, `click` listener with `composedPath()`, `scrollToAnchor()`, and
+  `navigationController` field removed from the SPA renderer.
+
 ### Fixed
 
-- **Container type layout bug** — removed `container-type: inline-size` from `ComponentElement` default styles. This CSS property was causing widgets to collapse to 0 width in flex layouts. Widgets now render with proper dimensions in all layout contexts.
+- **Container type layout bug** — removed `container-type: inline-size` from
+  `ComponentElement` default styles. This CSS property was causing widgets to
+  collapse to 0 width in flex layouts.
 
-### Added
+- **`parseAttrsToParams` unescaping** — now unescapes both `&#39;` → `'` and
+  `&quot;` → `"`, matching the escape output.
 
-- **`SHADOW-DOM-ARCHITECTURE.md`** — comprehensive documentation of the unified Shadow DOM architecture, SSR mocks, rendering strategies, and migration patterns.
+### Docs
+
+- Updated README, guide, quick-start, and architecture docs for 1.5.0 changes
+  (Shadow DOM queries, Navigation API, `hydrate(args)`, declarative overlays,
+  configurable base paths, `setHTMLUnsafe`).
 
 ## [1.4.5] - 2026-02-14
 
@@ -676,7 +799,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Widget system for interactive islands with data lifecycle and error handling
 - Error boundaries with scoped error handlers per route prefix
 - Redirect support with 301/302 status codes
-- Native browser APIs only (URLPattern, custom elements, History API)
+- Native browser APIs only (URLPattern, custom elements, Navigation API)
 - Development server with hot reload
 - Comprehensive test suite (456 unit tests, 48 browser test steps)
 - Full TypeScript support with strict compiler options

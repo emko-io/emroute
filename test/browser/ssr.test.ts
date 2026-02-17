@@ -522,7 +522,10 @@ Deno.test(
       );
       const md = await res.text();
       assert(md.includes('# emroute'), 'should contain markdown heading');
-      assert(md.includes('[About](/about)'), 'should contain markdown link');
+      assert(
+        md.includes('[About](/html/about)'),
+        'should contain markdown link with /html/ prefix',
+      );
     });
 
     // --- .page.html ---

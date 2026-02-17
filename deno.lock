@@ -6,7 +6,8 @@
     "jsr:@emkodev/emko-md@0.1.0-beta.4": "0.1.0-beta.4",
     "jsr:@std/assert@1": "1.0.16",
     "jsr:@std/internal@^1.0.12": "1.0.12",
-    "npm:playwright@1.50.1": "1.50.1"
+    "npm:playwright@1.50.1": "1.50.1",
+    "npm:playwright@1.58.2": "1.58.2"
   },
   "jsr": {
     "@emkodev/emko-md@0.1.0-beta.2": {
@@ -38,10 +39,24 @@
       "integrity": "sha512-ra9fsNWayuYumt+NiM069M6OkcRb1FZSK8bgi66AtpFoWkg2+y0bJSNmkFrWhMbEBbVKC/EruAHH3g0zmtwGmQ==",
       "bin": true
     },
+    "playwright-core@1.58.2": {
+      "integrity": "sha512-yZkEtftgwS8CsfYo7nm0KE8jsvm6i/PTgVtB8DL726wNf6H2IMsDuxCpJj59KDaxCtSnrWan2AeDqM7JBaultg==",
+      "bin": true
+    },
     "playwright@1.50.1": {
       "integrity": "sha512-G8rwsOQJ63XG6BbKj2w5rHeavFjy5zynBA9zsJMMtBoe/Uf757oG12NXz6e6OirF7RCrTVAKFXbLmn1RbL7Qaw==",
       "dependencies": [
-        "playwright-core"
+        "playwright-core@1.50.1"
+      ],
+      "optionalDependencies": [
+        "fsevents"
+      ],
+      "bin": true
+    },
+    "playwright@1.58.2": {
+      "integrity": "sha512-vA30H8Nvkq/cPBnNw4Q8TWz1EJyqgpuinBcHET0YVJVFldr8JDNiU9LaWAE1KqSkRYazuaBhTpB5ZzShOezQ6A==",
+      "dependencies": [
+        "playwright-core@1.58.2"
       ],
       "optionalDependencies": [
         "fsevents"

@@ -18,7 +18,6 @@ import {
   DEFAULT_ROOT_ROUTE,
   RouteCore,
   type RouteCoreOptions,
-  stripSsrPrefix,
 } from '../../route/route.core.ts';
 import { toUrl } from '../../route/route.matcher.ts';
 import type { WidgetRegistry } from '../../widget/widget.registry.ts';
@@ -49,11 +48,18 @@ export abstract class SsrRenderer {
   /**
    * Render a URL to a content string.
    */
-  async render(url: string): Promise<{ content: string; status: number; title?: string }> {
+  async render(
+    url: string,
+  ): Promise<{ content: string; status: number; title?: string; redirect?: string }> {
     const urlObj = toUrl(url);
-    let pathname = urlObj.pathname;
+    const pathname = urlObj.pathname;
 
-    pathname = stripSsrPrefix(pathname);
+    // Redirect trailing-slash URLs to canonical form (301)
+    const normalized = this.core.normalizeUrl(pathname);
+    if (normalized !== pathname) {
+      const query = urlObj.search || '';
+      return { content: '', status: 301, redirect: normalized + query };
+    }
 
     const matchUrl = toUrl(pathname + urlObj.search);
     const matched = this.core.match(matchUrl);
@@ -177,13 +183,14 @@ export abstract class SsrRenderer {
 
     let result = '';
     let pageTitle: string | undefined;
+    let lastRenderedPattern = '';
 
     for (let i = 0; i < hierarchy.length; i++) {
       const routePattern = hierarchy[i];
       let route = this.core.matcher.findRoute(routePattern);
 
-      if (!route && routePattern === '/') {
-        route = DEFAULT_ROOT_ROUTE;
+      if (!route && routePattern === this.core.root) {
+        route = { ...DEFAULT_ROOT_ROUTE, pattern: this.core.root };
       }
 
       if (!route) continue;
@@ -201,8 +208,18 @@ export abstract class SsrRenderer {
       if (result === '') {
         result = content;
       } else {
-        result = this.injectSlot(result, content);
+        const injected = this.injectSlot(result, content, lastRenderedPattern);
+        if (injected === result) {
+          logger.warn(
+            `[${this.label}] Route "${lastRenderedPattern}" has no <router-slot> ` +
+              `for child route "${routePattern}" to render into. ` +
+              `Add <router-slot></router-slot> to the parent template.`,
+          );
+        }
+        result = injected;
       }
+
+      lastRenderedPattern = route.pattern;
     }
 
     result = this.stripSlots(result);
@@ -248,76 +265,14 @@ export abstract class SsrRenderer {
     return this.renderContent(component, { data, params: {} });
   }
 
-  /**
-   * Recursively resolve widgets in content with depth limit.
-   *
-   * Generic helper for both HTML and Markdown widget resolution.
-   * Supports nested widgets by recursively processing rendered output.
-   *
-   * @param content - Content containing widgets
-   * @param routeInfo - Route information for context
-   * @param parseWidgets - Function to find widgets in content
-   * @param resolveWidget - Function to resolve a single widget
-   * @param replaceWidgets - Function to replace widgets with resolved content
-   * @param depth - Current recursion depth (internal)
-   * @returns Content with all widgets recursively resolved
-   */
-  protected async resolveWidgetsRecursively<TWidget>(
-    content: string,
-    routeInfo: RouteInfo,
-    parseWidgets: (content: string) => TWidget[],
-    resolveWidget: (
-      widget: TWidget,
-      routeInfo: RouteInfo,
-    ) => Promise<string>,
-    replaceWidgets: (content: string, replacements: Map<TWidget, string>) => string,
-    depth = 0,
-  ): Promise<string> {
-    const MAX_WIDGET_DEPTH = 10;
-
-    // Safety check for recursion depth
-    if (depth >= MAX_WIDGET_DEPTH) {
-      logger.warn(
-        `[${this.label}] Widget nesting depth limit reached (${MAX_WIDGET_DEPTH}). ` +
-          'Possible circular dependency or excessive nesting.',
-      );
-      return content;
-    }
-
-    const widgets = parseWidgets(content);
-    if (widgets.length === 0) return content;
-
-    // Resolve all widgets at this depth concurrently
-    const replacements = new Map<TWidget, string>();
-    await Promise.all(
-      widgets.map(async (widget) => {
-        let rendered = await resolveWidget(widget, routeInfo);
-
-        // Recursively resolve any nested widgets in the rendered output
-        rendered = await this.resolveWidgetsRecursively(
-          rendered,
-          routeInfo,
-          parseWidgets,
-          resolveWidget,
-          replaceWidgets,
-          depth + 1,
-        );
-
-        replacements.set(widget, rendered);
-      }),
-    );
-
-    return replaceWidgets(content, replacements);
-  }
-
   protected abstract renderRedirect(to: string): string;
 
   protected abstract renderStatusPage(status: number, pathname: string): string;
 
   protected abstract renderErrorPage(error: unknown, pathname: string): string;
 
-  /** Inject child content into the first slot of a parent string. */
-  protected abstract injectSlot(parent: string, child: string): string;
+  /** Inject child content into the slot owned by parentPattern. */
+  protected abstract injectSlot(parent: string, child: string, parentPattern: string): string;
 
   /** Strip all unconsumed slot placeholders from the final result. */
   protected abstract stripSlots(result: string): string;

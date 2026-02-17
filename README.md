@@ -84,18 +84,21 @@ export default new ProjectPage();
 
 ## Features
 
-- **File-based routing** with dynamic segments (`[id]`), catch-all directories, and nested layouts via `<router-slot>`
+- **File-based routing** with dynamic segments (`[id]`), catch-all directories, and nested layouts via `<router-slot>`. Routes follow REST conventions: exact routes are terminal resources, catch-all directories own their namespace
 - **Triple rendering** — SPA, SSR HTML, SSR Markdown from one component
 - **Companion files** — `.page.html`, `.page.md`, `.page.css` loaded automatically and passed through context
 - **Widgets** — interactive islands with their own data lifecycle, error handling, and optional file companions (`.html`, `.md`, `.css`). Auto-discovered from a `widgets/` directory or registered manually. `this.element` gives opt-in DOM access in the browser. `<widget-foo lazy>` defers loading until visible via `IntersectionObserver`
 - **View Transitions** — SPA route changes animate via `document.startViewTransition()`. Progressive enhancement with CSS-only customization
-- **Scoped CSS** — companion `.widget.css` files auto-wrapped in `@scope (widget-{name}) { ... }`. All widget elements get `content-visibility: auto` and `container-type: inline-size` — use `@container` queries in widget CSS out of the box
-- **SSR hydration** — server-rendered HTML adopted by the SPA without re-rendering. Widgets can implement `hydrate()` to attach event listeners after SSR adoption, enabling full interactivity while preserving DOM performance
+- **Scoped CSS** — companion `.widget.css` files auto-wrapped in `@scope (widget-{name}) { ... }`. All widget elements get `content-visibility: auto` for off-screen rendering optimization
+- **Shadow DOM** — unified Declarative Shadow DOM architecture for SSR and SPA. Widgets render into shadow roots for true CSS encapsulation and Web Components spec compliance
+- **SSR hydration** — server-rendered HTML adopted by the SPA without re-rendering. Widgets can implement `hydrate(args)` to attach event listeners after SSR adoption, receiving `{ data, params, context }`
 - **Error boundaries** — scoped error handlers per route prefix, plus status pages (`404.page.html`) and a root fallback
 - **Extensible context** — inject app-level services (RPC clients, auth, feature flags) into every component via `extendContext` on the router. Type-safe access through module augmentation or a per-component generic
-- **Zero dependencies** — native APIs only (URLPattern, custom elements, History API). No framework runtime, no virtual DOM, no build-time magic
+- **Declarative overlays** — popovers, modals, and toasts with zero JS via Invoker Commands API and CSS keyframe animations. Programmatic API available for dynamic content
+- **Zero dependencies** — native APIs only (URLPattern, custom elements, Navigation API). No framework runtime, no virtual DOM, no build-time magic
 - **Pluggable markdown** — `<mark-down>` custom element with a swappable parser interface; bring your own renderer
 - **Redirects** — declarative `.redirect.ts` files with 301/302 support
+- **Configurable base paths** — `/html/` and `/md/` prefixes are configurable via `BasePath`
 - **SPA modes** — `'root'` (default), `'leaf'`, `'none'`, or `'only'` to control how the server handles non-file requests and SSR endpoints
 - **Sitemap generation** — opt-in `sitemap.xml` from the routes manifest with support for dynamic route enumerators
 - **Dev server** — zero-config: auto-generates `main.ts`, `index.html`, and route/widget manifests. File watcher with hot reload and bundle serving
@@ -120,6 +123,7 @@ deno task test            # run tests
 ### For contributors and architects
 
 - [Architecture overview](doc/architecture.md) — design philosophy, component model, rendering pipeline
-- [Architectural decisions](doc/architecture/) — ADR-0001 through ADR-0011
+- [Architectural decisions](doc/architecture/) — ADR-0001 through ADR-0015
+- [Migration guide for 1.5.0](doc/MIGRATION-1.5.0.md) — Shadow DOM, Navigation API, breaking changes
 
 <img src="doc/logo-full.png" alt="emroute" width="197" height="40">

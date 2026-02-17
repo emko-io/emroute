@@ -279,11 +279,22 @@ function escapeForCodeString(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 
-/** Generate TypeScript manifest file */
+/**
+ * Generate TypeScript manifest file with route patterns.
+ *
+ * When `basePath` is provided, all patterns are prefixed (e.g. '/html/about').
+ * The root pattern '/' becomes the basePath itself (e.g. '/html').
+ * Without basePath, patterns remain bare (e.g. '/about').
+ */
 export function generateManifestCode(
   manifest: RoutesManifest,
   importPath = '@emkodev/emroute',
+  basePath = '',
 ): string {
+  /** Prefix a pattern with basePath. Root '/' becomes basePath itself. */
+  const prefix = (pattern: string): string =>
+    basePath ? (pattern === '/' ? basePath : basePath + pattern) : pattern;
+
   const routesArray = manifest.routes
     .map((r) => {
       const filesStr = r.files
@@ -296,10 +307,10 @@ export function generateManifestCode(
         : '';
 
       return `  {
-    pattern: '${escapeForCodeString(r.pattern)}',
+    pattern: '${escapeForCodeString(prefix(r.pattern))}',
     type: '${escapeForCodeString(r.type)}',
     modulePath: '${escapeForCodeString(r.modulePath)}',${filesStr}${
-        r.parent ? `\n    parent: '${escapeForCodeString(r.parent)}',` : ''
+        r.parent ? `\n    parent: '${escapeForCodeString(prefix(r.parent))}',` : ''
       }${r.statusCode ? `\n    statusCode: ${r.statusCode},` : ''}
   }`;
     })
@@ -309,7 +320,7 @@ export function generateManifestCode(
     .map(
       (e) =>
         `  {
-    pattern: '${escapeForCodeString(e.pattern)}',
+    pattern: '${escapeForCodeString(prefix(e.pattern))}',
     modulePath: '${escapeForCodeString(e.modulePath)}',
   }`,
     )
@@ -325,7 +336,7 @@ export function generateManifestCode(
             )
           } }`
           : '';
-        return `  [${status}, { pattern: '${escapeForCodeString(route.pattern)}', type: '${
+        return `  [${status}, { pattern: '${escapeForCodeString(prefix(route.pattern))}', type: '${
           escapeForCodeString(route.type)
         }', modulePath: '${
           escapeForCodeString(route.modulePath)
@@ -336,7 +347,7 @@ export function generateManifestCode(
 
   const errorHandlerCode = manifest.errorHandler
     ? `{
-  pattern: '${escapeForCodeString(manifest.errorHandler.pattern)}',
+  pattern: '${escapeForCodeString(prefix(manifest.errorHandler.pattern))}',
   type: '${escapeForCodeString(manifest.errorHandler.type)}',
   modulePath: '${escapeForCodeString(manifest.errorHandler.modulePath)}',
 }`

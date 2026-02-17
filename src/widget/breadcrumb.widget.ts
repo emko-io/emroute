@@ -17,7 +17,7 @@
 import { WidgetComponent } from '../component/widget.component.ts';
 import { escapeHtml } from '../util/html.util.ts';
 import type { ComponentContext } from '../component/abstract.component.ts';
-import { SSR_HTML_PREFIX, stripSsrPrefix } from '../route/route.core.ts';
+import { DEFAULT_BASE_PATH } from '../route/route.core.ts';
 
 const DEFAULT_HTML_SEPARATOR = ' \u203A ';
 const DEFAULT_MD_SEPARATOR = ' > ';
@@ -42,29 +42,34 @@ export class BreadcrumbWidget extends WidgetComponent<BreadcrumbParams, Breadcru
   override getData(
     args: { params: BreadcrumbParams; signal?: AbortSignal; context?: ComponentContext },
   ): Promise<BreadcrumbData | null> {
-    const pathname = args.context?.pathname ?? this.resolvePathname();
+    const htmlBase = args.context?.basePath ?? DEFAULT_BASE_PATH.html;
+    const pathname = args.context?.pathname ?? this.resolvePathname(htmlBase);
 
-    const parts = pathname.split('/').filter(Boolean);
+    // Skip basePath segments for display — only show route segments
+    const barePathname = htmlBase && pathname.startsWith(htmlBase)
+      ? pathname.slice(htmlBase.length) || '/'
+      : pathname;
+    const parts = barePathname.split('/').filter(Boolean);
+
     const segments: BreadcrumbSegment[] = [
-      { label: 'Home', href: SSR_HTML_PREFIX },
+      { label: 'Home', href: htmlBase + '/' },
     ];
 
-    let accumulated = '';
+    let accumulated = htmlBase;
     for (const part of parts) {
       accumulated += '/' + part;
       segments.push({
         label: part.charAt(0).toUpperCase() + part.slice(1).replace(/-/g, ' '),
-        href: `${SSR_HTML_PREFIX}${accumulated}`,
+        href: accumulated,
       });
     }
 
     return Promise.resolve({ segments });
   }
 
-  private resolvePathname(): string {
-    if (typeof globalThis.location === 'undefined') return '/';
-
-    return stripSsrPrefix(location.pathname);
+  private resolvePathname(htmlBase: string): string {
+    if (typeof globalThis.location === 'undefined') return htmlBase + '/';
+    return location.pathname;
   }
 
   override renderHTML(

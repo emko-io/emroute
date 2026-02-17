@@ -25,7 +25,7 @@ const BASE = 'https://example.com';
 
 Deno.test('sitemap - empty manifest produces valid empty sitemap', async () => {
   const manifest = createManifest([]);
-  const xml = await generateSitemap(manifest, { baseUrl: BASE });
+  const xml = await generateSitemap(manifest, { baseUrl: BASE, basePath: '/html' });
 
   assertStringIncludes(xml, '<?xml version="1.0" encoding="UTF-8"?>');
   assertStringIncludes(xml, '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">');
@@ -36,7 +36,7 @@ Deno.test('sitemap - empty manifest produces valid empty sitemap', async () => {
 
 Deno.test('sitemap - well-formed XML structure with namespace', async () => {
   const manifest = createManifest([{ pattern: '/' }]);
-  const xml = await generateSitemap(manifest, { baseUrl: BASE });
+  const xml = await generateSitemap(manifest, { baseUrl: BASE, basePath: '/html' });
 
   // Check XML declaration
   assertEquals(xml.startsWith('<?xml version="1.0" encoding="UTF-8"?>'), true);
@@ -48,7 +48,7 @@ Deno.test('sitemap - well-formed XML structure with namespace', async () => {
 
 Deno.test('sitemap - URL entries properly formatted with indentation', async () => {
   const manifest = createManifest([{ pattern: '/about' }]);
-  const xml = await generateSitemap(manifest, { baseUrl: BASE });
+  const xml = await generateSitemap(manifest, { baseUrl: BASE, basePath: '/html' });
 
   // Check indentation structure
   assertStringIncludes(xml, '  <url>');
@@ -66,7 +66,7 @@ Deno.test('sitemap - static routes produce /html/ prefixed absolute URLs', async
     { pattern: '/about' },
     { pattern: '/projects' },
   ]);
-  const xml = await generateSitemap(manifest, { baseUrl: BASE });
+  const xml = await generateSitemap(manifest, { baseUrl: BASE, basePath: '/html' });
 
   assertStringIncludes(xml, '<loc>https://example.com/html/</loc>');
   assertStringIncludes(xml, '<loc>https://example.com/html/about</loc>');
@@ -75,7 +75,7 @@ Deno.test('sitemap - static routes produce /html/ prefixed absolute URLs', async
 
 Deno.test('sitemap - root route maps to /html/ not /html', async () => {
   const manifest = createManifest([{ pattern: '/' }]);
-  const xml = await generateSitemap(manifest, { baseUrl: BASE });
+  const xml = await generateSitemap(manifest, { baseUrl: BASE, basePath: '/html' });
 
   assertStringIncludes(xml, '<loc>https://example.com/html/</loc>');
   assertEquals(xml.includes('<loc>https://example.com/html</loc>'), false);
@@ -83,7 +83,10 @@ Deno.test('sitemap - root route maps to /html/ not /html', async () => {
 
 Deno.test('sitemap - baseUrl trailing slash is stripped', async () => {
   const manifest = createManifest([{ pattern: '/about' }]);
-  const xml = await generateSitemap(manifest, { baseUrl: 'https://example.com/' });
+  const xml = await generateSitemap(manifest, {
+    baseUrl: 'https://example.com/',
+    basePath: '/html',
+  });
 
   assertStringIncludes(xml, '<loc>https://example.com/html/about</loc>');
   assertEquals(xml.includes('example.com//'), false);
@@ -91,7 +94,10 @@ Deno.test('sitemap - baseUrl trailing slash is stripped', async () => {
 
 Deno.test('sitemap - baseUrl with multiple trailing slashes is normalized', async () => {
   const manifest = createManifest([{ pattern: '/about' }]);
-  const xml = await generateSitemap(manifest, { baseUrl: 'https://example.com///' });
+  const xml = await generateSitemap(manifest, {
+    baseUrl: 'https://example.com///',
+    basePath: '/html',
+  });
 
   assertStringIncludes(xml, '<loc>https://example.com/html/about</loc>');
   assertEquals(xml.includes('example.com//'), false);
@@ -103,7 +109,7 @@ Deno.test('sitemap - nested routes produce correct paths', async () => {
     { pattern: '/docs/guides/getting-started' },
     { pattern: '/projects/details/overview' },
   ]);
-  const xml = await generateSitemap(manifest, { baseUrl: BASE });
+  const xml = await generateSitemap(manifest, { baseUrl: BASE, basePath: '/html' });
 
   assertStringIncludes(xml, '<loc>https://example.com/html/docs/api</loc>');
   assertStringIncludes(xml, '<loc>https://example.com/html/docs/guides/getting-started</loc>');
@@ -112,7 +118,10 @@ Deno.test('sitemap - nested routes produce correct paths', async () => {
 
 Deno.test('sitemap - different domain baseUrl is used correctly', async () => {
   const manifest = createManifest([{ pattern: '/about' }]);
-  const xml = await generateSitemap(manifest, { baseUrl: 'https://mydomain.io' });
+  const xml = await generateSitemap(manifest, {
+    baseUrl: 'https://mydomain.io',
+    basePath: '/html',
+  });
 
   assertStringIncludes(xml, '<loc>https://mydomain.io/html/about</loc>');
   assertEquals(xml.includes('example.com'), false);
@@ -127,7 +136,7 @@ Deno.test('sitemap - dynamic routes excluded without enumerator', async () => {
     { pattern: '/about' },
     { pattern: '/projects/:id' },
   ]);
-  const xml = await generateSitemap(manifest, { baseUrl: BASE });
+  const xml = await generateSitemap(manifest, { baseUrl: BASE, basePath: '/html' });
 
   assertStringIncludes(xml, '<loc>https://example.com/html/about</loc>');
   assertEquals(xml.includes(':id'), false);
@@ -140,6 +149,7 @@ Deno.test('sitemap - dynamic routes expanded with enumerator', async () => {
   ]);
   const xml = await generateSitemap(manifest, {
     baseUrl: BASE,
+    basePath: '/html',
     enumerators: {
       '/projects/:id': () => Promise.resolve(['alpha', 'beta']),
     },
@@ -153,6 +163,7 @@ Deno.test('sitemap - single-param dynamic routes expanded correctly', async () =
   const manifest = createManifest([{ pattern: '/tags/:name' }]);
   const xml = await generateSitemap(manifest, {
     baseUrl: BASE,
+    basePath: '/html',
     enumerators: {
       '/tags/:name': () => Promise.resolve(['javascript', 'typescript', 'rust']),
     },
@@ -167,6 +178,7 @@ Deno.test('sitemap - enumerator values are URI-encoded', async () => {
   const manifest = createManifest([{ pattern: '/tags/:name' }]);
   const xml = await generateSitemap(manifest, {
     baseUrl: BASE,
+    basePath: '/html',
     enumerators: {
       '/tags/:name': () => Promise.resolve(['c++', 'hello world', 'foo&bar']),
     },
@@ -184,6 +196,7 @@ Deno.test('sitemap - empty enumerator result produces no entries', async () => {
   ]);
   const xml = await generateSitemap(manifest, {
     baseUrl: BASE,
+    basePath: '/html',
     enumerators: {
       '/projects/:id': () => Promise.resolve([]),
     },
@@ -201,6 +214,7 @@ Deno.test('sitemap - dynamic route with no enumerator is silently skipped', asyn
   ]);
   const xml = await generateSitemap(manifest, {
     baseUrl: BASE,
+    basePath: '/html',
     enumerators: {
       '/products/:id': () => Promise.resolve(['1', '2']),
       // /tags/:tag intentionally not enumerated
@@ -219,6 +233,7 @@ Deno.test('sitemap - multi-segment paths with dynamic params', async () => {
   ]);
   const xml = await generateSitemap(manifest, {
     baseUrl: BASE,
+    basePath: '/html',
     enumerators: {
       '/blog/:slug/comments/:id': () => Promise.resolve(['first-post', 'second-post']),
     },
@@ -239,7 +254,7 @@ Deno.test('sitemap - error and redirect routes are excluded', async () => {
     { pattern: '/old-page', type: 'redirect' },
     { pattern: '/error', type: 'error' },
   ]);
-  const xml = await generateSitemap(manifest, { baseUrl: BASE });
+  const xml = await generateSitemap(manifest, { baseUrl: BASE, basePath: '/html' });
 
   assertStringIncludes(xml, '/html/about');
   assertEquals(xml.includes('/html/old-page'), false);
@@ -252,7 +267,7 @@ Deno.test('sitemap - only page routes are included', async () => {
     { pattern: '/contact', type: 'page' },
     { pattern: '/not-found', type: 'error' },
   ]);
-  const xml = await generateSitemap(manifest, { baseUrl: BASE });
+  const xml = await generateSitemap(manifest, { baseUrl: BASE, basePath: '/html' });
 
   const urlCount = (xml.match(/<url>/g) || []).length;
   assertEquals(urlCount, 2);
@@ -266,6 +281,7 @@ Deno.test('sitemap - mixed route types with dynamic exclusion', async () => {
   ]);
   const xml = await generateSitemap(manifest, {
     baseUrl: BASE,
+    basePath: '/html',
     enumerators: {
       '/posts/:id': () => Promise.resolve(['1']),
     },
@@ -284,6 +300,7 @@ Deno.test('sitemap - per-route lastmod is included', async () => {
   const manifest = createManifest([{ pattern: '/about' }]);
   const xml = await generateSitemap(manifest, {
     baseUrl: BASE,
+    basePath: '/html',
     routes: {
       '/about': { lastmod: '2025-06-15' },
     },
@@ -296,6 +313,7 @@ Deno.test('sitemap - per-route changefreq is included', async () => {
   const manifest = createManifest([{ pattern: '/about' }]);
   const xml = await generateSitemap(manifest, {
     baseUrl: BASE,
+    basePath: '/html',
     routes: {
       '/about': { changefreq: 'monthly' },
     },
@@ -308,6 +326,7 @@ Deno.test('sitemap - per-route priority is formatted with one decimal', async ()
   const manifest = createManifest([{ pattern: '/about' }]);
   const xml = await generateSitemap(manifest, {
     baseUrl: BASE,
+    basePath: '/html',
     routes: {
       '/about': { priority: 0.8 },
     },
@@ -324,6 +343,7 @@ Deno.test('sitemap - priority values formatted correctly with one decimal place'
   ]);
   const xml = await generateSitemap(manifest, {
     baseUrl: BASE,
+    basePath: '/html',
     routes: {
       '/p1': { priority: 0.5 },
       '/p2': { priority: 1.0 },
@@ -340,6 +360,7 @@ Deno.test('sitemap - per-route lastmod, changefreq, priority together', async ()
   const manifest = createManifest([{ pattern: '/about' }]);
   const xml = await generateSitemap(manifest, {
     baseUrl: BASE,
+    basePath: '/html',
     routes: {
       '/about': {
         lastmod: '2025-06-15',
@@ -361,6 +382,7 @@ Deno.test('sitemap - defaults applied to all routes', async () => {
   ]);
   const xml = await generateSitemap(manifest, {
     baseUrl: BASE,
+    basePath: '/html',
     defaults: { changefreq: 'weekly', priority: 0.5 },
   });
 
@@ -374,6 +396,7 @@ Deno.test('sitemap - per-route overrides take precedence over defaults', async (
   const manifest = createManifest([{ pattern: '/about' }]);
   const xml = await generateSitemap(manifest, {
     baseUrl: BASE,
+    basePath: '/html',
     defaults: { priority: 0.5, changefreq: 'daily' },
     routes: { '/about': { priority: 0.9, changefreq: 'monthly' } },
   });
@@ -391,6 +414,7 @@ Deno.test('sitemap - defaults merged with per-route overrides', async () => {
   ]);
   const xml = await generateSitemap(manifest, {
     baseUrl: BASE,
+    basePath: '/html',
     defaults: { changefreq: 'weekly', priority: 0.5 },
     routes: { '/about': { priority: 0.8 } }, // changefreq inherited from defaults
   });
@@ -401,7 +425,7 @@ Deno.test('sitemap - defaults merged with per-route overrides', async () => {
 
 Deno.test('sitemap - optional fields omitted when not provided', async () => {
   const manifest = createManifest([{ pattern: '/about' }]);
-  const xml = await generateSitemap(manifest, { baseUrl: BASE });
+  const xml = await generateSitemap(manifest, { baseUrl: BASE, basePath: '/html' });
 
   assertEquals(xml.includes('<lastmod>'), false);
   assertEquals(xml.includes('<changefreq>'), false);
@@ -423,6 +447,7 @@ Deno.test('sitemap - all valid changefreq values', async () => {
     const manifest = createManifest([{ pattern: '/page' }]);
     const xml = await generateSitemap(manifest, {
       baseUrl: BASE,
+      basePath: '/html',
       routes: { '/page': { changefreq: freq } },
     });
     assertStringIncludes(xml, `<changefreq>${freq}</changefreq>`);
@@ -437,6 +462,7 @@ Deno.test('sitemap - lastmod accepts ISO date format', async () => {
   const manifest = createManifest([{ pattern: '/about' }]);
   const xml = await generateSitemap(manifest, {
     baseUrl: BASE,
+    basePath: '/html',
     routes: { '/about': { lastmod: '2025-06-15' } },
   });
 
@@ -447,6 +473,7 @@ Deno.test('sitemap - lastmod accepts full ISO datetime with timezone', async () 
   const manifest = createManifest([{ pattern: '/about' }]);
   const xml = await generateSitemap(manifest, {
     baseUrl: BASE,
+    basePath: '/html',
     routes: { '/about': { lastmod: '2025-06-15T10:30:00+00:00' } },
   });
 
@@ -460,6 +487,7 @@ Deno.test('sitemap - lastmod applied via defaults', async () => {
   ]);
   const xml = await generateSitemap(manifest, {
     baseUrl: BASE,
+    basePath: '/html',
     defaults: { lastmod: '2025-01-01' },
   });
 
@@ -475,6 +503,7 @@ Deno.test('sitemap - special characters in lastmod are XML-escaped', async () =>
   const manifest = createManifest([{ pattern: '/about' }]);
   const xml = await generateSitemap(manifest, {
     baseUrl: BASE,
+    basePath: '/html',
     routes: {
       '/about': { lastmod: '2025-01-01T10:00:00+00:00' },
     },
@@ -490,6 +519,7 @@ Deno.test('sitemap - ampersand in baseUrl is handled correctly', async () => {
   const manifest = createManifest([{ pattern: '/about' }]);
   const xml = await generateSitemap(manifest, {
     baseUrl: 'https://example.com?ref=affiliate&id=123',
+    basePath: '/html',
   });
 
   // The & in the baseUrl will be in the generated URL
@@ -507,7 +537,7 @@ Deno.test('sitemap - wildcard routes (:rest*) excluded like dynamic routes', asy
     { pattern: '/about' },
     { pattern: '/docs/:rest*' },
   ]);
-  const xml = await generateSitemap(manifest, { baseUrl: BASE });
+  const xml = await generateSitemap(manifest, { baseUrl: BASE, basePath: '/html' });
 
   assertStringIncludes(xml, '/html/about');
   assertEquals(xml.includes('/docs/'), false);
@@ -519,6 +549,7 @@ Deno.test('sitemap - wildcard route with enumerator', async () => {
   ]);
   const xml = await generateSitemap(manifest, {
     baseUrl: BASE,
+    basePath: '/html',
     enumerators: {
       '/docs/:rest*': () => Promise.resolve(['intro', 'guide/setup']),
     },
@@ -539,6 +570,7 @@ Deno.test('sitemap - respects max URL limit of 50,000', async () => {
 
   const xml = await generateSitemap(manifest, {
     baseUrl: BASE,
+    basePath: '/html',
     enumerators: {
       '/item/:id': () => Promise.resolve(ids),
     },
@@ -559,6 +591,7 @@ Deno.test('sitemap - stops at max URLs even with multiple routes', async () => {
 
   const xml = await generateSitemap(manifest, {
     baseUrl: BASE,
+    basePath: '/html',
     enumerators: {
       '/item/:id': () => Promise.resolve(ids),
     },
@@ -584,6 +617,7 @@ Deno.test('sitemap - complex integration with static, dynamic, and metadata', as
 
   const xml = await generateSitemap(manifest, {
     baseUrl: 'https://store.example.com',
+    basePath: '/html',
     defaults: { changefreq: 'weekly' },
     routes: {
       '/': { priority: 1.0 },
@@ -625,6 +659,7 @@ Deno.test('sitemap - multiple enumerators for different dynamic routes', async (
 
   const xml = await generateSitemap(manifest, {
     baseUrl: BASE,
+    basePath: '/html',
     enumerators: {
       '/categories/:cat': () => Promise.resolve(['tech', 'science']),
       '/authors/:author': () => Promise.resolve(['alice', 'bob']),
@@ -649,7 +684,7 @@ Deno.test('sitemap - multiple enumerators for different dynamic routes', async (
 
 Deno.test('sitemap - single route produces valid sitemap', async () => {
   const manifest = createManifest([{ pattern: '/' }]);
-  const xml = await generateSitemap(manifest, { baseUrl: BASE });
+  const xml = await generateSitemap(manifest, { baseUrl: BASE, basePath: '/html' });
 
   const urlCount = (xml.match(/<url>/g) || []).length;
   assertEquals(urlCount, 1);
@@ -661,7 +696,7 @@ Deno.test('sitemap - routes with trailing slashes', async () => {
     { pattern: '/about' },
     { pattern: '/projects/' },
   ]);
-  const xml = await generateSitemap(manifest, { baseUrl: BASE });
+  const xml = await generateSitemap(manifest, { baseUrl: BASE, basePath: '/html' });
 
   assertStringIncludes(xml, '<loc>https://example.com/html/about</loc>');
   assertStringIncludes(xml, '<loc>https://example.com/html/projects/</loc>');
@@ -671,6 +706,7 @@ Deno.test('sitemap - routes with numeric identifiers', async () => {
   const manifest = createManifest([{ pattern: '/page/:id' }]);
   const xml = await generateSitemap(manifest, {
     baseUrl: BASE,
+    basePath: '/html',
     enumerators: {
       '/page/:id': () => Promise.resolve(['123', '456', '999']),
     },
@@ -685,6 +721,7 @@ Deno.test('sitemap - routes with special characters in dynamic segments', async 
   const manifest = createManifest([{ pattern: '/search/:query' }]);
   const xml = await generateSitemap(manifest, {
     baseUrl: BASE,
+    basePath: '/html',
     enumerators: {
       '/search/:query': () => Promise.resolve(['what is deno', 'rust vs go', 'node.js']),
     },
@@ -699,6 +736,7 @@ Deno.test('sitemap - Unicode characters in dynamic segments are properly encoded
   const manifest = createManifest([{ pattern: '/posts/:title' }]);
   const xml = await generateSitemap(manifest, {
     baseUrl: BASE,
+    basePath: '/html',
     enumerators: {
       '/posts/:title': () => Promise.resolve(['café', '日本', 'München']),
     },
@@ -718,6 +756,7 @@ Deno.test('sitemap - priority boundary values', async () => {
   ]);
   const xml = await generateSitemap(manifest, {
     baseUrl: BASE,
+    basePath: '/html',
     routes: {
       '/p0': { priority: 0.0 },
       '/p1': { priority: 1.0 },
@@ -732,6 +771,7 @@ Deno.test('sitemap - empty string in enumerator values', async () => {
   const manifest = createManifest([{ pattern: '/item/:id' }]);
   const xml = await generateSitemap(manifest, {
     baseUrl: BASE,
+    basePath: '/html',
     enumerators: {
       '/item/:id': () => Promise.resolve(['', 'valid-id']),
     },
@@ -746,6 +786,7 @@ Deno.test('sitemap - async enumerators are awaited properly', async () => {
   const manifest = createManifest([{ pattern: '/async/:id' }]);
   const xml = await generateSitemap(manifest, {
     baseUrl: BASE,
+    basePath: '/html',
     enumerators: {
       '/async/:id': async () => {
         // Simulate async work
@@ -768,7 +809,7 @@ Deno.test('sitemap - each URL ends with newline', async () => {
     { pattern: '/' },
     { pattern: '/about' },
   ]);
-  const xml = await generateSitemap(manifest, { baseUrl: BASE });
+  const xml = await generateSitemap(manifest, { baseUrl: BASE, basePath: '/html' });
 
   // Check that entries are properly separated
   assertStringIncludes(xml, '</url>\n  <url>');
@@ -778,6 +819,7 @@ Deno.test('sitemap - consistent whitespace and formatting', async () => {
   const manifest = createManifest([{ pattern: '/about' }]);
   const xml = await generateSitemap(manifest, {
     baseUrl: BASE,
+    basePath: '/html',
     routes: { '/about': { priority: 0.5, changefreq: 'daily' } },
   });
 

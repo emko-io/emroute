@@ -20,7 +20,7 @@
 
 import { assert, assertEquals } from '@std/assert';
 import { baseUrl, closeBrowser, launchBrowser, newPage, startServer, stopServer } from './setup.ts';
-import type { Page } from 'npm:playwright@1.50.1';
+import type { Page } from 'npm:playwright@1.58.2';
 
 Deno.test(
   {
@@ -56,7 +56,7 @@ Deno.test(
 
       // Critical: data-ssr-route attribute for SPA adoption
       assert(
-        html.includes('data-ssr-route="/hydration"'),
+        html.includes('data-ssr-route="/html/hydration"'),
         'should have data-ssr-route for SPA adoption',
       );
     });
@@ -142,7 +142,7 @@ Deno.test(
           const router = (globalThis as Record<string, unknown>).__emroute_router as {
             navigate: (url: string) => Promise<void>;
           };
-          return router.navigate('/');
+          return router.navigate('/html/');
         });
         await page.waitForSelector('h1', { timeout: 5000 });
 
@@ -151,7 +151,7 @@ Deno.test(
           const router = (globalThis as Record<string, unknown>).__emroute_router as {
             navigate: (url: string) => Promise<void>;
           };
-          return router.navigate('/hydration');
+          return router.navigate('/html/hydration');
         });
         await page.waitForSelector('widget-hydration-test', { timeout: 5000 });
 
@@ -177,7 +177,11 @@ Deno.test(
         );
 
         // Content should now be marked as SPA-rendered
-        assertEquals(result.ssrAttr, 'false', 'Content should now be marked as SPA-rendered (not SSR)');
+        assertEquals(
+          result.ssrAttr,
+          'false',
+          'Content should now be marked as SPA-rendered (not SSR)',
+        );
 
         assertEquals(result.renderContext, 'SPA rendered', 'Should show SPA rendered context');
       },
@@ -339,7 +343,7 @@ Deno.test(
       await page.evaluate(() => {
         const router = (globalThis as Record<string, unknown>).__emroute_router;
         if (router && typeof router === 'object' && 'navigate' in router) {
-          (router.navigate as (url: string) => Promise<void>)('/hydration');
+          (router.navigate as (url: string) => Promise<void>)('/html/hydration');
         }
       });
       await page.waitForSelector('#hydration-content', { timeout: 5000 });
@@ -351,7 +355,7 @@ Deno.test(
       await page.evaluate(() => {
         const router = (globalThis as Record<string, unknown>).__emroute_router;
         if (router && typeof router === 'object' && 'navigate' in router) {
-          (router.navigate as (url: string) => Promise<void>)('/');
+          (router.navigate as (url: string) => Promise<void>)('/html/');
         }
       });
       await page.waitForSelector('h1', { timeout: 5000 });
@@ -370,8 +374,8 @@ Deno.test(
         fullLoadFired = true;
       });
 
-      // Click a link
-      await page.click('a[href="/about"]');
+      // Click a link (fixtures use /html/ prefix for progressive enhancement)
+      await page.click('a[href="/html/about"]');
       await page.waitForFunction(
         () => {
           const h1 = document.querySelector('h1');
@@ -386,10 +390,10 @@ Deno.test(
         false,
         'link click should not trigger full page load',
       );
-      // SPA strips /html/ prefix, so pathname should be /about
+      // URL keeps /html/ prefix — progressive enhancement
       assertEquals(
         new URL(page.url()).pathname,
-        '/about',
+        '/html/about',
         'URL should update to SPA route',
       );
     });
@@ -402,7 +406,7 @@ Deno.test(
       await page.evaluate(() => {
         const router = (globalThis as Record<string, unknown>).__emroute_router;
         if (router && typeof router === 'object' && 'navigate' in router) {
-          (router.navigate as (url: string) => Promise<void>)('/about');
+          (router.navigate as (url: string) => Promise<void>)('/html/about');
         }
       });
       await page.waitForSelector('h1', { timeout: 5000 });
@@ -446,7 +450,7 @@ Deno.test(
       await page.evaluate(() => {
         const router = (globalThis as Record<string, unknown>).__emroute_router;
         if (router && typeof router === 'object' && 'navigate' in router) {
-          (router.navigate as (url: string) => Promise<void>)('/projects/broken');
+          (router.navigate as (url: string) => Promise<void>)('/html/projects/broken');
         }
       });
       await page.waitForTimeout(1000);

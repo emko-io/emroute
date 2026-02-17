@@ -10,7 +10,7 @@
  * - Watches for route and widget file changes and regenerates manifests
  */
 
-import { SSR_HTML_PREFIX, SSR_MD_PREFIX, stripSsrPrefix } from '../src/route/route.core.ts';
+import { type BasePath, DEFAULT_BASE_PATH, prefixManifest } from '../src/route/route.core.ts';
 import { SsrHtmlRouter } from '../src/renderer/ssr/html.renderer.ts';
 import { SsrMdRouter } from '../src/renderer/ssr/md.renderer.ts';
 import type { RoutesManifest } from '../src/type/route.type.ts';
@@ -105,6 +105,12 @@ export interface DevServerConfig {
 
   /** SPA rendering mode (default: 'root') */
   spa?: SpaMode;
+
+  /** Base paths for SSR endpoints (default: { html: '/html', md: '/md' }) */
+  basePath?: BasePath;
+
+  /** Custom HTTP response headers added to every response */
+  responseHeaders?: Record<string, string>;
 }
 
 /** Create module loaders for server-side SSR imports */
@@ -163,6 +169,7 @@ function generateMainTs(
   hasRoutes: boolean,
   hasWidgets: boolean,
   importPath: string,
+  basePath?: BasePath,
 ): string {
   const imports: string[] = [];
   const body: string[] = [];
@@ -194,17 +201,11 @@ function generateMainTs(
     body.push('}');
   }
 
-  if (spa !== 'none' && hasRoutes) {
+  if ((spa === 'root' || spa === 'only') && hasRoutes) {
     imports.push(`import { createSpaHtmlRouter } from '${importPath}/spa';`);
-    if (spa === 'leaf') {
-      body.push("if (location.pathname === '/') {");
-      body.push("  location.replace('/html/');");
-      body.push('} else {');
-      body.push('  await createSpaHtmlRouter(routesManifest);');
-      body.push('}');
-    } else {
-      body.push('await createSpaHtmlRouter(routesManifest);');
-    }
+    const bpOpt = basePath ? `basePath: { html: '${basePath.html}', md: '${basePath.md}' }` : '';
+    const opts = bpOpt ? `{ ${bpOpt} }` : '';
+    body.push(`await createSpaHtmlRouter(routesManifest${opts ? `, ${opts}` : ''});`);
   }
 
   return `/** Auto-generated entry point — do not edit. */\n${imports.join('\n')}\n\n${
@@ -221,7 +222,7 @@ function buildSpaHtml(title: string, scriptTag: string, styleTag = ''): string {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${escapeHtml(title)}</title>${styleLink}
-  <style>@view-transition { navigation: auto; }</style>
+  <style>@view-transition { navigation: auto; } router-slot { display: contents; }</style>
 </head>
 <body>
   <router-slot></router-slot>
@@ -341,6 +342,8 @@ export async function createDevServer(
     spa = 'root',
   } = config;
 
+  const { html: htmlBase, md: mdBase } = config.basePath ?? DEFAULT_BASE_PATH;
+
   const fs = createFileSystemAdapter(runtime);
 
   // ---------------------------------------------------------------------------
@@ -354,7 +357,7 @@ export async function createDevServer(
     routesManifest = result;
     routesManifest.moduleLoaders = createServerModuleLoaders(routesManifest, appRoot, runtime);
 
-    const code = generateManifestCode(result, '@emkodev/emroute');
+    const code = generateManifestCode(result, '@emkodev/emroute', htmlBase);
     await runtime.writeTextFile(`${appRoot}/routes.manifest.ts`, code);
 
     console.log(`Scanned ${routesDir}/`);
@@ -396,11 +399,42 @@ export async function createDevServer(
     console.log(`Scanned ${widgetsDir}/`);
     console.log(`  ${discoveredWidgetEntries.length} widgets`);
 
-    // Eagerly import all widget modules for SSR
+    await importWidgetsForSsr(discoveredWidgetEntries);
+  }
+
+  // ---------------------------------------------------------------------------
+  // SSR routers
+  // ---------------------------------------------------------------------------
+
+  const baseUrl = `http://localhost:${config.port}`;
+  const { markdownRenderer } = config;
+  let ssrHtmlRouter: SsrHtmlRouter;
+  let ssrMdRouter: SsrMdRouter;
+
+  function rebuildSsrRouters(): void {
+    ssrHtmlRouter = new SsrHtmlRouter(prefixManifest(routesManifest, htmlBase), {
+      baseUrl,
+      basePath: htmlBase,
+      markdownRenderer,
+      widgets,
+      widgetFiles,
+    });
+    ssrMdRouter = new SsrMdRouter(prefixManifest(routesManifest, mdBase), {
+      baseUrl,
+      basePath: mdBase,
+      widgets,
+      widgetFiles,
+    });
+  }
+
+  /** Import widget modules for SSR and merge with manual widgets. */
+  async function importWidgetsForSsr(
+    entries: WidgetManifestEntry[],
+  ): Promise<void> {
     const ssrWidgets = new WidgetRegistry();
     const rootUrl = new URL(appRoot + '/', `file://${runtime.cwd()}/`);
 
-    for (const entry of discoveredWidgetEntries) {
+    for (const entry of entries) {
       try {
         const fileUrl = new URL(entry.modulePath, rootUrl).href;
         const mod = await import(fileUrl) as Record<string, unknown>;
@@ -416,8 +450,8 @@ export async function createDevServer(
     }
 
     // Merge with manually provided widgets (manual wins on collision)
-    if (widgets) {
-      for (const widget of widgets) {
+    if (config.widgets) {
+      for (const widget of config.widgets) {
         ssrWidgets.add(widget);
       }
     }
@@ -425,25 +459,13 @@ export async function createDevServer(
 
     // Build widgetFiles record from discovered entries
     const discoveredFiles: Record<string, { html?: string; md?: string; css?: string }> = {};
-    for (const entry of discoveredWidgetEntries) {
+    for (const entry of entries) {
       if (entry.files) discoveredFiles[entry.name] = entry.files;
     }
-    widgetFiles = { ...discoveredFiles, ...widgetFiles };
+    widgetFiles = { ...discoveredFiles, ...(config.widgetFiles ?? {}) };
   }
 
-  // ---------------------------------------------------------------------------
-  // SSR routers
-  // ---------------------------------------------------------------------------
-
-  const baseUrl = `http://localhost:${config.port}`;
-  const { markdownRenderer } = config;
-  let ssrHtmlRouter = new SsrHtmlRouter(routesManifest, {
-    baseUrl,
-    markdownRenderer,
-    widgets,
-    widgetFiles,
-  });
-  let ssrMdRouter = new SsrMdRouter(routesManifest, { baseUrl, widgets, widgetFiles });
+  rebuildSsrRouters();
 
   async function regenerateRoutes(): Promise<void> {
     if (!routesDir) return;
@@ -452,17 +474,10 @@ export async function createDevServer(
     routesManifest = result;
     routesManifest.moduleLoaders = createServerModuleLoaders(routesManifest, appRoot, runtime);
 
-    const code = generateManifestCode(result, '@emkodev/emroute');
+    const code = generateManifestCode(result, '@emkodev/emroute', htmlBase);
     await runtime.writeTextFile(`${appRoot}/routes.manifest.ts`, code);
 
-    ssrHtmlRouter = new SsrHtmlRouter(routesManifest, {
-      baseUrl,
-      markdownRenderer,
-      widgets,
-      widgetFiles,
-    });
-    ssrMdRouter = new SsrMdRouter(routesManifest, { baseUrl, widgets, widgetFiles });
-
+    rebuildSsrRouters();
     console.log(`Routes regenerated: ${result.routes.length} routes`);
   }
 
@@ -477,47 +492,8 @@ export async function createDevServer(
     );
     await runtime.writeTextFile(`${appRoot}/widgets.manifest.ts`, widgetManifestCode);
 
-    // Re-import widget modules for SSR
-    const ssrWidgets = new WidgetRegistry();
-    const rootUrl = new URL(appRoot + '/', `file://${runtime.cwd()}/`);
-
-    for (const entry of discoveredWidgetEntries) {
-      try {
-        const fileUrl = new URL(entry.modulePath, rootUrl).href;
-        const mod = await import(fileUrl) as Record<string, unknown>;
-        const instance = extractWidgetExport(mod);
-        if (!instance) {
-          console.warn(`[Widgets] No widget export found in ${entry.modulePath}`);
-          continue;
-        }
-        ssrWidgets.add(instance);
-      } catch (e) {
-        console.error(`[Widgets] Failed to load ${entry.modulePath}:`, e);
-      }
-    }
-
-    if (config.widgets) {
-      for (const widget of config.widgets) {
-        ssrWidgets.add(widget);
-      }
-    }
-    widgets = ssrWidgets;
-
-    const discoveredFiles: Record<string, { html?: string; md?: string; css?: string }> = {};
-    for (const entry of discoveredWidgetEntries) {
-      if (entry.files) discoveredFiles[entry.name] = entry.files;
-    }
-    widgetFiles = { ...discoveredFiles, ...(config.widgetFiles ?? {}) };
-
-    // Update SSR routers with new widgets
-    ssrHtmlRouter = new SsrHtmlRouter(routesManifest, {
-      baseUrl,
-      markdownRenderer,
-      widgets,
-      widgetFiles,
-    });
-    ssrMdRouter = new SsrMdRouter(routesManifest, { baseUrl, widgets, widgetFiles });
-
+    await importWidgetsForSsr(discoveredWidgetEntries);
+    rebuildSsrRouters();
     console.log(`Widgets regenerated: ${discoveredWidgetEntries.length} widgets`);
   }
 
@@ -538,34 +514,45 @@ export async function createDevServer(
     // Generate main.ts from config
     const hasRoutes = routesDir !== undefined || config.routesManifest !== undefined;
     const hasWidgets = widgetsDir !== undefined;
-    const mainCode = generateMainTs(spa, hasRoutes, hasWidgets, '@emkodev/emroute');
+    const mainCode = generateMainTs(
+      spa,
+      hasRoutes,
+      hasWidgets,
+      '@emkodev/emroute',
+      config.basePath ?? DEFAULT_BASE_PATH,
+    );
     entryPoint = `${appRoot}/${GENERATED_MAIN}`;
     await runtime.writeTextFile(entryPoint, mainCode);
     console.log(`Generated ${GENERATED_MAIN} (spa: '${spa}')`);
   }
 
   // ---------------------------------------------------------------------------
-  // Bundle
+  // Bundle (skip for 'none' mode — no JS to serve)
   // ---------------------------------------------------------------------------
 
-  const bundleOutput = `${BUNDLE_DIR}/${entryPoint.replace(/\.ts$/, '.js')}`;
-  await runtime.mkdir(BUNDLE_DIR + '/' + entryPoint.replace(/\/[^/]+$/, ''), { recursive: true });
+  let bundleProcess: { kill(): void } | undefined;
 
-  const bundleProcess = new Deno.Command('deno', {
-    args: [
-      'bundle',
-      '--platform',
-      'browser',
-      ...(watch ? ['--watch'] : []),
-      entryPoint,
-      '-o',
-      bundleOutput,
-    ],
-    stdout: 'inherit',
-    stderr: 'inherit',
-  }).spawn();
+  if (spa !== 'none') {
+    const bundleOutput = `${BUNDLE_DIR}/${entryPoint.replace(/\.ts$/, '.js')}`;
+    await runtime.mkdir(BUNDLE_DIR + '/' + entryPoint.replace(/\/[^/]+$/, ''), { recursive: true });
 
-  await new Promise((resolve) => setTimeout(resolve, BUNDLE_WARMUP_DELAY));
+    const proc = new Deno.Command('deno', {
+      args: [
+        'bundle',
+        '--platform',
+        'browser',
+        ...(watch ? ['--watch'] : []),
+        entryPoint,
+        '-o',
+        bundleOutput,
+      ],
+      stdout: 'inherit',
+      stderr: 'inherit',
+    }).spawn();
+
+    bundleProcess = { kill: () => proc.kill() };
+    await new Promise((resolve) => setTimeout(resolve, BUNDLE_WARMUP_DELAY));
+  }
 
   // ---------------------------------------------------------------------------
   // HTML shell construction
@@ -588,13 +575,14 @@ export async function createDevServer(
 
   /** Get the full SPA HTML shell (consumer-provided or generated) */
   async function getSpaShell(): Promise<string> {
-    const scriptTag = buildScriptTag();
+    const needsJs = spa !== 'none';
+    const scriptTag = needsJs ? buildScriptTag() : '';
     const styleTag = buildStyleTag();
 
     if (hasConsumerIndex) {
       let html = await runtime.readTextFile(indexPath);
       if (styleTag) html = html.replace('</head>', `  ${styleTag}\n</head>`);
-      html = html.replace('</body>', `${scriptTag}\n</body>`);
+      if (scriptTag) html = html.replace('</body>', `${scriptTag}\n</body>`);
       return html;
     }
 
@@ -627,13 +615,19 @@ export async function createDevServer(
     const url = new URL(req.url);
     const pathname = url.pathname;
 
+    const mdPrefix = mdBase + '/';
+    const htmlPrefix = htmlBase + '/';
+
     // Handle /md/* routes — SSR Markdown (skip in 'only' mode)
     if (
       spa !== 'only' &&
-      (pathname.startsWith(SSR_MD_PREFIX) || pathname + '/' === SSR_MD_PREFIX)
+      (pathname.startsWith(mdPrefix) || pathname === mdBase)
     ) {
       try {
-        const { content, status } = await ssrMdRouter.render(pathname);
+        const { content, status, redirect } = await ssrMdRouter.render(pathname);
+        if (redirect) {
+          return Response.redirect(new URL(redirect, url.origin), status);
+        }
         return new Response(content, {
           status,
           headers: {
@@ -650,13 +644,15 @@ export async function createDevServer(
     // Handle /html/* routes — SSR HTML (skip in 'only' mode)
     if (
       spa !== 'only' &&
-      (pathname.startsWith(SSR_HTML_PREFIX) || pathname + '/' === SSR_HTML_PREFIX)
+      (pathname.startsWith(htmlPrefix) || pathname === htmlBase)
     ) {
       try {
         const result = await ssrHtmlRouter.render(pathname);
+        if (result.redirect) {
+          return Response.redirect(new URL(result.redirect, url.origin), result.status);
+        }
         const ssrTitle = result.title ?? title;
-        const ssrRoute = stripSsrPrefix(pathname);
-        const shell = await buildSsrHtmlShell(result.content, ssrTitle, ssrRoute);
+        const shell = await buildSsrHtmlShell(result.content, ssrTitle, pathname);
         return new Response(shell, {
           status: result.status,
           headers: {
@@ -672,28 +668,18 @@ export async function createDevServer(
 
     // SPA fallback — serve HTML shell for non-file requests
     if (!isFileRequest(pathname)) {
-      // 'none' mode: redirect all non-file requests to /html/*
-      if (spa === 'none') {
-        const route = pathname === '/' ? '' : pathname.slice(1);
-        return Response.redirect(new URL(`${SSR_HTML_PREFIX}${route}`, url.origin), 302);
+      // Bare paths (not /html/* or /md/*) redirect to /html/* in all modes.
+      // Routes live at /html/* — the manifest is the source of truth.
+      const isBare = !pathname.startsWith(htmlPrefix) && pathname !== htmlBase &&
+        !pathname.startsWith(mdPrefix) && pathname !== mdBase;
+      if (isBare) {
+        const bare = pathname === '/' ? '' : pathname.slice(1).replace(/\/$/, '');
+        return Response.redirect(new URL(`${htmlBase}/${bare}`, url.origin), 302);
       }
 
-      // 'leaf' mode: redirect root to /html/, serve SPA shell for other paths
-      if (spa === 'leaf' && pathname === '/') {
-        return Response.redirect(new URL(SSR_HTML_PREFIX, url.origin), 302);
-      }
-
-      // 'root' and 'only' modes + 'leaf' non-root: serve SPA shell
+      // /html/* or /md/* paths that weren't handled by SSR (e.g. 'only' mode) — serve SPA shell
       try {
-        let html = await getSpaShell();
-
-        // Inject SSR hint for LLMs and text clients (skip in 'only' mode)
-        if (spa !== 'only') {
-          const ssrHint = `<!-- This is a Single Page Application. For machine-readable content, ` +
-            `prefix any route with ${SSR_MD_PREFIX} for Markdown or ${SSR_HTML_PREFIX} for pre-rendered HTML. -->`;
-          html = html.replace('</head>', `${ssrHint}\n</head>`);
-        }
-
+        const html = await getSpaShell();
         return new Response(html, {
           status: 200,
           headers: {
@@ -787,6 +773,11 @@ export async function createDevServer(
     if (response.status >= 300 && response.status < 400) return response;
     response.headers.set('X-Content-Type-Options', 'nosniff');
     response.headers.set('X-Frame-Options', 'DENY');
+    if (config.responseHeaders) {
+      for (const [k, v] of Object.entries(config.responseHeaders)) {
+        response.headers.set(k, v);
+      }
+    }
     return response;
   });
 
@@ -794,8 +785,8 @@ export async function createDevServer(
   console.log(`Development server running at http://localhost:${config.port}/`);
   console.log(`  Mode: spa='${spa}'`);
   if (spa !== 'only') {
-    console.log(`  SSR HTML: http://localhost:${config.port}${SSR_HTML_PREFIX}*`);
-    console.log(`  SSR Markdown: http://localhost:${config.port}${SSR_MD_PREFIX}*`);
+    console.log(`  SSR HTML: http://localhost:${config.port}${htmlBase}/*`);
+    console.log(`  SSR Markdown: http://localhost:${config.port}${mdBase}/*`);
   }
 
   // ---------------------------------------------------------------------------
@@ -831,7 +822,9 @@ export async function createDevServer(
               p.endsWith('.page.ts') || p.endsWith('.page.html') || p.endsWith('.page.md') ||
               p.endsWith('.page.css') || p.endsWith('.error.ts') || p.endsWith('.redirect.ts'),
           );
-          const isWidgetFile = event.paths.some((p) => p.endsWith('.widget.ts'));
+          const isWidgetFile = event.paths.some((p) =>
+            p.endsWith('.widget.ts') || p.endsWith('.widget.css')
+          );
 
           if (!isRouteFile && !isWidgetFile) return;
 
@@ -861,6 +854,6 @@ export async function createDevServer(
   return {
     handle,
     watchHandle,
-    bundleProcess: { kill: () => bundleProcess.kill() },
+    bundleProcess,
   };
 }

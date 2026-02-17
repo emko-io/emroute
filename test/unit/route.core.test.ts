@@ -17,11 +17,10 @@
 import { assertEquals, assertExists } from '@std/assert';
 import {
   assertSafeRedirect,
+  DEFAULT_BASE_PATH,
   DEFAULT_ROOT_ROUTE,
+  prefixManifest,
   RouteCore,
-  SSR_HTML_PREFIX,
-  SSR_MD_PREFIX,
-  stripSsrPrefix,
 } from '../../src/route/route.core.ts';
 import type { RouteConfig, RouteInfo, RoutesManifest } from '../../src/type/route.type.ts';
 import type { ComponentContext } from '../../src/component/abstract.component.ts';
@@ -58,30 +57,93 @@ function createRoute(
   };
 }
 
-Deno.test('RouteCore - stripSsrPrefix', async (t) => {
-  await t.step('strips /html/ prefix', () => {
-    const result = stripSsrPrefix('/html/about');
-    assertEquals(result, '/about');
+Deno.test('RouteCore - basePath matching', async (t) => {
+  await t.step('matches routes with prefixed manifest', () => {
+    const bare = createTestManifest([createRoute('/about')]);
+    const manifest = prefixManifest(bare, '/html');
+    const core = new RouteCore(manifest, { basePath: '/html' });
+    const matched = core.match('/html/about');
+    assertExists(matched);
+    assertEquals(matched.route.pattern, '/html/about');
   });
 
-  await t.step('strips /md/ prefix', () => {
-    const result = stripSsrPrefix('/md/projects/123');
-    assertEquals(result, '/projects/123');
+  await t.step('root fallback uses basePath', () => {
+    const manifest = createTestManifest([]);
+    const core = new RouteCore(manifest, { basePath: '/html' });
+    const matched = core.match('/html');
+    assertExists(matched);
+    assertEquals(matched.route.pattern, '/html');
+    assertEquals(matched.route.modulePath, '__default_root__');
   });
 
-  await t.step('returns pathname unchanged if no prefix', () => {
-    const result = stripSsrPrefix('/about');
-    assertEquals(result, '/about');
+  await t.step('root fallback handles trailing slash', () => {
+    const manifest = createTestManifest([]);
+    const core = new RouteCore(manifest, { basePath: '/html' });
+    const matched = core.match('/html/');
+    assertExists(matched);
+    assertEquals(matched.route.pattern, '/html');
   });
 
-  await t.step('handles root pathname', () => {
-    const result = stripSsrPrefix('/html/');
-    assertEquals(result, '/');
+  await t.step('no match for paths outside basePath', () => {
+    const bare = createTestManifest([createRoute('/about')]);
+    const manifest = prefixManifest(bare, '/html');
+    const core = new RouteCore(manifest, { basePath: '/html' });
+    const matched = core.match('/about');
+    assertEquals(matched, undefined);
   });
 
-  await t.step('preserves multiple slashes', () => {
-    const result = stripSsrPrefix('/html/projects/123/tasks');
-    assertEquals(result, '/projects/123/tasks');
+  await t.step('works without basePath (backward compatible)', () => {
+    const manifest = createTestManifest([createRoute('/about')]);
+    const core = new RouteCore(manifest);
+    const matched = core.match('/about');
+    assertExists(matched);
+    assertEquals(matched.route.pattern, '/about');
+  });
+});
+
+Deno.test('RouteCore - buildRouteHierarchy with basePath', async (t) => {
+  await t.step('root returns basePath', () => {
+    const manifest = createTestManifest([]);
+    const core = new RouteCore(manifest, { basePath: '/html' });
+    assertEquals(core.buildRouteHierarchy('/html'), ['/html']);
+  });
+
+  await t.step('root with trailing slash', () => {
+    const manifest = createTestManifest([]);
+    const core = new RouteCore(manifest, { basePath: '/html' });
+    assertEquals(core.buildRouteHierarchy('/html/'), ['/html']);
+  });
+
+  await t.step('nested route', () => {
+    const manifest = createTestManifest([]);
+    const core = new RouteCore(manifest, { basePath: '/html' });
+    assertEquals(
+      core.buildRouteHierarchy('/html/projects/:id'),
+      ['/html', '/html/projects', '/html/projects/:id'],
+    );
+  });
+
+  await t.step('without basePath (backward compatible)', () => {
+    const manifest = createTestManifest([]);
+    const core = new RouteCore(manifest);
+    assertEquals(
+      core.buildRouteHierarchy('/projects/:id'),
+      ['/', '/projects', '/projects/:id'],
+    );
+  });
+});
+
+Deno.test('RouteCore - normalizeUrl with basePath', async (t) => {
+  await t.step('strips trailing slash on basePath root', () => {
+    const manifest = createTestManifest([]);
+    const core = new RouteCore(manifest, { basePath: '/html' });
+    assertEquals(core.normalizeUrl('/html/'), '/html');
+  });
+
+  await t.step('strips trailing slash on non-root paths', () => {
+    const manifest = createTestManifest([]);
+    const core = new RouteCore(manifest, { basePath: '/html' });
+    assertEquals(core.normalizeUrl('/html/about/'), '/html/about');
   });
 });
 
@@ -260,7 +322,8 @@ Deno.test('RouteCore - route matching', async (t) => {
     const matched = router.match('/');
 
     assertExists(matched);
-    assertEquals(matched?.route, DEFAULT_ROOT_ROUTE);
+    assertEquals(matched?.route.modulePath, DEFAULT_ROOT_ROUTE.modulePath);
+    assertEquals(matched?.route.pattern, '/');
   });
 
   await t.step('accepts URL objects', () => {
@@ -903,13 +966,10 @@ Deno.test('RouteCore - edge cases', async (t) => {
   });
 });
 
-Deno.test('RouteCore - SSR prefix constants', async (t) => {
-  await t.step('SSR_HTML_PREFIX is correct', () => {
-    assertEquals(SSR_HTML_PREFIX, '/html/');
-  });
-
-  await t.step('SSR_MD_PREFIX is correct', () => {
-    assertEquals(SSR_MD_PREFIX, '/md/');
+Deno.test('RouteCore - BasePath and DEFAULT_ROOT_ROUTE', async (t) => {
+  await t.step('DEFAULT_BASE_PATH has correct defaults', () => {
+    assertEquals(DEFAULT_BASE_PATH.html, '/html');
+    assertEquals(DEFAULT_BASE_PATH.md, '/md');
   });
 
   await t.step('DEFAULT_ROOT_ROUTE has correct structure', () => {

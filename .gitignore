@@ -6,5 +6,6 @@ node_modules/
 !doc/*.png
 routes.manifest.ts
 test/browser/fixtures/routes.manifest.ts
+test/browser/fixtures/_main.generated.ts
 test/browser/fixtures/assets/*.wasm
 .claude/

@@ -11,7 +11,54 @@ import type { RouteInfo } from '../type/route.type.ts';
 import { DATA_SSR_ATTR, LAZY_ATTR } from './html.util.ts';
 
 /** Maximum nesting depth for widgets to prevent infinite loops */
-const MAX_WIDGET_DEPTH = 10;
+export const MAX_WIDGET_DEPTH = 10;
+
+/**
+ * Recursively resolve widgets in content with depth limit.
+ *
+ * Generic utility used by both HTML and Markdown widget resolution.
+ * Each depth level processes all widgets concurrently, then recurses
+ * into each rendered result to resolve nested widgets.
+ *
+ * @param content - Content containing widgets
+ * @param parse - Find widgets in content
+ * @param resolve - Resolve a single widget to rendered output
+ * @param replace - Replace widgets with resolved content
+ * @param depth - Current recursion depth (internal)
+ * @returns Content with all widgets recursively resolved
+ */
+export async function resolveRecursively<T>(
+  content: string,
+  parse: (content: string) => T[],
+  resolve: (widget: T) => Promise<string>,
+  replace: (content: string, replacements: Map<T, string>) => string,
+  depth = 0,
+): Promise<string> {
+  if (depth >= MAX_WIDGET_DEPTH) {
+    logger.warn(
+      `Widget nesting depth limit reached (${MAX_WIDGET_DEPTH}). ` +
+        'Possible circular dependency or excessive nesting.',
+    );
+    return content;
+  }
+
+  const widgets = parse(content);
+  if (widgets.length === 0) return content;
+
+  const replacements = new Map<T, string>();
+  await Promise.all(
+    widgets.map(async (widget) => {
+      let rendered = await resolve(widget);
+
+      // Recursively resolve any nested widgets in the rendered output
+      rendered = await resolveRecursively(rendered, parse, resolve, replace, depth + 1);
+
+      replacements.set(widget, rendered);
+    }),
+  );
+
+  return replace(content, replacements);
+}
 
 /**
  * Resolve <widget-*> tags in HTML by calling getData() + renderHTML()
@@ -21,9 +68,9 @@ const MAX_WIDGET_DEPTH = 10;
  * other <widget-*> tags, those will be resolved recursively up to MAX_WIDGET_DEPTH.
  *
  * Before: <widget-crypto-price coin="bitcoin"></widget-crypto-price>
- * After:  <widget-crypto-price coin="bitcoin" data-ssr='{"price":42000}'><span>$42,000</span></widget-crypto-price>
+ * After:  <widget-crypto-price coin="bitcoin" data-ssr='{"price":42000}'><template shadowrootmode="open"><span>$42,000</span></template></widget-crypto-price>
  */
-export async function resolveWidgetTags(
+export function resolveWidgetTags(
   html: string,
   registry: { get(name: string): Component | undefined },
   routeInfo: RouteInfo,
@@ -32,88 +79,78 @@ export async function resolveWidgetTags(
     declaredFiles?: { html?: string; md?: string; css?: string },
   ) => Promise<{ html?: string; md?: string; css?: string }>,
   contextProvider?: ContextProvider,
-  depth = 0,
 ): Promise<string> {
-  // Safety check for recursion depth
-  if (depth >= MAX_WIDGET_DEPTH) {
-    logger.warn(
-      `[SSR HTML] Widget nesting depth limit reached (${MAX_WIDGET_DEPTH}). ` +
-        'Possible circular dependency or excessive nesting.',
-    );
-    return html;
-  }
-
-  const pattern =
+  const tagPattern =
     /<widget-(?<name>[a-z][a-z0-9-]*)(?<attrs>\s[^>]*)?>(?<content>.*?)<\/widget-\k<name>>/gis;
 
-  const matches = html.matchAll(pattern).toArray();
+  // Wrapping info stored per-match so replace() can apply it after recursion
+  const wrappers = new Map<RegExpExecArray, { tagName: string; attrs: string; ssrData: string }>();
 
-  // Filter out widgets that have already been processed (have data-ssr attribute)
-  const unprocessed = matches.filter((match) => {
-    const attrsString = match.groups!.attrs || '';
-    return !attrsString.includes(DATA_SSR_ATTR);
-  });
+  // Parse: find unprocessed widget tags
+  const parse = (content: string) => {
+    const matches = content.matchAll(tagPattern).toArray();
+    return matches.filter((match) => {
+      const attrsString = match.groups!.attrs || '';
+      return !attrsString.includes(DATA_SSR_ATTR);
+    });
+  };
 
-  if (unprocessed.length === 0) return html;
+  // Resolve: render a single widget's inner content (no outer tag wrapping — that's in replace)
+  const resolve = async (match: RegExpExecArray): Promise<string> => {
+    const widgetName = match.groups!.name;
+    const attrsString = match.groups!.attrs?.trim() ?? '';
+    const widget = registry.get(widgetName);
 
-  // Process each widget: resolve nested widgets in content first, then process the widget itself
-  const replacements = await Promise.all(
-    unprocessed.map(async (match) => {
-      const widgetName = match.groups!.name;
-      const attrsString = match.groups!.attrs?.trim() ?? '';
-      const widget = registry.get(widgetName);
+    if (!widget) return match[0]; // no widget found — leave original tag as-is
 
-      if (!widget) return match[0]; // no widget found — leave as-is
+    const params = parseAttrsToParams(attrsString);
 
-      const params = parseAttrsToParams(attrsString);
-
-      try {
-        // Build context with optional file loading
-        let files: { html?: string; md?: string; css?: string } | undefined;
-        if (loadFiles) {
-          files = await loadFiles(widgetName, widget.files);
-        }
-
-        const baseContext = { ...routeInfo, files };
-        const context = contextProvider ? contextProvider(baseContext) : baseContext;
-
-        const data = await widget.getData({ params, context });
-        let rendered = widget.renderHTML({ data, params, context });
-
-        // Recursively resolve any nested widgets in the rendered output
-        rendered = await resolveWidgetTags(
-          rendered,
-          registry,
-          routeInfo,
-          loadFiles,
-          contextProvider,
-          depth + 1,
-        );
-
-        const ssrData = escapeAttr(JSON.stringify(data));
-        const tagName = `widget-${widgetName}`;
-        const attrs = attrsString ? ` ${attrsString}` : '';
-        return `<${tagName}${attrs} ${DATA_SSR_ATTR}='${ssrData}'>${rendered}</${tagName}>`;
-      } catch (e) {
-        logger.error(
-          `[SSR HTML] Widget "${widgetName}" render failed`,
-          e instanceof Error ? e : undefined,
-        );
-        return match[0]; // render failed — leave as-is
+    try {
+      let files: { html?: string; md?: string; css?: string } | undefined;
+      if (loadFiles) {
+        files = await loadFiles(widgetName, widget.files);
       }
-    }),
-  );
 
-  // Replace from end to preserve indices
-  let result = html;
-  for (let i = unprocessed.length - 1; i >= 0; i--) {
-    const match = unprocessed[i];
-    const start = match.index!;
-    const end = start + match[0].length;
-    result = result.slice(0, start) + replacements[i] + result.slice(end);
-  }
+      const baseContext = { ...routeInfo, files };
+      const context = contextProvider ? contextProvider(baseContext) : baseContext;
 
-  return result;
+      const data = await widget.getData({ params, context });
+      const rendered = widget.renderHTML({ data, params, context });
+
+      // Store wrapping info — applied in replace() after recursion resolves nested widgets
+      wrappers.set(match, {
+        tagName: `widget-${widgetName}`,
+        attrs: attrsString ? ` ${attrsString}` : '',
+        ssrData: escapeAttr(JSON.stringify(data)),
+      });
+
+      return rendered;
+    } catch (e) {
+      logger.error(
+        `[SSR HTML] Widget "${widgetName}" render failed`,
+        e instanceof Error ? e : undefined,
+      );
+      return match[0]; // render failed — leave original tag as-is
+    }
+  };
+
+  // Replace: wrap resolved content in outer tag + DSD template, then substitute by index
+  const replace = (content: string, replacements: Map<RegExpExecArray, string>) => {
+    let result = content;
+    const entries = [...replacements.entries()].sort((a, b) => b[0].index! - a[0].index!);
+    for (const [match, innerHtml] of entries) {
+      const start = match.index!;
+      const end = start + match[0].length;
+      const wrap = wrappers.get(match);
+      const replacement = wrap
+        ? `<${wrap.tagName}${wrap.attrs} ${DATA_SSR_ATTR}='${wrap.ssrData}'><template shadowrootmode="open">${innerHtml}</template></${wrap.tagName}>`
+        : innerHtml; // no wrapper = unresolved widget, innerHtml is the original tag
+      result = result.slice(0, start) + replacement + result.slice(end);
+    }
+    return result;
+  };
+
+  return resolveRecursively(html, parse, resolve, replace);
 }
 
 /** Parse HTML attribute string into params object (kebab→camelCase, JSON.parse with string fallback). */
@@ -132,7 +169,10 @@ export function parseAttrsToParams(attrsString: string): Record<string, unknown>
       params[key] = '';
       continue;
     }
-    const raw = rawValue.replaceAll('&amp;', '&').replaceAll('&quot;', '"');
+    const raw = rawValue.replaceAll('&amp;', '&').replaceAll('&#39;', "'").replaceAll(
+      '&quot;',
+      '"',
+    );
     try {
       params[key] = JSON.parse(raw);
     } catch {

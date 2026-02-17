@@ -8,13 +8,14 @@
 import { createDevServer, type DevServer } from '../../server/dev.server.ts';
 import { denoServerRuntime } from '../../server/server.deno.ts';
 import { generateManifestCode, generateRoutesManifest } from '../../tool/route.generator.ts';
+import { DEFAULT_BASE_PATH } from '../../src/route/route.core.ts';
 import type { FileSystem } from '../../tool/fs.type.ts';
 import { WidgetRegistry } from '../../src/widget/widget.registry.ts';
 import type { MarkdownRenderer } from '../../src/type/markdown.type.ts';
 import { AstRenderer, initParser, MarkdownParser } from 'jsr:@emkodev/emko-md@0.1.0-beta.4/parser';
 import { externalWidget } from './fixtures/assets/external.widget.ts';
 
-import { type Browser, chromium, type Page } from 'npm:playwright@1.50.1';
+import { type Browser, chromium, type Page } from 'npm:playwright@1.58.2';
 
 const PORT = Deno.env.get('TEST_PORT') ? Number(Deno.env.get('TEST_PORT')) : 4100;
 const FIXTURES_DIR = 'test/browser/fixtures';
@@ -84,8 +85,8 @@ export async function startServer(options?: {
     result.errorHandler.modulePath = stripPrefix(result.errorHandler.modulePath);
   }
 
-  // Write manifest for the bundler to pick up
-  const code = generateManifestCode(result, '@emkodev/emroute');
+  // Write manifest for the bundler to pick up (with /html basePath for SPA patterns)
+  const code = generateManifestCode(result, '@emkodev/emroute', DEFAULT_BASE_PATH.html);
   await Deno.writeTextFile(`${FIXTURES_DIR}/routes.manifest.ts`, code);
 
   // Create server-side module loaders for SSR
@@ -139,17 +140,22 @@ export async function startServer(options?: {
   const manualWidgets = new WidgetRegistry();
   manualWidgets.add(externalWidget);
 
+  // Consumer main.ts creates the SPA router — only use it for modes that need routing.
+  // For 'none'/'leaf', let the server generate a mode-appropriate entry point.
+  const mode = options?.spa;
+  const needsConsumerEntry = mode === undefined || mode === 'root' || mode === 'only';
+
   server = await createDevServer(
     {
       port: PORT,
-      entryPoint: 'main.ts',
+      entryPoint: needsConsumerEntry ? 'main.ts' : undefined,
       routesManifest: result,
       appRoot: FIXTURES_DIR,
       widgetsDir: `${FIXTURES_DIR}/widgets`,
       widgets: manualWidgets,
       watch: options?.watch ?? false,
       markdownRenderer,
-      spa: options?.spa,
+      spa: mode,
     },
     denoServerRuntime,
   );

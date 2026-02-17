@@ -54,8 +54,11 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
     super();
     this.component = component;
     this.effectiveFiles = files;
-    // Attach shadow root (real in browser, mock on server)
-    this.attachShadow({ mode: 'open' });
+    // Attach shadow root if not already present (Declarative Shadow DOM creates it from <template shadowrootmode="open">)
+    // This enables progressive enhancement: SSR with DSD works without JS, then hydrates when JS loads
+    if (!this.shadowRoot) {
+      this.attachShadow({ mode: 'open' });
+    }
   }
 
   /**
@@ -124,8 +127,6 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
   async connectedCallback(): Promise<void> {
     this.component.element = this;
     this.style.contentVisibility = 'auto';
-    // Note: container-type inline-size breaks flex layouts (widgets collapse to 0 width)
-    // this.style.containerType = 'inline-size';
     this.abortController = new AbortController();
     const signal = this.abortController.signal;
 
@@ -164,7 +165,7 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
     };
     this.context = ComponentElement.extendContext ? ComponentElement.extendContext(base) : base;
 
-    // Hydrate from SSR: move Light DOM content into shadow root
+    // Hydrate from SSR: adopt content from Declarative Shadow DOM
     const ssrAttr = this.getAttribute(DATA_SSR_ATTR);
     if (ssrAttr) {
       try {
@@ -172,13 +173,18 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
         this.state = 'ready';
         this.removeAttribute(DATA_SSR_ATTR);
 
-        // Move SSR-rendered Light DOM content into shadow root
-        this.shadowRoot!.append(...this.childNodes);
+        // With Declarative Shadow DOM (<template shadowrootmode="open">), content is
+        // already in shadowRoot. Browser parses the template and moves content automatically.
+        // Only move childNodes if there are any (fallback for non-DSD SSR)
+        if (this.childNodes.length > 0) {
+          this.shadowRoot!.append(...this.childNodes);
+        }
 
         // Call hydrate() hook to attach event listeners
         if (this.component.hydrate) {
+          const args = { data: this.data, params: this.params!, context: this.context };
           queueMicrotask(() => {
-            this.component.hydrate!();
+            this.component.hydrate!(args);
           });
         }
 
@@ -319,28 +325,29 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
 
   private render(): void {
     if (this.params === null) {
-      this.shadowRoot!.innerHTML = '';
+      this.shadowRoot!.setHTMLUnsafe('');
       return;
     }
 
     if (this.state === 'error') {
-      this.shadowRoot!.innerHTML = this.component.renderError({
+      this.shadowRoot!.setHTMLUnsafe(this.component.renderError({
         error: new Error(this.errorMessage),
         params: this.params,
-      });
+      }));
       return;
     }
 
-    this.shadowRoot!.innerHTML = this.component.renderHTML({
+    this.shadowRoot!.setHTMLUnsafe(this.component.renderHTML({
       data: this.state === 'ready' ? this.data : null,
       params: this.params,
       context: this.context,
-    });
+    }));
 
     // Call hydrate() after rendering to attach event listeners
     if (this.state === 'ready' && this.component.hydrate) {
+      const args = { data: this.data, params: this.params!, context: this.context };
       queueMicrotask(() => {
-        this.component.hydrate!();
+        this.component.hydrate!(args);
       });
     }
   }

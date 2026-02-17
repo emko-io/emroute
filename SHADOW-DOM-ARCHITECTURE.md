@@ -195,7 +195,7 @@ const element = new ComponentElement(widget);
 await element.connectedCallback();
 
 // SSR decides output format based on mode
-if (mode === "none") {
+if (mode === 'none') {
   // Extract shadow content as Light DOM
   html = `<widget-price>${element.shadowRoot.innerHTML}</widget-price>`;
 } else {

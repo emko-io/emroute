@@ -9,10 +9,15 @@ import type { RouteConfig, RouteInfo, RoutesManifest } from '../../type/route.ty
 import type { PageComponent } from '../../component/page.component.ts';
 import { DEFAULT_ROOT_ROUTE } from '../../route/route.core.ts';
 import { STATUS_MESSAGES } from '../../util/html.util.ts';
+import { resolveRecursively } from '../../util/widget-resolve.util.ts';
 import { parseWidgetBlocks, replaceWidgetBlocks } from '../../widget/widget.parser.ts';
 import { SsrRenderer, type SsrRendererOptions } from './ssr.renderer.ts';
 
-const ROUTER_SLOT_BLOCK = '```router-slot\n```';
+const BARE_SLOT_BLOCK = '```router-slot\n```';
+
+function routerSlotBlock(pattern: string): string {
+  return `\`\`\`router-slot\n{"pattern":"${pattern}"}\n\`\`\``;
+}
 
 /** Options for SSR Markdown Router */
 export type SsrMdRouterOptions = SsrRendererOptions;
@@ -27,12 +32,14 @@ export class SsrMdRouter extends SsrRenderer {
     super(manifest, options);
   }
 
-  protected override injectSlot(parent: string, child: string): string {
-    return parent.replace(ROUTER_SLOT_BLOCK, child);
+  protected override injectSlot(parent: string, child: string, parentPattern: string): string {
+    return parent.replace(routerSlotBlock(parentPattern), child);
   }
 
   protected override stripSlots(result: string): string {
-    return result.replaceAll(ROUTER_SLOT_BLOCK, '').trim();
+    return result
+      .replace(/```router-slot\n(?:\{[^}]*\}\n)?```/g, '')
+      .trim();
   }
 
   /**
@@ -44,10 +51,14 @@ export class SsrMdRouter extends SsrRenderer {
     isLeaf?: boolean,
   ): Promise<{ content: string; title?: string }> {
     if (route.modulePath === DEFAULT_ROOT_ROUTE.modulePath) {
-      return { content: ROUTER_SLOT_BLOCK };
+      return { content: routerSlotBlock(route.pattern) };
     }
 
     let { content, title } = await this.loadRouteContent(routeInfo, route, isLeaf);
+
+    // Attribute bare router-slot blocks with this route's pattern
+    // (before widget resolution so widget-internal blocks are not affected)
+    content = content.replaceAll(BARE_SLOT_BLOCK, routerSlotBlock(route.pattern));
 
     // Resolve fenced widget blocks: call getData() + renderMarkdown()
     if (this.widgets) {
@@ -84,13 +95,10 @@ export class SsrMdRouter extends SsrRenderer {
     content: string,
     routeInfo: RouteInfo,
   ): Promise<string> {
-    return this.resolveWidgetsRecursively(
+    return resolveRecursively(
       content,
-      routeInfo,
-      // Parse function: find widget blocks in content
       (content) => parseWidgetBlocks(content),
-      // Resolve function: resolve a single widget block
-      async (block, routeInfo) => {
+      async (block) => {
         if (block.parseError || !block.params) {
           return `> **Error** (\`${block.widgetName}\`): ${block.parseError}`;
         }
@@ -101,7 +109,6 @@ export class SsrMdRouter extends SsrRenderer {
         }
 
         try {
-          // Load widget files: discovered (merged) first, then declared fallback
           let files: { html?: string; md?: string } | undefined;
           const filePaths = this.widgetFiles[block.widgetName] ?? widget.files;
           if (filePaths) {
@@ -118,7 +125,6 @@ export class SsrMdRouter extends SsrRenderer {
           return widget.renderMarkdownError(e);
         }
       },
-      // Replace function: replace widget blocks with resolved content
       (content, replacements) => replaceWidgetBlocks(content, replacements),
     );
   }

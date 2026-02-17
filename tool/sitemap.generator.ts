@@ -11,7 +11,7 @@
  * Per sitemaps.org protocol:
  * - <loc> is required (full absolute URL)
  * - <lastmod>, <changefreq>, <priority> are optional
- * - URLs are /html/ prefixed for SSR HTML rendering
+ * - URLs use route patterns as-is (patterns include basePath when present)
  * - Max 50,000 URLs per sitemap file
  *
  * @see https://www.sitemaps.org/protocol.html
@@ -44,18 +44,25 @@ export interface SitemapOptions {
   /** Site origin with protocol, e.g. 'https://example.com'. No trailing slash. */
   baseUrl: string;
 
-  /** Per-route overrides keyed by route pattern. */
+  /** Per-route overrides keyed by route pattern (including basePath if present). */
   routes?: Record<string, SitemapRouteOptions>;
 
   /** Defaults applied when a route has no specific override. */
   defaults?: SitemapRouteOptions;
 
   /**
-   * Enumerators for dynamic routes. Keyed by route pattern (e.g. '/projects/:id').
+   * Enumerators for dynamic routes. Keyed by route pattern (e.g. '/html/projects/:id').
    * Each function returns concrete path segments to substitute for the parameter.
    * Dynamic routes without an enumerator are excluded from the sitemap.
    */
   enumerators?: Record<string, () => Promise<string[]>>;
+
+  /**
+   * Base path to prepend to patterns when manifest contains bare patterns.
+   * When the manifest already has prefixed patterns (e.g. from generateManifestCode),
+   * leave this unset.
+   */
+  basePath?: string;
 }
 
 /** A resolved URL entry before XML serialization. */
@@ -76,12 +83,11 @@ function isDynamic(pattern: string): boolean {
   return pattern.includes(':');
 }
 
-/** Build the /html/-prefixed absolute URL for a route path. */
-function buildLoc(baseUrl: string, path: string): string {
+/** Build the absolute URL for a route path. */
+function buildLoc(baseUrl: string, path: string, basePath = ''): string {
   const base = baseUrl.replace(/\/+$/, '');
-  // Root route → /html/
-  if (path === '/') return `${base}/html/`;
-  return `${base}/html${path}`;
+  if (path === '/' && basePath) return `${base}${basePath}/`;
+  return `${base}${basePath}${path}`;
 }
 
 /**
@@ -135,6 +141,7 @@ export async function generateSitemap(
   options: SitemapOptions,
 ): Promise<string> {
   const entries: SitemapEntry[] = [];
+  const bp = options.basePath ?? '';
 
   // Filter to page routes only (exclude error, redirect)
   const pages = manifest.routes.filter((r) => r.type === 'page');
@@ -152,14 +159,14 @@ export async function generateSitemap(
 
       for (const path of paths) {
         entries.push({
-          loc: buildLoc(options.baseUrl, path),
+          loc: buildLoc(options.baseUrl, path, bp),
           ...routeOpts,
         });
       }
     } else {
       // Static route — include directly
       entries.push({
-        loc: buildLoc(options.baseUrl, route.pattern),
+        loc: buildLoc(options.baseUrl, route.pattern, bp),
         ...routeOpts,
       });
     }

@@ -28,10 +28,4 @@ import { HTMLElementBase } from '../util/html.util.ts';
  * Router slot web component.
  * Serves as the mounting point for page content.
  */
-export class RouterSlot extends HTMLElementBase {
-  connectedCallback(): void {
-    if (!this.style.display) {
-      this.style.display = 'contents';
-    }
-  }
-}
+export class RouterSlot extends HTMLElementBase {}

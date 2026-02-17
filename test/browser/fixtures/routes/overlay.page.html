@@ -1,0 +1,47 @@
+<h1>Overlay Service Demo</h1>
+<p>Test modals, toasts, and popovers via <code>__overlay</code> global.</p>
+
+<div style="display: flex; flex-wrap: wrap; gap: 8px; margin: 1rem 0">
+  <button
+    onclick="__overlay.modal({
+    render(d) {
+      d.innerHTML = '<div style=&quot;padding:24px;max-width:400px&quot;><h2 style=&quot;margin:0 0 12px&quot;>Confirm Action</h2><p style=&quot;margin:0 0 20px;color:#64748b&quot;>Modal via overlay service.</p><div style=&quot;display:flex;gap:8px;justify-content:flex-end&quot;><button onclick=&quot;__overlay.closeModal()&quot; style=&quot;padding:8px 16px;border-radius:6px;border:1px solid #94a3b8;background:#fff;cursor:pointer&quot;>Cancel</button><button onclick=&quot;__overlay.closeModal(true)&quot; style=&quot;padding:8px 16px;border-radius:6px;border:none;background:#3b82f6;color:#fff;cursor:pointer&quot;>Confirm</button></div></div>';
+    }
+  })"
+    style="padding: 8px 16px; border-radius: 6px; border: 1px solid #94a3b8; background: #fff; cursor: pointer"
+  >
+    Open Modal
+  </button>
+
+  <button
+    onclick="__overlay.toast({ render(el) { el.textContent = 'Toast at ' + new Date().toLocaleTimeString(); el.style.cssText = 'padding:12px 16px'; } })"
+    style="padding: 8px 16px; border-radius: 6px; border: 1px solid #94a3b8; background: #fff; cursor: pointer"
+  >
+    Show Toast
+  </button>
+
+  <button
+    id="popover-anchor"
+    onclick="__overlay.popover({ anchor: this, render(el) { el.innerHTML = '<ul style=&quot;list-style:none;margin:0;padding:8px 0;min-width:140px&quot;><li style=&quot;padding:8px 16px;cursor:pointer&quot;>Edit</li><li style=&quot;padding:8px 16px;cursor:pointer&quot;>Duplicate</li><li style=&quot;padding:8px 16px;cursor:pointer;color:#ef4444&quot;>Delete</li></ul>'; } })"
+    style="padding: 8px 16px; border-radius: 6px; border: 1px solid #94a3b8; background: #fff; cursor: pointer"
+  >
+    Show Popover
+  </button>
+
+  <button
+    onclick="__overlay.dismissAll()"
+    style="padding: 8px 16px; border-radius: 6px; border: 1px solid #ef4444; color: #ef4444; background: #fff; cursor: pointer"
+  >
+    Dismiss All
+  </button>
+</div>
+
+<hr>
+<p>
+  Navigate to <a href="/html/">Home</a> or <a href="/html/about">About</a> to test
+  dismiss-on-navigate.
+</p>
+<p>
+  See also: <a href="/html/overlay-declarative">Declarative overlays</a> (zero JS,
+  commandfor/command).
+</p>

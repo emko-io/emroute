@@ -4,8 +4,8 @@
  * Page component — params come from URL, context carries file content.
  *
  * Default implementations follow the fallback table:
- * - renderHTML: html file → md via <mark-down> → <router-slot />
- * - renderMarkdown: md file → ```router-slot\n```
+ * - renderHTML: html file → md via <mark-down> → <router-slot /> (non-leaf only)
+ * - renderMarkdown: md file → ```router-slot\n``` (non-leaf only)
  * - getData: no-op (returns null)
  */
 
@@ -72,10 +72,11 @@ export class PageComponent<
     }
 
     if (files?.md) {
-      return `${style}<mark-down>${escapeHtml(files.md)}</mark-down>\n<router-slot></router-slot>`;
+      const slot = args.context?.isLeaf ? '' : '\n<router-slot></router-slot>';
+      return `${style}<mark-down>${escapeHtml(files.md)}</mark-down>${slot}`;
     }
 
-    return '<router-slot></router-slot>';
+    return args.context?.isLeaf ? '' : '<router-slot></router-slot>';
   }
 
   /**
@@ -101,7 +102,7 @@ export class PageComponent<
       return files.md;
     }
 
-    return '```router-slot\n```';
+    return args.context?.isLeaf ? '' : '```router-slot\n```';
   }
 
   /**

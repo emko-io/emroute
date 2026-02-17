@@ -1,6 +1,6 @@
 {
   "name": "@emkodev/emroute",
-  "version": "1.5.0",
+  "version": "1.5.0-beta.2",
   "description": "File-based router with triple rendering (SPA, SSR HTML, SSR Markdown). Zero dependencies.",
   "license": "BSD-3-Clause",
   "author": "emko.dev",
@@ -34,7 +34,8 @@
     "./server/cli": "./server/cli.deno.ts",
     "./server/deno": "./server/server.deno.ts",
     "./server/types": "./server/server.type.ts",
-    "./overlay": "./src/overlay/mod.ts"
+    "./overlay": "./src/overlay/mod.ts",
+    "./types/navigation-api": "./src/type/navigation-api.d.ts"
   },
   "publish": {
     "include": [
@@ -58,7 +59,11 @@
     "test:browser": "TEST_PORT=4100 deno test test/browser/*.test.ts --allow-net --allow-read --allow-write --allow-env --allow-run --allow-sys",
     "test:browser:watch": "TEST_PORT=4100 deno test test/browser/*.test.ts --allow-net --allow-read --allow-write --allow-env --allow-run --allow-sys --watch",
     "test:all": "deno test test/unit/*.test.ts & TEST_PORT=4100 deno test test/browser/*.test.ts --allow-net --allow-read --allow-write --allow-env --allow-run --allow-sys & wait",
-    "test:server": "TEST_PORT=4100 deno run --allow-net --allow-read --allow-write --allow-run --allow-env --allow-sys test/browser/start-server.ts",
+    "test:server": "TEST_PORT=4101 deno run --allow-net --allow-read --allow-write --allow-run --allow-env --allow-sys test/browser/start-server.ts",
+    "test:server:none": "TEST_PORT=4101 SPA_MODE=none deno run --allow-net --allow-read --allow-write --allow-run --allow-env --allow-sys test/browser/start-server.ts",
+    "test:server:leaf": "TEST_PORT=4102 SPA_MODE=leaf deno run --allow-net --allow-read --allow-write --allow-run --allow-env --allow-sys test/browser/start-server.ts",
+    "test:server:root": "TEST_PORT=4103 SPA_MODE=root deno run --allow-net --allow-read --allow-write --allow-run --allow-env --allow-sys test/browser/start-server.ts",
+    "test:server:only": "TEST_PORT=4104 SPA_MODE=only deno run --allow-net --allow-read --allow-write --allow-run --allow-env --allow-sys test/browser/start-server.ts",
     "check": "deno check src/index.ts",
     "fmt": "deno fmt",
     "lint": "deno lint",

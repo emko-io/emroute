@@ -1,19 +1,23 @@
 /**
  * Overlay Service Types
  *
- * Interfaces for the centralized overlay service supporting
- * modals, toasts, and popovers via native platform APIs.
+ * Programmatic API for overlays. For simple cases, use declarative HTML
+ * attributes (commandfor/command + popover/dialog) — zero JS required.
+ * This service provides the imperative path for dynamic content,
+ * programmatic triggers, and complex workflows. dismissAll() is
+ * DOM-aware and closes both programmatic and declarative overlays.
  */
 
 export interface OverlayService {
   modal<T = undefined>(options: ModalOptions<T>): Promise<T | undefined>;
   closeModal<T>(value?: T): void;
 
-  toast(options: ToastOptions): { dismiss(): void };
-
   popover(options: PopoverOptions): void;
   closePopover(): void;
 
+  toast(options: ToastOptions): { dismiss(): void };
+
+  /** Close all open overlays — programmatic and declarative — and toasts. */
   dismissAll(): void;
 }
 
@@ -22,13 +26,13 @@ export interface ModalOptions<T = undefined> {
   onClose?(): void;
 }
 
-export interface ToastOptions {
-  render(el: HTMLDivElement): void;
-  /** Auto-dismiss timeout in ms. Default 5000. Set to 0 to disable. */
-  timeout?: number;
-}
-
 export interface PopoverOptions {
   anchor: HTMLElement;
   render(el: HTMLDivElement): void;
+}
+
+export interface ToastOptions {
+  render(el: HTMLDivElement): void;
+  /** Auto-dismiss timeout in ms. Default 0 (manual dismiss only). Set to a positive ms value for auto-dismiss via CSS animation. */
+  timeout?: number;
 }

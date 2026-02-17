@@ -23,7 +23,7 @@ class RecentArticleWidget extends WidgetComponent<Record<string, unknown>, Recen
     if (!data) return '<p>Loading recent articles...</p>';
     const items = data.articles.map((a) =>
       `<li style="margin-bottom:0.5rem">
-        <a href="/articles/${a.slug}" style="color:#0f172a;text-decoration:none;font-weight:500">${a.title}</a>
+        <a href="/html/articles/${a.slug}" style="color:#0f172a;text-decoration:none;font-weight:500">${a.title}</a>
         <br><small style="color:#94a3b8">${a.date}</small>
       </li>`
     ).join('\n');
@@ -35,7 +35,7 @@ class RecentArticleWidget extends WidgetComponent<Record<string, unknown>, Recen
   ): string {
     if (!data) return '';
     return data.articles
-      .map((a, i) => `${i + 1}. [${a.title}](/articles/${a.slug}) — ${a.date}`)
+      .map((a, i) => `${i + 1}. [${a.title}](/html/articles/${a.slug}) — ${a.date}`)
       .join('\n');
   }
 }

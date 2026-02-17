@@ -44,7 +44,7 @@ class ArticleCardWidget extends WidgetComponent<
     ]
       .filter(Boolean)
       .join(' &middot; ');
-    return `<a href="/articles/${
+    return `<a href="/html/articles/${
       escapeHtml(
         data.slug,
       )
@@ -68,7 +68,7 @@ class ArticleCardWidget extends WidgetComponent<
     ]
       .filter(Boolean)
       .join(' | ');
-    return `**[${data.title}](/articles/${data.slug})**: ${data.summary}${
+    return `**[${data.title}](/html/articles/${data.slug})**: ${data.summary}${
       meta ? ` (${meta})` : ''
     }`;
   }

@@ -89,6 +89,10 @@ class ArticlesPage extends PageComponent<Record<string, string>, ArticlesData> {
       context?: ComponentContext;
     },
   ) {
+    if (!context?.isLeaf) {
+      return '<router-slot></router-slot>';
+    }
+
     const template = context?.files?.html ?? '<h1>Articles</h1>';
     if (!data) return template;
 
@@ -110,7 +114,7 @@ class ArticlesPage extends PageComponent<Record<string, string>, ArticlesData> {
   override renderMarkdown({ data }: { data: ArticlesData | null; params: Record<string, string> }) {
     if (!data) return '# Articles';
     const list = data.articles
-      .map((a) => `- [${a.title}](/articles/${a.slug}) by ${a.author} (${a.readTime} min)`)
+      .map((a) => `- [${a.title}](/html/articles/${a.slug}) by ${a.author} (${a.readTime} min)`)
       .join('\n');
     return `# Articles\n\n${data.articles.length} articles published.\n\n${list}`;
   }

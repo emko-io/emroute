@@ -4,7 +4,7 @@
 
 One set of routes, three ways to consume them:
 
-1. **SPA** (`/`) — browser renders into a live DOM, with client-side navigation, history API, hydrated widgets
+1. **SPA** (`/`) — browser renders into a live DOM, with client-side navigation via Navigation API, hydrated widgets in Shadow DOM
 2. **SSR HTML** (`/html/*`) — server renders routes to HTML, expanding markdown server-side, with widgets hydrating as islands
 3. **SSR Markdown** (`/md/*`) — server renders routes to plain markdown, readable by LLMs, curl, text clients
 
@@ -91,7 +91,7 @@ Routes nest by filesystem path. Navigating to `/projects/123/tasks` builds a hie
 
 Each level renders its content, and the next level's output replaces the `<router-slot>` in the previous level. This works differently per renderer:
 
-- **SPA**: DOM injection — set `innerHTML` on the slot element, recurse
+- **SPA**: DOM injection — set content on the slot element via `setHTMLUnsafe()`, recurse
 - **SSR HTML**: string replacement — replace `<router-slot></router-slot>` in the parent string
 - **SSR Markdown**: string replacement — replace `` ```router-slot\n``` `` fenced block in the parent string
 
@@ -116,10 +116,13 @@ The router loads file content before calling the component. The component receiv
 interface ComponentContext extends RouteInfo {
   readonly files?: Readonly<{ html?: string; md?: string; css?: string }>;
   readonly signal?: AbortSignal;
+  readonly isLeaf?: boolean;
 }
 ```
 
 The component never fetches its own files. The router does that once, passes the context, and the component decides how to use it. This keeps components pure and testable.
+
+`isLeaf` tells the component whether it is the matched (leaf) route or a layout parent rendering on behalf of a child. A page that serves as both a content page and a layout can use this to skip expensive data fetching and render a bare `<router-slot>` when it's just passing through. See [Nested Routes — Leaf vs Layout](nesting.md#leaf-vs-layout-contextisleaf) for the full pattern.
 
 ### Extending ComponentContext
 
@@ -206,11 +209,11 @@ Widgets can declare companion files (`.html`, `.md`, `.css`) via a `files` prope
 
 ## No Framework
 
-- No virtual DOM. `innerHTML` for the SPA, string concatenation for SSR.
+- No virtual DOM. `setHTMLUnsafe()` for the SPA, string concatenation for SSR.
 - No build-time JSX transform. Templates are template literals.
 - No client-side state management. URL is the state.
 - No hydration mismatch problem. SPA detects SSR content via `data-ssr-route` and adopts it.
-- Light DOM custom elements for widgets. No Shadow DOM — global styles cascade naturally.
+- Shadow DOM custom elements for widgets. Declarative Shadow DOM for SSR, real Shadow DOM in the browser.
 
 The router is ~500 lines across three renderers sharing a core. Pages are classes with two render methods. That's the whole framework.
 

@@ -16,6 +16,7 @@ This guide helps you migrate from emroute 1.4.x to 1.5.0, which introduces a uni
 **Impact:** Widgets that query their own rendered content
 
 **Before (1.4.x):**
+
 ```typescript
 class MyWidget extends WidgetComponent {
   override hydrate(): void {
@@ -27,6 +28,7 @@ class MyWidget extends WidgetComponent {
 ```
 
 **After (1.5.0):**
+
 ```typescript
 class MyWidget extends WidgetComponent {
   override hydrate(): void {
@@ -38,12 +40,14 @@ class MyWidget extends WidgetComponent {
 ```
 
 **How to find:**
+
 ```bash
 # Search your codebase for patterns that need updating
 grep -r "this\.element\.querySelector" --include="*.widget.ts"
 ```
 
 **Quick fix:**
+
 - Replace `this.element.querySelector(` with `this.element.shadowRoot?.querySelector(`
 - Replace `this.element.querySelectorAll(` with `this.element.shadowRoot?.querySelectorAll(`
 
@@ -52,6 +56,7 @@ grep -r "this\.element\.querySelector" --include="*.widget.ts"
 **Impact:** Projects using `PageTitleWidget` or `BreadcrumbWidget`
 
 **Before (1.4.x):**
+
 ```typescript
 // Built-in widgets auto-registered
 import { createSpaHtmlRouter } from '@emkodev/emroute/spa';
@@ -59,13 +64,14 @@ const router = await createSpaHtmlRouter(manifest);
 ```
 
 **After (1.5.0):**
+
 ```typescript
 // Explicitly register built-in widgets
 import {
+  BreadcrumbWidget,
+  ComponentElement,
   createSpaHtmlRouter,
   PageTitleWidget,
-  BreadcrumbWidget,
-  ComponentElement
 } from '@emkodev/emroute/spa';
 
 // Register only what you need
@@ -76,6 +82,7 @@ const router = await createSpaHtmlRouter(manifest);
 ```
 
 **When to update:**
+
 - Check if you have `<widget-page-title>` or `<widget-breadcrumb>` in your routes
 - If yes, add explicit registration
 - If no, no action needed (saves ~5KB in bundle)
@@ -85,12 +92,14 @@ const router = await createSpaHtmlRouter(manifest);
 **Impact:** Code that directly accesses widget's `innerHTML` property
 
 **Before (1.4.x):**
+
 ```typescript
 const widget = document.querySelector('widget-foo');
 console.log(widget.innerHTML); // Widget's rendered content
 ```
 
 **After (1.5.0):**
+
 ```typescript
 const widget = document.querySelector('widget-foo');
 console.log(widget.shadowRoot?.innerHTML); // Content in Shadow DOM
@@ -107,7 +116,7 @@ Widgets now render correctly in flex and grid layouts. If you added CSS workarou
 /* Before: Workaround for collapsed widgets */
 widget-stat-card {
   min-width: 200px; /* No longer needed */
-  display: block;   /* No longer needed */
+  display: block; /* No longer needed */
 }
 
 /* After: Works without workarounds */
@@ -117,20 +126,24 @@ widget-stat-card {
 ## Benefits of 1.5.0
 
 ### ✅ Web Components Spec Compliance
+
 - Uses standard `shadowRoot` property
 - Works with browser DevTools
 - True CSS encapsulation
 
 ### ✅ Consistent Architecture
+
 - Same code path for SSR and SPA
 - No Light DOM vs Shadow DOM conditionals
 - Simpler, more maintainable
 
 ### ✅ Better Performance
+
 - Smaller default bundle (~5KB saved with opt-in widgets)
 - Browser-native Shadow DOM (no polyfills)
 
 ### ✅ Progressive Enhancement
+
 - SSR mode extracts Shadow content as Light DOM
 - Works without JavaScript in `mode=none`
 
@@ -150,6 +163,7 @@ grep -rn "this\.element\.querySelector" src/widgets/
 ### 2. Test Interactive Widgets
 
 Run your test suite focusing on:
+
 - Widget hydration
 - Event handlers
 - DOM manipulation in widgets
@@ -161,6 +175,7 @@ deno task test:browser
 ### 3. Visual Regression Test
 
 Check that your UI renders correctly:
+
 1. Start dev server: `deno task dev`
 2. Navigate to pages with widgets
 3. Verify widgets display and function correctly
@@ -168,6 +183,7 @@ Check that your UI renders correctly:
 ### 4. Check Built-in Widgets
 
 If you see errors about missing widgets:
+
 ```
 Error: <widget-page-title> is not defined
 ```
@@ -200,6 +216,7 @@ If you encounter issues:
 Here's a complete before/after for a typical interactive widget:
 
 ### Before (1.4.x)
+
 ```typescript
 class CounterWidget extends WidgetComponent<{ start?: string }, { count: number }> {
   override async getData({ params }) {
@@ -238,6 +255,7 @@ class CounterWidget extends WidgetComponent<{ start?: string }, { count: number 
 ```
 
 ### After (1.5.0)
+
 ```typescript
 class CounterWidget extends WidgetComponent<{ start?: string }, { count: number }> {
   override async getData({ params }) {

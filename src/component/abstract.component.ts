@@ -32,6 +32,8 @@ export interface ComponentContext extends RouteInfo {
   readonly signal?: AbortSignal;
   /** True when this component is the leaf (matched) route, false when rendered as a layout parent. */
   readonly isLeaf?: boolean;
+  /** Base path for SSR HTML links (e.g. '/html'). */
+  readonly basePath?: string;
 }
 
 /**
@@ -158,20 +160,18 @@ export abstract class Component<
   }
 
   /**
-   * Hydration hook called after SSR content is adopted.
+   * Hydration hook called after SSR content is adopted or after SPA rendering.
    * Use to attach event listeners to existing DOM without re-rendering.
-   * Only called when adopting SSR content (has data-ssr attribute).
-   * Not called during fresh client-side renders.
    *
    * @example
    * ```ts
-   * override hydrate() {
+   * override hydrate({ data, params, context }: this['RenderArgs']) {
    *   const button = this.element?.querySelector('button');
-   *   button?.addEventListener('click', () => this.handleClick());
+   *   button?.addEventListener('click', () => this.deleteItem(data.id));
    * }
    * ```
    */
-  hydrate?(): void;
+  hydrate?(args: this['RenderArgs']): void;
 
   /**
    * Cleanup hook called when the component is removed from the DOM.

@@ -61,7 +61,7 @@ Deno.test(
 );
 
 // ---------------------------------------------------------------------------
-// Mode: 'leaf' — root redirects to /html/, other paths serve SPA shell
+// Mode: 'leaf' — no router, redirects bare paths to /html/ (like 'none' but with JS bundles)
 // ---------------------------------------------------------------------------
 
 Deno.test(
@@ -76,21 +76,13 @@ Deno.test(
       assert(location?.endsWith('/html/'), `expected redirect to /html/, got ${location}`);
     });
 
-    await t.step('GET /about serves SPA shell (no redirect)', async () => {
-      const res = await fetch(baseUrl('/about'));
-      assertEquals(res.status, 200);
-      const html = await res.text();
-      assert(html.includes('<router-slot'), 'SPA shell should contain <router-slot>');
-      assert(html.includes('<script'), 'SPA shell should contain script tag');
-      assertEquals(res.headers.get('content-type'), 'text/html; charset=utf-8');
-    });
-
-    await t.step('SPA shell includes SSR hint comment', async () => {
-      const res = await fetch(baseUrl('/about'));
-      const html = await res.text();
+    await t.step('GET /about redirects to /html/about', async () => {
+      const res = await fetch(baseUrl('/about'), { redirect: 'manual' });
+      assertEquals(res.status, 302);
+      const location = res.headers.get('location');
       assert(
-        html.includes('Single Page Application'),
-        'SPA shell should include SSR hint for LLMs',
+        location?.endsWith('/html/about'),
+        `expected redirect to /html/about, got ${location}`,
       );
     });
 
@@ -115,7 +107,7 @@ Deno.test(
 );
 
 // ---------------------------------------------------------------------------
-// Mode: 'root' (default) — all non-file requests serve SPA shell
+// Mode: 'root' (default) — bare paths redirect to /html/*, SSR + SPA adoption
 // ---------------------------------------------------------------------------
 
 Deno.test(
@@ -123,27 +115,20 @@ Deno.test(
   async (t) => {
     await startServer({ spa: 'root' });
 
-    await t.step('GET / serves SPA shell', async () => {
-      const res = await fetch(baseUrl('/'));
-      assertEquals(res.status, 200);
-      const html = await res.text();
-      assert(html.includes('<router-slot'), 'SPA shell should contain <router-slot>');
-      assert(html.includes('<script'), 'SPA shell should contain script tag');
+    await t.step('GET / redirects to /html/', async () => {
+      const res = await fetch(baseUrl('/'), { redirect: 'manual' });
+      assertEquals(res.status, 302);
+      const location = res.headers.get('location');
+      assert(location?.endsWith('/html/'), `expected redirect to /html/, got ${location}`);
     });
 
-    await t.step('GET /about serves SPA shell (no redirect)', async () => {
-      const res = await fetch(baseUrl('/about'));
-      assertEquals(res.status, 200);
-      const html = await res.text();
-      assert(html.includes('<router-slot'), 'SPA shell should contain <router-slot>');
-    });
-
-    await t.step('SPA shell includes SSR hint', async () => {
-      const res = await fetch(baseUrl('/about'));
-      const html = await res.text();
+    await t.step('GET /about redirects to /html/about', async () => {
+      const res = await fetch(baseUrl('/about'), { redirect: 'manual' });
+      assertEquals(res.status, 302);
+      const location = res.headers.get('location');
       assert(
-        html.includes('Single Page Application'),
-        'SPA shell should include SSR hint',
+        location?.endsWith('/html/about'),
+        `expected redirect to /html/about, got ${location}`,
       );
     });
 
@@ -168,7 +153,7 @@ Deno.test(
 );
 
 // ---------------------------------------------------------------------------
-// Mode: 'only' — SPA shell for all non-file requests, no SSR handlers
+// Mode: 'only' — bare paths redirect to /html/*, no SSR handlers
 // ---------------------------------------------------------------------------
 
 Deno.test(
@@ -176,36 +161,28 @@ Deno.test(
   async (t) => {
     await startServer({ spa: 'only' });
 
-    await t.step('GET / serves SPA shell', async () => {
-      const res = await fetch(baseUrl('/'));
-      assertEquals(res.status, 200);
-      const html = await res.text();
-      assert(html.includes('<router-slot'), 'SPA shell should contain <router-slot>');
+    await t.step('GET / redirects to /html/', async () => {
+      const res = await fetch(baseUrl('/'), { redirect: 'manual' });
+      assertEquals(res.status, 302);
+      const location = res.headers.get('location');
+      assert(location?.endsWith('/html/'), `expected redirect to /html/, got ${location}`);
     });
 
-    await t.step('GET /about serves SPA shell', async () => {
-      const res = await fetch(baseUrl('/about'));
-      assertEquals(res.status, 200);
-      const html = await res.text();
-      assert(html.includes('<router-slot'), 'SPA shell should contain <router-slot>');
-    });
-
-    await t.step('SPA shell does NOT include SSR hint', async () => {
-      const res = await fetch(baseUrl('/about'));
-      const html = await res.text();
-      assertEquals(
-        html.includes('Single Page Application'),
-        false,
-        'only mode should not include SSR hint (no SSR endpoints exist)',
+    await t.step('GET /about redirects to /html/about', async () => {
+      const res = await fetch(baseUrl('/about'), { redirect: 'manual' });
+      assertEquals(res.status, 302);
+      const location = res.headers.get('location');
+      assert(
+        location?.endsWith('/html/about'),
+        `expected redirect to /html/about, got ${location}`,
       );
     });
 
-    await t.step('GET /html/about does NOT serve SSR HTML', async () => {
+    await t.step('GET /html/about serves SPA shell (no SSR)', async () => {
       const res = await fetch(baseUrl('/html/about'));
-      // /html/about is a "file-like" path (has no extension, but starts with /html/)
-      // Actually /html/about has no extension, so isFileRequest returns false,
-      // and since spa='only' skips the SSR handler, it falls through to SPA shell
+      assertEquals(res.status, 200);
       const html = await res.text();
+      assert(html.includes('<router-slot'), 'SPA shell should contain <router-slot>');
       // Should NOT contain SSR-rendered content with data-ssr-route
       assertEquals(
         html.includes('data-ssr-route'),
@@ -214,9 +191,8 @@ Deno.test(
       );
     });
 
-    await t.step('GET /md/about does NOT serve SSR Markdown', async () => {
+    await t.step('GET /md/about serves SPA shell (no SSR Markdown)', async () => {
       const res = await fetch(baseUrl('/md/about'));
-      // Same as above — /md/about has no extension, falls through to SPA shell
       const contentType = res.headers.get('content-type');
       assert(
         contentType?.includes('text/html'),

@@ -12,6 +12,8 @@
  *   ROUTES_DIR   - Routes directory (default: ./routes)
  *   WIDGETS_DIR  - Widgets directory (default: ./widgets)
  *   SPA_MODE     - SPA mode: none|leaf|root|only (default: root)
+ *   HTML_BASE    - Base path for SSR HTML (default: /html)
+ *   MD_BASE      - Base path for SSR Markdown (default: /md)
  */
 
 import { createDevServer } from './dev.server.ts';
@@ -24,6 +26,11 @@ const SPA_ROOT = Deno.env.get('SPA_ROOT') || 'index.html';
 const ROUTES_DIR = Deno.env.get('ROUTES_DIR') || './routes';
 const WIDGETS_DIR = Deno.env.get('WIDGETS_DIR') || './widgets';
 const SPA_MODE = (Deno.env.get('SPA_MODE') || 'root') as SpaMode;
+const HTML_BASE = Deno.env.get('HTML_BASE');
+const MD_BASE = Deno.env.get('MD_BASE');
+const basePath = (HTML_BASE || MD_BASE)
+  ? { html: HTML_BASE || '/html', md: MD_BASE || '/md' }
+  : undefined;
 
 // Check if routes directory exists
 const routesStat = await denoServerRuntime.stat(ROUTES_DIR);
@@ -47,6 +54,7 @@ await createDevServer(
     spaRoot: SPA_ROOT,
     appRoot: '.',
     spa: SPA_MODE,
+    basePath,
   },
   denoServerRuntime,
 );

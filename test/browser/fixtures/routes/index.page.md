@@ -9,4 +9,4 @@
 
 File-based routing with triple rendering — SPA, SSR HTML, and SSR Markdown.
 
-[About](/about) | [External](https://example.com)
+[About](/html/about) | [External](https://example.com)

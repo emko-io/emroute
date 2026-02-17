@@ -10,11 +10,10 @@ export const LAZY_ATTR = 'lazy';
 
 /**
  * SSR-compatible ShadowRoot mock.
- * Mimics browser ShadowRoot API for server-side rendering.
+ * Provides a 1-to-1 subset of the browser ShadowRoot API for server-side rendering.
  */
 class SsrShadowRoot {
   private _innerHTML = '';
-  private _children: Node[] = [];
 
   constructor(public readonly host: SsrHTMLElement) {}
 
@@ -26,34 +25,51 @@ class SsrShadowRoot {
     this._innerHTML = value;
   }
 
+  setHTMLUnsafe(html: string, _options?: Record<string, unknown>): void {
+    this._innerHTML = html;
+  }
+
+  append(..._nodes: (Node | string)[]): void {
+    // On the server, append is a no-op — SSR content is already serialized via innerHTML.
+  }
+
   querySelector(_selector: string): Element | null {
-    // Mock implementation - could parse innerHTML if needed
     return null;
   }
 
-  querySelectorAll(_selector: string): NodeListOf<Element> {
-    return [] as unknown as NodeListOf<Element>;
+  querySelectorAll(_selector: string): Element[] {
+    return [];
   }
 
-  appendChild(node: Node): Node {
-    this._children.push(node);
-    return node;
+  get childNodes(): Node[] {
+    return [];
   }
 
   get firstChild(): Node | null {
-    return this._children[0] ?? null;
+    return null;
   }
 }
 
 /**
  * SSR-compatible HTMLElement mock.
- * Mimics browser HTMLElement API for server-side rendering.
+ * Provides a 1-to-1 subset of the browser HTMLElement API for server-side rendering.
+ * Methods that require DOM parsing (querySelector, childNodes) return empty results —
+ * SSR code should use innerHTML for content, not DOM traversal.
  */
 class SsrHTMLElement {
   private _innerHTML = '';
   private _shadowRoot: SsrShadowRoot | null = null;
   private _attributes = new Map<string, string>();
-  private _style: Partial<CSSStyleDeclaration> = {};
+  // Accept any CSS property assignment without error
+  readonly style = new Proxy({} as CSSStyleDeclaration, {
+    set(_target, _prop, _value) {
+      return true;
+    },
+    get(_target, prop) {
+      if (typeof prop === 'string') return '';
+      return undefined;
+    },
+  });
 
   get innerHTML(): string {
     return this._innerHTML;
@@ -67,8 +83,12 @@ class SsrHTMLElement {
     return this._shadowRoot as unknown as ShadowRoot;
   }
 
-  get style(): CSSStyleDeclaration {
-    return this._style as CSSStyleDeclaration;
+  get childNodes(): Node[] {
+    return [];
+  }
+
+  get firstChild(): Node | null {
+    return null;
   }
 
   get attributes(): NamedNodeMap {
@@ -77,10 +97,6 @@ class SsrHTMLElement {
       attrs.push({ name, value } as Attr);
     }
     return attrs as unknown as NamedNodeMap;
-  }
-
-  get firstChild(): Node | null {
-    return null;
   }
 
   attachShadow(_init: ShadowRootInit): ShadowRoot {
@@ -108,8 +124,12 @@ class SsrHTMLElement {
     return null;
   }
 
-  querySelectorAll(_selector: string): NodeListOf<Element> {
-    return [] as unknown as NodeListOf<Element>;
+  querySelectorAll(_selector: string): Element[] {
+    return [];
+  }
+
+  append(..._nodes: (Node | string)[]): void {
+    // No-op on server — use innerHTML for content
   }
 
   appendChild(node: Node): Node {

@@ -623,7 +623,7 @@ Deno.test('OverlayService - multiple toasts stack correctly', () => {
   teardownMocks();
 });
 
-Deno.test('OverlayService - toast dismiss method removes toast', async () => {
+Deno.test('OverlayService - toast dismiss sets data-dismissing', () => {
   setupMocks();
   const service = createOverlayService();
 
@@ -637,22 +637,14 @@ Deno.test('OverlayService - toast dismiss method removes toast', async () => {
   const container = mockDoc.querySelector('[data-overlay-toast-container]');
   assertEquals(container!.children.length, 1);
 
+  const toast = container!.children[0];
+  assert(!toast.hasAttribute('data-dismissing'), 'Should not be dismissing initially');
+
   dismiss();
 
-  // Simulate animation completion or safety timeout
-  const toast = mockDoc.querySelector('[data-overlay-toast]');
-  if (toast) {
-    const handlers = (toast as any).eventListeners?.get('transitionend');
-    if (handlers) {
-      for (const handler of handlers) {
-        handler();
-      }
-    }
-  }
-
-  await new Promise((resolve) => setTimeout(resolve, 350));
-
-  assertEquals(container!.children.length, 0, 'Toast should be removed');
+  assert(toast.hasAttribute('data-dismissing'), 'Should have data-dismissing after dismiss');
+  // Element stays in DOM — CSS handles exit animation, cleared on next toast()
+  assertEquals(container!.children.length, 1);
 
   teardownMocks();
 });
@@ -846,7 +838,7 @@ Deno.test('OverlayService - dismissAll closes modal', async () => {
   teardownMocks();
 });
 
-Deno.test('OverlayService - dismissAll removes all toasts', () => {
+Deno.test('OverlayService - dismissAll marks all toasts as dismissing', () => {
   setupMocks();
   const service = createOverlayService();
 
@@ -869,7 +861,10 @@ Deno.test('OverlayService - dismissAll removes all toasts', () => {
 
   service.dismissAll();
 
-  assertEquals(container!.children.length, 0, 'All toasts should be removed');
+  // Toasts stay in DOM with data-dismissing — CSS handles exit
+  for (const child of container!.children) {
+    assert(child.hasAttribute('data-dismissing'), 'Toast should have data-dismissing');
+  }
 
   teardownMocks();
 });
@@ -1065,7 +1060,7 @@ Deno.test('OverlayService - modal render receives correct element', () => {
   teardownMocks();
 });
 
-Deno.test('OverlayService - multiple toasts can be dismissed independently', async () => {
+Deno.test('OverlayService - multiple toasts can be dismissed independently', () => {
   setupMocks();
   const service = createOverlayService();
 
@@ -1087,34 +1082,17 @@ Deno.test('OverlayService - multiple toasts can be dismissed independently', asy
   assertEquals(container.children.length, 2);
 
   dismiss1();
-
-  // Simulate animation completion
-  const toast1 = container.children[0];
-  const handlers1 = (toast1 as any).eventListeners?.get('transitionend');
-  if (handlers1) {
-    for (const handler of handlers1) {
-      handler();
-    }
-  }
-
-  assertEquals(container.children.length, 1, 'First toast should be removed');
+  assert(container.children[0].hasAttribute('data-dismissing'), 'First toast should be dismissing');
+  assert(
+    !container.children[1].hasAttribute('data-dismissing'),
+    'Second toast should not be dismissing',
+  );
 
   dismiss2();
-
-  // Simulate animation completion
-  if (container.children.length > 0) {
-    const toast2 = container.children[0];
-    const handlers2 = (toast2 as any).eventListeners?.get('transitionend');
-    if (handlers2) {
-      for (const handler of handlers2) {
-        handler();
-      }
-    }
-  }
-
-  await new Promise((resolve) => setTimeout(resolve, 350));
-
-  assertEquals(container.children.length, 0, 'Second toast should be removed');
+  assert(
+    container.children[1].hasAttribute('data-dismissing'),
+    'Second toast should be dismissing',
+  );
 
   teardownMocks();
 });

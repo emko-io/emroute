@@ -29,7 +29,7 @@ The APIs used:
 - **History API** for navigation
 - **AbortController/AbortSignal** for request cancellation
 - **`fetch()`** for data loading (in components, not the router itself)
-- **`innerHTML`** for SPA rendering, string concatenation for SSR
+- **`setHTMLUnsafe`** for SPA rendering (parses Declarative Shadow DOM), string concatenation for SSR
 - **Template literals** for HTML generation (no JSX, no virtual DOM)
 
 The markdown renderer is the one pluggable dependency -- the app provides its own
@@ -53,7 +53,7 @@ markdown.
   `reload()`, set innerHTML).
 - **Custom Elements require class-based syntax** (no functional components, no hooks).
 - **URLPattern needs a polyfill** in Node.js.
-- **innerHTML has XSS risk** if not escaped (mitigated by escapeHtml utility).
+- **setHTMLUnsafe has XSS risk** if not escaped (mitigated by escapeHtml utility; accepts optional SanitizerConfig when it reaches Baseline).
 
 ### Neutral
 

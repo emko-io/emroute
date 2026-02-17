@@ -187,7 +187,7 @@ class CounterHtmWidget extends WidgetComponent<{ start?: string }, CounterData> 
         );
       });
     }
-    return `${STYLES}<div class="c-counter-htm" data-island="counter-htm" data-start="${initial}"></div>`;
+    return `${STYLES}<div class="c-counter-htm" data-island="counter-htm" data-start="${initial}"></div><noscript><div class="no-js-fallback"><h3>⚠️ JavaScript Required</h3><p>This Preact counter widget requires JavaScript to function.</p><p>Initial count: <strong>${initial}</strong></p></div></noscript>`;
   }
 
   override renderMarkdown({

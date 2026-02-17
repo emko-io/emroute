@@ -20,21 +20,43 @@ import type {
 import type { ComponentContext, ContextProvider } from '../component/abstract.component.ts';
 import { RouteMatcher, toUrl } from './route.matcher.ts';
 
-/** SSR prefix for HTML rendering (e.g. /html/about → /about) */
-export const SSR_HTML_PREFIX = '/html/';
+/** Base paths for the two SSR rendering endpoints. */
+export interface BasePath {
+  /** Base path for SSR HTML rendering (default: '/html') */
+  html: string;
+  /** Base path for SSR Markdown rendering (default: '/md') */
+  md: string;
+}
 
-/** SSR prefix for Markdown rendering (e.g. /md/about → /about) */
-export const SSR_MD_PREFIX = '/md/';
+/** Default base paths — backward compatible with existing /html/ and /md/ prefixes. */
+export const DEFAULT_BASE_PATH: BasePath = { html: '/html', md: '/md' };
 
-/** Strip /html/ or /md/ prefix from a pathname, returning the bare route path. */
-export function stripSsrPrefix(pathname: string): string {
-  if (pathname.startsWith(SSR_HTML_PREFIX)) {
-    return '/' + pathname.slice(SSR_HTML_PREFIX.length);
-  }
-  if (pathname.startsWith(SSR_MD_PREFIX)) {
-    return '/' + pathname.slice(SSR_MD_PREFIX.length);
-  }
-  return pathname;
+/**
+ * Create a copy of a manifest with basePath prepended to all patterns.
+ * Used by the server to prefix bare in-memory manifests before passing to routers.
+ */
+export function prefixManifest(manifest: RoutesManifest, basePath: string): RoutesManifest {
+  if (!basePath) return manifest;
+  return {
+    routes: manifest.routes.map((r) => ({
+      ...r,
+      // Root pattern '/' becomes basePath itself (e.g. '/html'), not '/html/'
+      pattern: r.pattern === '/' ? basePath : basePath + r.pattern,
+      parent: r.parent ? (r.parent === '/' ? basePath : basePath + r.parent) : undefined,
+    })),
+    errorBoundaries: manifest.errorBoundaries.map((e) => ({
+      ...e,
+      pattern: e.pattern === '/' ? basePath : basePath + e.pattern,
+    })),
+    statusPages: new Map(
+      [...manifest.statusPages].map(([status, route]) => [
+        status,
+        { ...route, pattern: basePath + route.pattern },
+      ]),
+    ),
+    errorHandler: manifest.errorHandler,
+    moduleLoaders: manifest.moduleLoaders,
+  };
 }
 
 const BLOCKED_PROTOCOLS = /^(javascript|data|vbscript):/i;
@@ -59,6 +81,8 @@ export interface RouteCoreOptions {
   baseUrl?: string;
   /** Enriches every ComponentContext with app-level services before it reaches components. */
   extendContext?: ContextProvider;
+  /** Base path prepended to route patterns for URL matching (e.g. '/html'). No trailing slash. */
+  basePath?: string;
 }
 
 /**
@@ -68,6 +92,12 @@ export class RouteCore {
   readonly matcher: RouteMatcher;
   /** Registered context provider (if any). Exposed so renderers can apply it to inline contexts. */
   readonly contextProvider: ContextProvider | undefined;
+  /** Base path for URL matching (e.g. '/html'). Empty string when no basePath. */
+  readonly basePath: string;
+  /** The root pattern — basePath when set, '/' otherwise. */
+  get root(): string {
+    return this.basePath || '/';
+  }
   private listeners: Set<RouterEventListener> = new Set();
   private moduleCache: Map<string, unknown> = new Map();
   private widgetFileCache: Map<string, string> = new Map();
@@ -76,6 +106,7 @@ export class RouteCore {
   private baseUrl: string;
 
   constructor(manifest: RoutesManifest, options: RouteCoreOptions = {}) {
+    this.basePath = options.basePath ?? '';
     this.matcher = new RouteMatcher(manifest);
     this.baseUrl = options.baseUrl ?? '';
     this.contextProvider = options.extendContext;
@@ -112,33 +143,47 @@ export class RouteCore {
 
   /**
    * Match a URL to a route.
-   * Falls back to the default root route for '/'.
+   * Falls back to the default root route for the basePath root (or '/' when no basePath).
    */
   match(url: URL | string): MatchedRoute | undefined {
     const matched = this.matcher.match(url);
     if (matched) return matched;
 
     const urlObj = toUrl(url);
-    if (urlObj.pathname === '/') {
-      return { route: DEFAULT_ROOT_ROUTE, params: {}, searchParams: urlObj.searchParams };
+    if (urlObj.pathname === this.root || urlObj.pathname === this.root + '/') {
+      return {
+        route: { ...DEFAULT_ROOT_ROUTE, pattern: this.root },
+        params: {},
+        searchParams: urlObj.searchParams,
+      };
     }
 
     return undefined;
   }
 
   /**
-   * Build route hierarchy from a pathname.
-   * e.g., '/projects/1/tasks' -> ['/', '/projects', '/projects/:id', '/projects/:id/tasks']
+   * Build route hierarchy from a pattern.
+   *
+   * When basePath is set, the root is the basePath itself and only
+   * segments after it are split into ancestors.
+   *
+   * e.g., basePath='/html', pattern='/html/projects/:id/tasks'
+   *   → ['/html', '/html/projects', '/html/projects/:id', '/html/projects/:id/tasks']
+   *
+   * Without basePath: '/projects/:id/tasks'
+   *   → ['/', '/projects', '/projects/:id', '/projects/:id/tasks']
    */
-  buildRouteHierarchy(pathname: string): string[] {
-    if (pathname === '/') {
-      return ['/'];
+  buildRouteHierarchy(pattern: string): string[] {
+    if (pattern === this.root || pattern === this.root + '/') {
+      return [this.root];
     }
 
-    const hierarchy: string[] = ['/'];
-    const segments = pathname.split('/').filter(Boolean);
+    // Extract the part after basePath
+    const tail = this.basePath ? pattern.slice(this.basePath.length) : pattern;
+    const segments = tail.split('/').filter(Boolean);
 
-    let current = '';
+    const hierarchy: string[] = [this.root];
+    let current = this.basePath || '';
     for (const segment of segments) {
       current += '/' + segment;
       hierarchy.push(current);
@@ -148,7 +193,7 @@ export class RouteCore {
   }
 
   /**
-   * Normalize URL by removing trailing slashes (except root).
+   * Normalize URL by removing trailing slashes (except bare '/').
    */
   normalizeUrl(url: string): string {
     if (url.length > 1 && url.endsWith('/')) {
@@ -270,7 +315,13 @@ export class RouteCore {
       rf?.css ? fetchFile(rf.css) : undefined,
     ]);
 
-    const base: ComponentContext = { ...routeInfo, files: { html, md, css }, signal, isLeaf };
+    const base: ComponentContext = {
+      ...routeInfo,
+      files: { html, md, css },
+      signal,
+      isLeaf,
+      basePath: this.basePath || undefined,
+    };
     return this.contextProvider ? this.contextProvider(base) : base;
   }
 }

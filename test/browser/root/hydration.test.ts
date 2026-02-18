@@ -341,18 +341,21 @@ Deno.test(
       await page.goto(baseUrl('/html/projects/42/tasks'));
       await page.waitForSelector('h1', { timeout: 5000 });
 
-      // Count router-slot nesting depth
-      const depth = await page.evaluate(() => {
-        let count = 0;
-        let el = document.querySelector('router-slot');
-        while (el) {
-          count++;
-          el = el.querySelector('router-slot');
-        }
-        return count;
+      // SSR flattens router-slots (replaces with child content), so verify
+      // the full hierarchy is composed correctly: root layout + project + tasks
+      const result = await page.evaluate(() => {
+        const slot = document.querySelector('router-slot');
+        const html = slot?.innerHTML ?? '';
+        return {
+          hasShellSlot: slot !== null,
+          hasProjectContent: html.includes('Project 42'),
+          hasTaskContent: html.includes('Task A for 42'),
+        };
       });
 
-      assert(depth >= 2, 'deeply nested route should preserve slot hierarchy');
+      assert(result.hasShellSlot, 'shell router-slot should exist');
+      assert(result.hasProjectContent, 'project layout content should be present');
+      assert(result.hasTaskContent, 'nested task content should be composed');
     });
 
     // ── No Double Rendering ───────────────────────────────────────────

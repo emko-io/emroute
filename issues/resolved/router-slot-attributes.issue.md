@@ -61,3 +61,22 @@ conversion (SPA).
   passed to child components) or be ignored
 - Remove the literal `ROUTER_SLOT_BLOCK` string match in favour of proper
   parsing
+
+## Resolution
+
+**Won't fix — by design.**
+
+The SSR HTML renderer intentionally replaces `<router-slot>` with child content
+(flattening). User attributes on `<router-slot>` in page templates are not
+preserved because `<router-slot>` is an infrastructure element, not a semantic
+container. Users who need attributes (classes, ids, styling) on a route container
+should wrap their content in a standard HTML element (`<main>`, `<section>`,
+`<div>`, etc.).
+
+The SSR markdown literal `ROUTER_SLOT_BLOCK` match for JSON bodies remains a
+known limitation. It will be addressed when emko-md exposes AST/transformation
+APIs — tracked separately, not as part of this issue.
+
+The root `<router-slot>` in the HTML shell is a valid custom element per spec
+(hyphenated name, gracefully handled even without `customElements.define()`),
+styled via CSS in the shell, and consistent across all four SPA modes.

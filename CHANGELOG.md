@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0-beta.8] - 2026-02-18
+
+### Fixed
+
+- **SPA markdown layout ordering** — child route content appeared after the
+  layout footer in `root` and `only` modes. Root cause: `attributeSlots` ran
+  before `waitForMarkdownRender`, so `<router-slot>` inside `<mark-down>` wasn't
+  found. Reordered to attribute slots after markdown renders.
+
+- **Duplicate `<router-slot>` in SPA for markdown layouts** — when a `.md` page
+  contained a `` ```router-slot``` `` fenced block, `renderHTML` produced two
+  `<router-slot>` elements (one from markdown, one from the suffix). Added a
+  hotfix to skip the external slot when markdown already defines one. SSR strips
+  empty duplicates via `stripSlots`, but SPA had no equivalent cleanup.
+
 ## [1.5.0-beta.7] - 2026-02-18
 
 ### Changed

@@ -44,12 +44,14 @@ override hydrate({ data }: this['RenderArgs']) {
 ```
 
 This gives consumers a one-line reactivity primitive:
+
 - No signals, no observables, no subscriptions
 - No JSON serialization overhead
 - No light DOM persistence
 - Just "here's new data, re-render"
 
 Reactivity story for consumers:
+
 - **`reload()`** — server refresh (re-runs `getData()` from server)
 - **`render(data)`** — local state update (skips `getData()`, re-renders)
 - **Embed React/Lit/Preact** — complex interactive UI (that's what `leaf` mode is for)

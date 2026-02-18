@@ -72,7 +72,14 @@ export class PageComponent<
     }
 
     if (files?.md) {
-      const slot = args.context.isLeaf ? '' : '\n<router-slot></router-slot>';
+      // HOTFIX: skip external <router-slot> when markdown already defines one
+      // via ```router-slot fenced block. Without this, SPA mode produces two
+      // slots with the same pattern — one inside <mark-down> (from the fenced
+      // block) and one outside (from this suffix). SSR strips empty duplicates
+      // via stripSlots, but SPA has no equivalent cleanup.
+      // See: issues/pending/spa-duplicate-router-slot.issue.md
+      const hasSlot = files.md.includes('```router-slot');
+      const slot = args.context.isLeaf || hasSlot ? '' : '\n<router-slot></router-slot>';
       return `${style}<mark-down>${escapeHtml(files.md)}</mark-down>${slot}`;
     }
 

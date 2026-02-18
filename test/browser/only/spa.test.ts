@@ -343,8 +343,8 @@ Deno.test(
         });
 
         await page.evaluate(
-          // deno-lint-ignore no-explicit-any
           async () =>
+            // deno-lint-ignore no-explicit-any
             await (globalThis as any).__emroute_router.navigate(
               '/html/about#section-1',
             ),

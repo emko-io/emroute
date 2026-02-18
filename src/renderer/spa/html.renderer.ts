@@ -320,20 +320,21 @@ export class SpaHtmlRouter {
 
         currentSlot.setHTMLUnsafe(html);
 
-        // Attribute bare <router-slot> tags with this route's pattern
-        for (const slot of currentSlot.querySelectorAll('router-slot:not([pattern])')) {
-          slot.setAttribute('pattern', routePattern);
-        }
-
         if (title) {
           pageTitle = title;
         }
 
         // Wait for <mark-down> to finish rendering its content
+        // (must happen before attributing slots — router-slot may be inside markdown)
         const markDown = currentSlot.querySelector<HTMLElement>('mark-down');
         if (markDown) {
           await this.waitForMarkdownRender(markDown);
           if (signal.aborted) return;
+        }
+
+        // Attribute bare <router-slot> tags with this route's pattern
+        for (const slot of currentSlot.querySelectorAll('router-slot:not([pattern])')) {
+          slot.setAttribute('pattern', routePattern);
         }
 
         if (!isLeaf) {

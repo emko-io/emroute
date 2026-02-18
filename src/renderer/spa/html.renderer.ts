@@ -165,6 +165,7 @@ export class SpaHtmlRouter {
     const normalizedUrl = this.core.normalizeUrl(url);
     try {
       const { finished } = navigation.navigate(normalizedUrl, {
+        state: options.state,
         history: options.replace ? 'replace' : 'auto',
       });
       await finished;

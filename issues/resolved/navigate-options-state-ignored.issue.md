@@ -10,11 +10,11 @@ dropped state handling. The `state` field is never passed to
 Callers passing `state` get no error and no effect — a silent API contract
 breakage.
 
-## Options
+## Resolution
 
-1. **Remove `state` from `NavigateOptions`** — breaking change, but honest.
-   Callers relying on it will get a compile error.
-2. **Pass state to `navigation.navigate({ state })`** — the Navigation API
-   supports it natively, so this could be wired through.
-3. **Document as deprecated** — mark `state` as `@deprecated` with a note
-   that the Navigation API manages its own state.
+Option 2: pass `state` through to `navigation.navigate({ state, history })`.
+The Navigation API stores it on the history entry natively. Consumers who want
+custom state get it; the type stays honest.
+
+`RouterState` could be loosened to `Record<string, unknown>` since the
+Navigation API accepts any cloneable value — but that's a separate cleanup.

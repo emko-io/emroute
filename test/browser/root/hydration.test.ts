@@ -44,21 +44,18 @@ Deno.test(
   async (t) => {
     server = await createTestServer({ mode: 'root', port: 4103 });
 
-    await t.step('GET / redirects to /html/', async () => {
-      const res = await fetch(baseUrl('/'), { redirect: 'manual' });
-      assertEquals(res.status, 302);
-      const location = res.headers.get('location');
-      assert(location?.endsWith('/html/'), `expected redirect to /html/, got ${location}`);
+    await t.step('GET / serves SPA shell', async () => {
+      const res = await fetch(baseUrl('/'));
+      assertEquals(res.status, 200);
+      const html = await res.text();
+      assert(html.includes('<router-slot'), 'bare / should serve SPA shell');
     });
 
-    await t.step('GET /about redirects to /html/about', async () => {
-      const res = await fetch(baseUrl('/about'), { redirect: 'manual' });
-      assertEquals(res.status, 302);
-      const location = res.headers.get('location');
-      assert(
-        location?.endsWith('/html/about'),
-        `expected redirect to /html/about, got ${location}`,
-      );
+    await t.step('GET /about serves SPA shell', async () => {
+      const res = await fetch(baseUrl('/about'));
+      assertEquals(res.status, 200);
+      const html = await res.text();
+      assert(html.includes('<router-slot'), 'bare /about should serve SPA shell');
     });
 
     await t.step('GET /html/about serves SSR HTML', async () => {

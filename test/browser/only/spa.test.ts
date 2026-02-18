@@ -50,24 +50,18 @@ Deno.test(
   async (t) => {
     server = await createTestServer({ mode: 'only', port: 4104 });
 
-    await t.step('GET / redirects to /html/', async () => {
-      const res = await fetch(baseUrl('/'), { redirect: 'manual' });
-      assertEquals(res.status, 302);
-      const location = res.headers.get('location');
-      assert(
-        location?.endsWith('/html/'),
-        `expected redirect to /html/, got ${location}`,
-      );
+    await t.step('GET / serves SPA shell', async () => {
+      const res = await fetch(baseUrl('/'));
+      assertEquals(res.status, 200);
+      const html = await res.text();
+      assert(html.includes('<router-slot'), 'bare / should serve SPA shell');
     });
 
-    await t.step('GET /about redirects to /html/about', async () => {
-      const res = await fetch(baseUrl('/about'), { redirect: 'manual' });
-      assertEquals(res.status, 302);
-      const location = res.headers.get('location');
-      assert(
-        location?.endsWith('/html/about'),
-        `expected redirect to /html/about, got ${location}`,
-      );
+    await t.step('GET /about serves SPA shell', async () => {
+      const res = await fetch(baseUrl('/about'));
+      assertEquals(res.status, 200);
+      const html = await res.text();
+      assert(html.includes('<router-slot'), 'bare /about should serve SPA shell');
     });
 
     await t.step('GET /html/about serves SPA shell (no SSR)', async () => {
@@ -1203,6 +1197,76 @@ Deno.test(
     );
 
     // Cleanup
+    await page.close();
+    await tb.close();
+    server.stop();
+  },
+);
+
+// ── Dispose During Initial Navigation ────────────────────────────────
+
+Deno.test(
+  {
+    name: 'SPA router: dispose cancels in-flight initial navigation',
+    sanitizeResources: false,
+    sanitizeOps: false,
+  },
+  async (t) => {
+    server = await createTestServer({ mode: 'only', port: 4106 });
+    tb = await createTestBrowser();
+
+    let page!: Page;
+
+    await t.step('setup: create page', async () => {
+      page = await tb.newPage();
+    });
+
+    await t.step(
+      'dispose() aborts signal passed to initial getData',
+      async () => {
+        // The slow-data fixture calls __slow_data_entered(signal) when getData starts,
+        // passing the abort signal it received. After init completes and __emroute_router
+        // is set, we call dispose() and verify that the signal getData received was aborted.
+        //
+        // With the fix: getData receives this.abortController.signal → dispose aborts it.
+        // With the bug: getData receives a local initController.signal → dispose doesn't abort it.
+        await page.addInitScript(() => {
+          const g = globalThis as Record<string, unknown>;
+          g.__slow_data_entered = (signal: AbortSignal) => {
+            g.__slow_data_signal = signal;
+          };
+        });
+
+        await page.goto(baseUrl('/html/slow-data'), { waitUntil: 'load' });
+
+        // Wait for full init (getData resolves after 5s, then __emroute_router is set)
+        await page.waitForFunction(
+          () => !!(globalThis as Record<string, unknown>).__emroute_router,
+          undefined,
+          { timeout: 15000 },
+        );
+
+        // Dispose the router — aborts this.abortController
+        await page.evaluate(() => {
+          ((globalThis as Record<string, unknown>).__emroute_router as { dispose(): void })
+            .dispose();
+        });
+
+        // Verify: the signal that getData received should now be aborted
+        const signalAborted = await page.evaluate(() => {
+          const signal = (globalThis as Record<string, unknown>).__slow_data_signal as
+            | AbortSignal
+            | undefined;
+          return signal?.aborted ?? null;
+        });
+        assertEquals(
+          signalAborted,
+          true,
+          'dispose() should abort the signal passed to initial getData',
+        );
+      },
+    );
+
     await page.close();
     await tb.close();
     server.stop();

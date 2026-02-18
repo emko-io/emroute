@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0-beta.9] - 2026-02-18
+
+### Fixed
+
+- **Orphaned AbortController on initial SPA navigation** — `start()` created a
+  local `initController` whose signal was passed to `handleNavigation()` but
+  never stored or aborted. If `dispose()` was called during the initial render,
+  the in-flight `getData()` continued to completion. Now reuses
+  `this.abortController.signal` (aborted by `dispose()`). Browser test added.
+
 ## [1.5.0-beta.8] - 2026-02-18
 
 ### Fixed

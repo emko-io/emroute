@@ -141,10 +141,9 @@ export class SpaHtmlRouter {
 
     // No SSR content or route mismatch — full client-side render
     logger.info('init', `Initial navigation to ${location.pathname}`);
-    const initController = new AbortController();
     await this.handleNavigation(
       location.pathname + location.search + location.hash,
-      initController.signal,
+      this.abortController.signal,
     );
   }
 

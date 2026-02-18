@@ -32,3 +32,11 @@ await this.handleNavigation(
   this.abortController.signal,
 );
 ```
+
+## Resolution
+
+Fixed as suggested. Removed the orphaned `initController` and passed
+`this.abortController.signal` directly. Browser test added
+(`test/browser/only/spa.test.ts` — "dispose cancels in-flight initial navigation")
+that verifies `dispose()` aborts the signal passed to the initial `getData()`.
+Test fixture: `test/browser/fixtures/routes/slow-data.page.ts`.

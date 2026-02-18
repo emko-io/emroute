@@ -14,3 +14,10 @@ directly for bare paths in `root`/`only` modes.
 
 Low — only affects dev server, one redirect per navigation, and the dev server
 will be rewritten soon.
+
+## Resolution
+
+**Resolved.** In `root`/`only` mode, bare paths now serve the SPA shell directly
+(200) instead of redirecting to `/html/*` (302). The SPA router handles
+client-side navigation — the redirect was an unnecessary round-trip. `none`/`leaf`
+modes still redirect to `/html/*` for SSR.

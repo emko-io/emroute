@@ -1,59 +1,103 @@
-# Node/Bun-Compatible Dev Server
+# Node/Bun-Compatible Server — Monorepo
 
 ## Goal
 
-Make the emroute dev server runnable on Node.js and Bun, not just Deno. Ideally
-as a standalone tool users can invoke with `npx emroute-server` or `dx` in any
-folder containing a `/routes` directory — zero config, just works.
+Make emroute runnable on Node.js and Bun via `npx emroute dev`. Zero config,
+just works — a single `routes/index.page.md` in an empty folder is enough.
+
+## Architecture: Monorepo
+
+Turn emroute into a Deno workspace with two publishable packages:
+
+```
+emroute/
+  packages/
+    emroute/              ← @emkodev/emroute (JSR) — core library
+    emroute-server/       ← emroute (npm) — Node runtime + CLI
+  deno.json               ← workspace root
+```
+
+### `@emkodev/emroute` (JSR)
+
+Everything that exists today. No changes to publishing target or consumer API.
+
+### `emroute` (npm)
+
+Thin package containing:
+
+- `server.node.ts` — Node `ServerRuntime` implementation (`node:http`,
+  `node:fs/promises`, `node:child_process`, `node:fs` watch)
+- `cli.node.ts` — CLI entry point (same subcommands as Deno CLI: `dev`,
+  `build`, `generate`)
+- `bin/emroute` — npm bin entry for `npx emroute dev`
+
+Imports `@emkodev/emroute` via workspace reference at dev time. Ships a bundled
+build (esbuild bundles emroute core into it at publish time) so consumers get
+zero runtime dependencies — `npx emroute dev` just works.
+
+### Why monorepo
+
+- One repo, one test suite, one CI
+- Workspace reference — no cross-registry dependency at dev time
+- Version bumps in lockstep
+- No vendoring step, no stale copies
+- Deno workspaces are minimal (`"workspace"` array in root `deno.json`)
+
+## Prerequisites (on main)
+
+1. **Remove TS parameter properties** — Node type stripping doesn't support
+   `public readonly x` in constructor params. Already removed on spike branch,
+   should be ported to main regardless.
+2. **Remove `accessor` keyword** — same Node type stripping limitation. Already
+   removed on spike branch.
+
+These are non-breaking refactors that benefit the codebase independently.
 
 ## Spike Results (feat/node-server-runtime)
 
-The branch has a working proof-of-concept:
+The spike branch proved the concept works:
 
-- **ServerRuntime abstraction works.** `server.type.ts` already had the right
-  interface; adding `spawn()` and making the bundler configurable was enough to
-  decouple `dev.server.ts` from Deno entirely.
-- **Node runtime runs.** `server.node.ts` implements ServerRuntime with
-  `node:http`, `node:fs/promises`, `node:child_process`, `node:fs` (watch).
-  All three rendering modes (SPA, SSR HTML, SSR Markdown) serve correctly on
-  Node 24.
-- **esbuild as bundler.** Works out of the box via npx. Needs `--watch=forever`
-  (not `--watch`) when stdin is closed.
+- **ServerRuntime abstraction works.** Adding `spawn()` and making the bundler
+  configurable was enough to decouple `dev.server.ts` from Deno.
+- **Node runtime runs.** All three rendering modes (SPA, SSR HTML, SSR Markdown)
+  serve correctly on Node 24.
+- **esbuild as bundler.** Works via npx. Needs `--watch=forever` (not `--watch`)
+  when stdin is closed.
+- **URLPattern** — available in Node 24+ (shipped). No longer a blocker.
 
-### Compatibility issues discovered
+### Spike files to port
 
-- **Node type stripping** does not support TS parameter properties
-  (`public readonly x` in constructor) or the `accessor` keyword. Both were
-  removed in the spike. These changes should be ported to main regardless.
-- **URLPattern** is not available in Node 23 (lands in Node 24). This is a
-  framework-level dependency, not a server issue.
-- **Import maps / package self-references** (`@emkodev/emroute`) are resolved by
-  Deno via `deno.json` exports but esbuild doesn't know about them. A real app
-  would install emroute as a package, so this is only a dev/test problem.
+| Spike file | Destination |
+|---|---|
+| `server/server.type.ts` | `packages/emroute/` — add `spawn()` to `ServerRuntime` |
+| `server/server.node.ts` | `packages/emroute-server/` |
+| `server/cli.node.ts` | `packages/emroute-server/` |
 
-## Distribution Decision
+## Implementation Steps
 
-The server should **not** live inside the emroute package. Options:
+1. Restructure repo into Deno workspace (`packages/emroute/`, `packages/emroute-server/`)
+2. Port TS compatibility fixes from spike (parameter properties, accessor)
+3. Add `spawn()` to `ServerRuntime` interface, implement in `server.deno.ts`
+4. Port `server.node.ts` from spike branch
+5. Create npm CLI entry (`bin/emroute`)
+6. Build script: esbuild bundles core + Node runtime into self-contained package
+7. Publish `emroute` to npm (name already reserved)
 
-1. **Separate package** (`emroute-server` or `@emkodev/emroute-server`) —
-   published to npm/jsr, runnable via `npx emroute-server` / `deno run`.
-2. **Not distributed** — users write their own thin server using emroute's SSR
-   renderers directly (already supported).
+## Distribution
 
-If distributed separately:
+| Registry | Package | Invocation |
+|---|---|---|
+| JSR | `@emkodev/emroute` | `deno run -A jsr:@emkodev/emroute/server/cli dev` |
+| npm | `emroute` | `npx emroute dev` |
 
-- Use **node: built-in modules only** — works on Deno, Node, and Bun.
-- Ship as a CLI bin with sensible defaults: scan `./routes`, bundle entry point,
-  serve on 1420. A single `index.page.md` in an empty folder should be enough.
-- Bundler should be pluggable (esbuild default, deno bundle, custom).
+Both CLIs share the same subcommands and convention detection. The only
+difference is the runtime adapter and default bundler (deno bundle vs esbuild).
 
-## Files on the spike branch
+## Non-Goals
 
-- `server/server.type.ts` — SpawnHandle + spawn() added to ServerRuntime
-- `server/dev.server.ts` — bundler config, fallback HTML shell with script tag
-- `server/server.deno.ts` — spawn() via Deno.Command
-- `server/server.node.ts` — full Node.js ServerRuntime implementation
-- `server/cli.node.ts` — Node/Bun CLI entry point
-- `server/cli.deno.ts` — updated to pass bundler config
-- `src/route/route.core.ts` — removed `accessor` keyword
-- `tool/fs.type.ts` — removed TS parameter property
+- Production HTTP server — emroute provides the rendering engine, not the
+  server. Consumers bring their own (`Deno.serve`, Express, Hono, etc.) via
+  `createEmrouteServer`.
+- Bun-specific runtime — Bun is Node-compatible enough that `server.node.ts`
+  should work as-is. No separate `server.bun.ts` unless compatibility issues
+  surface.

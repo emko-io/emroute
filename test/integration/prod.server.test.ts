@@ -252,28 +252,41 @@ Deno.test({
 });
 
 Deno.test({
-  name: 'handleRequest - bare / redirects to /html/ in root mode',
+  name: 'handleRequest - bare / serves SPA shell in root mode',
   permissions: TEST_PERMISSIONS,
   fn: async () => {
     const server = await createTestEmrouteServer('root');
     const response = await server.handleRequest(req('/'));
 
     assertEquals(response !== null, true);
-    assertEquals(response!.status, 302);
-    assertStringIncludes(response!.headers.get('Location') ?? '', '/html/');
+    assertEquals(response!.status, 200);
+    assertStringIncludes(await response!.text(), '<!DOCTYPE html>');
   },
 });
 
 Deno.test({
-  name: 'handleRequest - bare / redirects to /html/ in only mode',
+  name: 'handleRequest - bare / serves SPA shell in only mode',
   permissions: TEST_PERMISSIONS,
   fn: async () => {
     const server = await createTestEmrouteServer('only');
     const response = await server.handleRequest(req('/'));
 
     assertEquals(response !== null, true);
-    assertEquals(response!.status, 302);
-    assertStringIncludes(response!.headers.get('Location') ?? '', '/html/');
+    assertEquals(response!.status, 200);
+    assertStringIncludes(await response!.text(), '<!DOCTYPE html>');
+  },
+});
+
+Deno.test({
+  name: 'handleRequest - bare /about serves SPA shell in root mode',
+  permissions: TEST_PERMISSIONS,
+  fn: async () => {
+    const server = await createTestEmrouteServer('root');
+    const response = await server.handleRequest(req('/about'));
+
+    assertEquals(response !== null, true);
+    assertEquals(response!.status, 200);
+    assertStringIncludes(await response!.text(), '<!DOCTYPE html>');
   },
 });
 

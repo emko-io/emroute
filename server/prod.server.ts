@@ -534,9 +534,14 @@ export async function createEmrouteServer(
       return null;
     }
 
-    // Bare paths — redirect to /html/* in all modes.
-    // Routes live at /html/* (manifest patterns are /html/* prefixed),
-    // so the SPA router only matches those URLs.
+    // Bare paths — in root/only mode, serve SPA shell directly (router handles
+    // client-side nav). In none/leaf mode, redirect to /html/* for SSR.
+    if (spa === 'root' || spa === 'only') {
+      return new Response(shell, {
+        status: 200,
+        headers: { 'Content-Type': 'text/html; charset=utf-8' },
+      });
+    }
     const bare = pathname === '/' ? '' : pathname.slice(1).replace(/\/$/, '');
     return Response.redirect(new URL(`${htmlBase}/${bare}`, url.origin), 302);
   }

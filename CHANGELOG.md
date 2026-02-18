@@ -5,129 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.5.0-beta.9] - 2026-02-18
-
-### Fixed
-
-- **Orphaned AbortController on initial SPA navigation** — `start()` created a
-  local `initController` whose signal was passed to `handleNavigation()` but
-  never stored or aborted. If `dispose()` was called during the initial render,
-  the in-flight `getData()` continued to completion. Now reuses
-  `this.abortController.signal` (aborted by `dispose()`). Browser test added.
-
-## [1.5.0-beta.8] - 2026-02-18
-
-### Fixed
-
-- **SPA markdown layout ordering** — child route content appeared after the
-  layout footer in `root` and `only` modes. Root cause: `attributeSlots` ran
-  before `waitForMarkdownRender`, so `<router-slot>` inside `<mark-down>` wasn't
-  found. Reordered to attribute slots after markdown renders.
-
-- **Duplicate `<router-slot>` in SPA for markdown layouts** — when a `.md` page
-  contained a `` ```router-slot``` `` fenced block, `renderHTML` produced two
-  `<router-slot>` elements (one from markdown, one from the suffix). Added a
-  hotfix to skip the external slot when markdown already defines one. SSR strips
-  empty duplicates via `stripSlots`, but SPA had no equivalent cleanup.
-
-## [1.5.0-beta.7] - 2026-02-18
-
-### Changed
-
-- **`data-ssr` → boolean `ssr` attribute** — SSR-rendered widgets now use a
-  simple boolean `ssr` attribute instead of serializing the full `getData()`
-  result as JSON into `data-ssr='...'`. This eliminates HTML payload bloat
-  for widgets with large data objects.
-
-- **`exposeSsrData` opt-in for hydration data** — widgets that genuinely need
-  their server-fetched data on the client can set `readonly exposeSsrData = true`.
-  The `getData()` result is serialized as JSON text in the element's light DOM
-  (invisible alongside the Declarative Shadow DOM root), parsed and cleared
-  during hydration. Most widgets don't need this — the rendered Shadow DOM
-  already contains the visual representation.
-
-- **SSR attribute detection hardened** — widget resolution now uses a regex to
-  detect the standalone `ssr` attribute, preventing false matches when `ssr`
-  appears as a substring of attribute values (e.g. `name="ssr"`).
-
-### Fixed
-
-- **SPA shell for bare paths** — serve SPA shell for bare paths in root/only
-  mode instead of 302 redirect.
-- **Navigation API state** — pass `NavigateOptions.state` through to Navigation
-  API.
-- **Dead CSS class constants** — removed unused `c-loading`, `c-markdown`,
-  `c-error` class constants.
-
-## [1.5.0-beta.6] - 2026-02-18
-
-### Fixed
-
-- **CLI `.build/` mkdir crash** — entry point path with `./` prefix produced an
-  invalid directory path (`.build/.`), crashing the dev server when invoked
-  remotely via JSR.
-- **Script src `./` prefix** — generated `<script>` tag had `/./_main.g.js`
-  instead of `/_main.g.js` in the HTML shell.
-
-### Changed
-
-- Lint excludes for vendored `emko-md.vendor.js` and generated fixture file.
-
-## [1.5.0-beta.5] - 2026-02-18
-
-### Added
-
-- **Built-in markdown renderer** — CLI ships a vendored emko-md@0.3.0 bundle
-  (~7.5KB minified) for server-side `<mark-down>` expansion. Markdown content
-  renders to HTML during SSR with zero JS required in the browser. Only used by
-  the CLI — library consumers are not affected.
-
-## [1.5.0-beta.4] - 2026-02-18
-
-### Added
-
-- **Zero-config CLI** (experimental) — `deno run -A jsr:@emkodev/emroute/server/cli start`
-  starts a dev server by scanning `routes/` and `widgets/` in the current
-  directory. No config file, no `main.ts`, no `deno.json` required. Supports
-  subcommands: `start` (default), `build`, `generate`. SPA mode is inferred
-  automatically (`none` for markdown-only projects, `root` when `.page.ts` or
-  `widgets/` exist), overridable via `--spa`. The server CLI is experimental and
-  not intended for production use.
-
-### Changed
-
-- **Build produces relative manifest imports** — `generateManifestCode()` and
-  `generateWidgetsManifestCode()` accept a `manifestDir` parameter, stripping
-  the `appRoot` prefix from `modulePath` and `files` entries so generated
-  manifests use relative imports.
-
-- **Build auto-detects `main.css`** — when `main.css` exists in the app root,
-  the build injects a `<link rel="stylesheet">` tag into the HTML shell.
-
-- **Generated `main.ts` imports from root export** — `generateMainTs()` now
-  imports `ComponentElement` and `createSpaHtmlRouter` from `@emkodev/emroute`
-  instead of `@emkodev/emroute/spa`.
-
-- **Docs updated for required context** — `README.md`, `doc/guide.md`, and
-  `doc/nesting.md` updated `context?.` to `context.` after beta.3 made context
-  required on `DataArgs` and `RenderArgs`.
-
-### Fixed
-
-- **emko-md renderer upgraded** — test fixture `emko.renderer.ts` updated from
-  `emko-md@0.1.0-beta.4` (WASM parser) to `emko-md@^0.3.0` (pure JS
-  `createMarkdownRender()`).
-
-## [1.5.0-beta.3] - 2026-02-17
-
-### Changed
-
-- **`context` is now required on `DataArgs` and `RenderArgs`** — every real
-  rendering codepath already provides context; the optional typing forced
-  defensive `context?.` chaining everywhere. Error boundary and error handler
-  fallback paths now construct a minimal context instead of omitting it.
-
-## [1.5.0] - 2026-02-17
+## [1.5.0] - 2026-02-18
 
 ### Changed
 
@@ -206,6 +84,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   accepts any CSS property assignment. `append()`, `childNodes`, `firstChild`
   stubs added for spec completeness.
 
+- **`context` is now required on `DataArgs` and `RenderArgs`** — every real
+  rendering codepath already provides context; the optional typing forced
+  defensive `context?.` chaining everywhere. Error boundary and error handler
+  fallback paths now construct a minimal context instead of omitting it.
+
+- **`data-ssr` → boolean `ssr` attribute** — SSR-rendered widgets now use a
+  simple boolean `ssr` attribute instead of serializing the full `getData()`
+  result as JSON into `data-ssr='...'`. This eliminates HTML payload bloat
+  for widgets with large data objects.
+
+- **`exposeSsrData` opt-in for hydration data** — widgets that genuinely need
+  their server-fetched data on the client can set `readonly exposeSsrData = true`.
+  The `getData()` result is serialized as JSON text in the element's light DOM
+  (invisible alongside the Declarative Shadow DOM root), parsed and cleared
+  during hydration. Most widgets don't need this — the rendered Shadow DOM
+  already contains the visual representation.
+
 ### Added
 
 - **Declarative overlays** — popovers, modals, and toasts work with zero JS via
@@ -241,6 +136,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`SHADOW-DOM-ARCHITECTURE.md`** — comprehensive documentation of the unified
   Shadow DOM architecture, SSR mocks, rendering strategies, and migration
   patterns.
+
+- **Zero-config CLI** (experimental) — `deno run -A jsr:@emkodev/emroute/server/cli start`
+  starts a dev server by scanning `routes/` and `widgets/` in the current
+  directory. No config file, no `main.ts`, no `deno.json` required. Supports
+  subcommands: `start` (default), `build`, `generate`. SPA mode is inferred
+  automatically. The server CLI is experimental.
+
+- **Production server API** — `createEmrouteServer()` and `build()` for
+  production builds with split bundles, compression, and import maps.
+
+- **Built-in markdown renderer** — CLI ships a vendored emko-md bundle for
+  server-side `<mark-down>` expansion. Markdown content renders to HTML during
+  SSR with zero JS required in the browser.
 
 ### Breaking Changes
 
@@ -288,6 +196,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`parseAttrsToParams` unescaping** — now unescapes both `&#39;` → `'` and
   `&quot;` → `"`, matching the escape output.
+
+- **SPA shell for bare paths** — bare paths in `root`/`only` mode serve the SPA
+  shell (200) instead of 302 redirect. The SPA router handles client-side nav.
+
+- **SPA markdown layout ordering** — child route content appeared after the
+  layout footer in `root` and `only` modes. Reordered `attributeSlots` after
+  `waitForMarkdownRender` so the SPA router finds `<router-slot>` inside
+  rendered `<mark-down>` content.
+
+- **Orphaned AbortController on initial SPA navigation** — `dispose()` now
+  aborts in-flight initial `getData()` calls.
 
 ### Docs
 

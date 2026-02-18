@@ -13,7 +13,7 @@ When served via **SSR HTML** (`/html/widgets`), the markdown is first
 rendered to HTML by the markdown renderer. Fenced widget blocks become
 `<widget-*>` custom elements (via `processFencedWidgets()`). Then
 `resolveWidgetTags()` calls `getData()` + `renderHTML()` on each widget
-and injects the rendered content with a `data-ssr` attribute.
+and injects the rendered content with a boolean `ssr` attribute.
 
 When served via **SPA** (`/widgets`), the `<mark-down>` element renders
 markdown client-side, converting fenced blocks to `<widget-*>` elements.

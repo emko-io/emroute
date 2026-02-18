@@ -70,7 +70,7 @@ export class SsrHtmlRouter extends SsrRenderer {
     // resolution so widget-internal slots inside <template> are not affected)
     content = this.attributeSlots(content, route.pattern);
 
-    // Resolve <widget-*> tags: call getData() + renderHTML(), inject data-ssr
+    // Resolve <widget-*> tags: call getData() + renderHTML(), inject ssr attribute
     if (this.widgets) {
       content = await resolveWidgetTags(
         content,

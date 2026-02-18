@@ -8,7 +8,7 @@
 import type { Component, ContextProvider } from '../component/abstract.component.ts';
 import { logger } from '../type/logger.type.ts';
 import type { RouteInfo } from '../type/route.type.ts';
-import { DATA_SSR_ATTR, LAZY_ATTR } from './html.util.ts';
+import { LAZY_ATTR, SSR_ATTR } from './html.util.ts';
 
 /** Maximum nesting depth for widgets to prevent infinite loops */
 export const MAX_WIDGET_DEPTH = 10;
@@ -62,13 +62,17 @@ export async function resolveRecursively<T>(
 
 /**
  * Resolve <widget-*> tags in HTML by calling getData() + renderHTML()
- * via the widget registry. Injects rendered content and data-ssr attribute.
+ * via the widget registry. Injects rendered content and boolean ssr attribute.
  *
  * Supports nested widgets: if a widget's renderHTML() returns HTML containing
  * other <widget-*> tags, those will be resolved recursively up to MAX_WIDGET_DEPTH.
  *
  * Before: <widget-crypto-price coin="bitcoin"></widget-crypto-price>
- * After:  <widget-crypto-price coin="bitcoin" data-ssr='{"price":42000}'><template shadowrootmode="open"><span>$42,000</span></template></widget-crypto-price>
+ * After:  <widget-crypto-price coin="bitcoin" ssr><template shadowrootmode="open"><span>$42,000</span></template></widget-crypto-price>
+ *
+ * When a widget has `exposeSsrData = true`, the getData() result is serialized
+ * as JSON text in the light DOM (alongside the shadow root template):
+ * After:  <widget-crypto-price coin="bitcoin" ssr><template shadowrootmode="open"><span>$42,000</span></template>{"price":42000}</widget-crypto-price>
  */
 export function resolveWidgetTags(
   html: string,
@@ -86,12 +90,15 @@ export function resolveWidgetTags(
   // Wrapping info stored per-match so replace() can apply it after recursion
   const wrappers = new Map<RegExpExecArray, { tagName: string; attrs: string; ssrData: string }>();
 
+  // Matches standalone ssr attribute (boolean or with value), not as substring of another value
+  const ssrAttrPattern = new RegExp(`\\s${SSR_ATTR}(?:\\s|=|$)`);
+
   // Parse: find unprocessed widget tags
   const parse = (content: string) => {
     const matches = content.matchAll(tagPattern).toArray();
     return matches.filter((match) => {
       const attrsString = match.groups!.attrs || '';
-      return !attrsString.includes(DATA_SSR_ATTR);
+      return !ssrAttrPattern.test(attrsString);
     });
   };
 
@@ -121,7 +128,7 @@ export function resolveWidgetTags(
       wrappers.set(match, {
         tagName: `widget-${widgetName}`,
         attrs: attrsString ? ` ${attrsString}` : '',
-        ssrData: escapeAttr(JSON.stringify(data)),
+        ssrData: widget.exposeSsrData ? escapeAttr(JSON.stringify(data)) : '',
       });
 
       return rendered;
@@ -142,8 +149,9 @@ export function resolveWidgetTags(
       const start = match.index!;
       const end = start + match[0].length;
       const wrap = wrappers.get(match);
+      const lightDomData = wrap?.ssrData ? wrap.ssrData : '';
       const replacement = wrap
-        ? `<${wrap.tagName}${wrap.attrs} ${DATA_SSR_ATTR}='${wrap.ssrData}'><template shadowrootmode="open">${innerHtml}</template></${wrap.tagName}>`
+        ? `<${wrap.tagName}${wrap.attrs} ${SSR_ATTR}><template shadowrootmode="open">${innerHtml}</template>${lightDomData}</${wrap.tagName}>`
         : innerHtml; // no wrapper = unresolved widget, innerHtml is the original tag
       result = result.slice(0, start) + replacement + result.slice(end);
     }
@@ -162,7 +170,7 @@ export function parseAttrsToParams(attrsString: string): Record<string, unknown>
     /(?<attr>[a-z][a-z0-9-]*)(?:="(?<dq>[^"]*)"|='(?<sq>[^']*)'|=(?<uq>[^\s>]+))?/gi;
   for (const match of attrsString.matchAll(attrPattern)) {
     const { attr: attrName, dq, sq, uq } = match.groups!;
-    if (attrName === DATA_SSR_ATTR || attrName === LAZY_ATTR) continue;
+    if (attrName === SSR_ATTR || attrName === LAZY_ATTR) continue;
     const key = attrName.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
     const rawValue = dq ?? sq ?? uq;
     if (rawValue === undefined) {

@@ -67,11 +67,11 @@ The spike branch proved the concept works:
 
 ### Spike files to port
 
-| Spike file | Destination |
-|---|---|
+| Spike file              | Destination                                            |
+| ----------------------- | ------------------------------------------------------ |
 | `server/server.type.ts` | `packages/emroute/` — add `spawn()` to `ServerRuntime` |
-| `server/server.node.ts` | `packages/emroute-server/` |
-| `server/cli.node.ts` | `packages/emroute-server/` |
+| `server/server.node.ts` | `packages/emroute-server/`                             |
+| `server/cli.node.ts`    | `packages/emroute-server/`                             |
 
 ## Implementation Steps
 
@@ -85,10 +85,10 @@ The spike branch proved the concept works:
 
 ## Distribution
 
-| Registry | Package | Invocation |
-|---|---|---|
-| JSR | `@emkodev/emroute` | `deno run -A jsr:@emkodev/emroute/server/cli dev` |
-| npm | `emroute` | `npx emroute dev` |
+| Registry | Package            | Invocation                                        |
+| -------- | ------------------ | ------------------------------------------------- |
+| JSR      | `@emkodev/emroute` | `deno run -A jsr:@emkodev/emroute/server/cli dev` |
+| npm      | `emroute`          | `npx emroute dev`                                 |
 
 Both CLIs share the same subcommands and convention detection. The only
 difference is the runtime adapter and default bundler (deno bundle vs esbuild).

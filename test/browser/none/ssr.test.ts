@@ -392,14 +392,17 @@ Deno.test(
 
     // --- Widgets in HTML: SSR rendering ---
 
-    await t.step('widgets in .page.html are rendered server-side with data-ssr', async () => {
+    await t.step('widgets in .page.html are rendered server-side with ssr attribute', async () => {
       const res = await fetch(baseUrl('/html/widgets-html'));
       assertEquals(res.status, 200);
       const html = await res.text();
       assert(html.includes('Widgets in HTML'), 'should contain page title');
-      // Greeting widget (no params) should be rendered with data-ssr
+      // Greeting widget (no params) should be rendered with ssr
       assert(html.includes('Hello, World!'), 'should render greeting widget with default name');
-      assert(html.includes('data-ssr='), 'should have data-ssr attribute on rendered widgets');
+      assert(
+        html.includes(' ssr ') || html.includes(' ssr>'),
+        'should have ssr attribute on rendered widgets',
+      );
       // Greeting widget (with name param) should use the param
       assert(html.includes('Hello, Developer!'), 'should render greeting widget with name param');
       // Info card widget should be rendered
@@ -417,7 +420,7 @@ Deno.test(
       const html = await res.text();
       assert(html.includes('Widgets in Markdown'), 'should contain page heading');
       // After markdown expansion, widget fenced blocks become <widget-*> elements
-      // Then resolveWidgetTags renders them with data-ssr
+      // Then resolveWidgetTags renders them with ssr attribute
       assert(html.includes('Hello, World!'), 'should render greeting widget (no params)');
       assert(html.includes('Hello, Developer!'), 'should render greeting widget (with name)');
       assert(html.includes('Widget Rendering'), 'should render info card title');
@@ -435,7 +438,10 @@ Deno.test(
         html.includes('This HTML was loaded from a static file'),
         'should render file widget from static HTML file',
       );
-      assert(html.includes('data-ssr='), 'file widget should have data-ssr attribute');
+      assert(
+        html.includes(' ssr ') || html.includes(' ssr>'),
+        'file widget should have ssr attribute',
+      );
       // Greeting widget (no files) should still work as before
       assert(html.includes('Hello, World!'), 'greeting widget without files still works');
     });
@@ -500,7 +506,10 @@ Deno.test(
         html.includes('<widget-greeting'),
         'should contain auto-discovered greeting widget tag',
       );
-      assert(html.includes('data-ssr='), 'greeting widget should have SSR data');
+      assert(
+        html.includes(' ssr ') || html.includes(' ssr>'),
+        'greeting widget should have ssr attribute',
+      );
     });
 
     await t.step('lazy widget is still pre-rendered server-side', async () => {
@@ -512,7 +521,10 @@ Deno.test(
         'should preserve lazy attribute on widget tag',
       );
       assert(html.includes('Hello, Lazy!'), 'SSR should render lazy widget content');
-      assert(html.includes('data-ssr='), 'lazy widget should have data-ssr attribute');
+      assert(
+        html.includes(' ssr ') || html.includes(' ssr>'),
+        'lazy widget should have ssr attribute',
+      );
     });
 
     await t.step('manually-registered external widget renders in mixed-widgets page', async () => {

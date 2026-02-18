@@ -3,7 +3,7 @@
  *
  * Renders Widget instances in the browser as `widget-{name}` elements.
  * Handles:
- * - SSR hydration (data-ssr attribute)
+ * - SSR hydration (ssr attribute)
  * - Client-side data fetching with AbortSignal
  * - Companion file loading (html, md, css) with caching
  * - Loading/error states
@@ -14,7 +14,7 @@ import type {
   ComponentContext,
   ContextProvider,
 } from '../component/abstract.component.ts';
-import { DATA_SSR_ATTR, HTMLElementBase, LAZY_ATTR } from '../util/html.util.ts';
+import { HTMLElementBase, LAZY_ATTR, SSR_ATTR } from '../util/html.util.ts';
 
 const COMPONENT_STATES = ['idle', 'loading', 'ready', 'error'] as const;
 type ComponentState = (typeof COMPONENT_STATES)[number];
@@ -133,7 +133,7 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
     // Parse params from element attributes
     const params: Record<string, unknown> = {};
     for (const attr of this.attributes) {
-      if (attr.name === DATA_SSR_ATTR || attr.name === LAZY_ATTR) continue;
+      if (attr.name === SSR_ATTR || attr.name === LAZY_ATTR) continue;
       const key = attr.name.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
       try {
         params[key] = JSON.parse(attr.value);
@@ -166,33 +166,33 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
     this.context = ComponentElement.extendContext ? ComponentElement.extendContext(base) : base;
 
     // Hydrate from SSR: adopt content from Declarative Shadow DOM
-    const ssrAttr = this.getAttribute(DATA_SSR_ATTR);
-    if (ssrAttr) {
-      try {
-        this.data = JSON.parse(ssrAttr);
-        this.state = 'ready';
-        this.removeAttribute(DATA_SSR_ATTR);
+    if (this.hasAttribute(SSR_ATTR)) {
+      this.removeAttribute(SSR_ATTR);
 
-        // With Declarative Shadow DOM (<template shadowrootmode="open">), content is
-        // already in shadowRoot. Browser parses the template and moves content automatically.
-        // Only move childNodes if there are any (fallback for non-DSD SSR)
-        if (this.childNodes.length > 0) {
-          this.shadowRoot!.append(...this.childNodes);
+      // Read SSR data from light DOM (JSON text placed alongside shadow root)
+      const lightText = this.textContent?.trim();
+      if (lightText) {
+        try {
+          this.data = JSON.parse(lightText);
+        } catch {
+          // Not valid JSON — proceed with data: null
         }
-
-        // Call hydrate() hook to attach event listeners
-        if (this.component.hydrate) {
-          const args = { data: this.data, params: this.params!, context: this.context };
-          queueMicrotask(() => {
-            this.component.hydrate!(args);
-          });
-        }
-
-        this.signalReady();
-        return;
-      } catch {
-        // SSR data invalid - fall through to fetch
       }
+      // Clear light DOM content (JSON text)
+      this.textContent = '';
+
+      this.state = 'ready';
+
+      // Call hydrate() hook to attach event listeners
+      if (this.component.hydrate) {
+        const args = { data: this.data, params: this.params!, context: this.context };
+        queueMicrotask(() => {
+          this.component.hydrate!(args);
+        });
+      }
+
+      this.signalReady();
+      return;
     }
 
     // Lazy: defer loadData until element is visible

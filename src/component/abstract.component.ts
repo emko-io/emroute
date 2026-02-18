@@ -107,6 +107,21 @@ export abstract class Component<
   readonly files?: { html?: string; md?: string; css?: string };
 
   /**
+   * When true, SSR serializes the getData() result into the element's
+   * light DOM so the client can access it immediately in hydrate()
+   * without re-fetching.
+   *
+   * Default is false — hydrate() receives `data: null`. Most widgets
+   * don't need this because the rendered Shadow DOM already contains
+   * the visual representation of the data.
+   *
+   * If you find yourself parsing the shadow DOM in hydrate() trying to
+   * reconstruct the original data object, set this to true instead.
+   * The server-fetched data will be available as `args.data` in hydrate().
+   */
+  readonly exposeSsrData?: boolean;
+
+  /**
    * Fetch or compute data based on params.
    * Called server-side for SSR, client-side for SPA.
    *
@@ -150,9 +165,7 @@ export abstract class Component<
       params: args.params,
       context: args.context,
     });
-    return `<div data-component="${this.name}" data-markdown>${
-      escapeHtml(markdown)
-    }</div>`;
+    return `<div data-component="${this.name}" data-markdown>${escapeHtml(markdown)}</div>`;
   }
 
   /**
@@ -190,9 +203,7 @@ export abstract class Component<
    */
   renderError(args: { error: unknown; params: TParams }): string {
     const msg = args.error instanceof Error ? args.error.message : String(args.error);
-    return `<div data-component="${this.name}">Error: ${
-      escapeHtml(msg)
-    }</div>`;
+    return `<div data-component="${this.name}">Error: ${escapeHtml(msg)}</div>`;
   }
 
   /**

@@ -1,10 +1,10 @@
 import { assertEquals, assertStrictEquals } from '@std/assert';
 import {
-  DATA_SSR_ATTR,
   escapeHtml,
   HTMLElementBase,
   LAZY_ATTR,
   scopeWidgetCss,
+  SSR_ATTR,
   STATUS_MESSAGES,
   unescapeHtml,
 } from '../../src/util/html.util.ts';
@@ -246,9 +246,9 @@ Deno.test('scopeWidgetCss - with unicode in CSS', () => {
   assertEquals(result, '@scope (widget-i18n) {\n.content { content: "你好"; }\n}');
 });
 
-Deno.test('DATA_SSR_ATTR constant', () => {
-  assertEquals(DATA_SSR_ATTR, 'data-ssr');
-  assertStrictEquals(typeof DATA_SSR_ATTR, 'string');
+Deno.test('SSR_ATTR constant', () => {
+  assertEquals(SSR_ATTR, 'ssr');
+  assertStrictEquals(typeof SSR_ATTR, 'string');
 });
 
 Deno.test('LAZY_ATTR constant', () => {

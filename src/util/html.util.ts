@@ -2,8 +2,8 @@
  * Core HTML utilities for emroute
  */
 
-/** HTML attribute name used for SSR hydration data on widgets. */
-export const DATA_SSR_ATTR = 'data-ssr';
+/** HTML attribute name marking a widget as server-rendered (skip client getData + render). */
+export const SSR_ATTR = 'ssr';
 
 /** HTML attribute name for lazy-loading widgets via IntersectionObserver. */
 export const LAZY_ATTR = 'lazy';

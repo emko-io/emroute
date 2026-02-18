@@ -12,11 +12,11 @@
  * - routes/widgets-html.page.html (widget tag, no params and with params)
  *
  * SSR HTML: resolveWidgetTags() calls getData() + renderHTML(), injects
- *   rendered content + data-ssr attribute for SPA hydration.
+ *   rendered content + boolean ssr attribute for SPA hydration.
  * SSR Markdown: resolveWidgets() calls getData() + renderMarkdown(),
  *   replaces the fenced block with text output.
  * SPA: ComponentElement registers as <widget-greeting>, client-side
- *   getData() + renderHTML(). Or hydrates from data-ssr if SSR content exists.
+ *   getData() + renderHTML(). Or hydrates from ssr attribute if SSR content exists.
  */
 
 import { WidgetComponent } from '@emkodev/emroute';

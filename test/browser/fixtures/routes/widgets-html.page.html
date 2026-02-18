@@ -12,7 +12,8 @@
   <code>resolveWidgetTags()</code> finds each <code>&lt;widget-*&gt;</code>
   element, looks up the widget in the <code>WidgetRegistry</code>, calls
   <code>getData()</code> + <code>renderHTML()</code>, and injects the rendered content inside the
-  element. A <code>data-ssr</code> attribute is added with serialized data for SPA hydration.
+  element. A boolean <code>ssr</code> attribute marks the widget as server-rendered for SPA
+  hydration.
 </p>
 <p>
   When served via <strong>SSR Markdown</strong> (<code>/md/widgets-html</code>), this is a <code
@@ -20,9 +21,9 @@
   <code>router-slot</code> placeholder.
 </p>
 <p>
-  When the <strong>SPA</strong> loads, the custom elements either hydrate from
-  <code>data-ssr</code> (skipping <code>getData()</code>) or fetch data client-side if no SSR
-  content is present.
+  When the <strong>SPA</strong> loads, the custom elements either hydrate from the <code>ssr</code>
+  attribute (skipping <code>getData()</code>) or fetch data client-side if no SSR content is
+  present.
 </p>
 
 <h2>Greeting Widget (no params)</h2>

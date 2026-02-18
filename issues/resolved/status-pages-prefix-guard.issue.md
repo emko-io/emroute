@@ -37,3 +37,10 @@ Add the same guard:
 ```typescript
 pattern: s.pattern === '/' ? basePath : basePath + s.pattern,
 ```
+
+## Resolution — Won't fix
+
+Status page patterns are always `/${statusCode}` (e.g. `/404`, `/500`), hardcoded
+in `tool/route.generator.ts:196`. The generator derives them from filenames like
+`404.page.html` — never from directory structure. The pattern can never be `'/'`,
+so the guard protects against an impossible case.

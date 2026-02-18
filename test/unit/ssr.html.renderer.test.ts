@@ -17,7 +17,7 @@
  * - Edge cases and integration scenarios
  */
 
-import { assertEquals, assertStringIncludes } from '@std/assert';
+import { assert, assertEquals, assertStringIncludes } from '@std/assert';
 import { createSsrHtmlRouter, SsrHtmlRouter } from '../../src/renderer/ssr/html.renderer.ts';
 import type { RouteConfig, RoutesManifest } from '../../src/type/route.type.ts';
 import type { MarkdownRenderer } from '../../src/type/markdown.type.ts';
@@ -357,7 +357,10 @@ Deno.test('SsrHtmlRouter - widget renders with SSR data attribute', async () => 
   try {
     const result = await router.render('http://localhost/widgets');
     assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'data-ssr=');
+    assert(
+      result.content.includes(' ssr ') || result.content.includes(' ssr>'),
+      'should have boolean ssr attribute',
+    );
     assertStringIncludes(result.content, 'Widget: ssr');
   } finally {
     restore();
@@ -937,7 +940,7 @@ Deno.test('SsrHtmlRouter - markdown renderer output with widget tags is processe
   try {
     const result = await router.render('http://localhost/blog');
     assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'data-ssr=');
+    assertStringIncludes(result.content, ' ssr>');
     assertStringIncludes(result.content, 'Widget:');
   } finally {
     restore();

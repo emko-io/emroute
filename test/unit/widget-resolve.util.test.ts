@@ -11,7 +11,7 @@
  * - Widget params extraction and conversion
  */
 
-import { assertEquals, assertExists, assertStringIncludes } from '@std/assert';
+import { assert, assertEquals, assertExists, assertStringIncludes } from '@std/assert';
 import { parseAttrsToParams, resolveWidgetTags } from '../../src/util/widget-resolve.util.ts';
 import { WidgetComponent } from '../../src/component/widget.component.ts';
 import { Component } from '../../src/component/abstract.component.ts';
@@ -287,8 +287,8 @@ Deno.test('parseAttrsToParams - quotes decoded', () => {
   });
 });
 
-Deno.test('parseAttrsToParams - data-ssr attribute is skipped', () => {
-  assertEquals(parseAttrsToParams('coin="bitcoin" data-ssr="ignored"'), {
+Deno.test('parseAttrsToParams - ssr attribute is skipped', () => {
+  assertEquals(parseAttrsToParams('coin="bitcoin" ssr="ignored"'), {
     coin: 'bitcoin',
   });
 });
@@ -424,29 +424,46 @@ Deno.test('resolveWidgetTags - lazy attribute is preserved in output', async () 
  * Test Suite: resolveWidgetTags - Data and SSR Attributes
  */
 
-Deno.test('resolveWidgetTags - injects data-ssr attribute', async () => {
+Deno.test('resolveWidgetTags - injects boolean ssr attribute', async () => {
   const html = '<widget-simple></widget-simple>';
   const registry = new MockRegistry(new SimpleWidget());
   const routeInfo = createTestRouteInfo();
 
   const result = await resolveWidgetTags(html, registry, routeInfo);
-  assertStringIncludes(result, 'data-ssr=');
+  assert(result.includes(' ssr ') || result.includes(' ssr>'), 'should have boolean ssr attribute');
 });
 
-Deno.test('resolveWidgetTags - data-ssr contains JSON serialized data', async () => {
+Deno.test('resolveWidgetTags - default widget has no light DOM data', async () => {
   const html = '<widget-simple></widget-simple>';
   const registry = new MockRegistry(new SimpleWidget());
   const routeInfo = createTestRouteInfo();
 
   const result = await resolveWidgetTags(html, registry, routeInfo);
-  assertStringIncludes(result, 'message');
-  assertStringIncludes(result, 'Hello Widget');
+  // Without exposeSsrData, no JSON data in light DOM
+  assertStringIncludes(result, '</template></widget-simple>');
 });
 
-Deno.test('resolveWidgetTags - escapes ampersands in data-ssr', async () => {
+Deno.test('resolveWidgetTags - exposeSsrData serializes data into light DOM', async () => {
   const html = '<widget-simple></widget-simple>';
   const registry = new MockRegistry(
     new (class extends SimpleWidget {
+      override readonly exposeSsrData = true;
+    })(),
+  );
+  const routeInfo = createTestRouteInfo();
+
+  const result = await resolveWidgetTags(html, registry, routeInfo);
+  // Data should appear as light DOM text after </template>
+  assertStringIncludes(result, '</template>');
+  assertStringIncludes(result, 'Hello Widget');
+  assertStringIncludes(result, 'message');
+});
+
+Deno.test('resolveWidgetTags - escapes ampersands in light DOM data', async () => {
+  const html = '<widget-simple></widget-simple>';
+  const registry = new MockRegistry(
+    new (class extends SimpleWidget {
+      override readonly exposeSsrData = true;
       override getData() {
         return Promise.resolve({ message: 'Hello & goodbye' });
       }
@@ -458,10 +475,11 @@ Deno.test('resolveWidgetTags - escapes ampersands in data-ssr', async () => {
   assertStringIncludes(result, '&amp;');
 });
 
-Deno.test('resolveWidgetTags - escapes single quotes in data-ssr', async () => {
+Deno.test('resolveWidgetTags - escapes single quotes in light DOM data', async () => {
   const html = '<widget-simple></widget-simple>';
   const registry = new MockRegistry(
     new (class extends SimpleWidget {
+      override readonly exposeSsrData = true;
       override getData() {
         return Promise.resolve({ message: "It's working" });
       }
@@ -470,10 +488,7 @@ Deno.test('resolveWidgetTags - escapes single quotes in data-ssr', async () => {
   const routeInfo = createTestRouteInfo();
 
   const result = await resolveWidgetTags(html, registry, routeInfo);
-  // Single quotes in JSON values should be escaped as &#39; since we use single quotes for attribute wrapper
   assertStringIncludes(result, '&#39;');
-  // Should use single quotes for data-ssr attribute
-  assertStringIncludes(result, "data-ssr='");
 });
 
 /**
@@ -777,7 +792,7 @@ Deno.test('resolveWidgetTags - nested widgets are resolved', async () => {
   // Both outer and inner should be resolved
   assertStringIncludes(result, 'Outer:');
   assertStringIncludes(result, '<span>Inner</span>');
-  assertStringIncludes(result, 'data-ssr=');
+  assert(result.includes(' ssr ') || result.includes(' ssr>'), 'should have boolean ssr attribute');
 });
 
 Deno.test('resolveWidgetTags - deeply nested widgets (3 levels)', async () => {

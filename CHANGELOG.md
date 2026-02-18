@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0-beta.7] - 2026-02-18
+
+### Changed
+
+- **`data-ssr` → boolean `ssr` attribute** — SSR-rendered widgets now use a
+  simple boolean `ssr` attribute instead of serializing the full `getData()`
+  result as JSON into `data-ssr='...'`. This eliminates HTML payload bloat
+  for widgets with large data objects.
+
+- **`exposeSsrData` opt-in for hydration data** — widgets that genuinely need
+  their server-fetched data on the client can set `readonly exposeSsrData = true`.
+  The `getData()` result is serialized as JSON text in the element's light DOM
+  (invisible alongside the Declarative Shadow DOM root), parsed and cleared
+  during hydration. Most widgets don't need this — the rendered Shadow DOM
+  already contains the visual representation.
+
+- **SSR attribute detection hardened** — widget resolution now uses a regex to
+  detect the standalone `ssr` attribute, preventing false matches when `ssr`
+  appears as a substring of attribute values (e.g. `name="ssr"`).
+
+### Fixed
+
+- **SPA shell for bare paths** — serve SPA shell for bare paths in root/only
+  mode instead of 302 redirect.
+- **Navigation API state** — pass `NavigateOptions.state` through to Navigation
+  API.
+- **Dead CSS class constants** — removed unused `c-loading`, `c-markdown`,
+  `c-error` class constants.
+
 ## [1.5.0-beta.6] - 2026-02-18
 
 ### Fixed

@@ -15,10 +15,6 @@
 import type { RouteInfo } from '../type/route.type.ts';
 import { escapeHtml } from '../util/html.util.ts';
 
-const CSS_LOADING = 'c-loading';
-const CSS_MARKDOWN = 'c-markdown';
-export const CSS_ERROR = 'c-error';
-
 /**
  * Context passed to components during rendering.
  * Extends RouteInfo (pathname, pattern, params, searchParams)
@@ -145,7 +141,7 @@ export abstract class Component<
    */
   renderHTML(args: this['RenderArgs']): string {
     if (args.data === null) {
-      return `<div class="${CSS_LOADING}" data-component="${this.name}">Loading...</div>`;
+      return `<div data-component="${this.name}">Loading...</div>`;
     }
     // Default: wrap markdown in a container
     // The actual markdown→HTML conversion happens at render time
@@ -154,7 +150,7 @@ export abstract class Component<
       params: args.params,
       context: args.context,
     });
-    return `<div class="${CSS_MARKDOWN}" data-component="${this.name}" data-markdown>${
+    return `<div data-component="${this.name}" data-markdown>${
       escapeHtml(markdown)
     }</div>`;
   }
@@ -194,7 +190,7 @@ export abstract class Component<
    */
   renderError(args: { error: unknown; params: TParams }): string {
     const msg = args.error instanceof Error ? args.error.message : String(args.error);
-    return `<div class="${CSS_ERROR}" data-component="${this.name}">Error: ${
+    return `<div data-component="${this.name}">Error: ${
       escapeHtml(msg)
     }</div>`;
   }

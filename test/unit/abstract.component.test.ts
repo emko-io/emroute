@@ -13,7 +13,7 @@
 
 import { assertEquals, assertExists, assertStringIncludes } from '@std/assert';
 import type { ComponentContext } from '../../src/component/abstract.component.ts';
-import { Component, CSS_ERROR } from '../../src/component/abstract.component.ts';
+import { Component } from '../../src/component/abstract.component.ts';
 
 // ============================================================================
 // Test Fixtures & Helpers
@@ -304,7 +304,6 @@ Deno.test('Component - renderHTML() default: returns loading state when data is 
   });
 
   assertStringIncludes(html, 'Loading...');
-  assertStringIncludes(html, 'c-loading');
   assertStringIncludes(html, 'data-component="test-component"');
 });
 
@@ -316,7 +315,6 @@ Deno.test('Component - renderHTML() default: wraps markdown in container', () =>
     context: createMockContext(),
   });
 
-  assertStringIncludes(html, 'c-markdown');
   assertStringIncludes(html, 'data-component="test-component"');
   assertStringIncludes(html, 'data-markdown');
 });
@@ -354,7 +352,6 @@ Deno.test('Component - renderHTML() can be overridden for custom HTML', () => {
   });
 
   assertEquals(html, '<custom-wrapper>Custom Content</custom-wrapper>');
-  assertEquals(html.includes('c-markdown'), false);
 });
 
 Deno.test('Component - renderHTML() custom: can have custom loading state', () => {
@@ -366,7 +363,6 @@ Deno.test('Component - renderHTML() custom: can have custom loading state', () =
   });
 
   assertStringIncludes(html, 'custom-loading');
-  assertEquals(html.includes('c-loading'), false);
 });
 
 // ============================================================================
@@ -382,7 +378,6 @@ Deno.test('Component - renderError() formats Error objects', () => {
   });
 
   assertStringIncludes(html, 'Something went wrong');
-  assertStringIncludes(html, CSS_ERROR);
   assertStringIncludes(html, 'data-component="test-component"');
 });
 
@@ -394,7 +389,6 @@ Deno.test('Component - renderError() handles non-Error objects', () => {
   });
 
   assertStringIncludes(html, 'String error message');
-  assertStringIncludes(html, CSS_ERROR);
 });
 
 Deno.test('Component - renderError() handles unknown error types', () => {
@@ -405,7 +399,6 @@ Deno.test('Component - renderError() handles unknown error types', () => {
   });
 
   assertStringIncludes(html, '[object Object]');
-  assertStringIncludes(html, CSS_ERROR);
 });
 
 Deno.test('Component - renderError() escapes error messages for HTML safety', () => {
@@ -775,7 +768,7 @@ Deno.test('Component - contract: getData → renderHTML pipeline works', async (
     context: createMockContext(),
   });
 
-  assertStringIncludes(html, 'c-markdown');
+  assertStringIncludes(html, 'data-markdown');
 });
 
 Deno.test('Component - contract: null data flows through pipeline', async () => {
@@ -819,7 +812,6 @@ Deno.test('Component - contract: error handling flow', () => {
   });
 
   assertStringIncludes(htmlError, 'Test error');
-  assertStringIncludes(htmlError, CSS_ERROR);
 
   // renderMarkdownError for markdown
   const mdError = component.renderMarkdownError(error);

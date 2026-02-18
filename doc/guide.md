@@ -142,7 +142,7 @@ from the URL.
 | `renderHTML()`     | css `<style>` + `.html` file → `.md` in `<mark-down>` → `<router-slot>` |
 | `renderMarkdown()` | `.md` file → slot placeholder                                           |
 | `getTitle()`       | `undefined` (no title change)                                           |
-| `renderError()`    | `<div class="c-error">Error: {message}</div>`                           |
+| `renderError()`    | `<div>Error: {message}</div>`                                           |
 
 ### Template Pattern
 

@@ -9,10 +9,10 @@ Every **widget** has built-in error rendering. When a widget's `getData()` or
 render method throws, the error is caught and rendered inline. The rest of the
 page continues rendering normally.
 
-**HTML context** — renders a `<div class="c-error">`:
+**HTML context** — renders a `<div>` with the error message:
 
 ```html
-<div class="c-error" data-component="crypto-price">Error: fetch failed</div>
+<div data-component="crypto-price">Error: fetch failed</div>
 ```
 
 **Markdown context** — renders a blockquote:

@@ -8,7 +8,6 @@
  */
 
 import { escapeHtml, HTMLElementBase } from '../util/html.util.ts';
-import { CSS_ERROR } from '../component/abstract.component.ts';
 import type { MarkdownRenderer } from '../type/markdown.type.ts';
 
 export class MarkdownElement extends HTMLElementBase {
@@ -103,6 +102,6 @@ export class MarkdownElement extends HTMLElementBase {
 
   private showError(error: unknown): void {
     const message = error instanceof Error ? error.message : String(error);
-    this.innerHTML = `<div class="${CSS_ERROR}">Markdown Error: ${escapeHtml(message)}</div>`;
+    this.innerHTML = `<div>Markdown Error: ${escapeHtml(message)}</div>`;
   }
 }

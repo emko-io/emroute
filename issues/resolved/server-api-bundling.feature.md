@@ -928,3 +928,13 @@ at that point without breaking anything.
   interface IS the configuration surface.
 - **Plugin system** — `extendContext` and composable `handleRequest` are
   sufficient. No middleware chains or hook systems.
+
+## Resolution
+
+**Resolved in 1.5.0-beta.4.** All emroute-side work complete:
+
+- `createEmrouteServer()` in `server/prod.server.ts` — composable server API
+- `build()` with split bundles (core `emroute.js` + app `app.js`)
+- `CompressionStream`-based response compression
+- `.g.ts` naming convention for generated files
+- Remaining: consumer validation (emkoord migration) tracked separately

@@ -215,7 +215,9 @@ export async function createDevServer(
   // ---------------------------------------------------------------------------
 
   const scriptTag = spa !== 'none'
-    ? `<script type="module" src="/${entryPoint.replace(/\.ts$/, '.js')}"></script>`
+    ? `<script type="module" src="/${
+      entryPoint.replace(/^\.\//, '').replace(/\.ts$/, '.js')
+    }"></script>`
     : '';
   const styleTag = hasMainCss ? `<link rel="stylesheet" href="/main.css">` : '';
 
@@ -257,8 +259,9 @@ export async function createDevServer(
   let bundleProcess: { kill(): void } | undefined;
 
   if (spa !== 'none') {
-    const bundleOutput = `${BUNDLE_DIR}/${entryPoint.replace(/\.ts$/, '.js')}`;
-    await runtime.mkdir(BUNDLE_DIR + '/' + entryPoint.replace(/\/[^/]+$/, ''), { recursive: true });
+    const bundleEntry = entryPoint.replace(/^\.\//, '');
+    const bundleOutput = `${BUNDLE_DIR}/${bundleEntry.replace(/\.ts$/, '.js')}`;
+    await runtime.mkdir(BUNDLE_DIR, { recursive: true });
 
     const proc = new Deno.Command('deno', {
       args: [

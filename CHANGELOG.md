@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0-beta.6] - 2026-02-18
+
+### Fixed
+
+- **CLI `.build/` mkdir crash** — entry point path with `./` prefix produced an
+  invalid directory path (`.build/.`), crashing the dev server when invoked
+  remotely via JSR.
+- **Script src `./` prefix** — generated `<script>` tag had `/./_main.g.js`
+  instead of `/_main.g.js` in the HTML shell.
+
+### Changed
+
+- Lint excludes for vendored `emko-md.vendor.js` and generated fixture file.
+
 ## [1.5.0-beta.5] - 2026-02-18
 
 ### Added

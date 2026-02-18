@@ -69,3 +69,9 @@ test/browser/
 - `TEST_PORT` should be unique per mode to allow parallel execution
 - Selectors must match current SSR output (no `mark-down` wrappers for
   pre-rendered markdown)
+
+## Resolution
+
+**Resolved in da8af71.** Browser tests split into `test/browser/{none,leaf,root,only}/`
+directories. Each mode has its own test files and server setup with unique `TEST_PORT`.
+`SPA_MODE` env var selects the mode. `deno task test:browser:{mode}` runs per-mode.

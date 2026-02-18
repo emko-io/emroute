@@ -102,3 +102,9 @@ its own shadow root containing `<slot>`.
 
 Start with `data-route` scoping (simpler, non-breaking). Explore native `<slot>`
 as a future direction when `setHTMLUnsafe()` is widely available.
+
+## Resolution
+
+**Resolved in 1.5.0.** Router slots now carry `data-route` pattern attributes for
+scoped injection. `injectSlot` targets the matching `data-route` attribute. The
+`isLeaf` check prevents duplicate slots from the default fallback chain.

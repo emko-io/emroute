@@ -1,6 +1,6 @@
 {
   "name": "@emkodev/emroute",
-  "version": "1.5.0-beta.5",
+  "version": "1.5.0-beta.6",
   "description": "File-based router with triple rendering (SPA, SSR HTML, SSR Markdown). Zero dependencies.",
   "license": "BSD-3-Clause",
   "author": "emko.dev",
@@ -93,6 +93,10 @@
   "lint": {
     "rules": {
       "tags": ["recommended"]
-    }
+    },
+    "exclude": [
+      "server/emko-md.vendor.js",
+      "test/browser/fixtures/_main.generated.ts"
+    ]
   }
 }

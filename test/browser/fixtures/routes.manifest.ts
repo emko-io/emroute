@@ -9,317 +9,431 @@ import type { RoutesManifest } from '@emkodev/emroute';
 
 export const routesManifest: RoutesManifest = {
   routes: [
-  {
-    pattern: '/html/nesting-ts/lvl-one/level-two/level-three/markdown',
-    type: 'page',
-    modulePath: 'test/browser/fixtures/routes/nesting-ts/lvl-one/level-two/level-three/markdown.page.md',
-    files: { md: 'test/browser/fixtures/routes/nesting-ts/lvl-one/level-two/level-three/markdown.page.md' },
-    parent: '/html/nesting-ts/lvl-one/level-two/level-three',
-  },
-  {
-    pattern: '/html/nesting-ts/lvl-one/level-two/level-three/html',
-    type: 'page',
-    modulePath: 'test/browser/fixtures/routes/nesting-ts/lvl-one/level-two/level-three/html.page.html',
-    files: { html: 'test/browser/fixtures/routes/nesting-ts/lvl-one/level-two/level-three/html.page.html' },
-    parent: '/html/nesting-ts/lvl-one/level-two/level-three',
-  },
-  {
-    pattern: '/html/nesting-ts/lvl-one/level-two/level-three/typescript',
-    type: 'page',
-    modulePath: 'test/browser/fixtures/routes/nesting-ts/lvl-one/level-two/level-three/typescript.page.ts',
-    files: { ts: 'test/browser/fixtures/routes/nesting-ts/lvl-one/level-two/level-three/typescript.page.ts' },
-    parent: '/html/nesting-ts/lvl-one/level-two/level-three',
-  },
-  {
-    pattern: '/html/nesting-ts-md/lvl-one/level-two/level-three',
-    type: 'page',
-    modulePath: 'test/browser/fixtures/routes/nesting-ts-md/lvl-one/level-two/level-three.page.ts',
-    files: { md: 'test/browser/fixtures/routes/nesting-ts-md/lvl-one/level-two/level-three.page.md', ts: 'test/browser/fixtures/routes/nesting-ts-md/lvl-one/level-two/level-three.page.ts' },
-    parent: '/html/nesting-ts-md/lvl-one/level-two',
-  },
-  {
-    pattern: '/html/nesting/lvl-one/level-two/level-three',
-    type: 'page',
-    modulePath: 'test/browser/fixtures/routes/nesting/lvl-one/level-two/level-three.page.html',
-    files: { html: 'test/browser/fixtures/routes/nesting/lvl-one/level-two/level-three.page.html', md: 'test/browser/fixtures/routes/nesting/lvl-one/level-two/level-three.page.md' },
-    parent: '/html/nesting/lvl-one/level-two',
-  },
-  {
-    pattern: '/html/nesting-ts-html/lvl-one/level-two/level-three',
-    type: 'page',
-    modulePath: 'test/browser/fixtures/routes/nesting-ts-html/lvl-one/level-two/level-three.page.ts',
-    files: { html: 'test/browser/fixtures/routes/nesting-ts-html/lvl-one/level-two/level-three.page.html', ts: 'test/browser/fixtures/routes/nesting-ts-html/lvl-one/level-two/level-three.page.ts' },
-    parent: '/html/nesting-ts-html/lvl-one/level-two',
-  },
-  {
-    pattern: '/html/nesting-ts/lvl-one/level-two',
-    type: 'page',
-    modulePath: 'test/browser/fixtures/routes/nesting-ts/lvl-one/level-two.page.ts',
-    files: { ts: 'test/browser/fixtures/routes/nesting-ts/lvl-one/level-two.page.ts' },
-    parent: '/html/nesting-ts/lvl-one',
-  },
-  {
-    pattern: '/html/nesting-ts-md/lvl-one/level-two',
-    type: 'page',
-    modulePath: 'test/browser/fixtures/routes/nesting-ts-md/lvl-one/level-two.page.ts',
-    files: { md: 'test/browser/fixtures/routes/nesting-ts-md/lvl-one/level-two.page.md', ts: 'test/browser/fixtures/routes/nesting-ts-md/lvl-one/level-two.page.ts' },
-    parent: '/html/nesting-ts-md/lvl-one',
-  },
-  {
-    pattern: '/html/nesting/lvl-one/level-two',
-    type: 'page',
-    modulePath: 'test/browser/fixtures/routes/nesting/lvl-one/level-two.page.html',
-    files: { html: 'test/browser/fixtures/routes/nesting/lvl-one/level-two.page.html', md: 'test/browser/fixtures/routes/nesting/lvl-one/level-two.page.md' },
-    parent: '/html/nesting/lvl-one',
-  },
-  {
-    pattern: '/html/nesting-ts-html/lvl-one/level-two',
-    type: 'page',
-    modulePath: 'test/browser/fixtures/routes/nesting-ts-html/lvl-one/level-two.page.ts',
-    files: { html: 'test/browser/fixtures/routes/nesting-ts-html/lvl-one/level-two.page.html', ts: 'test/browser/fixtures/routes/nesting-ts-html/lvl-one/level-two.page.ts' },
-    parent: '/html/nesting-ts-html/lvl-one',
-  },
-  {
-    pattern: '/html/projects/:id/tasks',
-    type: 'page',
-    modulePath: 'test/browser/fixtures/routes/projects/[id]/tasks.page.ts',
-    files: { ts: 'test/browser/fixtures/routes/projects/[id]/tasks.page.ts' },
-    parent: '/html/projects/:id',
-  },
-  {
-    pattern: '/html/articles/:slug/comment',
-    type: 'page',
-    modulePath: 'test/browser/fixtures/routes/articles/[slug]/comment.page.ts',
-    files: { ts: 'test/browser/fixtures/routes/articles/[slug]/comment.page.ts' },
-    parent: '/html/articles/:slug',
-  },
-  {
-    pattern: '/html/projects/broken',
-    type: 'page',
-    modulePath: 'test/browser/fixtures/routes/projects/broken.page.ts',
-    files: { ts: 'test/browser/fixtures/routes/projects/broken.page.ts' },
-    parent: '/html/projects',
-  },
-  {
-    pattern: '/html/nesting-ts/lvl-one',
-    type: 'page',
-    modulePath: 'test/browser/fixtures/routes/nesting-ts/lvl-one.page.ts',
-    files: { ts: 'test/browser/fixtures/routes/nesting-ts/lvl-one.page.ts' },
-    parent: '/html/nesting-ts',
-  },
-  {
-    pattern: '/html/nesting-ts-md/lvl-one',
-    type: 'page',
-    modulePath: 'test/browser/fixtures/routes/nesting-ts-md/lvl-one.page.ts',
-    files: { ts: 'test/browser/fixtures/routes/nesting-ts-md/lvl-one.page.ts', md: 'test/browser/fixtures/routes/nesting-ts-md/lvl-one.page.md' },
-    parent: '/html/nesting-ts-md',
-  },
-  {
-    pattern: '/html/vanilla/counter',
-    type: 'page',
-    modulePath: 'test/browser/fixtures/routes/vanilla/counter.page.md',
-    files: { md: 'test/browser/fixtures/routes/vanilla/counter.page.md' },
-    parent: '/html/vanilla',
-  },
-  {
-    pattern: '/html/nesting/lvl-one',
-    type: 'page',
-    modulePath: 'test/browser/fixtures/routes/nesting/lvl-one.page.html',
-    files: { html: 'test/browser/fixtures/routes/nesting/lvl-one.page.html', md: 'test/browser/fixtures/routes/nesting/lvl-one.page.md' },
-    parent: '/html/nesting',
-  },
-  {
-    pattern: '/html/nesting-ts-html/lvl-one',
-    type: 'page',
-    modulePath: 'test/browser/fixtures/routes/nesting-ts-html/lvl-one.page.ts',
-    files: { ts: 'test/browser/fixtures/routes/nesting-ts-html/lvl-one.page.ts', html: 'test/browser/fixtures/routes/nesting-ts-html/lvl-one.page.html' },
-    parent: '/html/nesting-ts-html',
-  },
-  {
-    pattern: '/html/projects/:id',
-    type: 'page',
-    modulePath: 'test/browser/fixtures/routes/projects/[id].page.ts',
-    files: { ts: 'test/browser/fixtures/routes/projects/[id].page.ts' },
-    parent: '/html/projects',
-  },
-  {
-    pattern: '/html/articles/:slug',
-    type: 'page',
-    modulePath: 'test/browser/fixtures/routes/articles/[slug].page.ts',
-    files: { css: 'test/browser/fixtures/routes/articles/[slug].page.css', html: 'test/browser/fixtures/routes/articles/[slug].page.html', ts: 'test/browser/fixtures/routes/articles/[slug].page.ts' },
-    parent: '/html/articles',
-  },
-  {
-    pattern: '/html/profile',
-    type: 'page',
-    modulePath: 'test/browser/fixtures/routes/profile.page.ts',
-    files: { ts: 'test/browser/fixtures/routes/profile.page.ts', html: 'test/browser/fixtures/routes/profile.page.html' },
-  },
-  {
-    pattern: '/html/widgets-html',
-    type: 'page',
-    modulePath: 'test/browser/fixtures/routes/widgets-html.page.html',
-    files: { html: 'test/browser/fixtures/routes/widgets-html.page.html' },
-  },
-  {
-    pattern: '/html/projects',
-    type: 'page',
-    modulePath: 'test/browser/fixtures/routes/projects.page.md',
-    files: { md: 'test/browser/fixtures/routes/projects.page.md' },
-  },
-  {
-    pattern: '/html/articles',
-    type: 'page',
-    modulePath: 'test/browser/fixtures/routes/articles.page.ts',
-    files: { html: 'test/browser/fixtures/routes/articles.page.html', ts: 'test/browser/fixtures/routes/articles.page.ts' },
-  },
-  {
-    pattern: '/html/mixed-widgets',
-    type: 'page',
-    modulePath: 'test/browser/fixtures/routes/mixed-widgets.page.html',
-    files: { html: 'test/browser/fixtures/routes/mixed-widgets.page.html', md: 'test/browser/fixtures/routes/mixed-widgets.page.md' },
-  },
-  {
-    pattern: '/html/about',
-    type: 'page',
-    modulePath: 'test/browser/fixtures/routes/about.page.html',
-    files: { md: 'test/browser/fixtures/routes/about.page.md', css: 'test/browser/fixtures/routes/about.page.css', html: 'test/browser/fixtures/routes/about.page.html' },
-  },
-  {
-    pattern: '/html/nesting',
-    type: 'page',
-    modulePath: 'test/browser/fixtures/routes/nesting.page.html',
-    files: { md: 'test/browser/fixtures/routes/nesting.page.md', html: 'test/browser/fixtures/routes/nesting.page.html' },
-  },
-  {
-    pattern: '/html/empty-markdown',
-    type: 'page',
-    modulePath: 'test/browser/fixtures/routes/empty-markdown.page.html',
-    files: { html: 'test/browser/fixtures/routes/empty-markdown.page.html' },
-  },
-  {
-    pattern: '/html/nesting-ts',
-    type: 'page',
-    modulePath: 'test/browser/fixtures/routes/nesting-ts.page.ts',
-    files: { ts: 'test/browser/fixtures/routes/nesting-ts.page.ts' },
-  },
-  {
-    pattern: '/html/docs',
-    type: 'page',
-    modulePath: 'test/browser/fixtures/routes/docs.page.ts',
-    files: { html: 'test/browser/fixtures/routes/docs.page.html', ts: 'test/browser/fixtures/routes/docs.page.ts' },
-  },
-  {
-    pattern: '/html/crash',
-    type: 'page',
-    modulePath: 'test/browser/fixtures/routes/crash.page.ts',
-    files: { ts: 'test/browser/fixtures/routes/crash.page.ts' },
-  },
-  {
-    pattern: '/html/widgets',
-    type: 'page',
-    modulePath: 'test/browser/fixtures/routes/widgets.page.md',
-    files: { md: 'test/browser/fixtures/routes/widgets.page.md' },
-  },
-  {
-    pattern: '/html/blog',
-    type: 'page',
-    modulePath: 'test/browser/fixtures/routes/blog.page.ts',
-    files: { md: 'test/browser/fixtures/routes/blog.page.md', ts: 'test/browser/fixtures/routes/blog.page.ts' },
-  },
-  {
-    pattern: '/html/nesting-ts-md',
-    type: 'page',
-    modulePath: 'test/browser/fixtures/routes/nesting-ts-md.page.ts',
-    files: { ts: 'test/browser/fixtures/routes/nesting-ts-md.page.ts', md: 'test/browser/fixtures/routes/nesting-ts-md.page.md' },
-  },
-  {
-    pattern: '/html/nesting-ts-html',
-    type: 'page',
-    modulePath: 'test/browser/fixtures/routes/nesting-ts-html.page.ts',
-    files: { html: 'test/browser/fixtures/routes/nesting-ts-html.page.html', ts: 'test/browser/fixtures/routes/nesting-ts-html.page.ts' },
-  },
-  {
-    pattern: '/html/widget-files-md',
-    type: 'page',
-    modulePath: 'test/browser/fixtures/routes/widget-files-md.page.md',
-    files: { md: 'test/browser/fixtures/routes/widget-files-md.page.md' },
-  },
-  {
-    pattern: '/html/widget-files',
-    type: 'page',
-    modulePath: 'test/browser/fixtures/routes/widget-files.page.html',
-    files: { html: 'test/browser/fixtures/routes/widget-files.page.html' },
-  },
-  {
-    pattern: '/html/hydration',
-    type: 'page',
-    modulePath: 'test/browser/fixtures/routes/hydration.page.ts',
-    files: { ts: 'test/browser/fixtures/routes/hydration.page.ts' },
-  },
-  {
-    pattern: '/html/old',
-    type: 'redirect',
-    modulePath: 'test/browser/fixtures/routes/old.redirect.ts',
-  },
-  {
-    pattern: '/html',
-    type: 'page',
-    modulePath: 'test/browser/fixtures/routes/index.page.md',
-    files: { md: 'test/browser/fixtures/routes/index.page.md' },
-  },
-  {
-    pattern: '/html/projects/:rest*',
-    type: 'page',
-    modulePath: 'test/browser/fixtures/routes/projects/index.page.md',
-    files: { md: 'test/browser/fixtures/routes/projects/index.page.md' },
-    parent: '/html/projects',
-  }
+    {
+      pattern: '/html/nesting-ts/lvl-one/level-two/level-three/markdown',
+      type: 'page',
+      modulePath:
+        'test/browser/fixtures/routes/nesting-ts/lvl-one/level-two/level-three/markdown.page.md',
+      files: {
+        md:
+          'test/browser/fixtures/routes/nesting-ts/lvl-one/level-two/level-three/markdown.page.md',
+      },
+      parent: '/html/nesting-ts/lvl-one/level-two/level-three',
+    },
+    {
+      pattern: '/html/nesting-ts/lvl-one/level-two/level-three/html',
+      type: 'page',
+      modulePath:
+        'test/browser/fixtures/routes/nesting-ts/lvl-one/level-two/level-three/html.page.html',
+      files: {
+        html:
+          'test/browser/fixtures/routes/nesting-ts/lvl-one/level-two/level-three/html.page.html',
+      },
+      parent: '/html/nesting-ts/lvl-one/level-two/level-three',
+    },
+    {
+      pattern: '/html/nesting-ts/lvl-one/level-two/level-three/typescript',
+      type: 'page',
+      modulePath:
+        'test/browser/fixtures/routes/nesting-ts/lvl-one/level-two/level-three/typescript.page.ts',
+      files: {
+        ts:
+          'test/browser/fixtures/routes/nesting-ts/lvl-one/level-two/level-three/typescript.page.ts',
+      },
+      parent: '/html/nesting-ts/lvl-one/level-two/level-three',
+    },
+    {
+      pattern: '/html/nesting-ts-md/lvl-one/level-two/level-three',
+      type: 'page',
+      modulePath:
+        'test/browser/fixtures/routes/nesting-ts-md/lvl-one/level-two/level-three.page.ts',
+      files: {
+        md: 'test/browser/fixtures/routes/nesting-ts-md/lvl-one/level-two/level-three.page.md',
+        ts: 'test/browser/fixtures/routes/nesting-ts-md/lvl-one/level-two/level-three.page.ts',
+      },
+      parent: '/html/nesting-ts-md/lvl-one/level-two',
+    },
+    {
+      pattern: '/html/nesting/lvl-one/level-two/level-three',
+      type: 'page',
+      modulePath: 'test/browser/fixtures/routes/nesting/lvl-one/level-two/level-three.page.html',
+      files: {
+        html: 'test/browser/fixtures/routes/nesting/lvl-one/level-two/level-three.page.html',
+        md: 'test/browser/fixtures/routes/nesting/lvl-one/level-two/level-three.page.md',
+      },
+      parent: '/html/nesting/lvl-one/level-two',
+    },
+    {
+      pattern: '/html/nesting-ts-html/lvl-one/level-two/level-three',
+      type: 'page',
+      modulePath:
+        'test/browser/fixtures/routes/nesting-ts-html/lvl-one/level-two/level-three.page.ts',
+      files: {
+        html:
+          'test/browser/fixtures/routes/nesting-ts-html/lvl-one/level-two/level-three.page.html',
+        ts: 'test/browser/fixtures/routes/nesting-ts-html/lvl-one/level-two/level-three.page.ts',
+      },
+      parent: '/html/nesting-ts-html/lvl-one/level-two',
+    },
+    {
+      pattern: '/html/nesting-ts/lvl-one/level-two',
+      type: 'page',
+      modulePath: 'test/browser/fixtures/routes/nesting-ts/lvl-one/level-two.page.ts',
+      files: { ts: 'test/browser/fixtures/routes/nesting-ts/lvl-one/level-two.page.ts' },
+      parent: '/html/nesting-ts/lvl-one',
+    },
+    {
+      pattern: '/html/nesting-ts-md/lvl-one/level-two',
+      type: 'page',
+      modulePath: 'test/browser/fixtures/routes/nesting-ts-md/lvl-one/level-two.page.ts',
+      files: {
+        md: 'test/browser/fixtures/routes/nesting-ts-md/lvl-one/level-two.page.md',
+        ts: 'test/browser/fixtures/routes/nesting-ts-md/lvl-one/level-two.page.ts',
+      },
+      parent: '/html/nesting-ts-md/lvl-one',
+    },
+    {
+      pattern: '/html/nesting/lvl-one/level-two',
+      type: 'page',
+      modulePath: 'test/browser/fixtures/routes/nesting/lvl-one/level-two.page.html',
+      files: {
+        html: 'test/browser/fixtures/routes/nesting/lvl-one/level-two.page.html',
+        md: 'test/browser/fixtures/routes/nesting/lvl-one/level-two.page.md',
+      },
+      parent: '/html/nesting/lvl-one',
+    },
+    {
+      pattern: '/html/nesting-ts-html/lvl-one/level-two',
+      type: 'page',
+      modulePath: 'test/browser/fixtures/routes/nesting-ts-html/lvl-one/level-two.page.ts',
+      files: {
+        html: 'test/browser/fixtures/routes/nesting-ts-html/lvl-one/level-two.page.html',
+        ts: 'test/browser/fixtures/routes/nesting-ts-html/lvl-one/level-two.page.ts',
+      },
+      parent: '/html/nesting-ts-html/lvl-one',
+    },
+    {
+      pattern: '/html/projects/:id/tasks',
+      type: 'page',
+      modulePath: 'test/browser/fixtures/routes/projects/[id]/tasks.page.ts',
+      files: { ts: 'test/browser/fixtures/routes/projects/[id]/tasks.page.ts' },
+      parent: '/html/projects/:id',
+    },
+    {
+      pattern: '/html/articles/:slug/comment',
+      type: 'page',
+      modulePath: 'test/browser/fixtures/routes/articles/[slug]/comment.page.ts',
+      files: { ts: 'test/browser/fixtures/routes/articles/[slug]/comment.page.ts' },
+      parent: '/html/articles/:slug',
+    },
+    {
+      pattern: '/html/projects/broken',
+      type: 'page',
+      modulePath: 'test/browser/fixtures/routes/projects/broken.page.ts',
+      files: { ts: 'test/browser/fixtures/routes/projects/broken.page.ts' },
+      parent: '/html/projects',
+    },
+    {
+      pattern: '/html/nesting-ts/lvl-one',
+      type: 'page',
+      modulePath: 'test/browser/fixtures/routes/nesting-ts/lvl-one.page.ts',
+      files: { ts: 'test/browser/fixtures/routes/nesting-ts/lvl-one.page.ts' },
+      parent: '/html/nesting-ts',
+    },
+    {
+      pattern: '/html/nesting-ts-md/lvl-one',
+      type: 'page',
+      modulePath: 'test/browser/fixtures/routes/nesting-ts-md/lvl-one.page.ts',
+      files: {
+        ts: 'test/browser/fixtures/routes/nesting-ts-md/lvl-one.page.ts',
+        md: 'test/browser/fixtures/routes/nesting-ts-md/lvl-one.page.md',
+      },
+      parent: '/html/nesting-ts-md',
+    },
+    {
+      pattern: '/html/vanilla/counter',
+      type: 'page',
+      modulePath: 'test/browser/fixtures/routes/vanilla/counter.page.md',
+      files: { md: 'test/browser/fixtures/routes/vanilla/counter.page.md' },
+      parent: '/html/vanilla',
+    },
+    {
+      pattern: '/html/nesting/lvl-one',
+      type: 'page',
+      modulePath: 'test/browser/fixtures/routes/nesting/lvl-one.page.html',
+      files: {
+        html: 'test/browser/fixtures/routes/nesting/lvl-one.page.html',
+        md: 'test/browser/fixtures/routes/nesting/lvl-one.page.md',
+      },
+      parent: '/html/nesting',
+    },
+    {
+      pattern: '/html/nesting-ts-html/lvl-one',
+      type: 'page',
+      modulePath: 'test/browser/fixtures/routes/nesting-ts-html/lvl-one.page.ts',
+      files: {
+        ts: 'test/browser/fixtures/routes/nesting-ts-html/lvl-one.page.ts',
+        html: 'test/browser/fixtures/routes/nesting-ts-html/lvl-one.page.html',
+      },
+      parent: '/html/nesting-ts-html',
+    },
+    {
+      pattern: '/html/projects/:id',
+      type: 'page',
+      modulePath: 'test/browser/fixtures/routes/projects/[id].page.ts',
+      files: { ts: 'test/browser/fixtures/routes/projects/[id].page.ts' },
+      parent: '/html/projects',
+    },
+    {
+      pattern: '/html/articles/:slug',
+      type: 'page',
+      modulePath: 'test/browser/fixtures/routes/articles/[slug].page.ts',
+      files: {
+        css: 'test/browser/fixtures/routes/articles/[slug].page.css',
+        html: 'test/browser/fixtures/routes/articles/[slug].page.html',
+        ts: 'test/browser/fixtures/routes/articles/[slug].page.ts',
+      },
+      parent: '/html/articles',
+    },
+    {
+      pattern: '/html/profile',
+      type: 'page',
+      modulePath: 'test/browser/fixtures/routes/profile.page.ts',
+      files: {
+        ts: 'test/browser/fixtures/routes/profile.page.ts',
+        html: 'test/browser/fixtures/routes/profile.page.html',
+      },
+    },
+    {
+      pattern: '/html/widgets-html',
+      type: 'page',
+      modulePath: 'test/browser/fixtures/routes/widgets-html.page.html',
+      files: { html: 'test/browser/fixtures/routes/widgets-html.page.html' },
+    },
+    {
+      pattern: '/html/projects',
+      type: 'page',
+      modulePath: 'test/browser/fixtures/routes/projects.page.md',
+      files: { md: 'test/browser/fixtures/routes/projects.page.md' },
+    },
+    {
+      pattern: '/html/articles',
+      type: 'page',
+      modulePath: 'test/browser/fixtures/routes/articles.page.ts',
+      files: {
+        html: 'test/browser/fixtures/routes/articles.page.html',
+        ts: 'test/browser/fixtures/routes/articles.page.ts',
+      },
+    },
+    {
+      pattern: '/html/mixed-widgets',
+      type: 'page',
+      modulePath: 'test/browser/fixtures/routes/mixed-widgets.page.html',
+      files: {
+        html: 'test/browser/fixtures/routes/mixed-widgets.page.html',
+        md: 'test/browser/fixtures/routes/mixed-widgets.page.md',
+      },
+    },
+    {
+      pattern: '/html/about',
+      type: 'page',
+      modulePath: 'test/browser/fixtures/routes/about.page.html',
+      files: {
+        md: 'test/browser/fixtures/routes/about.page.md',
+        css: 'test/browser/fixtures/routes/about.page.css',
+        html: 'test/browser/fixtures/routes/about.page.html',
+      },
+    },
+    {
+      pattern: '/html/nesting',
+      type: 'page',
+      modulePath: 'test/browser/fixtures/routes/nesting.page.html',
+      files: {
+        md: 'test/browser/fixtures/routes/nesting.page.md',
+        html: 'test/browser/fixtures/routes/nesting.page.html',
+      },
+    },
+    {
+      pattern: '/html/empty-markdown',
+      type: 'page',
+      modulePath: 'test/browser/fixtures/routes/empty-markdown.page.html',
+      files: { html: 'test/browser/fixtures/routes/empty-markdown.page.html' },
+    },
+    {
+      pattern: '/html/nesting-ts',
+      type: 'page',
+      modulePath: 'test/browser/fixtures/routes/nesting-ts.page.ts',
+      files: { ts: 'test/browser/fixtures/routes/nesting-ts.page.ts' },
+    },
+    {
+      pattern: '/html/docs',
+      type: 'page',
+      modulePath: 'test/browser/fixtures/routes/docs.page.ts',
+      files: {
+        html: 'test/browser/fixtures/routes/docs.page.html',
+        ts: 'test/browser/fixtures/routes/docs.page.ts',
+      },
+    },
+    {
+      pattern: '/html/crash',
+      type: 'page',
+      modulePath: 'test/browser/fixtures/routes/crash.page.ts',
+      files: { ts: 'test/browser/fixtures/routes/crash.page.ts' },
+    },
+    {
+      pattern: '/html/widgets',
+      type: 'page',
+      modulePath: 'test/browser/fixtures/routes/widgets.page.md',
+      files: { md: 'test/browser/fixtures/routes/widgets.page.md' },
+    },
+    {
+      pattern: '/html/blog',
+      type: 'page',
+      modulePath: 'test/browser/fixtures/routes/blog.page.ts',
+      files: {
+        md: 'test/browser/fixtures/routes/blog.page.md',
+        ts: 'test/browser/fixtures/routes/blog.page.ts',
+      },
+    },
+    {
+      pattern: '/html/nesting-ts-md',
+      type: 'page',
+      modulePath: 'test/browser/fixtures/routes/nesting-ts-md.page.ts',
+      files: {
+        ts: 'test/browser/fixtures/routes/nesting-ts-md.page.ts',
+        md: 'test/browser/fixtures/routes/nesting-ts-md.page.md',
+      },
+    },
+    {
+      pattern: '/html/nesting-ts-html',
+      type: 'page',
+      modulePath: 'test/browser/fixtures/routes/nesting-ts-html.page.ts',
+      files: {
+        html: 'test/browser/fixtures/routes/nesting-ts-html.page.html',
+        ts: 'test/browser/fixtures/routes/nesting-ts-html.page.ts',
+      },
+    },
+    {
+      pattern: '/html/widget-files-md',
+      type: 'page',
+      modulePath: 'test/browser/fixtures/routes/widget-files-md.page.md',
+      files: { md: 'test/browser/fixtures/routes/widget-files-md.page.md' },
+    },
+    {
+      pattern: '/html/widget-files',
+      type: 'page',
+      modulePath: 'test/browser/fixtures/routes/widget-files.page.html',
+      files: { html: 'test/browser/fixtures/routes/widget-files.page.html' },
+    },
+    {
+      pattern: '/html/hydration',
+      type: 'page',
+      modulePath: 'test/browser/fixtures/routes/hydration.page.ts',
+      files: { ts: 'test/browser/fixtures/routes/hydration.page.ts' },
+    },
+    {
+      pattern: '/html/old',
+      type: 'redirect',
+      modulePath: 'test/browser/fixtures/routes/old.redirect.ts',
+    },
+    {
+      pattern: '/html',
+      type: 'page',
+      modulePath: 'test/browser/fixtures/routes/index.page.md',
+      files: { md: 'test/browser/fixtures/routes/index.page.md' },
+    },
+    {
+      pattern: '/html/projects/:rest*',
+      type: 'page',
+      modulePath: 'test/browser/fixtures/routes/projects/index.page.md',
+      files: { md: 'test/browser/fixtures/routes/projects/index.page.md' },
+      parent: '/html/projects',
+    },
   ],
 
   errorBoundaries: [
-  {
-    pattern: '/html/projects',
-    modulePath: 'test/browser/fixtures/routes/projects/[id].error.ts',
-  }
+    {
+      pattern: '/html/projects',
+      modulePath: 'test/browser/fixtures/routes/projects/[id].error.ts',
+    },
   ],
 
   statusPages: new Map([
-  [404, { pattern: '/html/404', type: 'page', modulePath: 'test/browser/fixtures/routes/404.page.html', statusCode: 404, files: { html: 'test/browser/fixtures/routes/404.page.html', md: 'test/browser/fixtures/routes/404.page.md' } }]
+    [404, {
+      pattern: '/html/404',
+      type: 'page',
+      modulePath: 'test/browser/fixtures/routes/404.page.html',
+      statusCode: 404,
+      files: {
+        html: 'test/browser/fixtures/routes/404.page.html',
+        md: 'test/browser/fixtures/routes/404.page.md',
+      },
+    }],
   ]),
 
   errorHandler: {
-  pattern: '/html',
-  type: 'error',
-  modulePath: 'test/browser/fixtures/routes/index.error.ts',
-},
+    pattern: '/html',
+    type: 'error',
+    modulePath: 'test/browser/fixtures/routes/index.error.ts',
+  },
 
   moduleLoaders: {
-    'test/browser/fixtures/routes/nesting-ts/lvl-one/level-two/level-three/typescript.page.ts': () => import('./test/browser/fixtures/routes/nesting-ts/lvl-one/level-two/level-three/typescript.page.ts'),
-    'test/browser/fixtures/routes/nesting-ts-md/lvl-one/level-two/level-three.page.ts': () => import('./test/browser/fixtures/routes/nesting-ts-md/lvl-one/level-two/level-three.page.ts'),
-    'test/browser/fixtures/routes/nesting-ts-html/lvl-one/level-two/level-three.page.ts': () => import('./test/browser/fixtures/routes/nesting-ts-html/lvl-one/level-two/level-three.page.ts'),
-    'test/browser/fixtures/routes/nesting-ts/lvl-one/level-two.page.ts': () => import('./test/browser/fixtures/routes/nesting-ts/lvl-one/level-two.page.ts'),
-    'test/browser/fixtures/routes/nesting-ts-md/lvl-one/level-two.page.ts': () => import('./test/browser/fixtures/routes/nesting-ts-md/lvl-one/level-two.page.ts'),
-    'test/browser/fixtures/routes/nesting-ts-html/lvl-one/level-two.page.ts': () => import('./test/browser/fixtures/routes/nesting-ts-html/lvl-one/level-two.page.ts'),
-    'test/browser/fixtures/routes/projects/[id]/tasks.page.ts': () => import('./test/browser/fixtures/routes/projects/[id]/tasks.page.ts'),
-    'test/browser/fixtures/routes/articles/[slug]/comment.page.ts': () => import('./test/browser/fixtures/routes/articles/[slug]/comment.page.ts'),
-    'test/browser/fixtures/routes/projects/broken.page.ts': () => import('./test/browser/fixtures/routes/projects/broken.page.ts'),
-    'test/browser/fixtures/routes/nesting-ts/lvl-one.page.ts': () => import('./test/browser/fixtures/routes/nesting-ts/lvl-one.page.ts'),
-    'test/browser/fixtures/routes/nesting-ts-md/lvl-one.page.ts': () => import('./test/browser/fixtures/routes/nesting-ts-md/lvl-one.page.ts'),
-    'test/browser/fixtures/routes/nesting-ts-html/lvl-one.page.ts': () => import('./test/browser/fixtures/routes/nesting-ts-html/lvl-one.page.ts'),
-    'test/browser/fixtures/routes/projects/[id].page.ts': () => import('./test/browser/fixtures/routes/projects/[id].page.ts'),
-    'test/browser/fixtures/routes/articles/[slug].page.ts': () => import('./test/browser/fixtures/routes/articles/[slug].page.ts'),
-    'test/browser/fixtures/routes/profile.page.ts': () => import('./test/browser/fixtures/routes/profile.page.ts'),
-    'test/browser/fixtures/routes/articles.page.ts': () => import('./test/browser/fixtures/routes/articles.page.ts'),
-    'test/browser/fixtures/routes/nesting-ts.page.ts': () => import('./test/browser/fixtures/routes/nesting-ts.page.ts'),
-    'test/browser/fixtures/routes/docs.page.ts': () => import('./test/browser/fixtures/routes/docs.page.ts'),
-    'test/browser/fixtures/routes/crash.page.ts': () => import('./test/browser/fixtures/routes/crash.page.ts'),
-    'test/browser/fixtures/routes/blog.page.ts': () => import('./test/browser/fixtures/routes/blog.page.ts'),
-    'test/browser/fixtures/routes/nesting-ts-md.page.ts': () => import('./test/browser/fixtures/routes/nesting-ts-md.page.ts'),
-    'test/browser/fixtures/routes/nesting-ts-html.page.ts': () => import('./test/browser/fixtures/routes/nesting-ts-html.page.ts'),
-    'test/browser/fixtures/routes/hydration.page.ts': () => import('./test/browser/fixtures/routes/hydration.page.ts'),
-    'test/browser/fixtures/routes/old.redirect.ts': () => import('./test/browser/fixtures/routes/old.redirect.ts'),
-    'test/browser/fixtures/routes/projects/[id].error.ts': () => import('./test/browser/fixtures/routes/projects/[id].error.ts'),
-    'test/browser/fixtures/routes/index.error.ts': () => import('./test/browser/fixtures/routes/index.error.ts'),
+    'test/browser/fixtures/routes/nesting-ts/lvl-one/level-two/level-three/typescript.page.ts':
+      () =>
+        import(
+          './test/browser/fixtures/routes/nesting-ts/lvl-one/level-two/level-three/typescript.page.ts'
+        ),
+    'test/browser/fixtures/routes/nesting-ts-md/lvl-one/level-two/level-three.page.ts': () =>
+      import('./test/browser/fixtures/routes/nesting-ts-md/lvl-one/level-two/level-three.page.ts'),
+    'test/browser/fixtures/routes/nesting-ts-html/lvl-one/level-two/level-three.page.ts': () =>
+      import(
+        './test/browser/fixtures/routes/nesting-ts-html/lvl-one/level-two/level-three.page.ts'
+      ),
+    'test/browser/fixtures/routes/nesting-ts/lvl-one/level-two.page.ts': () =>
+      import('./test/browser/fixtures/routes/nesting-ts/lvl-one/level-two.page.ts'),
+    'test/browser/fixtures/routes/nesting-ts-md/lvl-one/level-two.page.ts': () =>
+      import('./test/browser/fixtures/routes/nesting-ts-md/lvl-one/level-two.page.ts'),
+    'test/browser/fixtures/routes/nesting-ts-html/lvl-one/level-two.page.ts': () =>
+      import('./test/browser/fixtures/routes/nesting-ts-html/lvl-one/level-two.page.ts'),
+    'test/browser/fixtures/routes/projects/[id]/tasks.page.ts': () =>
+      import('./test/browser/fixtures/routes/projects/[id]/tasks.page.ts'),
+    'test/browser/fixtures/routes/articles/[slug]/comment.page.ts': () =>
+      import('./test/browser/fixtures/routes/articles/[slug]/comment.page.ts'),
+    'test/browser/fixtures/routes/projects/broken.page.ts': () =>
+      import('./test/browser/fixtures/routes/projects/broken.page.ts'),
+    'test/browser/fixtures/routes/nesting-ts/lvl-one.page.ts': () =>
+      import('./test/browser/fixtures/routes/nesting-ts/lvl-one.page.ts'),
+    'test/browser/fixtures/routes/nesting-ts-md/lvl-one.page.ts': () =>
+      import('./test/browser/fixtures/routes/nesting-ts-md/lvl-one.page.ts'),
+    'test/browser/fixtures/routes/nesting-ts-html/lvl-one.page.ts': () =>
+      import('./test/browser/fixtures/routes/nesting-ts-html/lvl-one.page.ts'),
+    'test/browser/fixtures/routes/projects/[id].page.ts': () =>
+      import('./test/browser/fixtures/routes/projects/[id].page.ts'),
+    'test/browser/fixtures/routes/articles/[slug].page.ts': () =>
+      import('./test/browser/fixtures/routes/articles/[slug].page.ts'),
+    'test/browser/fixtures/routes/profile.page.ts': () =>
+      import('./test/browser/fixtures/routes/profile.page.ts'),
+    'test/browser/fixtures/routes/articles.page.ts': () =>
+      import('./test/browser/fixtures/routes/articles.page.ts'),
+    'test/browser/fixtures/routes/nesting-ts.page.ts': () =>
+      import('./test/browser/fixtures/routes/nesting-ts.page.ts'),
+    'test/browser/fixtures/routes/docs.page.ts': () =>
+      import('./test/browser/fixtures/routes/docs.page.ts'),
+    'test/browser/fixtures/routes/crash.page.ts': () =>
+      import('./test/browser/fixtures/routes/crash.page.ts'),
+    'test/browser/fixtures/routes/blog.page.ts': () =>
+      import('./test/browser/fixtures/routes/blog.page.ts'),
+    'test/browser/fixtures/routes/nesting-ts-md.page.ts': () =>
+      import('./test/browser/fixtures/routes/nesting-ts-md.page.ts'),
+    'test/browser/fixtures/routes/nesting-ts-html.page.ts': () =>
+      import('./test/browser/fixtures/routes/nesting-ts-html.page.ts'),
+    'test/browser/fixtures/routes/hydration.page.ts': () =>
+      import('./test/browser/fixtures/routes/hydration.page.ts'),
+    'test/browser/fixtures/routes/old.redirect.ts': () =>
+      import('./test/browser/fixtures/routes/old.redirect.ts'),
+    'test/browser/fixtures/routes/projects/[id].error.ts': () =>
+      import('./test/browser/fixtures/routes/projects/[id].error.ts'),
+    'test/browser/fixtures/routes/index.error.ts': () =>
+      import('./test/browser/fixtures/routes/index.error.ts'),
   },
 };

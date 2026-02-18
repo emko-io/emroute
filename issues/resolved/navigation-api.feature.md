@@ -45,3 +45,9 @@ Implemented in 1.5.2. The SPA router now uses the Navigation API exclusively.
 - ADR-0014: Navigation API (decision record)
 - ADR-0006: Native APIs, Zero Dependencies
 - [Navigation API (MDN)](https://developer.mozilla.org/en-US/docs/Web/API/Navigation_API)
+
+## Resolution
+
+**Resolved in 1.5.0.** Navigation API fully implemented — `SpaHtmlRouter` uses
+`navigation.addEventListener('navigate')` exclusively. ADR-0014 documents the
+decision. Type declarations published as `@emkodev/emroute/types/navigation-api`.

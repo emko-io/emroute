@@ -17,3 +17,10 @@ widget styles that need to work in `none` mode.
 
 `none` primarily. Also relevant for initial SSR paint in `leaf`/`root` before
 JS loads.
+
+## Resolution
+
+**Resolved in 1.5.0.** `test/browser/fixtures/main.css` includes complete global
+styles: overlay CSS (modals, toasts, popovers), `noscript` fallback styles, base
+body styles, and widget container setup. All styles load via `<link>` tag in the
+HTML shell — no JS required.

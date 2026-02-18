@@ -103,3 +103,11 @@ CSS keyframes.
 - ADR-0013: Invoker Commands API — Unified Overlay Model
 - ADR-0006: Native APIs, Zero Dependencies
 - [Invoker Commands API (MDN)](https://developer.mozilla.org/en-US/docs/Web/API/Invoker_Commands_API)
+
+## Resolution
+
+**Resolved in 1.5.0.** ADR-0013 accepted. `OverlayService.dismissAll()` queries
+`:popover-open` and `dialog[open]` for DOM-aware cleanup. CSS supports declarative
+`[data-overlay-popover]`, `dialog[data-overlay-modal]`, `[data-overlay-toast]`.
+Toast auto-animation via `@keyframes overlay-toast-auto`. `position-anchor: auto`
+for declarative popover positioning.

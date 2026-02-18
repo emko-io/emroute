@@ -18,3 +18,8 @@ All modes (SSR output is empty in every mode), but most visible in `none`.
 ## Source
 
 `test/browser/fixtures/widgets/counter-htm/counter-htm.widget.ts`
+
+## Resolution
+
+**Resolved in da8af71.** The `counter-htm` widget was removed from test fixtures
+entirely. Remaining widgets produce meaningful SSR output.

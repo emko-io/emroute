@@ -19,3 +19,10 @@ without JavaScript.
 
 - `test/browser/fixtures/widgets/failing/failing.widget.ts`
 - `src/component/widget.component.ts` — error handling path
+
+## Resolution
+
+**Resolved in 1.5.0.** `abstract.component.ts` implements `renderError()` returning
+`<div class="c-error">` markup. `component.renderer.ts` catches widget errors and
+calls `renderError()`. SSR widget resolution in `widget-resolve.util.ts` catches
+and logs errors.

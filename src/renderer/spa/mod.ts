@@ -13,6 +13,12 @@ import { ComponentElement } from '../../element/component.element.ts';
 import { WidgetRegistry } from '../../widget/widget.registry.ts';
 
 export { createSpaHtmlRouter, SpaHtmlRouter, type SpaHtmlRouterOptions } from './html.renderer.ts';
+export {
+  createHashRouter,
+  type HashRouteConfig,
+  HashRouter,
+  type HashRouterOptions,
+} from './hash.renderer.ts';
 export { ComponentElement, MarkdownElement, RouterSlot, WidgetRegistry };
 export type { SpaMode, WidgetsManifest } from '../../type/widget.type.ts';
 

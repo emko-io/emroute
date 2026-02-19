@@ -56,8 +56,9 @@ export async function createTestServer(options: {
   mode: SpaMode;
   port: number;
   watch?: boolean;
+  entryPoint?: string;
 }): Promise<TestServer> {
-  const { mode, port, watch = false } = options;
+  const { mode, port, watch = false, entryPoint: customEntry } = options;
 
   // Generate manifest from fixture route files
   const fs = createFs();
@@ -146,12 +147,13 @@ export async function createTestServer(options: {
 
   // Consumer main.ts creates the SPA router — only use it for modes that need routing.
   // For 'none'/'leaf', let the server generate a mode-appropriate entry point.
-  const needsConsumerEntry = mode === 'root' || mode === 'only';
+  // A custom entryPoint overrides this logic (e.g. hash routing tests).
+  const defaultEntry = (mode === 'root' || mode === 'only') ? 'main.ts' : undefined;
 
   const server = await createDevServer(
     {
       port,
-      entryPoint: needsConsumerEntry ? 'main.ts' : undefined,
+      entryPoint: customEntry ?? defaultEntry,
       routesManifest: result,
       appRoot: FIXTURES_DIR,
       widgetsDir: `${FIXTURES_DIR}/widgets`,

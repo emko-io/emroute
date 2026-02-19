@@ -15,24 +15,24 @@ import type {
   MatchedRoute,
   NavigateOptions,
   RedirectConfig,
-  RouteConfig,
-  RouteInfo,
   RouteParams,
   RouterState,
   RoutesManifest,
 } from '../../type/route.type.ts';
 import type { ContextProvider } from '../../component/abstract.component.ts';
-import defaultPageComponent, { type PageComponent } from '../../component/page.component.ts';
+import type { PageComponent } from '../../component/page.component.ts';
 import { ComponentElement } from '../../element/component.element.ts';
 import {
   assertSafeRedirect,
   type BasePath,
   DEFAULT_BASE_PATH,
-  DEFAULT_ROOT_ROUTE,
   RouteCore,
 } from '../../route/route.core.ts';
 import { escapeHtml, STATUS_MESSAGES } from '../../util/html.util.ts';
 import { logger } from '../../util/logger.util.ts';
+import { BaseRenderer } from './base.renderer.ts';
+import type { RouteInfo } from '../../type/route.type.ts';
+import defaultPageComponent from '../../component/page.component.ts';
 
 /** Options for SPA HTML Router */
 export interface SpaHtmlRouterOptions {
@@ -42,14 +42,10 @@ export interface SpaHtmlRouterOptions {
   basePath?: BasePath;
 }
 
-const MARKDOWN_RENDER_TIMEOUT = 5000;
-
 /**
  * SPA Router for browser-based HTML rendering.
  */
-export class SpaHtmlRouter {
-  private core: RouteCore;
-  private slot: Element | null = null;
+export class SpaHtmlRouter extends BaseRenderer {
   private abortController: AbortController | null = null;
   /** Base paths for SSR endpoints. */
   private htmlBase: string;
@@ -57,12 +53,13 @@ export class SpaHtmlRouter {
 
   constructor(manifest: RoutesManifest, options?: SpaHtmlRouterOptions) {
     const bp = options?.basePath ?? DEFAULT_BASE_PATH;
+    const core = new RouteCore(manifest, {
+      extendContext: options?.extendContext,
+      basePath: bp.html,
+    });
+    super(core);
     this.htmlBase = bp.html;
     this.mdBase = bp.md;
-    this.core = new RouteCore(manifest, {
-      extendContext: options?.extendContext,
-      basePath: this.htmlBase,
-    });
     if (options?.extendContext) {
       ComponentElement.setContextProvider(options.extendContext);
     }
@@ -268,160 +265,12 @@ export class SpaHtmlRouter {
       });
     } catch (error) {
       if (signal.aborted) return;
+      if (error instanceof Response) {
+        await this.renderStatusPage(error.status, pathname, error);
+        return;
+      }
       await this.handleError(error, pathname);
     }
-  }
-
-  /**
-   * Render a matched page route with nested route support.
-   */
-  private async renderPage(
-    routeInfo: RouteInfo,
-    matched: MatchedRoute,
-    signal: AbortSignal,
-  ): Promise<void> {
-    if (!this.slot) return;
-
-    try {
-      const hierarchy = this.core.buildRouteHierarchy(routeInfo.pattern);
-      logger.render('page', routeInfo.pattern, `hierarchy: ${hierarchy.join(' > ')}`);
-
-      let currentSlot: Element = this.slot;
-      let pageTitle: string | undefined;
-
-      for (let i = 0; i < hierarchy.length; i++) {
-        if (signal.aborted) return;
-
-        const routePattern = hierarchy[i];
-        const isLeaf = i === hierarchy.length - 1;
-
-        let route = this.core.matcher.findRoute(routePattern);
-
-        if (!route && routePattern === this.core.root) {
-          route = { ...DEFAULT_ROOT_ROUTE, pattern: this.core.root };
-        }
-
-        if (!route) {
-          logger.render('skip', routePattern, 'route not found');
-          continue;
-        }
-
-        const routeType = isLeaf ? 'leaf' : 'layout';
-        logger.render(routeType, routePattern, `${route.files?.ts ?? 'default'} → slot`);
-
-        // Skip wildcard route appearing as its own parent (prevents double-render)
-        if (route === matched.route && routePattern !== matched.route.pattern) {
-          continue;
-        }
-
-        const { html, title } = await this.renderRouteContent(routeInfo, route, signal, isLeaf);
-        if (signal.aborted) return;
-
-        currentSlot.setHTMLUnsafe(html);
-
-        if (title) {
-          pageTitle = title;
-        }
-
-        // Wait for <mark-down> to finish rendering its content
-        // (must happen before attributing slots — router-slot may be inside markdown)
-        const markDown = currentSlot.querySelector<HTMLElement>('mark-down');
-        if (markDown) {
-          await this.waitForMarkdownRender(markDown);
-          if (signal.aborted) return;
-        }
-
-        // Attribute bare <router-slot> tags with this route's pattern
-        for (const slot of currentSlot.querySelectorAll('router-slot:not([pattern])')) {
-          slot.setAttribute('pattern', routePattern);
-        }
-
-        if (!isLeaf) {
-          const nestedSlot = currentSlot.querySelector(
-            `router-slot[pattern="${CSS.escape(routePattern)}"]`,
-          );
-          if (nestedSlot) {
-            currentSlot = nestedSlot;
-          } else {
-            logger.warn(
-              `[SPA] Route "${routePattern}" has no <router-slot> ` +
-                `for child routes to render into. ` +
-                `Add <router-slot></router-slot> to the parent template.`,
-            );
-          }
-        }
-      }
-
-      if (signal.aborted) return;
-
-      this.updateTitle(pageTitle);
-
-      this.core.emit({
-        type: 'load',
-        pathname: routeInfo.pattern,
-        params: routeInfo.params,
-      });
-    } catch (error) {
-      if (signal.aborted) return;
-      if (error instanceof Response) {
-        await this.renderStatusPage(error.status, routeInfo.pattern, error);
-        return;
-      }
-      throw error;
-    }
-  }
-
-  /**
-   * Render a single route's content.
-   */
-  private async renderRouteContent(
-    routeInfo: RouteInfo,
-    route: RouteConfig,
-    signal: AbortSignal,
-    isLeaf?: boolean,
-  ): Promise<{ html: string; title?: string }> {
-    if (route.modulePath === DEFAULT_ROOT_ROUTE.modulePath) {
-      return { html: `<router-slot pattern="${route.pattern}"></router-slot>` };
-    }
-
-    const files = route.files ?? {};
-
-    const component: PageComponent = files.ts
-      ? (await this.core.loadModule<{ default: PageComponent }>(files.ts)).default
-      : defaultPageComponent;
-
-    const context = await this.core.buildComponentContext(routeInfo, route, signal, isLeaf);
-    const data = await component.getData({ params: routeInfo.params, signal, context });
-    const html = component.renderHTML({ data, params: routeInfo.params, context });
-    const title = component.getTitle({ data, params: routeInfo.params, context });
-    return { html, title };
-  }
-
-  /**
-   * Wait for a <mark-down> element to finish rendering.
-   */
-  private waitForMarkdownRender(element: HTMLElement): Promise<void> {
-    return new Promise((resolve) => {
-      if (element.children.length > 0) {
-        resolve();
-        return;
-      }
-
-      const timeout = setTimeout(() => {
-        observer.disconnect();
-        resolve();
-      }, MARKDOWN_RENDER_TIMEOUT);
-
-      const observer = new MutationObserver(() => {
-        if (element.children.length > 0) {
-          clearTimeout(timeout);
-          observer.disconnect();
-          resolve();
-        }
-      });
-
-      observer.observe(element, { childList: true });
-    });
   }
 
   /**
@@ -538,15 +387,6 @@ export class SpaHtmlRouter {
         <p>${escapeHtml(message)}</p>
       `);
       this.updateTitle();
-    }
-  }
-
-  /**
-   * Update document.title from getTitle() result.
-   */
-  private updateTitle(pageTitle?: string): void {
-    if (pageTitle) {
-      document.title = pageTitle;
     }
   }
 }

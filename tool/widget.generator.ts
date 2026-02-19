@@ -9,7 +9,7 @@
  */
 
 import type { WidgetManifestEntry } from '../src/type/widget.type.ts';
-import type { FileSystem } from './fs.type.ts';
+import type { GeneratorFs } from './route.generator.ts';
 
 type WidgetFiles = { html?: string; md?: string; css?: string };
 
@@ -34,7 +34,7 @@ const WIDGET_FILE_SUFFIX = '.widget.ts';
 export async function discoverWidgetFiles(
   widgetsDir: string,
   widgets: Iterable<{ name: string; files?: WidgetFiles }>,
-  fs: FileSystem,
+  fs: GeneratorFs,
   pathPrefix?: string,
 ): Promise<Map<string, WidgetFiles>> {
   const result = new Map<string, WidgetFiles>();
@@ -59,7 +59,7 @@ export async function discoverWidgetFiles(
 async function discoverForWidget(
   widgetsDir: string,
   widget: { name: string; files?: WidgetFiles },
-  fs: FileSystem,
+  fs: GeneratorFs,
   pathPrefix?: string,
 ): Promise<{ name: string; files: WidgetFiles } | undefined> {
   const discovered: WidgetFiles = {};
@@ -141,7 +141,7 @@ ${entries.join('\n')}
  */
 export async function discoverWidgets(
   widgetsDir: string,
-  fs: FileSystem,
+  fs: GeneratorFs,
   pathPrefix?: string,
 ): Promise<WidgetManifestEntry[]> {
   const entries: WidgetManifestEntry[] = [];

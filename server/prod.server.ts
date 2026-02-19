@@ -40,7 +40,6 @@ import type { RoutesManifest } from '../src/type/route.type.ts';
 import type { SpaMode, WidgetManifestEntry } from '../src/type/widget.type.ts';
 import { generateManifestCode, generateRoutesManifest } from '../tool/route.generator.ts';
 import { discoverWidgets, generateWidgetsManifestCode } from '../tool/widget.generator.ts';
-import type { FileSystem } from '../tool/fs.type.ts';
 import { WidgetRegistry } from '../src/widget/widget.registry.ts';
 import type { WidgetComponent } from '../src/component/widget.component.ts';
 import { escapeHtml } from '../src/util/html.util.ts';
@@ -53,22 +52,6 @@ import type {
   EmrouteServer,
   EmrouteServerConfig,
 } from './server-api.type.ts';
-
-// ── FileSystem adapter ─────────────────────────────────────────────────
-
-/** Adapt ServerRuntime to FileSystem interface for generators. */
-function createFileSystemAdapter(runtime: ServerRuntime): FileSystem {
-  return {
-    readDir: (path: string) => runtime.readDir(path),
-    writeTextFile(_path: string, _content: string): Promise<void> {
-      return Promise.reject(new Error('writeTextFile not supported'));
-    },
-    async exists(path: string): Promise<boolean> {
-      const stat = await runtime.stat(path);
-      return stat !== null;
-    },
-  };
-}
 
 // ── Module loaders ─────────────────────────────────────────────────────
 
@@ -370,14 +353,12 @@ export async function createEmrouteServer(
   // Paths in the manifest are CWD-relative, so baseUrl must be CWD-based.
   const baseUrl = config.baseUrl ?? `file://${runtime.cwd()}`;
 
-  const fs = createFileSystemAdapter(runtime);
-
   // ── Routes manifest ──────────────────────────────────────────────────
 
   let routesManifest: RoutesManifest;
 
   if (config.routesDir) {
-    const result = await generateRoutesManifest(config.routesDir, fs);
+    const result = await generateRoutesManifest(config.routesDir, runtime);
     routesManifest = result;
     routesManifest.moduleLoaders = createModuleLoaders(routesManifest, appRoot, runtime);
 
@@ -408,7 +389,7 @@ export async function createEmrouteServer(
 
   if (widgetsDir) {
     const widgetPathPrefix = relativeToAppRoot(appRoot, widgetsDir);
-    discoveredWidgetEntries = await discoverWidgets(widgetsDir, fs, widgetPathPrefix);
+    discoveredWidgetEntries = await discoverWidgets(widgetsDir, runtime, widgetPathPrefix);
     const imported = await importWidgets(
       discoveredWidgetEntries,
       appRoot,
@@ -611,7 +592,7 @@ export async function createEmrouteServer(
 
   async function rebuild(): Promise<void> {
     if (config.routesDir) {
-      const result = await generateRoutesManifest(config.routesDir, fs);
+      const result = await generateRoutesManifest(config.routesDir, runtime);
       routesManifest = result;
       routesManifest.moduleLoaders = createModuleLoaders(routesManifest, appRoot, runtime);
 
@@ -621,7 +602,7 @@ export async function createEmrouteServer(
 
     if (widgetsDir) {
       const widgetPathPrefix = relativeToAppRoot(appRoot, widgetsDir);
-      discoveredWidgetEntries = await discoverWidgets(widgetsDir, fs, widgetPathPrefix);
+      discoveredWidgetEntries = await discoverWidgets(widgetsDir, runtime, widgetPathPrefix);
       const imported = await importWidgets(
         discoveredWidgetEntries,
         appRoot,
@@ -753,9 +734,6 @@ export const denoBundler: Bundler = {
 /** The bare import specifier used by generated entry points. */
 const CORE_IMPORT_SPECIFIER = '@emkodev/emroute/spa';
 
-/** Path to the SPA module entry point (core bundle source). */
-const CORE_ENTRY = 'src/renderer/spa/mod.ts';
-
 /**
  * Build static output for deployment.
  *
@@ -862,15 +840,16 @@ export async function build(
     console.log(`Core bundle: CDN → ${coreUrl}`);
   } else {
     // Build core locally
+    const coreEntry = runtime.resolveModule(CORE_IMPORT_SPECIFIER);
     coreBundlePath = `${outDir}/emroute${minSuffix}.js`;
-    await bundler.bundle(CORE_ENTRY, coreBundlePath, {
+    await bundler.bundle(coreEntry, coreBundlePath, {
       platform: 'browser',
       minify: config.minify,
       obfuscate: config.obfuscate,
       sourcemap: config.sourcemap,
     });
     coreUrl = `/${coreBundlePath.replace(outDir + '/', '')}`;
-    console.log(`Core bundle: ${CORE_ENTRY} → ${coreBundlePath}`);
+    console.log(`Core bundle: ${coreEntry} → ${coreBundlePath}`);
   }
 
   // ── App bundle ────────────────────────────────────────────────────

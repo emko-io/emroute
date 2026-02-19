@@ -9,7 +9,6 @@ import { createDevServer, type DevServer } from '../../../server/dev.server.ts';
 import { denoServerRuntime } from '../../../server/server.deno.ts';
 import { generateManifestCode, generateRoutesManifest } from '../../../tool/route.generator.ts';
 import { DEFAULT_BASE_PATH } from '../../../src/route/route.core.ts';
-import type { FileSystem } from '../../../tool/fs.type.ts';
 import { WidgetRegistry } from '../../../src/widget/widget.registry.ts';
 import type { MarkdownRenderer } from '../../../src/type/markdown.type.ts';
 import { AstRenderer, initParser, MarkdownParser } from 'jsr:@emkodev/emko-md@0.1.0-beta.4/parser';
@@ -21,18 +20,6 @@ import { type Browser, chromium, type Page } from 'npm:playwright@1.58.2';
 const FIXTURES_DIR = 'test/browser/fixtures';
 const ROUTES_DIR = `${FIXTURES_DIR}/routes`;
 
-/** Adapt Deno APIs to the FileSystem interface used by the route generator. */
-function createFs(): FileSystem {
-  return {
-    readDir: (path: string) => denoServerRuntime.readDir(path),
-    async writeTextFile(path: string, content: string): Promise<void> {
-      await Deno.writeTextFile(path, content);
-    },
-    async exists(path: string): Promise<boolean> {
-      return (await denoServerRuntime.stat(path)) !== null;
-    },
-  };
-}
 
 /**
  * Strip the fixtures directory prefix from generated paths.
@@ -61,8 +48,7 @@ export async function createTestServer(options: {
   const { mode, port, watch = false, entryPoint: customEntry } = options;
 
   // Generate manifest from fixture route files
-  const fs = createFs();
-  const result = await generateRoutesManifest(ROUTES_DIR, fs);
+  const result = await generateRoutesManifest(ROUTES_DIR, denoServerRuntime);
 
   // Normalize paths for the dev server's appRoot
   for (const route of result.routes) {

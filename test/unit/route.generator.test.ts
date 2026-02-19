@@ -18,14 +18,14 @@
 
 import { assertEquals, assertExists, assertStringIncludes } from '@std/assert';
 import { generateManifestCode, generateRoutesManifest } from '../../tool/route.generator.ts';
-import type { DirEntry, FileSystem } from '../../tool/fs.type.ts';
+import type { DirEntry, GeneratorFs } from '../../tool/route.generator.ts';
 
 // ============================================================================
 // Test Fixtures and Helpers
 // ============================================================================
 
 /** In-memory filesystem for testing the route generator. */
-function createMockFs(files: string[]): FileSystem {
+function createMockFs(files: string[]): GeneratorFs {
   // Build directory tree from flat file list
   const dirs = new Map<string, DirEntry[]>();
 
@@ -65,7 +65,6 @@ function createMockFs(files: string[]): FileSystem {
       const entries = dirs.get(path) ?? [];
       for (const entry of entries) yield entry;
     },
-    writeTextFile: () => Promise.resolve(),
     exists: () => Promise.resolve(true),
   };
 }

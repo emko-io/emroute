@@ -35,7 +35,6 @@ import type { BasePath } from '../src/route/route.core.ts';
 import type { MarkdownRenderer } from '../src/type/markdown.type.ts';
 import { generateManifestCode, generateRoutesManifest } from '../tool/route.generator.ts';
 import { discoverWidgets, generateWidgetsManifestCode } from '../tool/widget.generator.ts';
-import { denoFs } from '../tool/fs.deno.ts';
 // @ts-types="./emko-md.vendor.d.ts"
 import { createMarkdownRender } from './emko-md.vendor.js';
 
@@ -254,9 +253,9 @@ async function commandGenerate(_flags: CliFlags): Promise<void> {
 
   console.log(`[emroute] Generating manifests...`);
 
-  const manifest = await generateRoutesManifest('routes', denoFs);
+  const manifest = await generateRoutesManifest('routes', denoServerRuntime);
   const routesCode = generateManifestCode(manifest, '@emkodev/emroute');
-  await denoFs.writeTextFile('routes.manifest.g.ts', routesCode);
+  await denoServerRuntime.writeTextFile('routes.manifest.g.ts', routesCode);
   console.log(`[emroute]   routes.manifest.g.ts (${manifest.routes.length} routes)`);
 
   for (const warning of manifest.warnings) {
@@ -265,9 +264,9 @@ async function commandGenerate(_flags: CliFlags): Promise<void> {
 
   const widgetsStat = await denoServerRuntime.stat('widgets');
   if (widgetsStat?.isDirectory) {
-    const entries = await discoverWidgets('widgets', denoFs, 'widgets');
+    const entries = await discoverWidgets('widgets', denoServerRuntime, 'widgets');
     const widgetsCode = generateWidgetsManifestCode(entries, '@emkodev/emroute');
-    await denoFs.writeTextFile('widgets.manifest.g.ts', widgetsCode);
+    await denoServerRuntime.writeTextFile('widgets.manifest.g.ts', widgetsCode);
     console.log(`[emroute]   widgets.manifest.g.ts (${entries.length} widgets)`);
   }
 }

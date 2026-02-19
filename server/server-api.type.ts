@@ -125,6 +125,13 @@ export interface EmrouteServerConfig {
    */
   baseUrl?: string;
 
+  /**
+   * SPA entry point (relative to appRoot, e.g. 'main.ts' or '_main.g.ts').
+   * When set and spa !== 'none', a `<script type="module">` tag is injected
+   * into the HTML shell. The src points at the `.js` equivalent path.
+   */
+  entryPoint?: string;
+
   /** HTML shell (string or path to index.html) */
   shell?: string | { path: string };
 

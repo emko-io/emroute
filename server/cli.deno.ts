@@ -216,6 +216,7 @@ async function commandStart(flags: CliFlags): Promise<void> {
     appRoot,
     routesDir: project.routesDir,
     widgetsDir: project.widgetsDir,
+    entryPoint,
     spa,
     basePath,
     baseUrl: `http://localhost:${flags.port}`,

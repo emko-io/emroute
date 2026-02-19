@@ -157,6 +157,7 @@ export async function createTestServer(options: {
     routesManifest: result,
     widgetsDir: `${FIXTURES_DIR}/widgets`,
     widgets: manualWidgets,
+    entryPoint,
     markdownRenderer,
     spa: mode,
     baseUrl: `http://localhost:${port}`,

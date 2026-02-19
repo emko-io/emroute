@@ -185,20 +185,51 @@ function injectSsrContent(
   return html;
 }
 
-/** Resolve the HTML shell from config. */
+/**
+ * Resolve the HTML shell from config, with auto-discovery.
+ *
+ * Resolution order:
+ * 1. `config.shell` as string → use as-is
+ * 2. `config.shell.path` → read from file
+ * 3. `appRoot/index.html` → use consumer's index.html
+ * 4. Fallback → build default shell
+ *
+ * When spa !== 'none' and an entryPoint is provided, injects a `<script>` tag.
+ * Auto-discovers `main.css` in appRoot and injects a `<link>` tag.
+ */
 async function resolveShell(
   config: EmrouteServerConfig,
   runtime: ServerRuntime,
+  entryPoint?: string,
 ): Promise<string> {
+  const { appRoot, spa = 'root' } = config;
+
+  let shell: string;
+
   if (typeof config.shell === 'string') {
-    return config.shell;
+    shell = config.shell;
+  } else if (config.shell?.path) {
+    shell = await runtime.readTextFile(config.shell.path);
+  } else if (await runtime.exists(`${appRoot}/index.html`)) {
+    shell = await runtime.readTextFile(`${appRoot}/index.html`);
+  } else {
+    shell = buildHtmlShell(config.title ?? 'emroute');
   }
 
-  if (config.shell?.path) {
-    return await runtime.readTextFile(config.shell.path);
+  // Inject <script> tag for the SPA bundle
+  if (spa !== 'none' && entryPoint) {
+    const scriptSrc = '/' + entryPoint.replace(/^\.\//, '').replace(/\.ts$/, '.js');
+    const scriptTag = `<script type="module" src="${scriptSrc}"></script>`;
+    shell = shell.replace('</body>', `${scriptTag}\n</body>`);
   }
 
-  return buildHtmlShell(config.title ?? 'emroute');
+  // Auto-discover main.css
+  if (await runtime.exists(`${appRoot}/main.css`)) {
+    const styleTag = '<link rel="stylesheet" href="/main.css">';
+    shell = shell.replace('</head>', `  ${styleTag}\n</head>`);
+  }
+
+  return shell;
 }
 
 // ── Path helpers ───────────────────────────────────────────────────────
@@ -445,7 +476,7 @@ export async function createEmrouteServer(
 
   // ── HTML shell ───────────────────────────────────────────────────────
 
-  const shell = await resolveShell(config, runtime);
+  const shell = await resolveShell(config, runtime, config.entryPoint);
   const title = config.title ?? 'emroute';
 
   // ── handleRequest ────────────────────────────────────────────────────
@@ -662,13 +693,14 @@ export function generateMainTs(
   const imports: string[] = [];
   const body: string[] = [];
 
-  imports.push(`import { ComponentElement } from '${importPath}';`);
+  const spaImport = `${importPath}/spa`;
 
   if (hasRoutes) {
     imports.push(`import { routesManifest } from './routes.manifest.g.ts';`);
   }
 
   if (hasWidgets) {
+    imports.push(`import { ComponentElement } from '${spaImport}';`);
     imports.push(`import { widgetsManifest } from './widgets.manifest.g.ts';`);
     body.push('for (const entry of widgetsManifest.widgets) {');
     body.push(
@@ -690,7 +722,7 @@ export function generateMainTs(
   }
 
   if ((spa === 'root' || spa === 'only') && hasRoutes) {
-    imports.push(`import { createSpaHtmlRouter } from '${importPath}';`);
+    imports.push(`import { createSpaHtmlRouter } from '${spaImport}';`);
     const bpOpt = basePath ? `basePath: { html: '${basePath.html}', md: '${basePath.md}' }` : '';
     const opts = bpOpt ? `{ ${bpOpt} }` : '';
     body.push(`await createSpaHtmlRouter(routesManifest${opts ? `, ${opts}` : ''});`);

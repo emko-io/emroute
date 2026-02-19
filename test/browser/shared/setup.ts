@@ -7,7 +7,10 @@
 
 import { createEmrouteServer, generateMainTs } from '../../../server/emroute.server.ts';
 import { denoServerRuntime } from '../../../server/server.deno.ts';
-import { generateManifestCode, generateRoutesManifest } from '../../../server/generator/route.generator.ts';
+import {
+  generateManifestCode,
+  generateRoutesManifest,
+} from '../../../server/generator/route.generator.ts';
 import { DEFAULT_BASE_PATH } from '../../../src/route/route.core.ts';
 import { WidgetRegistry } from '../../../src/widget/widget.registry.ts';
 import type { MarkdownRenderer } from '../../../src/type/markdown.type.ts';

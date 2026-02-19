@@ -17,7 +17,10 @@
  */
 
 import { assertEquals, assertExists, assertStringIncludes } from '@std/assert';
-import { generateManifestCode, generateRoutesManifest } from '../../server/generator/route.generator.ts';
+import {
+  generateManifestCode,
+  generateRoutesManifest,
+} from '../../server/generator/route.generator.ts';
 import type { DirEntry, GeneratorFs } from '../../server/generator/route.generator.ts';
 
 // ============================================================================

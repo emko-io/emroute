@@ -5,7 +5,7 @@
  * All other methods use the node:* defaults from ServerRuntime.
  */
 
-import { ServerRuntime, type ServerHandle, type RequestHandler } from './server.type.ts';
+import { type RequestHandler, type ServerHandle, ServerRuntime } from './server.type.ts';
 
 class DenoServerRuntime extends ServerRuntime {
   override serve(port: number, handler: RequestHandler): ServerHandle {

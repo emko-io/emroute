@@ -5,7 +5,7 @@
  * Override serve() for platform-native HTTP performance.
  */
 
-import { readFile, writeFile, stat, mkdir, opendir } from 'node:fs/promises';
+import { mkdir, opendir, readFile, stat, writeFile } from 'node:fs/promises';
 import { watch } from 'node:fs';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import process from 'node:process';

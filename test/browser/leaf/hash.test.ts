@@ -19,7 +19,6 @@ import {
   type TestServer,
 } from '../shared/setup.ts';
 
-
 let server: TestServer;
 let tb: TestBrowser;
 

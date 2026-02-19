@@ -60,14 +60,14 @@ so `RouteCore` matching and module loading work unchanged.
 
 ### Files
 
-| File | Description |
-|------|-------------|
-| `src/renderer/spa/base.renderer.ts` | Shared rendering pipeline |
-| `src/renderer/spa/html.renderer.ts` | SPA router (extends BaseRenderer) |
-| `src/renderer/spa/hash.renderer.ts` | Hash router (extends BaseRenderer) |
-| `src/renderer/spa/mod.ts` | Exports `createHashRouter`, `HashRouter` |
-| `test/unit/hash.renderer.test.ts` | 20 unit tests |
-| `test/browser/leaf/hash.test.ts` | 8 browser integration tests |
+| File                                | Description                              |
+| ----------------------------------- | ---------------------------------------- |
+| `src/renderer/spa/base.renderer.ts` | Shared rendering pipeline                |
+| `src/renderer/spa/html.renderer.ts` | SPA router (extends BaseRenderer)        |
+| `src/renderer/spa/hash.renderer.ts` | Hash router (extends BaseRenderer)       |
+| `src/renderer/spa/mod.ts`           | Exports `createHashRouter`, `HashRouter` |
+| `test/unit/hash.renderer.test.ts`   | 20 unit tests                            |
+| `test/browser/leaf/hash.test.ts`    | 8 browser integration tests              |
 
 ## Open questions (resolved)
 

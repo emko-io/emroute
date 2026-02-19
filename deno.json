@@ -31,6 +31,7 @@
     "./widget-generator": "./server/generator/widget.generator.ts",
     "./sitemap": "./server/generator/sitemap.generator.ts",
     "./server": "./server/emroute.server.ts",
+    "./server/prod": "./server/emroute.server.ts",
     "./server/cli": "./server/cli.deno.ts",
     "./server/deno": "./server/server.deno.ts",
     "./server/types": "./server/server.type.ts",

@@ -47,7 +47,6 @@ import type { ServerRuntime } from './server.type.ts';
 import type {
   BuildConfig,
   BuildResult,
-  Bundler,
   CompressionEncoding,
   EmrouteServer,
   EmrouteServerConfig,
@@ -906,3 +905,8 @@ export async function build(
     manifests: manifestsResult,
   };
 }
+
+// ── Deprecated re-exports ─────────────────────────────────────────────
+
+/** @deprecated Import from '@emkodev/emroute/bundler/deno' instead. */
+export { denoBundler } from './deno.bundler.ts';

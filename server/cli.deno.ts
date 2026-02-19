@@ -226,26 +226,23 @@ async function commandStart(flags: CliFlags): Promise<void> {
 
   // ── Bundle ───────────────────────────────────────────────────────
 
-  let bundleProcess: { kill(): void } | undefined;
-
   if (spa !== 'none') {
     const bundleEntry = entryPoint.replace(/^\.\//, '');
     const bundleOutput = `${BUNDLE_DIR}/${bundleEntry.replace(/\.ts$/, '.js')}`;
     await denoServerRuntime.mkdir(BUNDLE_DIR, { recursive: true });
 
-    const proc = new Deno.Command('deno', {
+    new Deno.Command('deno', {
       args: ['bundle', '--platform', 'browser', '--watch', entryPoint, '-o', bundleOutput],
       stdout: 'inherit',
       stderr: 'inherit',
     }).spawn();
 
-    bundleProcess = { kill: () => proc.kill() };
     await new Promise((resolve) => setTimeout(resolve, 2000));
   }
 
   // ── Serve ────────────────────────────────────────────────────────
 
-  const handle = denoServerRuntime.serve(flags.port, async (req) => {
+  denoServerRuntime.serve(flags.port, async (req) => {
     const response = await emroute.handleRequest(req);
     if (response) return response;
 

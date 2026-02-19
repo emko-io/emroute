@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - 2026-02-19
+
+### Changed
+
+- **Unified `ServerRuntime` abstract class** — `FileSystem` interface merged into
+  `ServerRuntime`. Generators now accept `GeneratorFs` (a Pick of ServerRuntime).
+  Deprecated `FileSystem` and `FileSystemError` aliases kept for backwards compat.
+
+- **Eliminated `dev.server.ts`** — `createDevServer` removed. All server concerns
+  consolidated into `createEmrouteServer`. CLI and consumers wire bundling and
+  file watching externally.
+
+- **Shell auto-discovery** — `createEmrouteServer` now auto-discovers
+  `index.html` (custom shell) and `main.css` (stylesheet injection) in appRoot.
+  When `entryPoint` is provided and spa !== 'none', a `<script type="module">`
+  tag is injected into the shell automatically.
+
+- **Extracted `denoBundler`** — moved to `@emkodev/emroute/bundler/deno`.
+  `build()` requires explicit bundler when spa !== 'none'. Deprecated re-export
+  from `@emkodev/emroute/server/prod` kept for backwards compat.
+
+- **Restructured server internals** — `tool/` moved to `server/generator/`,
+  vendor files moved to `server/vendor/`. Export paths unchanged.
+
+### Fixed
+
+- `generateMainTs` now imports `ComponentElement` and `createSpaHtmlRouter` from
+  `@emkodev/emroute/spa` instead of the main export (was a silent bundling error).
+
 ## [1.5.0] - 2026-02-18
 
 ### Changed

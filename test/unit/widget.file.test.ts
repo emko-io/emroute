@@ -12,18 +12,18 @@
 
 import { assertEquals, assertExists, assertStringIncludes } from '@std/assert';
 import type { WidgetManifestEntry } from '../../src/type/widget.type.ts';
-import type { DirEntry, FileSystem } from '../../tool/fs.type.ts';
+import type { DirEntry, GeneratorFs } from '../../server/generator/route.generator.ts';
 import {
   discoverWidgetFiles,
   discoverWidgets,
   generateWidgetFilesManifestCode,
   generateWidgetsManifestCode,
-} from '../../tool/widget.generator.ts';
+} from '../../server/generator/widget.generator.ts';
 
 /**
  * Mock FileSystem for testing widget discovery
  */
-class MockFileSystem implements FileSystem {
+class MockFileSystem implements GeneratorFs {
   private files: Set<string> = new Set();
   private dirs: Set<string> = new Set();
 

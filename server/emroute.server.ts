@@ -38,9 +38,8 @@ import { SsrHtmlRouter } from '../src/renderer/ssr/html.renderer.ts';
 import { SsrMdRouter } from '../src/renderer/ssr/md.renderer.ts';
 import type { RoutesManifest } from '../src/type/route.type.ts';
 import type { SpaMode, WidgetManifestEntry } from '../src/type/widget.type.ts';
-import { generateManifestCode, generateRoutesManifest } from '../tool/route.generator.ts';
-import { discoverWidgets, generateWidgetsManifestCode } from '../tool/widget.generator.ts';
-import type { FileSystem } from '../tool/fs.type.ts';
+import { generateManifestCode, generateRoutesManifest } from './generator/route.generator.ts';
+import { discoverWidgets, generateWidgetsManifestCode } from './generator/widget.generator.ts';
 import { WidgetRegistry } from '../src/widget/widget.registry.ts';
 import type { WidgetComponent } from '../src/component/widget.component.ts';
 import { escapeHtml } from '../src/util/html.util.ts';
@@ -48,27 +47,10 @@ import type { ServerRuntime } from './server.type.ts';
 import type {
   BuildConfig,
   BuildResult,
-  Bundler,
   CompressionEncoding,
   EmrouteServer,
   EmrouteServerConfig,
 } from './server-api.type.ts';
-
-// ── FileSystem adapter ─────────────────────────────────────────────────
-
-/** Adapt ServerRuntime to FileSystem interface for generators. */
-function createFileSystemAdapter(runtime: ServerRuntime): FileSystem {
-  return {
-    readDir: (path: string) => runtime.readDir(path),
-    writeTextFile(_path: string, _content: string): Promise<void> {
-      return Promise.reject(new Error('writeTextFile not supported'));
-    },
-    async exists(path: string): Promise<boolean> {
-      const stat = await runtime.stat(path);
-      return stat !== null;
-    },
-  };
-}
 
 // ── Module loaders ─────────────────────────────────────────────────────
 
@@ -202,20 +184,51 @@ function injectSsrContent(
   return html;
 }
 
-/** Resolve the HTML shell from config. */
+/**
+ * Resolve the HTML shell from config, with auto-discovery.
+ *
+ * Resolution order:
+ * 1. `config.shell` as string → use as-is
+ * 2. `config.shell.path` → read from file
+ * 3. `appRoot/index.html` → use consumer's index.html
+ * 4. Fallback → build default shell
+ *
+ * When spa !== 'none' and an entryPoint is provided, injects a `<script>` tag.
+ * Auto-discovers `main.css` in appRoot and injects a `<link>` tag.
+ */
 async function resolveShell(
   config: EmrouteServerConfig,
   runtime: ServerRuntime,
+  entryPoint?: string,
 ): Promise<string> {
+  const { appRoot, spa = 'root' } = config;
+
+  let shell: string;
+
   if (typeof config.shell === 'string') {
-    return config.shell;
+    shell = config.shell;
+  } else if (config.shell?.path) {
+    shell = await runtime.readTextFile(config.shell.path);
+  } else if (await runtime.exists(`${appRoot}/index.html`)) {
+    shell = await runtime.readTextFile(`${appRoot}/index.html`);
+  } else {
+    shell = buildHtmlShell(config.title ?? 'emroute');
   }
 
-  if (config.shell?.path) {
-    return await runtime.readTextFile(config.shell.path);
+  // Inject <script> tag for the SPA bundle
+  if (spa !== 'none' && entryPoint) {
+    const scriptSrc = '/' + entryPoint.replace(/^\.\//, '').replace(/\.ts$/, '.js');
+    const scriptTag = `<script type="module" src="${scriptSrc}"></script>`;
+    shell = shell.replace('</body>', `${scriptTag}\n</body>`);
   }
 
-  return buildHtmlShell(config.title ?? 'emroute');
+  // Auto-discover main.css
+  if (await runtime.exists(`${appRoot}/main.css`)) {
+    const styleTag = '<link rel="stylesheet" href="/main.css">';
+    shell = shell.replace('</head>', `  ${styleTag}\n</head>`);
+  }
+
+  return shell;
 }
 
 // ── Path helpers ───────────────────────────────────────────────────────
@@ -370,14 +383,12 @@ export async function createEmrouteServer(
   // Paths in the manifest are CWD-relative, so baseUrl must be CWD-based.
   const baseUrl = config.baseUrl ?? `file://${runtime.cwd()}`;
 
-  const fs = createFileSystemAdapter(runtime);
-
   // ── Routes manifest ──────────────────────────────────────────────────
 
   let routesManifest: RoutesManifest;
 
   if (config.routesDir) {
-    const result = await generateRoutesManifest(config.routesDir, fs);
+    const result = await generateRoutesManifest(config.routesDir, runtime);
     routesManifest = result;
     routesManifest.moduleLoaders = createModuleLoaders(routesManifest, appRoot, runtime);
 
@@ -408,7 +419,7 @@ export async function createEmrouteServer(
 
   if (widgetsDir) {
     const widgetPathPrefix = relativeToAppRoot(appRoot, widgetsDir);
-    discoveredWidgetEntries = await discoverWidgets(widgetsDir, fs, widgetPathPrefix);
+    discoveredWidgetEntries = await discoverWidgets(widgetsDir, runtime, widgetPathPrefix);
     const imported = await importWidgets(
       discoveredWidgetEntries,
       appRoot,
@@ -464,7 +475,7 @@ export async function createEmrouteServer(
 
   // ── HTML shell ───────────────────────────────────────────────────────
 
-  const shell = await resolveShell(config, runtime);
+  const shell = await resolveShell(config, runtime, config.entryPoint);
   const title = config.title ?? 'emroute';
 
   // ── handleRequest ────────────────────────────────────────────────────
@@ -611,7 +622,7 @@ export async function createEmrouteServer(
 
   async function rebuild(): Promise<void> {
     if (config.routesDir) {
-      const result = await generateRoutesManifest(config.routesDir, fs);
+      const result = await generateRoutesManifest(config.routesDir, runtime);
       routesManifest = result;
       routesManifest.moduleLoaders = createModuleLoaders(routesManifest, appRoot, runtime);
 
@@ -621,7 +632,7 @@ export async function createEmrouteServer(
 
     if (widgetsDir) {
       const widgetPathPrefix = relativeToAppRoot(appRoot, widgetsDir);
-      discoveredWidgetEntries = await discoverWidgets(widgetsDir, fs, widgetPathPrefix);
+      discoveredWidgetEntries = await discoverWidgets(widgetsDir, runtime, widgetPathPrefix);
       const imported = await importWidgets(
         discoveredWidgetEntries,
         appRoot,
@@ -681,13 +692,14 @@ export function generateMainTs(
   const imports: string[] = [];
   const body: string[] = [];
 
-  imports.push(`import { ComponentElement } from '${importPath}';`);
+  const spaImport = `${importPath}/spa`;
 
   if (hasRoutes) {
     imports.push(`import { routesManifest } from './routes.manifest.g.ts';`);
   }
 
   if (hasWidgets) {
+    imports.push(`import { ComponentElement } from '${spaImport}';`);
     imports.push(`import { widgetsManifest } from './widgets.manifest.g.ts';`);
     body.push('for (const entry of widgetsManifest.widgets) {');
     body.push(
@@ -709,7 +721,7 @@ export function generateMainTs(
   }
 
   if ((spa === 'root' || spa === 'only') && hasRoutes) {
-    imports.push(`import { createSpaHtmlRouter } from '${importPath}';`);
+    imports.push(`import { createSpaHtmlRouter } from '${spaImport}';`);
     const bpOpt = basePath ? `basePath: { html: '${basePath.html}', md: '${basePath.md}' }` : '';
     const opts = bpOpt ? `{ ${bpOpt} }` : '';
     body.push(`await createSpaHtmlRouter(routesManifest${opts ? `, ${opts}` : ''});`);
@@ -720,41 +732,10 @@ export function generateMainTs(
   }\n`;
 }
 
-// ── Default bundler ───────────────────────────────────────────────────
-
-/** Default bundler using `deno bundle`. */
-export const denoBundler: Bundler = {
-  async bundle(entry, output, options) {
-    const args = ['bundle', '--platform', 'browser'];
-    if (options.minify) args.push('--minify');
-    if (options.sourcemap) args.push('--sourcemap');
-    if (options.external) {
-      for (const ext of options.external) {
-        args.push('--external', ext);
-      }
-    }
-    args.push(entry, '-o', output);
-
-    const proc = new Deno.Command('deno', {
-      args,
-      stdout: 'inherit',
-      stderr: 'inherit',
-    }).spawn();
-
-    const status = await proc.status;
-    if (!status.success) {
-      throw new Error(`deno bundle failed with exit code ${status.code}`);
-    }
-  },
-};
-
 // ── build ─────────────────────────────────────────────────────────────
 
 /** The bare import specifier used by generated entry points. */
 const CORE_IMPORT_SPECIFIER = '@emkodev/emroute/spa';
-
-/** Path to the SPA module entry point (core bundle source). */
-const CORE_ENTRY = 'src/renderer/spa/mod.ts';
 
 /**
  * Build static output for deployment.
@@ -785,7 +766,7 @@ export async function build(
     coreBundle: coreBundleStrategy = 'build',
   } = config;
 
-  const bundler = config.bundler ?? denoBundler;
+  const bundler = config.bundler;
   const minSuffix = config.minify ? '.min' : '';
 
   // Generate manifests via createEmrouteServer
@@ -846,6 +827,10 @@ export async function build(
 
   // ── Core bundle ───────────────────────────────────────────────────
 
+  if (!bundler) {
+    throw new Error('build() requires config.bundler when spa is not "none"');
+  }
+
   let coreBundlePath: string | null = null;
   let coreBundleCdn: string | null = null;
   let coreUrl: string;
@@ -862,15 +847,16 @@ export async function build(
     console.log(`Core bundle: CDN → ${coreUrl}`);
   } else {
     // Build core locally
+    const coreEntry = runtime.resolveModule(CORE_IMPORT_SPECIFIER);
     coreBundlePath = `${outDir}/emroute${minSuffix}.js`;
-    await bundler.bundle(CORE_ENTRY, coreBundlePath, {
+    await bundler.bundle(coreEntry, coreBundlePath, {
       platform: 'browser',
       minify: config.minify,
       obfuscate: config.obfuscate,
       sourcemap: config.sourcemap,
     });
     coreUrl = `/${coreBundlePath.replace(outDir + '/', '')}`;
-    console.log(`Core bundle: ${CORE_ENTRY} → ${coreBundlePath}`);
+    console.log(`Core bundle: ${coreEntry} → ${coreBundlePath}`);
   }
 
   // ── App bundle ────────────────────────────────────────────────────
@@ -919,3 +905,8 @@ export async function build(
     manifests: manifestsResult,
   };
 }
+
+// ── Deprecated re-exports ─────────────────────────────────────────────
+
+/** @deprecated Import from '@emkodev/emroute/bundler/deno' instead. */
+export { denoBundler } from './deno.bundler.ts';

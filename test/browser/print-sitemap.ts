@@ -5,13 +5,13 @@
  * Usage: deno run --allow-read test/browser/print-sitemap.ts
  */
 
-import { generateRoutesManifest } from '../../tool/route.generator.ts';
-import { generateSitemap } from '../../tool/sitemap.generator.ts';
-import { denoFs } from '../../tool/fs.deno.ts';
+import { generateRoutesManifest } from '../../server/generator/route.generator.ts';
+import { generateSitemap } from '../../server/generator/sitemap.generator.ts';
+import { denoServerRuntime } from '../../server/server.deno.ts';
 
 const ROUTES_DIR = 'test/browser/fixtures/routes';
 
-const manifest = await generateRoutesManifest(ROUTES_DIR, denoFs);
+const manifest = await generateRoutesManifest(ROUTES_DIR, denoServerRuntime);
 
 const xml = await generateSitemap(manifest, {
   baseUrl: 'https://example.com',

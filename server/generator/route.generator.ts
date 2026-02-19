@@ -26,17 +26,20 @@ import {
   getPageFileType,
   getRouteType,
   sortRoutesBySpecificity,
-} from '../src/route/route.matcher.ts';
+} from '../../src/route/route.matcher.ts';
 import type {
   ErrorBoundary,
   RouteConfig,
   RouteFiles,
   RoutesManifest,
-} from '../src/type/route.type.ts';
-import type { FileSystem } from './fs.type.ts';
+} from '../../src/type/route.type.ts';
+import { type ServerRuntime, ServerRuntimeError } from '../server.type.ts';
+
+/** Minimal filesystem subset needed by generators. */
+export type GeneratorFs = Pick<ServerRuntime, 'readDir' | 'exists'>;
 
 /** Walk directory recursively and collect files */
-async function* walkDirectory(fs: FileSystem, dir: string): AsyncGenerator<string> {
+async function* walkDirectory(fs: GeneratorFs, dir: string): AsyncGenerator<string> {
   for await (const entry of fs.readDir(dir)) {
     const path = `${dir}/${entry.name}`;
     if (entry.isDirectory) {
@@ -133,7 +136,7 @@ export interface GeneratorResult extends RoutesManifest {
 /** Generate routes manifest from routes directory */
 export async function generateRoutesManifest(
   routesDir: string,
-  fs: FileSystem,
+  fs: GeneratorFs,
 ): Promise<GeneratorResult> {
   const pageFiles: Array<{
     path: string;
@@ -419,5 +422,10 @@ ${moduleLoadersCode}
 }
 
 // Re-export types
-export type { DirEntry, FileSystem } from './fs.type.ts';
-export { FileSystemError } from './fs.type.ts';
+export type { DirEntry } from '../server.type.ts';
+export { ServerRuntimeError };
+
+/** @deprecated Use `GeneratorFs` (Pick<ServerRuntime, 'readDir' | 'exists'>) instead. */
+export type FileSystem = GeneratorFs;
+/** @deprecated Use `ServerRuntimeError` instead. */
+export const FileSystemError = ServerRuntimeError;

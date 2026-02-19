@@ -5,13 +5,16 @@
  * Each test file creates its own server instance with a specific SPA mode and port.
  */
 
-import { createDevServer, type DevServer } from '../../../server/dev.server.ts';
+import { createEmrouteServer, generateMainTs } from '../../../server/emroute.server.ts';
 import { denoServerRuntime } from '../../../server/server.deno.ts';
-import { generateManifestCode, generateRoutesManifest } from '../../../tool/route.generator.ts';
+import {
+  generateManifestCode,
+  generateRoutesManifest,
+} from '../../../server/generator/route.generator.ts';
 import { DEFAULT_BASE_PATH } from '../../../src/route/route.core.ts';
-import type { FileSystem } from '../../../tool/fs.type.ts';
 import { WidgetRegistry } from '../../../src/widget/widget.registry.ts';
 import type { MarkdownRenderer } from '../../../src/type/markdown.type.ts';
+import type { ServerHandle } from '../../../server/server.type.ts';
 import { AstRenderer, initParser, MarkdownParser } from 'jsr:@emkodev/emko-md@0.1.0-beta.4/parser';
 import { externalWidget } from '../fixtures/assets/external.widget.ts';
 import type { SpaMode } from '../../../src/type/widget.type.ts';
@@ -20,19 +23,7 @@ import { type Browser, chromium, type Page } from 'npm:playwright@1.58.2';
 
 const FIXTURES_DIR = 'test/browser/fixtures';
 const ROUTES_DIR = `${FIXTURES_DIR}/routes`;
-
-/** Adapt Deno APIs to the FileSystem interface used by the route generator. */
-function createFs(): FileSystem {
-  return {
-    readDir: (path: string) => denoServerRuntime.readDir(path),
-    async writeTextFile(path: string, content: string): Promise<void> {
-      await Deno.writeTextFile(path, content);
-    },
-    async exists(path: string): Promise<boolean> {
-      return (await denoServerRuntime.stat(path)) !== null;
-    },
-  };
-}
+const BUNDLE_DIR = '.build';
 
 /**
  * Strip the fixtures directory prefix from generated paths.
@@ -47,7 +38,8 @@ function stripPrefix(path: string): string {
 }
 
 export interface TestServer {
-  handle: DevServer;
+  handle: ServerHandle;
+  bundleProcess?: { kill(): void };
   stop(): void;
   baseUrl(path?: string): string;
 }
@@ -61,8 +53,7 @@ export async function createTestServer(options: {
   const { mode, port, watch = false, entryPoint: customEntry } = options;
 
   // Generate manifest from fixture route files
-  const fs = createFs();
-  const result = await generateRoutesManifest(ROUTES_DIR, fs);
+  const result = await generateRoutesManifest(ROUTES_DIR, denoServerRuntime);
 
   // Normalize paths for the dev server's appRoot
   for (const route of result.routes) {
@@ -149,35 +140,80 @@ export async function createTestServer(options: {
   // For 'none'/'leaf', let the server generate a mode-appropriate entry point.
   // A custom entryPoint overrides this logic (e.g. hash routing tests).
   const defaultEntry = (mode === 'root' || mode === 'only') ? 'main.ts' : undefined;
+  const consumerEntry = customEntry ?? defaultEntry;
 
-  const server = await createDevServer(
-    {
-      port,
-      entryPoint: customEntry ?? defaultEntry,
-      routesManifest: result,
-      appRoot: FIXTURES_DIR,
-      widgetsDir: `${FIXTURES_DIR}/widgets`,
-      widgets: manualWidgets,
-      watch,
-      markdownRenderer,
-      spa: mode,
-    },
-    denoServerRuntime,
-  );
+  // Generate entry point if needed
+  let entryPoint: string | undefined;
+  if (consumerEntry) {
+    entryPoint = `${FIXTURES_DIR}/${consumerEntry}`;
+  } else if (mode !== 'none') {
+    const hasRoutes = true;
+    const hasWidgets = true;
+    const mainCode = generateMainTs(mode, hasRoutes, hasWidgets, '@emkodev/emroute');
+    entryPoint = `${FIXTURES_DIR}/_main.g.ts`;
+    await denoServerRuntime.writeTextFile(entryPoint, mainCode);
+  }
 
-  // Wait for bundle to complete
-  await new Promise((resolve) => setTimeout(resolve, 3000));
+  // Create emroute server
+  const emroute = await createEmrouteServer({
+    appRoot: FIXTURES_DIR,
+    routesManifest: result,
+    widgetsDir: `${FIXTURES_DIR}/widgets`,
+    widgets: manualWidgets,
+    entryPoint,
+    markdownRenderer,
+    spa: mode,
+    baseUrl: `http://localhost:${port}`,
+    responseHeaders: { 'Access-Control-Allow-Origin': '*' },
+  }, denoServerRuntime);
+
+  // Bundle (skip for 'none' mode)
+  let bundleProcess: { kill(): void } | undefined;
+
+  if (mode !== 'none' && entryPoint) {
+    const bundleEntry = entryPoint.replace(/^\.\//, '');
+    const bundleOutput = `${BUNDLE_DIR}/${bundleEntry.replace(/\.ts$/, '.js')}`;
+    await denoServerRuntime.mkdir(BUNDLE_DIR, { recursive: true });
+
+    const args = ['bundle', '--platform', 'browser'];
+    if (watch) args.push('--watch');
+    args.push(entryPoint, '-o', bundleOutput);
+
+    const proc = new Deno.Command('deno', {
+      args,
+      stdout: 'inherit',
+      stderr: 'inherit',
+    }).spawn();
+
+    bundleProcess = { kill: () => proc.kill() };
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+  }
+
+  // Serve
+  const handle = denoServerRuntime.serve(port, async (req) => {
+    const response = await emroute.handleRequest(req);
+    if (response) return response;
+
+    const url = new URL(req.url);
+    const pathname = url.pathname;
+
+    // Try .build/ for bundled JS, then appRoot for static files
+    const buildResponse = await denoServerRuntime.serveStaticFile(req, `${BUNDLE_DIR}${pathname}`);
+    if (buildResponse.status === 200) return buildResponse;
+
+    return await denoServerRuntime.serveStaticFile(req, `${FIXTURES_DIR}${pathname}`);
+  });
 
   return {
-    handle: server,
+    handle,
+    bundleProcess,
     stop() {
       try {
-        server.bundleProcess?.kill();
+        bundleProcess?.kill();
       } catch {
         // Bundle process may have already exited
       }
-      server.watchHandle?.close();
-      server.handle.shutdown();
+      handle.shutdown();
     },
     baseUrl(path = '/') {
       return `http://localhost:${port}${path}`;

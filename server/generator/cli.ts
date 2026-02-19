@@ -5,7 +5,7 @@
  * Routes & Widgets Generator CLI (Deno)
  *
  * Usage:
- *   deno run --allow-read --allow-write tool/cli.ts [routesDir] [outputFile] [importPath]
+ *   deno run --allow-read --allow-write server/generator/cli.ts [routesDir] [outputFile] [importPath]
  *       [--widgets widgetsDir widgetsOutput]
  *
  * Arguments:
@@ -18,12 +18,12 @@
  */
 
 import {
-  FileSystemError,
   generateManifestCode,
   generateRoutesManifest,
+  ServerRuntimeError,
 } from './route.generator.ts';
 import { discoverWidgets, generateWidgetsManifestCode } from './widget.generator.ts';
-import { denoFs } from './fs.deno.ts';
+import { denoServerRuntime } from '../server.deno.ts';
 
 async function main() {
   const widgetsIdx = Deno.args.indexOf('--widgets');
@@ -36,7 +36,7 @@ async function main() {
   console.log(`[Routes Generator] Scanning: ${routesDir}/`);
 
   try {
-    const manifest = await generateRoutesManifest(routesDir, denoFs);
+    const manifest = await generateRoutesManifest(routesDir, denoServerRuntime);
 
     console.log(`[Routes Generator] Found ${manifest.routes.length} routes`);
     console.log(`[Routes Generator] Found ${manifest.errorBoundaries.length} error boundaries`);
@@ -52,7 +52,7 @@ async function main() {
     }
 
     const code = generateManifestCode(manifest, importPath);
-    await denoFs.writeTextFile(outputFile, code);
+    await denoServerRuntime.writeTextFile(outputFile, code);
 
     console.log(`[Routes Generator] Generated: ${outputFile}`);
 
@@ -82,7 +82,7 @@ async function main() {
       console.log(`  ${manifest.errorHandler.modulePath}`);
     }
   } catch (error) {
-    if (error instanceof FileSystemError && error.code === 'NOT_FOUND') {
+    if (error instanceof ServerRuntimeError && error.code === 'NOT_FOUND') {
       console.log(`[Routes Generator] No routes directory found at: ${routesDir}/`);
       console.log('[Routes Generator] Creating empty manifest...');
 
@@ -94,7 +94,7 @@ async function main() {
       };
 
       const code = generateManifestCode(emptyManifest, importPath);
-      await denoFs.writeTextFile(outputFile, code);
+      await denoServerRuntime.writeTextFile(outputFile, code);
 
       console.log(`[Routes Generator] Generated empty: ${outputFile}`);
     } else {
@@ -111,11 +111,11 @@ async function main() {
     console.log(`\n[Widgets Generator] Scanning: ${widgetsDir}/`);
 
     try {
-      const entries = await discoverWidgets(widgetsDir, denoFs, widgetsDir);
+      const entries = await discoverWidgets(widgetsDir, denoServerRuntime, widgetsDir);
       console.log(`[Widgets Generator] Found ${entries.length} widgets`);
 
       const code = generateWidgetsManifestCode(entries, importPath);
-      await denoFs.writeTextFile(widgetsOutput, code);
+      await denoServerRuntime.writeTextFile(widgetsOutput, code);
 
       console.log(`[Widgets Generator] Generated: ${widgetsOutput}`);
 
@@ -128,7 +128,7 @@ async function main() {
         }
       }
     } catch (error) {
-      if (error instanceof FileSystemError && error.code === 'NOT_FOUND') {
+      if (error instanceof ServerRuntimeError && error.code === 'NOT_FOUND') {
         console.log(`[Widgets Generator] No widgets directory found at: ${widgetsDir}/`);
         console.log('[Widgets Generator] Skipping widget manifest generation.');
       } else {

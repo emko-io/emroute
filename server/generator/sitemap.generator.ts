@@ -17,8 +17,8 @@
  * @see https://www.sitemaps.org/protocol.html
  */
 
-import { escapeHtml } from '../src/util/html.util.ts';
-import type { RoutesManifest } from '../src/type/route.type.ts';
+import { escapeHtml } from '../../src/util/html.util.ts';
+import type { RoutesManifest } from '../../src/type/route.type.ts';
 
 /** Valid changefreq values per sitemaps.org protocol. */
 export type Changefreq =

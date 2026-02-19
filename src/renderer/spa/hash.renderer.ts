@@ -15,7 +15,10 @@ import { escapeHtml } from '../../util/html.util.ts';
 import { logger } from '../../util/logger.util.ts';
 import { BaseRenderer } from './base.renderer.ts';
 
-/** A single hash route definition with a lazy module loader. */
+/**
+ * A single hash route definition with a lazy module loader.
+ * @experimental
+ */
 export interface HashRouteConfig {
   /** URLPattern pathname pattern (e.g. '/settings', '/users/:id'). */
   pattern: string;
@@ -23,7 +26,10 @@ export interface HashRouteConfig {
   loader: () => Promise<unknown>;
 }
 
-/** Options for creating a HashRouter. */
+/**
+ * Options for creating a HashRouter.
+ * @experimental
+ */
 export interface HashRouterOptions {
   /** Inline route definitions. */
   routes: HashRouteConfig[];
@@ -58,6 +64,8 @@ function buildManifest(routes: HashRouteConfig[]): RoutesManifest {
  *
  * Listens to `hashchange`, maps `#/path` → pattern match via RouteCore,
  * renders matched PageComponent into a slot element.
+ *
+ * @experimental
  */
 export class HashRouter extends BaseRenderer {
   private boundHandler: (() => void) | null = null;
@@ -185,6 +193,8 @@ export class HashRouter extends BaseRenderer {
  *
  * The router instance is stored on `globalThis.__emroute_hash_router` for
  * programmatic access. Calling twice returns the existing router with a warning.
+ *
+ * @experimental
  */
 export async function createHashRouter(
   options: HashRouterOptions,

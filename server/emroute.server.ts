@@ -38,8 +38,8 @@ import { SsrHtmlRouter } from '../src/renderer/ssr/html.renderer.ts';
 import { SsrMdRouter } from '../src/renderer/ssr/md.renderer.ts';
 import type { RoutesManifest } from '../src/type/route.type.ts';
 import type { SpaMode, WidgetManifestEntry } from '../src/type/widget.type.ts';
-import { generateManifestCode, generateRoutesManifest } from '../tool/route.generator.ts';
-import { discoverWidgets, generateWidgetsManifestCode } from '../tool/widget.generator.ts';
+import { generateManifestCode, generateRoutesManifest } from './generator/route.generator.ts';
+import { discoverWidgets, generateWidgetsManifestCode } from './generator/widget.generator.ts';
 import { WidgetRegistry } from '../src/widget/widget.registry.ts';
 import type { WidgetComponent } from '../src/component/widget.component.ts';
 import { escapeHtml } from '../src/util/html.util.ts';
@@ -701,34 +701,6 @@ export function generateMainTs(
   }\n`;
 }
 
-// ── Default bundler ───────────────────────────────────────────────────
-
-/** Default bundler using `deno bundle`. */
-export const denoBundler: Bundler = {
-  async bundle(entry, output, options) {
-    const args = ['bundle', '--platform', 'browser'];
-    if (options.minify) args.push('--minify');
-    if (options.sourcemap) args.push('--sourcemap');
-    if (options.external) {
-      for (const ext of options.external) {
-        args.push('--external', ext);
-      }
-    }
-    args.push(entry, '-o', output);
-
-    const proc = new Deno.Command('deno', {
-      args,
-      stdout: 'inherit',
-      stderr: 'inherit',
-    }).spawn();
-
-    const status = await proc.status;
-    if (!status.success) {
-      throw new Error(`deno bundle failed with exit code ${status.code}`);
-    }
-  },
-};
-
 // ── build ─────────────────────────────────────────────────────────────
 
 /** The bare import specifier used by generated entry points. */
@@ -763,7 +735,7 @@ export async function build(
     coreBundle: coreBundleStrategy = 'build',
   } = config;
 
-  const bundler = config.bundler ?? denoBundler;
+  const bundler = config.bundler;
   const minSuffix = config.minify ? '.min' : '';
 
   // Generate manifests via createEmrouteServer
@@ -823,6 +795,10 @@ export async function build(
   }
 
   // ── Core bundle ───────────────────────────────────────────────────
+
+  if (!bundler) {
+    throw new Error('build() requires config.bundler when spa is not "none"');
+  }
 
   let coreBundlePath: string | null = null;
   let coreBundleCdn: string | null = null;

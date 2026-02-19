@@ -27,16 +27,16 @@
  *   --minify          Enable minification (build only)
  */
 
-import { createDevServer } from './dev.server.ts';
-import { build } from './prod.server.ts';
+import { build, createEmrouteServer, generateMainTs } from './emroute.server.ts';
+import { denoBundler } from './deno.bundler.ts';
 import { denoServerRuntime } from './server.deno.ts';
 import type { SpaMode } from '../src/type/widget.type.ts';
 import type { BasePath } from '../src/route/route.core.ts';
 import type { MarkdownRenderer } from '../src/type/markdown.type.ts';
-import { generateManifestCode, generateRoutesManifest } from '../tool/route.generator.ts';
-import { discoverWidgets, generateWidgetsManifestCode } from '../tool/widget.generator.ts';
-// @ts-types="./emko-md.vendor.d.ts"
-import { createMarkdownRender } from './emko-md.vendor.js';
+import { generateManifestCode, generateRoutesManifest } from './generator/route.generator.ts';
+import { discoverWidgets, generateWidgetsManifestCode } from './generator/widget.generator.ts';
+// @ts-types="./vendor/emko-md.vendor.d.ts"
+import { createMarkdownRender } from './vendor/emko-md.vendor.js';
 
 const markdownRenderer: MarkdownRenderer = { render: createMarkdownRender() };
 
@@ -179,32 +179,118 @@ async function scanForPageTs(dir: string): Promise<boolean> {
 
 // ── Commands ─────────────────────────────────────────────────────────
 
+const BUNDLE_DIR = '.build';
+const GENERATED_MAIN = '_main.g.ts';
+const WATCH_DEBOUNCE_MS = 100;
+
 async function commandStart(flags: CliFlags): Promise<void> {
   const project = await detectProject(flags.spa);
-
   const basePath = buildBasePath(flags);
+  const appRoot = '.';
+  const spa = project.spaMode;
 
   console.log(`[emroute] Starting dev server...`);
   console.log(`[emroute]   routes:  ${project.routesDir}/`);
   if (project.widgetsDir) console.log(`[emroute]   widgets: ${project.widgetsDir}/`);
   if (project.entryPoint) console.log(`[emroute]   entry:   ${project.entryPoint}`);
-  console.log(`[emroute]   spa:     ${project.spaMode}`);
+  console.log(`[emroute]   spa:     ${spa}`);
   console.log(`[emroute]   port:    ${flags.port}`);
 
-  await createDevServer(
-    {
-      port: flags.port,
-      entryPoint: flags.entry ?? project.entryPoint,
-      routesDir: project.routesDir,
-      widgetsDir: project.widgetsDir,
-      watch: true,
-      appRoot: '.',
-      spa: project.spaMode,
-      basePath,
-      markdownRenderer,
-    },
-    denoServerRuntime,
-  );
+  // ── Entry point ──────────────────────────────────────────────────
+
+  const consumerEntry = flags.entry ?? project.entryPoint;
+  let entryPoint: string;
+  if (consumerEntry && await denoServerRuntime.exists(`${appRoot}/${consumerEntry}`)) {
+    entryPoint = `${appRoot}/${consumerEntry}`;
+  } else {
+    const hasRoutes = project.routesDir !== undefined;
+    const hasWidgets = project.widgetsDir !== undefined;
+    const mainCode = generateMainTs(spa, hasRoutes, hasWidgets, '@emkodev/emroute', basePath);
+    entryPoint = `${appRoot}/${GENERATED_MAIN}`;
+    await denoServerRuntime.writeTextFile(entryPoint, mainCode);
+  }
+
+  // ── Create server ────────────────────────────────────────────────
+
+  const emroute = await createEmrouteServer({
+    appRoot,
+    routesDir: project.routesDir,
+    widgetsDir: project.widgetsDir,
+    spa,
+    basePath,
+    baseUrl: `http://localhost:${flags.port}`,
+    markdownRenderer,
+    responseHeaders: { 'Access-Control-Allow-Origin': '*' },
+  }, denoServerRuntime);
+
+  // ── Bundle ───────────────────────────────────────────────────────
+
+  let bundleProcess: { kill(): void } | undefined;
+
+  if (spa !== 'none') {
+    const bundleEntry = entryPoint.replace(/^\.\//, '');
+    const bundleOutput = `${BUNDLE_DIR}/${bundleEntry.replace(/\.ts$/, '.js')}`;
+    await denoServerRuntime.mkdir(BUNDLE_DIR, { recursive: true });
+
+    const proc = new Deno.Command('deno', {
+      args: ['bundle', '--platform', 'browser', '--watch', entryPoint, '-o', bundleOutput],
+      stdout: 'inherit',
+      stderr: 'inherit',
+    }).spawn();
+
+    bundleProcess = { kill: () => proc.kill() };
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+  }
+
+  // ── Serve ────────────────────────────────────────────────────────
+
+  const handle = denoServerRuntime.serve(flags.port, async (req) => {
+    const response = await emroute.handleRequest(req);
+    if (response) return response;
+
+    // Try .build/ for bundled JS, then appRoot for static files
+    const url = new URL(req.url);
+    const pathname = url.pathname;
+
+    const buildResponse = await denoServerRuntime.serveStaticFile(req, `${BUNDLE_DIR}${pathname}`);
+    if (buildResponse.status === 200) return buildResponse;
+
+    return await denoServerRuntime.serveStaticFile(req, `${appRoot}${pathname}`);
+  });
+
+  // ── Watch ────────────────────────────────────────────────────────
+
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  const watchPaths = [project.routesDir];
+  if (project.widgetsDir && !project.widgetsDir.startsWith(project.routesDir)) {
+    watchPaths.push(project.widgetsDir);
+  }
+
+  for (const watchPath of watchPaths) {
+    denoServerRuntime.watchDir(watchPath, (event) => {
+      const isRelevant = event.paths.some((p) =>
+        p.endsWith('.page.ts') || p.endsWith('.page.html') || p.endsWith('.page.md') ||
+        p.endsWith('.page.css') || p.endsWith('.error.ts') || p.endsWith('.redirect.ts') ||
+        p.endsWith('.widget.ts') || p.endsWith('.widget.css')
+      );
+      if (!isRelevant) return;
+
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(async () => {
+        try {
+          await emroute.rebuild();
+          console.log('[emroute] Rebuilt routes and widgets');
+        } catch (e) {
+          console.error('[emroute] Failed to rebuild:', e);
+        }
+      }, WATCH_DEBOUNCE_MS);
+    });
+  }
+
+  console.log(`[emroute] Dev server running at http://localhost:${flags.port}/`);
+
+  // Keep process alive
+  await new Promise(() => {});
 }
 
 async function commandBuild(flags: CliFlags): Promise<void> {
@@ -230,6 +316,7 @@ async function commandBuild(flags: CliFlags): Promise<void> {
       basePath,
       entryPoint: flags.entry ?? project.entryPoint,
       minify: flags.minify,
+      bundler: denoBundler,
     },
     denoServerRuntime,
   );

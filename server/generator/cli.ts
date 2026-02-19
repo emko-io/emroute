@@ -5,7 +5,7 @@
  * Routes & Widgets Generator CLI (Deno)
  *
  * Usage:
- *   deno run --allow-read --allow-write tool/cli.ts [routesDir] [outputFile] [importPath]
+ *   deno run --allow-read --allow-write server/generator/cli.ts [routesDir] [outputFile] [importPath]
  *       [--widgets widgetsDir widgetsOutput]
  *
  * Arguments:
@@ -23,7 +23,7 @@ import {
   ServerRuntimeError,
 } from './route.generator.ts';
 import { discoverWidgets, generateWidgetsManifestCode } from './widget.generator.ts';
-import { denoServerRuntime } from '../server/server.deno.ts';
+import { denoServerRuntime } from '../server.deno.ts';
 
 async function main() {
   const widgetsIdx = Deno.args.indexOf('--widgets');

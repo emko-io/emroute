@@ -7,7 +7,7 @@
  */
 
 import { assertEquals, assertStringIncludes } from '@std/assert';
-import { createEmrouteServer } from '../../server/prod.server.ts';
+import { createEmrouteServer } from '../../server/emroute.server.ts';
 import { denoServerRuntime } from '../../server/server.deno.ts';
 import { WidgetRegistry } from '../../src/widget/widget.registry.ts';
 import { externalWidget } from '../browser/fixtures/assets/external.widget.ts';

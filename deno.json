@@ -27,14 +27,14 @@
     "./spa": "./src/renderer/spa/mod.ts",
     "./ssr/html": "./src/renderer/ssr/html.renderer.ts",
     "./ssr/md": "./src/renderer/ssr/md.renderer.ts",
-    "./generator": "./tool/route.generator.ts",
-    "./widget-generator": "./tool/widget.generator.ts",
-    "./sitemap": "./tool/sitemap.generator.ts",
-    "./server": "./server/dev.server.ts",
-    "./server/prod": "./server/prod.server.ts",
+    "./generator": "./server/generator/route.generator.ts",
+    "./widget-generator": "./server/generator/widget.generator.ts",
+    "./sitemap": "./server/generator/sitemap.generator.ts",
+    "./server": "./server/emroute.server.ts",
     "./server/cli": "./server/cli.deno.ts",
     "./server/deno": "./server/server.deno.ts",
     "./server/types": "./server/server.type.ts",
+    "./bundler/deno": "./server/deno.bundler.ts",
     "./overlay": "./src/overlay/mod.ts",
     "./types/navigation-api": "./src/type/navigation-api.d.ts"
   },
@@ -42,7 +42,6 @@
     "include": [
       "src/",
       "server/",
-      "tool/",
       "doc/",
       "README.md",
       "LICENSE",
@@ -72,7 +71,7 @@
     "check": "deno check src/index.ts",
     "fmt": "deno fmt",
     "lint": "deno lint",
-    "generate:routes": "deno run --allow-read --allow-write tool/cli.ts",
+    "generate:routes": "deno run --allow-read --allow-write server/generator/cli.ts",
     "dev": "deno run --allow-net --allow-read --allow-write --allow-run --allow-env server/cli.deno.ts"
   },
   "compilerOptions": {
@@ -95,7 +94,7 @@
       "tags": ["recommended"]
     },
     "exclude": [
-      "server/emko-md.vendor.js",
+      "server/vendor/emko-md.vendor.js",
       "test/browser/fixtures/_main.generated.ts"
     ]
   }

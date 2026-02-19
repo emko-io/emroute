@@ -26,14 +26,14 @@ import {
   getPageFileType,
   getRouteType,
   sortRoutesBySpecificity,
-} from '../src/route/route.matcher.ts';
+} from '../../src/route/route.matcher.ts';
 import type {
   ErrorBoundary,
   RouteConfig,
   RouteFiles,
   RoutesManifest,
-} from '../src/type/route.type.ts';
-import { type ServerRuntime, ServerRuntimeError } from '../server/server.type.ts';
+} from '../../src/type/route.type.ts';
+import { type ServerRuntime, ServerRuntimeError } from '../server.type.ts';
 
 /** Minimal filesystem subset needed by generators. */
 export type GeneratorFs = Pick<ServerRuntime, 'readDir' | 'exists'>;
@@ -422,7 +422,7 @@ ${moduleLoadersCode}
 }
 
 // Re-export types
-export type { DirEntry } from '../server/server.type.ts';
+export type { DirEntry } from '../server.type.ts';
 export { ServerRuntimeError };
 
 /** @deprecated Use `GeneratorFs` (Pick<ServerRuntime, 'readDir' | 'exists'>) instead. */

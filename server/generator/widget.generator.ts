@@ -8,7 +8,7 @@
  *    already-known widgets. Legacy API, still supported.
  */
 
-import type { WidgetManifestEntry } from '../src/type/widget.type.ts';
+import type { WidgetManifestEntry } from '../../src/type/widget.type.ts';
 import type { GeneratorFs } from './route.generator.ts';
 
 type WidgetFiles = { html?: string; md?: string; css?: string };

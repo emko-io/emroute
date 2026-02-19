@@ -1,5 +1,5 @@
 import { assertEquals, assertStringIncludes } from '@std/assert';
-import { generateSitemap } from '../../tool/sitemap.generator.ts';
+import { generateSitemap } from '../../server/generator/sitemap.generator.ts';
 import type { RoutesManifest } from '../../src/type/route.type.ts';
 
 /** Minimal manifest factory for testing. */

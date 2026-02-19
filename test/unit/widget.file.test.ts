@@ -12,13 +12,13 @@
 
 import { assertEquals, assertExists, assertStringIncludes } from '@std/assert';
 import type { WidgetManifestEntry } from '../../src/type/widget.type.ts';
-import type { DirEntry, GeneratorFs } from '../../tool/route.generator.ts';
+import type { DirEntry, GeneratorFs } from '../../server/generator/route.generator.ts';
 import {
   discoverWidgetFiles,
   discoverWidgets,
   generateWidgetFilesManifestCode,
   generateWidgetsManifestCode,
-} from '../../tool/widget.generator.ts';
+} from '../../server/generator/widget.generator.ts';
 
 /**
  * Mock FileSystem for testing widget discovery

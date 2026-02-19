@@ -13,12 +13,12 @@
  *
  * Based on documentation:
  * - doc/guide.md: Core routing concepts and file-based routing rules
- * - tool/route.generator.ts: Route manifest generation implementation
+ * - server/generator/route.generator.ts: Route manifest generation implementation
  */
 
 import { assertEquals, assertExists, assertStringIncludes } from '@std/assert';
-import { generateManifestCode, generateRoutesManifest } from '../../tool/route.generator.ts';
-import type { DirEntry, GeneratorFs } from '../../tool/route.generator.ts';
+import { generateManifestCode, generateRoutesManifest } from '../../server/generator/route.generator.ts';
+import type { DirEntry, GeneratorFs } from '../../server/generator/route.generator.ts';
 
 // ============================================================================
 // Test Fixtures and Helpers

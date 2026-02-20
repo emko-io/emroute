@@ -116,7 +116,19 @@ export class DenoFsRuntime extends Runtime {
     }
   }
 
-  static override transpile(ts: string): string {
-    return "";
+  private static _ts: typeof import("npm:typescript").default | null = null;
+
+  static override async transpile(source: string): Promise<string> {
+    if (!DenoFsRuntime._ts) {
+      DenoFsRuntime._ts = (await import("npm:typescript")).default;
+    }
+    const result = DenoFsRuntime._ts.transpileModule(source, {
+      compilerOptions: {
+        target: DenoFsRuntime._ts.ScriptTarget.ESNext,
+        module: DenoFsRuntime._ts.ModuleKind.ESNext,
+        verbatimModuleSyntax: false,
+      },
+    });
+    return result.outputText;
   }
 }

@@ -57,11 +57,11 @@ export abstract class Runtime {
     return this.handle(resource, { method: "PUT", ...options });
   }
 
-  static transpile(ts: string): string {
+  static transpile(ts: string): Promise<string> {
     throw new Error("Not implemented");
   }
 
-  static compress(data: Uint8Array, encoding: "br" | "gzip"): Uint8Array {
+  static compress(data: Uint8Array, encoding: "br" | "gzip"): Promise<Uint8Array> {
     throw new Error("Not implemented");
   }
 }

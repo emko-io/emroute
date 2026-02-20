@@ -12,7 +12,7 @@
 
 import { assertEquals, assertExists, assertStringIncludes } from '@std/assert';
 import type { WidgetManifestEntry } from '../../src/type/widget.type.ts';
-import type { DirEntry, GeneratorFs } from '../../server/generator/route.generator.ts';
+import { Runtime } from '../../server/runtime/abstract.runtime.ts';
 import {
   discoverWidgetFiles,
   discoverWidgets,
@@ -21,9 +21,9 @@ import {
 } from '../../server/generator/widget.generator.ts';
 
 /**
- * Mock FileSystem for testing widget discovery
+ * Mock Runtime for testing widget discovery
  */
-class MockFileSystem implements GeneratorFs {
+class MockFileSystem extends Runtime {
   private files: Set<string> = new Set();
   private dirs: Set<string> = new Set();
 
@@ -35,43 +35,52 @@ class MockFileSystem implements GeneratorFs {
     this.dirs.add(path);
   }
 
-  exists(path: string): Promise<boolean> {
-    return Promise.resolve(this.files.has(path) || this.dirs.has(path));
-  }
+  handle(resource: Parameters<typeof fetch>[0], _init?: Parameters<typeof fetch>[1]): ReturnType<typeof fetch> {
+    const path = typeof resource === 'string' ? resource : resource instanceof URL ? resource.pathname : resource.url;
 
-  writeTextFile(path: string, _content: string): Promise<void> {
-    this.files.add(path);
-    return Promise.resolve();
-  }
+    // Directory listing: path ends with /
+    if (path.endsWith('/')) {
+      const dirPath = path.slice(0, -1); // strip trailing /
+      const children: string[] = [];
 
-  async *readDir(path: string): AsyncIterable<DirEntry> {
-    for (const dirPath of this.dirs) {
-      if (dirPath.startsWith(path + '/')) {
-        const relative = dirPath.slice((path + '/').length);
-        const parts = relative.split('/');
-        if (parts.length === 1) {
-          yield {
-            name: parts[0],
-            isDirectory: true,
-            isFile: false,
-          };
+      for (const d of this.dirs) {
+        if (d.startsWith(dirPath + '/')) {
+          const relative = d.slice((dirPath + '/').length);
+          const parts = relative.split('/');
+          if (parts.length === 1) {
+            children.push(parts[0] + '/');
+          }
         }
       }
-    }
 
-    for (const filePath of this.files) {
-      if (filePath.startsWith(path + '/')) {
-        const relative = filePath.slice((path + '/').length);
-        const parts = relative.split('/');
-        if (parts.length === 1) {
-          yield {
-            name: parts[0],
-            isDirectory: false,
-            isFile: true,
-          };
+      for (const f of this.files) {
+        if (f.startsWith(dirPath + '/')) {
+          const relative = f.slice((dirPath + '/').length);
+          const parts = relative.split('/');
+          if (parts.length === 1) {
+            children.push(parts[0]);
+          }
         }
       }
+
+      return Promise.resolve(new Response(JSON.stringify(children), { status: 200 }));
     }
+
+    // File/dir existence check
+    if (this.files.has(path) || this.dirs.has(path)) {
+      return Promise.resolve(new Response('', { status: 200 }));
+    }
+
+    return Promise.resolve(new Response('Not found', { status: 404 }));
+  }
+
+  query(resource: Parameters<typeof fetch>[0], options: Parameters<typeof fetch>[1] & { as: 'text' }): Promise<string>;
+  query(resource: Parameters<typeof fetch>[0], options?: Parameters<typeof fetch>[1]): ReturnType<typeof fetch>;
+  query(resource: Parameters<typeof fetch>[0], options?: Parameters<typeof fetch>[1] & { as?: 'text' }): Promise<string> | ReturnType<typeof fetch> {
+    if (options && 'as' in options && options.as === 'text') {
+      return this.handle(resource, options).then((r) => r.text()) as Promise<string>;
+    }
+    return this.handle(resource, options) as ReturnType<typeof fetch>;
   }
 }
 

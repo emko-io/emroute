@@ -33,18 +33,20 @@ import type {
   RouteFiles,
   RoutesManifest,
 } from '../../src/type/route.type.ts';
-import { type ServerRuntime, ServerRuntimeError } from '../server.type.ts';
+import { ServerRuntimeError } from '../server.type.ts';
+import type { Runtime } from '../runtime/abstract.runtime.ts';
 
-/** Minimal filesystem subset needed by generators. */
-export type GeneratorFs = Pick<ServerRuntime, 'readDir' | 'exists'>;
+/** Walk directory recursively and collect files via Runtime. */
+async function* walkDirectory(runtime: Runtime, dir: string): AsyncGenerator<string> {
+  const trailingDir = dir.endsWith('/') ? dir : dir + '/';
+  const response = await runtime.query(trailingDir);
+  const entries: string[] = await response.json();
 
-/** Walk directory recursively and collect files */
-async function* walkDirectory(fs: GeneratorFs, dir: string): AsyncGenerator<string> {
-  for await (const entry of fs.readDir(dir)) {
-    const path = `${dir}/${entry.name}`;
-    if (entry.isDirectory) {
-      yield* walkDirectory(fs, path);
-    } else if (entry.isFile) {
+  for (const entry of entries) {
+    const path = `${trailingDir}${entry}`;
+    if (entry.endsWith('/')) {
+      yield* walkDirectory(runtime, path);
+    } else {
       yield path;
     }
   }
@@ -136,7 +138,7 @@ export interface GeneratorResult extends RoutesManifest {
 /** Generate routes manifest from routes directory */
 export async function generateRoutesManifest(
   routesDir: string,
-  fs: GeneratorFs,
+  runtime: Runtime,
 ): Promise<GeneratorResult> {
   const pageFiles: Array<{
     path: string;
@@ -149,7 +151,7 @@ export async function generateRoutesManifest(
   let errorHandler: RouteConfig | undefined;
 
   const allFiles: string[] = [];
-  for await (const file of walkDirectory(fs, routesDir)) {
+  for await (const file of walkDirectory(runtime, routesDir)) {
     allFiles.push(file);
   }
 
@@ -424,8 +426,3 @@ ${moduleLoadersCode}
 // Re-export types
 export type { DirEntry } from '../server.type.ts';
 export { ServerRuntimeError };
-
-/** @deprecated Use `GeneratorFs` (Pick<ServerRuntime, 'readDir' | 'exists'>) instead. */
-export type FileSystem = GeneratorFs;
-/** @deprecated Use `ServerRuntimeError` instead. */
-export const FileSystemError = ServerRuntimeError;

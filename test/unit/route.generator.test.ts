@@ -21,55 +21,80 @@ import {
   generateManifestCode,
   generateRoutesManifest,
 } from '../../server/generator/route.generator.ts';
-import type { DirEntry, GeneratorFs } from '../../server/generator/route.generator.ts';
+import { Runtime } from '../../server/runtime/abstract.runtime.ts';
+import type { FetchParams, FetchReturn } from '../../server/runtime/abstract.runtime.ts';
 
 // ============================================================================
 // Test Fixtures and Helpers
 // ============================================================================
 
-/** In-memory filesystem for testing the route generator. */
-function createMockFs(files: string[]): GeneratorFs {
+/** In-memory Runtime implementation for testing the route generator. */
+function createMockRuntime(files: string[]): Runtime {
   // Build directory tree from flat file list
-  const dirs = new Map<string, DirEntry[]>();
+  // Key: directory path (with trailing slash), Value: entry names (dirs end with "/", files don't)
+  const dirs = new Map<string, string[]>();
 
   for (const filePath of files) {
-    // Ensure all parent directories exist
     const parts = filePath.split('/');
+
+    // Ensure all parent directories exist
     for (let i = 1; i < parts.length; i++) {
-      const dir = parts.slice(0, i).join('/');
+      const dir = parts.slice(0, i).join('/') + '/';
       if (!dirs.has(dir)) dirs.set(dir, []);
     }
 
     // Add file entry to its parent directory
-    const parentDir = parts.slice(0, -1).join('/');
+    const parentDir = parts.slice(0, -1).join('/') + '/';
     const name = parts[parts.length - 1];
     const entries = dirs.get(parentDir) ?? [];
-    entries.push({ name, isFile: true, isDirectory: false });
+    if (!entries.includes(name)) entries.push(name);
     dirs.set(parentDir, entries);
 
     // Add subdirectory entries to their parents
     for (let i = 1; i < parts.length - 1; i++) {
-      const ancestor = parts.slice(0, i).join('/');
-      const childName = parts[i];
+      const ancestor = parts.slice(0, i).join('/') + '/';
+      const childName = parts[i] + '/';
       const ancestorEntries = dirs.get(ancestor) ?? [];
-      if (!ancestorEntries.some((e) => e.name === childName)) {
-        ancestorEntries.push({
-          name: childName,
-          isFile: false,
-          isDirectory: true,
-        });
+      if (!ancestorEntries.includes(childName)) {
+        ancestorEntries.push(childName);
         dirs.set(ancestor, ancestorEntries);
       }
     }
   }
 
-  return {
-    async *readDir(path: string) {
-      const entries = dirs.get(path) ?? [];
-      for (const entry of entries) yield entry;
-    },
-    exists: () => Promise.resolve(true),
-  };
+  // Ensure the root "routes/" directory always exists (even when files is empty)
+  if (!dirs.has('routes/')) dirs.set('routes/', []);
+
+  return new (class extends Runtime {
+    handle(resource: FetchParams[0], _init?: FetchParams[1]): FetchReturn {
+      const path = typeof resource === 'string' ? resource : resource instanceof URL ? resource.pathname : resource.url;
+      const trailingPath = path.endsWith('/') ? path : path + '/';
+
+      if (dirs.has(trailingPath)) {
+        return Promise.resolve(new Response(JSON.stringify(dirs.get(trailingPath)), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }));
+      }
+
+      // Check if it's a known file (any non-directory path that exists in some directory listing)
+      const parentDir = path.replace(/\/[^/]+$/, '') + '/';
+      const fileName = path.split('/').pop() ?? '';
+      const parentEntries = dirs.get(parentDir);
+      if (parentEntries?.includes(fileName)) {
+        return Promise.resolve(new Response('', { status: 200 }));
+      }
+
+      return Promise.resolve(new Response('Not found', { status: 404 }));
+    }
+
+    query(resource: FetchParams[0], options?: FetchParams[1] & { as?: 'text' }): any {
+      if (options && 'as' in options && options.as === 'text') {
+        return this.handle(resource, options).then((r: Response) => r.text());
+      }
+      return this.handle(resource, options);
+    }
+  })();
 }
 
 // ============================================================================
@@ -77,8 +102,8 @@ function createMockFs(files: string[]): GeneratorFs {
 // ============================================================================
 
 Deno.test('generator - flat file produces exact route', async () => {
-  const fs = createMockFs(['routes/about.page.md']);
-  const result = await generateRoutesManifest('routes', fs);
+  const runtime = createMockRuntime(['routes/about.page.md']);
+  const result = await generateRoutesManifest('routes', runtime);
 
   assertEquals(result.routes.length, 1);
   assertEquals(result.routes[0].pattern, '/about');
@@ -87,8 +112,8 @@ Deno.test('generator - flat file produces exact route', async () => {
 });
 
 Deno.test('generator - root index page', async () => {
-  const fs = createMockFs(['routes/index.page.ts']);
-  const result = await generateRoutesManifest('routes', fs);
+  const runtime = createMockRuntime(['routes/index.page.ts']);
+  const result = await generateRoutesManifest('routes', runtime);
 
   assertEquals(result.routes.length, 1);
   assertEquals(result.routes[0].pattern, '/');
@@ -96,8 +121,8 @@ Deno.test('generator - root index page', async () => {
 });
 
 Deno.test('generator - nested flat file route', async () => {
-  const fs = createMockFs(['routes/projects/list.page.html']);
-  const result = await generateRoutesManifest('routes', fs);
+  const runtime = createMockRuntime(['routes/projects/list.page.html']);
+  const result = await generateRoutesManifest('routes', runtime);
 
   assertEquals(result.routes.length, 1);
   assertEquals(result.routes[0].pattern, '/projects/list');
@@ -109,8 +134,8 @@ Deno.test('generator - nested flat file route', async () => {
 // ============================================================================
 
 Deno.test('generator - directory index produces wildcard route', async () => {
-  const fs = createMockFs(['routes/about/index.page.md']);
-  const result = await generateRoutesManifest('routes', fs);
+  const runtime = createMockRuntime(['routes/about/index.page.md']);
+  const result = await generateRoutesManifest('routes', runtime);
 
   assertEquals(result.routes.length, 1);
   assertEquals(result.routes[0].pattern, '/about/:rest*');
@@ -118,16 +143,16 @@ Deno.test('generator - directory index produces wildcard route', async () => {
 });
 
 Deno.test('generator - root index stays exact (no wildcard)', async () => {
-  const fs = createMockFs(['routes/index.page.ts']);
-  const result = await generateRoutesManifest('routes', fs);
+  const runtime = createMockRuntime(['routes/index.page.ts']);
+  const result = await generateRoutesManifest('routes', runtime);
 
   assertEquals(result.routes.length, 1);
   assertEquals(result.routes[0].pattern, '/');
 });
 
 Deno.test('generator - deeply nested directory index becomes wildcard', async () => {
-  const fs = createMockFs(['routes/docs/guides/index.page.md']);
-  const result = await generateRoutesManifest('routes', fs);
+  const runtime = createMockRuntime(['routes/docs/guides/index.page.md']);
+  const result = await generateRoutesManifest('routes', runtime);
 
   assertEquals(result.routes.length, 1);
   assertEquals(result.routes[0].pattern, '/docs/guides/:rest*');
@@ -138,11 +163,11 @@ Deno.test('generator - deeply nested directory index becomes wildcard', async ()
 // ============================================================================
 
 Deno.test('generator - flat and directory index are separate routes', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/crypto.page.html',
     'routes/crypto/index.page.md',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
 
   const exact = result.routes.find((r) => r.pattern === '/crypto');
   assertEquals(exact?.files?.html, 'routes/crypto.page.html');
@@ -152,11 +177,11 @@ Deno.test('generator - flat and directory index are separate routes', async () =
 });
 
 Deno.test('generator - same file type: flat and directory produce separate routes', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/crypto.page.md',
     'routes/crypto/index.page.md',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
 
   const exact = result.routes.find((r) => r.pattern === '/crypto');
   assertEquals(exact?.files?.md, 'routes/crypto.page.md');
@@ -166,13 +191,13 @@ Deno.test('generator - same file type: flat and directory produce separate route
 });
 
 Deno.test('generator - children coexist with wildcard parent and flat layout', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/crypto.page.html',
     'routes/crypto/index.page.md',
     'routes/crypto/eth.page.md',
     'routes/crypto/sol.page.md',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
 
   const exact = result.routes.find((r) => r.pattern === '/crypto');
   assertEquals(exact?.files?.html, 'routes/crypto.page.html');
@@ -192,8 +217,8 @@ Deno.test('generator - children coexist with wildcard parent and flat layout', a
 // ============================================================================
 
 Deno.test('generator - dynamic segment produces :param pattern', async () => {
-  const fs = createMockFs(['routes/projects/[id].page.ts']);
-  const result = await generateRoutesManifest('routes', fs);
+  const runtime = createMockRuntime(['routes/projects/[id].page.ts']);
+  const result = await generateRoutesManifest('routes', runtime);
 
   assertEquals(result.routes.length, 1);
   assertEquals(result.routes[0].pattern, '/projects/:id');
@@ -201,16 +226,16 @@ Deno.test('generator - dynamic segment produces :param pattern', async () => {
 });
 
 Deno.test('generator - multiple dynamic segments', async () => {
-  const fs = createMockFs(['routes/users/[userId]/posts/[postId].page.md']);
-  const result = await generateRoutesManifest('routes', fs);
+  const runtime = createMockRuntime(['routes/users/[userId]/posts/[postId].page.md']);
+  const result = await generateRoutesManifest('routes', runtime);
 
   assertEquals(result.routes.length, 1);
   assertEquals(result.routes[0].pattern, '/users/:userId/posts/:postId');
 });
 
 Deno.test('generator - dynamic segment with directory index', async () => {
-  const fs = createMockFs(['routes/projects/[id]/index.page.ts']);
-  const result = await generateRoutesManifest('routes', fs);
+  const runtime = createMockRuntime(['routes/projects/[id]/index.page.ts']);
+  const result = await generateRoutesManifest('routes', runtime);
 
   assertEquals(result.routes.length, 1);
   assertEquals(result.routes[0].pattern, '/projects/:id/:rest*');
@@ -221,33 +246,33 @@ Deno.test('generator - dynamic segment with directory index', async () => {
 // ============================================================================
 
 Deno.test('generator - wildcard routes sort after specific routes', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/crypto/index.page.md',
     'routes/crypto/eth.page.md',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
 
   assertEquals(result.routes[0].pattern, '/crypto/eth');
   assertEquals(result.routes[1].pattern, '/crypto/:rest*');
 });
 
 Deno.test('generator - static routes before dynamic routes', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/projects/new.page.md',
     'routes/projects/[id].page.md',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
 
   assertEquals(result.routes[0].pattern, '/projects/new');
   assertEquals(result.routes[1].pattern, '/projects/:id');
 });
 
 Deno.test('generator - longer paths sort before shorter paths', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/api/v1/users.page.ts',
     'routes/api/users.page.ts',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
 
   assertEquals(result.routes[0].pattern, '/api/v1/users');
   assertEquals(result.routes[1].pattern, '/api/users');
@@ -258,11 +283,11 @@ Deno.test('generator - longer paths sort before shorter paths', async () => {
 // ============================================================================
 
 Deno.test('generator - css companion file is grouped with page route', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/about.page.html',
     'routes/about.page.css',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
 
   assertEquals(result.routes.length, 1);
   assertEquals(result.routes[0].pattern, '/about');
@@ -271,12 +296,12 @@ Deno.test('generator - css companion file is grouped with page route', async () 
 });
 
 Deno.test('generator - css companion with ts and md files', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/dashboard.page.ts',
     'routes/dashboard.page.md',
     'routes/dashboard.page.css',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
 
   assertEquals(result.routes.length, 1);
   assertEquals(result.routes[0].files?.ts, 'routes/dashboard.page.ts');
@@ -286,18 +311,18 @@ Deno.test('generator - css companion with ts and md files', async () => {
 });
 
 Deno.test('generator - css file alone does not create a route', async () => {
-  const fs = createMockFs(['routes/orphan.page.css']);
-  const result = await generateRoutesManifest('routes', fs);
+  const runtime = createMockRuntime(['routes/orphan.page.css']);
+  const result = await generateRoutesManifest('routes', runtime);
 
   assertEquals(result.routes.length, 0);
 });
 
 Deno.test('generator - nested css companion file', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/projects/[id].page.ts',
     'routes/projects/[id].page.css',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
 
   assertEquals(result.routes.length, 1);
   assertEquals(result.routes[0].pattern, '/projects/:id');
@@ -306,11 +331,11 @@ Deno.test('generator - nested css companion file', async () => {
 });
 
 Deno.test('generator - css with directory index route', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/docs/index.page.md',
     'routes/docs/index.page.css',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
 
   assertEquals(result.routes.length, 1);
   assertEquals(result.routes[0].pattern, '/docs/:rest*');
@@ -323,12 +348,12 @@ Deno.test('generator - css with directory index route', async () => {
 // ============================================================================
 
 Deno.test('generator - ts takes precedence over html and md', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/dashboard.page.ts',
     'routes/dashboard.page.html',
     'routes/dashboard.page.md',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
 
   assertEquals(result.routes.length, 1);
   assertEquals(result.routes[0].modulePath, 'routes/dashboard.page.ts');
@@ -338,11 +363,11 @@ Deno.test('generator - ts takes precedence over html and md', async () => {
 });
 
 Deno.test('generator - html takes precedence over md when ts is absent', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/about.page.html',
     'routes/about.page.md',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
 
   assertEquals(result.routes.length, 1);
   assertEquals(result.routes[0].modulePath, 'routes/about.page.html');
@@ -351,8 +376,8 @@ Deno.test('generator - html takes precedence over md when ts is absent', async (
 });
 
 Deno.test('generator - md becomes modulePath when no ts or html', async () => {
-  const fs = createMockFs(['routes/guide.page.md']);
-  const result = await generateRoutesManifest('routes', fs);
+  const runtime = createMockRuntime(['routes/guide.page.md']);
+  const result = await generateRoutesManifest('routes', runtime);
 
   assertEquals(result.routes.length, 1);
   assertEquals(result.routes[0].modulePath, 'routes/guide.page.md');
@@ -363,11 +388,11 @@ Deno.test('generator - md becomes modulePath when no ts or html', async () => {
 // ============================================================================
 
 Deno.test('generator - index.error.ts at root becomes errorHandler', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/index.page.md',
     'routes/index.error.ts',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
 
   assertEquals(result.errorHandler?.pattern, '/');
   assertEquals(result.errorHandler?.type, 'error');
@@ -376,11 +401,11 @@ Deno.test('generator - index.error.ts at root becomes errorHandler', async () =>
 });
 
 Deno.test('generator - scoped .error.ts becomes error boundary', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/projects/[id].page.ts',
     'routes/projects/[id].error.ts',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
 
   assertEquals(result.errorBoundaries.length, 1);
   assertEquals(result.errorBoundaries[0].pattern, '/projects');
@@ -389,23 +414,23 @@ Deno.test('generator - scoped .error.ts becomes error boundary', async () => {
 });
 
 Deno.test('generator - nested error boundary strips file, not pattern', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/docs/guides/[slug].page.md',
     'routes/docs/guides/[slug].error.ts',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
 
   assertEquals(result.errorBoundaries.length, 1);
   assertEquals(result.errorBoundaries[0].pattern, '/docs/guides');
 });
 
 Deno.test('generator - root error handler and scoped boundary coexist', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/index.error.ts',
     'routes/projects/[id].error.ts',
     'routes/projects/[id].page.ts',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
 
   assertEquals(result.errorHandler?.modulePath, 'routes/index.error.ts');
   assertEquals(result.errorBoundaries.length, 1);
@@ -413,13 +438,13 @@ Deno.test('generator - root error handler and scoped boundary coexist', async ()
 });
 
 Deno.test('generator - multiple error boundaries', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/api/users/[id].page.ts',
     'routes/api/users/[id].error.ts',
     'routes/admin/dashboard.page.ts',
     'routes/admin/dashboard.error.ts',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
 
   assertEquals(result.errorBoundaries.length, 2);
   assertEquals(result.errorBoundaries.some((b) => b.pattern === '/api/users'), true);
@@ -427,11 +452,11 @@ Deno.test('generator - multiple error boundaries', async () => {
 });
 
 Deno.test('generator - bare error.ts at root is ignored (not a route)', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/index.page.md',
     'routes/error.ts',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
 
   assertEquals(result.errorHandler, undefined);
   assertEquals(result.errorBoundaries.length, 0);
@@ -443,12 +468,12 @@ Deno.test('generator - bare error.ts at root is ignored (not a route)', async ()
 // ============================================================================
 
 Deno.test('generator - status pages are registered by code', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/index.page.md',
     'routes/404.page.html',
     'routes/401.page.ts',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
 
   assertEquals(result.statusPages.size, 2);
   assertEquals(result.statusPages.get(404)?.statusCode, 404);
@@ -458,8 +483,8 @@ Deno.test('generator - status pages are registered by code', async () => {
 });
 
 Deno.test('generator - 403 status page', async () => {
-  const fs = createMockFs(['routes/403.page.md']);
-  const result = await generateRoutesManifest('routes', fs);
+  const runtime = createMockRuntime(['routes/403.page.md']);
+  const result = await generateRoutesManifest('routes', runtime);
 
   assertEquals(result.statusPages.size, 1);
   assertEquals(result.statusPages.get(403)?.statusCode, 403);
@@ -467,18 +492,18 @@ Deno.test('generator - 403 status page', async () => {
 });
 
 Deno.test('generator - status page pattern is fixed to /{code}', async () => {
-  const fs = createMockFs(['routes/404.page.html']);
-  const result = await generateRoutesManifest('routes', fs);
+  const runtime = createMockRuntime(['routes/404.page.html']);
+  const result = await generateRoutesManifest('routes', runtime);
 
   assertEquals(result.statusPages.get(404)?.pattern, '/404');
 });
 
 Deno.test('generator - status page with companion css', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/404.page.html',
     'routes/404.page.css',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
 
   const statusPage = result.statusPages.get(404);
   assertEquals(statusPage?.files?.html, 'routes/404.page.html');
@@ -487,12 +512,12 @@ Deno.test('generator - status page with companion css', async () => {
 });
 
 Deno.test('generator - status page and regular routes coexist', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/index.page.md',
     'routes/about.page.md',
     'routes/404.page.html',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
 
   assertEquals(result.routes.length, 2);
   assertEquals(result.statusPages.size, 1);
@@ -505,10 +530,10 @@ Deno.test('generator - status page and regular routes coexist', async () => {
 // ============================================================================
 
 Deno.test('generator - redirect file creates redirect route', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/old.redirect.ts',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
 
   assertEquals(result.routes.length, 1);
   assertEquals(result.routes[0].pattern, '/old');
@@ -517,10 +542,10 @@ Deno.test('generator - redirect file creates redirect route', async () => {
 });
 
 Deno.test('generator - nested redirect route', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/legacy/api/v1.redirect.ts',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
 
   assertEquals(result.routes.length, 1);
   assertEquals(result.routes[0].pattern, '/legacy/api/v1');
@@ -528,10 +553,10 @@ Deno.test('generator - nested redirect route', async () => {
 });
 
 Deno.test('generator - dynamic redirect route', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/old-posts/[id].redirect.ts',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
 
   assertEquals(result.routes.length, 1);
   assertEquals(result.routes[0].pattern, '/old-posts/:id');
@@ -539,12 +564,12 @@ Deno.test('generator - dynamic redirect route', async () => {
 });
 
 Deno.test('generator - redirects and pages coexist', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/index.page.md',
     'routes/about.page.md',
     'routes/old-about.redirect.ts',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
 
   assertEquals(result.routes.length, 3);
   const redirect = result.routes.find((r) => r.pattern === '/old-about');
@@ -556,22 +581,22 @@ Deno.test('generator - redirects and pages coexist', async () => {
 // ============================================================================
 
 Deno.test('generator - nested route has parent reference', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/projects/list.page.md',
     'routes/projects/[id].page.ts',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
 
   const idRoute = result.routes.find((r) => r.pattern === '/projects/:id');
   assertEquals(idRoute?.parent, '/projects');
 });
 
 Deno.test('generator - root routes have no parent', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/about.page.md',
     'routes/contact.page.md',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
 
   for (const route of result.routes) {
     assertEquals(route.parent, undefined);
@@ -579,11 +604,11 @@ Deno.test('generator - root routes have no parent', async () => {
 });
 
 Deno.test('generator - deeply nested routes have correct parent', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/admin/users/list.page.ts',
     'routes/admin/users/[id]/edit.page.ts',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
 
   const editRoute = result.routes.find((r) => r.pattern === '/admin/users/:id/edit');
   assertEquals(editRoute?.parent, '/admin/users/:id');
@@ -594,13 +619,13 @@ Deno.test('generator - deeply nested routes have correct parent', async () => {
 // ============================================================================
 
 Deno.test('generator - collects all .ts module paths for loaders', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/index.page.ts',
     'routes/dashboard.page.ts',
     'routes/projects/[id].page.ts',
     'routes/index.error.ts',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
   const code = generateManifestCode(result);
 
   assertStringIncludes(code, 'routes/index.page.ts');
@@ -610,27 +635,27 @@ Deno.test('generator - collects all .ts module paths for loaders', async () => {
 });
 
 Deno.test('generator - module loaders use dynamic import', async () => {
-  const fs = createMockFs(['routes/index.page.ts']);
-  const result = await generateRoutesManifest('routes', fs);
+  const runtime = createMockRuntime(['routes/index.page.ts']);
+  const result = await generateRoutesManifest('routes', runtime);
   const code = generateManifestCode(result);
 
   assertStringIncludes(code, 'import(');
 });
 
 Deno.test('generator - module loaders keyed by full path', async () => {
-  const fs = createMockFs(['routes/dashboard.page.ts']);
-  const result = await generateRoutesManifest('routes', fs);
+  const runtime = createMockRuntime(['routes/dashboard.page.ts']);
+  const result = await generateRoutesManifest('routes', runtime);
   const code = generateManifestCode(result);
 
   assertStringIncludes(code, "'routes/dashboard.page.ts'");
 });
 
 Deno.test('generator - ignores non-.ts files in module loaders', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/about.page.html',
     'routes/guide.page.md',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
   const code = generateManifestCode(result);
 
   // Module loaders should be empty or not include these files
@@ -639,19 +664,19 @@ Deno.test('generator - ignores non-.ts files in module loaders', async () => {
 });
 
 Deno.test('generator - status page .ts modules in loaders', async () => {
-  const fs = createMockFs(['routes/404.page.ts']);
-  const result = await generateRoutesManifest('routes', fs);
+  const runtime = createMockRuntime(['routes/404.page.ts']);
+  const result = await generateRoutesManifest('routes', runtime);
   const code = generateManifestCode(result);
 
   assertStringIncludes(code, "'routes/404.page.ts'");
 });
 
 Deno.test('generator - error boundary modules in loaders', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/projects/[id].page.ts',
     'routes/projects/[id].error.ts',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
   const code = generateManifestCode(result);
 
   assertStringIncludes(code, "'routes/projects/[id].error.ts'");
@@ -662,8 +687,8 @@ Deno.test('generator - error boundary modules in loaders', async () => {
 // ============================================================================
 
 Deno.test('generator - produces valid TypeScript code', async () => {
-  const fs = createMockFs(['routes/about.page.md']);
-  const result = await generateRoutesManifest('routes', fs);
+  const runtime = createMockRuntime(['routes/about.page.md']);
+  const result = await generateRoutesManifest('routes', runtime);
   const code = generateManifestCode(result);
 
   assertStringIncludes(code, 'import type { RoutesManifest }');
@@ -671,11 +696,11 @@ Deno.test('generator - produces valid TypeScript code', async () => {
 });
 
 Deno.test('generator - includes routes array', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/about.page.md',
     'routes/contact.page.md',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
   const code = generateManifestCode(result);
 
   assertStringIncludes(code, 'routes: [');
@@ -684,11 +709,11 @@ Deno.test('generator - includes routes array', async () => {
 });
 
 Deno.test('generator - includes errorBoundaries array', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/projects/[id].page.ts',
     'routes/projects/[id].error.ts',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
   const code = generateManifestCode(result);
 
   assertStringIncludes(code, 'errorBoundaries: [');
@@ -696,8 +721,8 @@ Deno.test('generator - includes errorBoundaries array', async () => {
 });
 
 Deno.test('generator - includes statusPages map', async () => {
-  const fs = createMockFs(['routes/404.page.html']);
-  const result = await generateRoutesManifest('routes', fs);
+  const runtime = createMockRuntime(['routes/404.page.html']);
+  const result = await generateRoutesManifest('routes', runtime);
   const code = generateManifestCode(result);
 
   assertStringIncludes(code, 'statusPages: new Map([');
@@ -705,8 +730,8 @@ Deno.test('generator - includes statusPages map', async () => {
 });
 
 Deno.test('generator - includes errorHandler if present', async () => {
-  const fs = createMockFs(['routes/index.error.ts']);
-  const result = await generateRoutesManifest('routes', fs);
+  const runtime = createMockRuntime(['routes/index.error.ts']);
+  const result = await generateRoutesManifest('routes', runtime);
   const code = generateManifestCode(result);
 
   assertStringIncludes(code, 'errorHandler: {');
@@ -714,16 +739,16 @@ Deno.test('generator - includes errorHandler if present', async () => {
 });
 
 Deno.test('generator - errorHandler is undefined if absent', async () => {
-  const fs = createMockFs(['routes/index.page.md']);
-  const result = await generateRoutesManifest('routes', fs);
+  const runtime = createMockRuntime(['routes/index.page.md']);
+  const result = await generateRoutesManifest('routes', runtime);
   const code = generateManifestCode(result);
 
   assertStringIncludes(code, 'errorHandler: undefined');
 });
 
 Deno.test('generator - includes moduleLoaders object', async () => {
-  const fs = createMockFs(['routes/index.page.ts']);
-  const result = await generateRoutesManifest('routes', fs);
+  const runtime = createMockRuntime(['routes/index.page.ts']);
+  const result = await generateRoutesManifest('routes', runtime);
   const code = generateManifestCode(result);
 
   assertStringIncludes(code, 'moduleLoaders: {');
@@ -731,8 +756,8 @@ Deno.test('generator - includes moduleLoaders object', async () => {
 });
 
 Deno.test('generator - includes custom import path in generated code', async () => {
-  const fs = createMockFs(['routes/about.page.md']);
-  const result = await generateRoutesManifest('routes', fs);
+  const runtime = createMockRuntime(['routes/about.page.md']);
+  const result = await generateRoutesManifest('routes', runtime);
   const customPath = '@mycompany/routing-lib';
   const code = generateManifestCode(result, customPath);
 
@@ -740,16 +765,16 @@ Deno.test('generator - includes custom import path in generated code', async () 
 });
 
 Deno.test('generator - escapes quotes in file paths', async () => {
-  const fs = createMockFs(["routes/page-with-'quotes'.page.ts"]);
-  const result = await generateRoutesManifest('routes', fs);
+  const runtime = createMockRuntime(["routes/page-with-'quotes'.page.ts"]);
+  const result = await generateRoutesManifest('routes', runtime);
   const code = generateManifestCode(result);
 
   assertStringIncludes(code, "\\'");
 });
 
 Deno.test('generator - escapes backslashes in file paths', async () => {
-  const fs = createMockFs(['routes/page.page.ts']);
-  const result = await generateRoutesManifest('routes', fs);
+  const runtime = createMockRuntime(['routes/page.page.ts']);
+  const result = await generateRoutesManifest('routes', runtime);
   const code = generateManifestCode(result);
 
   // Code should be valid TypeScript (no unescaped backslashes)
@@ -761,11 +786,11 @@ Deno.test('generator - escapes backslashes in file paths', async () => {
 // ============================================================================
 
 Deno.test('generator - flat and directory are separate patterns (no collision)', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/products.page.ts',
     'routes/products/index.page.ts',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
 
   // Flat file creates /products, directory index creates /products/:rest*
   // These are different patterns, so no collision detected
@@ -774,11 +799,11 @@ Deno.test('generator - flat and directory are separate patterns (no collision)',
 });
 
 Deno.test('generator - multiple file types for same route no collision', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/about.page.ts',
     'routes/about.page.html',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
 
   // Both ts and html are flat files for /about pattern, no collision since they're the same route
   assertEquals(result.warnings.length, 0);
@@ -786,11 +811,11 @@ Deno.test('generator - multiple file types for same route no collision', async (
 });
 
 Deno.test('generator - no collision for pure directory index', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/items/index.page.ts',
     'routes/items/index.page.html',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
 
   assertEquals(result.warnings.length, 0);
 });
@@ -800,8 +825,8 @@ Deno.test('generator - no collision for pure directory index', async () => {
 // ============================================================================
 
 Deno.test('generator - handles empty routes directory', async () => {
-  const fs = createMockFs([]);
-  const result = await generateRoutesManifest('routes', fs);
+  const runtime = createMockRuntime([]);
+  const result = await generateRoutesManifest('routes', runtime);
 
   assertEquals(result.routes.length, 0);
   assertEquals(result.errorBoundaries.length, 0);
@@ -814,7 +839,7 @@ Deno.test('generator - handles empty routes directory', async () => {
 // ============================================================================
 
 Deno.test('generator - real-world blog structure', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/index.page.ts',
     'routes/about.page.md',
     'routes/blog.page.html',
@@ -827,7 +852,7 @@ Deno.test('generator - real-world blog structure', async () => {
     'routes/404.page.md',
     'routes/index.error.ts',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
 
   // index, about, blog (flat), blog (directory index), blog/slug, admin/dashboard, admin/users/id = 7 routes
   assertEquals(result.routes.length, 7);
@@ -837,7 +862,7 @@ Deno.test('generator - real-world blog structure', async () => {
 });
 
 Deno.test('generator - real-world with all file types', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/docs.page.html',
     'routes/docs.page.css',
     'routes/docs/index.page.md',
@@ -845,7 +870,7 @@ Deno.test('generator - real-world with all file types', async () => {
     'routes/docs/[slug].page.css',
     'routes/docs/[slug].error.ts',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
   const code = generateManifestCode(result);
 
   // /docs (flat), /docs/:rest* (directory index), /docs/:slug (dynamic)
@@ -858,10 +883,10 @@ Deno.test('generator - real-world with all file types', async () => {
 });
 
 Deno.test('generator - deeply nested structure', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/api/v1/users/[userId]/posts/[postId]/comments/[commentId].page.ts',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
 
   assertEquals(result.routes.length, 1);
   assertEquals(result.routes[0].pattern, '/api/v1/users/:userId/posts/:postId/comments/:commentId');
@@ -873,26 +898,26 @@ Deno.test('generator - deeply nested structure', async () => {
 // ============================================================================
 
 Deno.test('generator - ignores non-route files', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/README.md',
     'routes/utils.ts',
     'routes/.gitkeep',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
 
   assertEquals(result.routes.length, 0);
 });
 
 Deno.test('generator - handles routes with hyphens', async () => {
-  const fs = createMockFs(['routes/my-route-name.page.md']);
-  const result = await generateRoutesManifest('routes', fs);
+  const runtime = createMockRuntime(['routes/my-route-name.page.md']);
+  const result = await generateRoutesManifest('routes', runtime);
 
   assertEquals(result.routes[0].pattern, '/my-route-name');
 });
 
 Deno.test('generator - handles routes with numbers', async () => {
-  const fs = createMockFs(['routes/v2-api.page.ts']);
-  const result = await generateRoutesManifest('routes', fs);
+  const runtime = createMockRuntime(['routes/v2-api.page.ts']);
+  const result = await generateRoutesManifest('routes', runtime);
 
   assertEquals(result.routes[0].pattern, '/v2-api');
 });
@@ -902,11 +927,11 @@ Deno.test('generator - handles routes with numbers', async () => {
 // ============================================================================
 
 Deno.test('generator - all routes have required fields', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/index.page.ts',
     'routes/about.page.md',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
 
   for (const route of result.routes) {
     assertExists(route.pattern);
@@ -916,11 +941,11 @@ Deno.test('generator - all routes have required fields', async () => {
 });
 
 Deno.test('generator - all error boundaries have required fields', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/api/[id].page.ts',
     'routes/api/[id].error.ts',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
 
   for (const boundary of result.errorBoundaries) {
     assertExists(boundary.pattern);
@@ -929,11 +954,11 @@ Deno.test('generator - all error boundaries have required fields', async () => {
 });
 
 Deno.test('generator - status pages keyed correctly', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/404.page.html',
     'routes/401.page.ts',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
 
   assertEquals(result.statusPages.has(404), true);
   assertEquals(result.statusPages.has(401), true);
@@ -946,12 +971,12 @@ Deno.test('generator - status pages keyed correctly', async () => {
 // ============================================================================
 
 Deno.test('generator - all regular routes have type page', async () => {
-  const fs = createMockFs([
+  const runtime = createMockRuntime([
     'routes/about.page.md',
     'routes/contact.page.html',
     'routes/dashboard.page.ts',
   ]);
-  const result = await generateRoutesManifest('routes', fs);
+  const result = await generateRoutesManifest('routes', runtime);
 
   for (const route of result.routes) {
     if (!route.modulePath.includes('404') && !route.modulePath.includes('401')) {
@@ -961,8 +986,8 @@ Deno.test('generator - all regular routes have type page', async () => {
 });
 
 Deno.test('generator - redirect routes have type redirect', async () => {
-  const fs = createMockFs(['routes/old-page.redirect.ts']);
-  const result = await generateRoutesManifest('routes', fs);
+  const runtime = createMockRuntime(['routes/old-page.redirect.ts']);
+  const result = await generateRoutesManifest('routes', runtime);
 
   assertEquals(result.routes[0].type, 'redirect');
 });

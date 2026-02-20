@@ -9,7 +9,7 @@
  */
 
 import type { WidgetManifestEntry } from '../../src/type/widget.type.ts';
-import type { GeneratorFs } from './route.generator.ts';
+import type { Runtime } from '../runtime/abstract.runtime.ts';
 
 type WidgetFiles = { html?: string; md?: string; css?: string };
 
@@ -34,7 +34,7 @@ const WIDGET_FILE_SUFFIX = '.widget.ts';
 export async function discoverWidgetFiles(
   widgetsDir: string,
   widgets: Iterable<{ name: string; files?: WidgetFiles }>,
-  fs: GeneratorFs,
+  runtime: Runtime,
   pathPrefix?: string,
 ): Promise<Map<string, WidgetFiles>> {
   const result = new Map<string, WidgetFiles>();
@@ -42,7 +42,7 @@ export async function discoverWidgetFiles(
   const discoveries = [];
 
   for (const widget of widgets) {
-    discoveries.push(discoverForWidget(widgetsDir, widget, fs, pathPrefix));
+    discoveries.push(discoverForWidget(widgetsDir, widget, runtime, pathPrefix));
   }
 
   const entries = await Promise.all(discoveries);
@@ -59,7 +59,7 @@ export async function discoverWidgetFiles(
 async function discoverForWidget(
   widgetsDir: string,
   widget: { name: string; files?: WidgetFiles },
-  fs: GeneratorFs,
+  runtime: Runtime,
   pathPrefix?: string,
 ): Promise<{ name: string; files: WidgetFiles } | undefined> {
   const discovered: WidgetFiles = {};
@@ -69,7 +69,7 @@ async function discoverForWidget(
     const filename = `${widget.name}.widget.${ext}`;
     const fullPath = `${widgetsDir}/${widget.name}/${filename}`;
 
-    if (await fs.exists(fullPath)) {
+    if ((await runtime.query(fullPath)).status !== 404) {
       const prefix = pathPrefix ? `${pathPrefix}/` : '';
       discovered[ext] = `${prefix}${widget.name}/${filename}`;
       hasAny = true;
@@ -141,19 +141,23 @@ ${entries.join('\n')}
  */
 export async function discoverWidgets(
   widgetsDir: string,
-  fs: GeneratorFs,
+  runtime: Runtime,
   pathPrefix?: string,
 ): Promise<WidgetManifestEntry[]> {
   const entries: WidgetManifestEntry[] = [];
 
-  for await (const dirEntry of fs.readDir(widgetsDir)) {
-    if (!dirEntry.isDirectory) continue;
+  const trailingDir = widgetsDir.endsWith('/') ? widgetsDir : widgetsDir + '/';
+  const response = await runtime.query(trailingDir);
+  const listing: string[] = await response.json();
 
-    const name = dirEntry.name;
+  for (const item of listing) {
+    if (!item.endsWith('/')) continue; // only directories
+
+    const name = item.slice(0, -1); // strip trailing /
     const moduleFile = `${name}${WIDGET_FILE_SUFFIX}`;
-    const modulePath = `${widgetsDir}/${name}/${moduleFile}`;
+    const modulePath = `${trailingDir}${name}/${moduleFile}`;
 
-    if (!await fs.exists(modulePath)) continue;
+    if ((await runtime.query(modulePath)).status === 404) continue;
 
     const prefix = pathPrefix ? `${pathPrefix}/` : '';
     const entry: WidgetManifestEntry = {
@@ -167,8 +171,8 @@ export async function discoverWidgets(
     let hasFiles = false;
     for (const ext of COMPANION_EXTENSIONS) {
       const companionFile = `${name}.widget.${ext}`;
-      const companionPath = `${widgetsDir}/${name}/${companionFile}`;
-      if (await fs.exists(companionPath)) {
+      const companionPath = `${trailingDir}${name}/${companionFile}`;
+      if ((await runtime.query(companionPath)).status !== 404) {
         files[ext] = `${prefix}${name}/${companionFile}`;
         hasFiles = true;
       }

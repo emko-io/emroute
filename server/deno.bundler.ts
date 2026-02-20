@@ -21,6 +21,7 @@ export const denoBundler: Bundler = {
 
     const proc = new Deno.Command('deno', {
       args,
+      cwd: options.cwd,
       stdout: 'inherit',
       stderr: 'inherit',
     }).spawn();

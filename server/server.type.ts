@@ -216,7 +216,9 @@ export abstract class ServerRuntime {
   }
 
   resolveModule(specifier: string): string {
-    return new URL(import.meta.resolve(specifier)).pathname;
+    const resolved = import.meta.resolve(specifier);
+    // file:// → filesystem path; jsr:/https: → return full URL for deno bundle
+    return resolved.startsWith('file://') ? new URL(resolved).pathname : resolved;
   }
 
   watchDir(path: string, callback: (event: WatchEvent) => void): WatchHandle {

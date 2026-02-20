@@ -66,6 +66,8 @@ export interface BundleOptions {
   sourcemap?: boolean;
   /** External modules — leave as bare imports, don't bundle them */
   external?: string[];
+  /** Working directory for the bundler subprocess */
+  cwd?: string;
 }
 
 /**
@@ -120,7 +122,7 @@ export interface EmrouteServerConfig {
 
   /**
    * Base URL for loading companion files (.html, .md, .css).
-   * Default: `file://${cwd}` (loads from filesystem via fetch).
+   * Default: `file://${appRoot}/` (loads from filesystem via fetch).
    * Override for dev self-fetch or custom file resolution.
    */
   baseUrl?: string;

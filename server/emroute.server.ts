@@ -12,8 +12,6 @@
  *
  * const emroute = await createEmrouteServer({
  *   appRoot: '.',
- *   routesDir: 'routes',
- *   widgetsDir: 'widgets',
  *   spa: 'root',
  * }, denoServerRuntime);
  *
@@ -52,13 +50,53 @@ import type {
   EmrouteServerConfig,
 } from './server-api.type.ts';
 
+// ── Path helpers ───────────────────────────────────────────────────────
+
+/** Resolve appRoot to an absolute path. */
+function resolveAbsolute(appRoot: string, cwd: string): string {
+  if (appRoot.startsWith('/')) return appRoot;
+  // Resolve relative to CWD once, then never use CWD again
+  return new URL(appRoot, `file://${cwd}/`).pathname;
+}
+
+/** Strip a prefix from a path (for making paths appRoot-relative). */
+function stripPrefix(path: string, prefix: string): string {
+  if (prefix && path.startsWith(prefix + '/')) {
+    return path.slice(prefix.length + 1);
+  }
+  return path;
+}
+
+/** Strip appRoot prefix from all paths in a routes manifest (mutates). */
+function stripManifestPaths(manifest: RoutesManifest, prefix: string): void {
+  const strip = (p: string) => stripPrefix(p, prefix);
+
+  for (const route of manifest.routes) {
+    route.modulePath = strip(route.modulePath);
+    if (route.files) {
+      if (route.files.ts) route.files.ts = strip(route.files.ts);
+      if (route.files.html) route.files.html = strip(route.files.html);
+      if (route.files.md) route.files.md = strip(route.files.md);
+      if (route.files.css) route.files.css = strip(route.files.css);
+    }
+  }
+  for (const boundary of manifest.errorBoundaries) {
+    boundary.modulePath = strip(boundary.modulePath);
+  }
+  if (manifest.errorHandler) {
+    manifest.errorHandler.modulePath = strip(manifest.errorHandler.modulePath);
+  }
+  for (const [_, statusRoute] of manifest.statusPages) {
+    statusRoute.modulePath = strip(statusRoute.modulePath);
+  }
+}
+
 // ── Module loaders ─────────────────────────────────────────────────────
 
-/** Create module loaders for server-side SSR imports. */
+/** Create module loaders for server-side SSR imports. Paths are appRoot-relative. */
 function createModuleLoaders(
   manifest: RoutesManifest,
-  appRoot: string,
-  runtime: ServerRuntime,
+  appRootFileUrl: string,
 ): Record<string, () => Promise<unknown>> {
   const loaders: Record<string, () => Promise<unknown>> = {};
   const modulePaths = new Set<string>();
@@ -79,10 +117,8 @@ function createModuleLoaders(
     }
   }
 
-  const rootUrl = new URL(appRoot + '/', `file://${runtime.cwd()}/`);
-
   for (const path of modulePaths) {
-    const fileUrl = new URL(path, rootUrl).href;
+    const fileUrl = new URL(path, appRootFileUrl).href;
     loaders[path] = () => import(fileUrl);
   }
 
@@ -107,22 +143,20 @@ function extractWidgetExport(
   return null;
 }
 
-/** Import widget modules for SSR, merge with manual widgets. */
+/** Import widget modules for SSR, merge with manual widgets. Paths are appRoot-relative. */
 async function importWidgets(
   entries: WidgetManifestEntry[],
-  appRoot: string,
-  runtime: ServerRuntime,
+  appRootFileUrl: string,
   manual?: WidgetRegistry,
 ): Promise<{
   registry: WidgetRegistry;
   widgetFiles: Record<string, { html?: string; md?: string; css?: string }>;
 }> {
   const registry = new WidgetRegistry();
-  const rootUrl = new URL(appRoot + '/', `file://${runtime.cwd()}/`);
 
   for (const entry of entries) {
     try {
-      const fileUrl = new URL(entry.modulePath, rootUrl).href;
+      const fileUrl = new URL(entry.modulePath, appRootFileUrl).href;
       const mod = await import(fileUrl) as Record<string, unknown>;
       const instance = extractWidgetExport(mod);
       if (!instance) continue;
@@ -197,11 +231,12 @@ function injectSsrContent(
  * Auto-discovers `main.css` in appRoot and injects a `<link>` tag.
  */
 async function resolveShell(
+  appRoot: string,
   config: EmrouteServerConfig,
   runtime: ServerRuntime,
   entryPoint?: string,
 ): Promise<string> {
-  const { appRoot, spa = 'root' } = config;
+  const { spa = 'root' } = config;
 
   let shell: string;
 
@@ -231,22 +266,12 @@ async function resolveShell(
   return shell;
 }
 
-// ── Path helpers ───────────────────────────────────────────────────────
+// ── More path helpers ─────────────────────────────────────────────────
 
 /** Check if path looks like a file request (has extension). */
 function isFileRequest(pathname: string): boolean {
   const lastSegment = pathname.split('/').pop() || '';
   return lastSegment.includes('.');
-}
-
-/** Compute a path relative to appRoot. */
-function relativeToAppRoot(appRoot: string, path: string): string {
-  const normalizedRoot = appRoot === '.' ? '' : appRoot.replace(/\/+$/, '');
-  const normalizedPath = path.replace(/^\.\//, '');
-  if (normalizedRoot && normalizedPath.startsWith(normalizedRoot + '/')) {
-    return normalizedPath.slice(normalizedRoot.length + 1);
-  }
-  return normalizedPath;
 }
 
 // ── Static file serving ───────────────────────────────────────────────
@@ -359,44 +384,51 @@ function compressResponse(
 /**
  * Create an emroute server.
  *
- * Handles SSR rendering, manifest generation, static file serving, and
- * route matching. Use `serve(port)` for a standalone server, or
- * `handleRequest(req)` to compose with your own request handling.
- *
- * Companion files (.html, .md, .css referenced by routes and widgets) are
- * loaded via `fetch()` — defaults to `file://` URLs for filesystem access,
- * works across Deno, Node 20+, and Bun.
+ * All paths are resolved to absolute at init time. After that, CWD is
+ * never used — everything is anchored to appRoot.
  */
 export async function createEmrouteServer(
   config: EmrouteServerConfig,
   runtime: ServerRuntime,
 ): Promise<EmrouteServer> {
   const {
-    appRoot,
-    widgetsDir,
     spa = 'root',
   } = config;
 
+  // ── Resolve absolute paths once ────────────────────────────────────
+  const cwd = runtime.cwd();
+  const appRoot = resolveAbsolute(config.appRoot, cwd);
+  const routesDirName = config.routesDir ?? (config.routesManifest ? undefined : 'routes');
+  const routesDir = routesDirName ? `${appRoot}/${routesDirName}` : undefined;
+  const widgetsDirName = config.widgetsDir ?? 'widgets';
+  const widgetsDirPath = `${appRoot}/${widgetsDirName}`;
+  const widgetsDir = await runtime.exists(widgetsDirPath) ? widgetsDirPath : undefined;
+
+  // file:// URL for appRoot — used as base for all module/file resolution
+  const appRootFileUrl = `file://${appRoot}/`;
+
   const { html: htmlBase, md: mdBase } = config.basePath ?? DEFAULT_BASE_PATH;
 
-  // Base URL for companion file loading (.html, .md, .css).
-  // Paths in the manifest are CWD-relative, so baseUrl must be CWD-based.
-  const baseUrl = config.baseUrl ?? `file://${runtime.cwd()}`;
+  // Companion file loading uses appRoot as base
+  const baseUrl = config.baseUrl ?? appRootFileUrl;
 
   // ── Routes manifest ──────────────────────────────────────────────────
 
   let routesManifest: RoutesManifest;
 
-  if (config.routesDir) {
-    const result = await generateRoutesManifest(config.routesDir, runtime);
-    routesManifest = result;
-    routesManifest.moduleLoaders = createModuleLoaders(routesManifest, appRoot, runtime);
+  if (routesDir) {
+    const result = await generateRoutesManifest(routesDir, runtime);
 
-    // Write manifest file for the SPA bundle
+    // Write manifest file for the SPA bundle (code generator does its own stripping)
     const code = generateManifestCode(result, '@emkodev/emroute', htmlBase, appRoot);
     await runtime.writeTextFile(`${appRoot}/routes.manifest.g.ts`, code);
 
-    console.log(`Scanned ${config.routesDir}/`);
+    // Make all paths appRoot-relative for internal use
+    stripManifestPaths(result, appRoot);
+    routesManifest = result;
+    routesManifest.moduleLoaders = createModuleLoaders(routesManifest, appRootFileUrl);
+
+    console.log(`Scanned ${routesDir}/`);
     console.log(
       `  ${result.routes.length} routes, ${result.errorBoundaries.length} error boundaries`,
     );
@@ -418,12 +450,10 @@ export async function createEmrouteServer(
   let discoveredWidgetEntries: WidgetManifestEntry[] = [];
 
   if (widgetsDir) {
-    const widgetPathPrefix = relativeToAppRoot(appRoot, widgetsDir);
-    discoveredWidgetEntries = await discoverWidgets(widgetsDir, runtime, widgetPathPrefix);
+    discoveredWidgetEntries = await discoverWidgets(widgetsDir, runtime, widgetsDirName);
     const imported = await importWidgets(
       discoveredWidgetEntries,
-      appRoot,
-      runtime,
+      appRootFileUrl,
       config.widgets,
     );
     widgets = imported.registry;
@@ -433,7 +463,6 @@ export async function createEmrouteServer(
     const widgetManifestCode = generateWidgetsManifestCode(
       discoveredWidgetEntries,
       '@emkodev/emroute',
-      appRoot,
     );
     await runtime.writeTextFile(`${appRoot}/widgets.manifest.g.ts`, widgetManifestCode);
 
@@ -475,7 +504,7 @@ export async function createEmrouteServer(
 
   // ── HTML shell ───────────────────────────────────────────────────────
 
-  const shell = await resolveShell(config, runtime, config.entryPoint);
+  const shell = await resolveShell(appRoot, config, runtime, config.entryPoint);
   const title = config.title ?? 'emroute';
 
   // ── handleRequest ────────────────────────────────────────────────────
@@ -621,22 +650,21 @@ export async function createEmrouteServer(
   // ── rebuild ──────────────────────────────────────────────────────────
 
   async function rebuild(): Promise<void> {
-    if (config.routesDir) {
-      const result = await generateRoutesManifest(config.routesDir, runtime);
-      routesManifest = result;
-      routesManifest.moduleLoaders = createModuleLoaders(routesManifest, appRoot, runtime);
-
+    if (routesDir) {
+      const result = await generateRoutesManifest(routesDir, runtime);
       const code = generateManifestCode(result, '@emkodev/emroute', htmlBase, appRoot);
       await runtime.writeTextFile(`${appRoot}/routes.manifest.g.ts`, code);
+
+      stripManifestPaths(result, appRoot);
+      routesManifest = result;
+      routesManifest.moduleLoaders = createModuleLoaders(routesManifest, appRootFileUrl);
     }
 
     if (widgetsDir) {
-      const widgetPathPrefix = relativeToAppRoot(appRoot, widgetsDir);
-      discoveredWidgetEntries = await discoverWidgets(widgetsDir, runtime, widgetPathPrefix);
+      discoveredWidgetEntries = await discoverWidgets(widgetsDir, runtime, widgetsDirName);
       const imported = await importWidgets(
         discoveredWidgetEntries,
-        appRoot,
-        runtime,
+        appRootFileUrl,
         config.widgets,
       );
       widgets = imported.registry;
@@ -645,7 +673,6 @@ export async function createEmrouteServer(
       const widgetManifestCode = generateWidgetsManifestCode(
         discoveredWidgetEntries,
         '@emkodev/emroute',
-        appRoot,
       );
       await runtime.writeTextFile(`${appRoot}/widgets.manifest.g.ts`, widgetManifestCode);
     }
@@ -854,6 +881,7 @@ export async function build(
       minify: config.minify,
       obfuscate: config.obfuscate,
       sourcemap: config.sourcemap,
+      cwd: appRoot,
     });
     coreUrl = `/${coreBundlePath.replace(outDir + '/', '')}`;
     console.log(`Core bundle: ${coreEntry} → ${coreBundlePath}`);
@@ -868,6 +896,7 @@ export async function build(
     obfuscate: config.obfuscate,
     sourcemap: config.sourcemap,
     external: [CORE_IMPORT_SPECIFIER],
+    cwd: appRoot,
   });
   console.log(`App bundle:  ${entryPoint} → ${appBundle}`);
 

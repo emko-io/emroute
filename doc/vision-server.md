@@ -1,5 +1,11 @@
 # Server Vision
 
+## Core Principle
+
+emroute is a router. A router matches URLs to resources. The runtime provides the resources — from filesystem, database, S3, CDN, IndexedDB, or any combination. emroute matches, renders, and serves. Everything else — storage, platform, rendering strategy, client-side framework, offline support, visual editing — is a consequence of this clean separation, not a special mode or a bolted-on feature.
+
+No accidental decisions. No bandaids. Multipurpose, agnostic, layered architecture where each layer has one job and doesn't leak into the others.
+
 ## Zero-Config Default
 
 ```ts
@@ -23,21 +29,25 @@ Given an `appRoot`, the server detects:
 
 No `routesDir`, `widgetsDir`, `entryPoint` config. Want different layouts? Implement your own runtime.
 
-## Bundling
+## Transpilation & Chunking
 
-The server orchestrates bundling. The runtime provides a `bundle()` method — `DenoServerRuntime` uses `deno bundle`, others can use esbuild in-memory, etc. The server never knows how bundling works, only that the runtime can do it. Chunked bundling needs to be addressed first (see Open Questions).
+Two distinct concerns, both browser-only. The server imports `.ts` natively (Deno, Node with loaders) — no transformation needed server-side.
+
+**Transpilation** (TS → JS) — required for browsers. The runtime provides a `transpile()` method. `DenoServerRuntime` uses `deno bundle` (single-file transpile), others can use esbuild, swc, or whatever. The server never knows the mechanism.
+
+**Chunking** (merging files into fewer requests) — optional browser optimization, possibly unnecessary. HTTP/2 multiplexing handles parallel requests, pre-compression handles size. Individual transpiled files may be the permanent answer, not just a starting point.
 
 **Proven** (`spike/`):
-- **esbuild**: bundles entirely in-memory via virtual filesystem plugin — no disk access. Non-filesystem runtimes can feed files directly.
-- **`deno bundle`**: requires filesystem paths, no stdin support. For non-filesystem runtimes, fallback is temp dir → bundle → clean up. Works but not as clean.
+- **esbuild**: transpiles + bundles entirely in-memory via virtual filesystem plugin — no disk access. Non-filesystem runtimes can feed files directly.
+- **`deno bundle`**: requires filesystem paths, no stdin support. For non-filesystem runtimes, fallback is temp dir → transpile → clean up.
 
-The SPA mode dictates what gets bundled:
+The SPA mode dictates what gets transpiled/served:
 
-- `none` → no bundling, no JS, no script tags
+- `none` → no transpilation, no JS, no script tags
 - `leaf` → widgets hydration only (no router)
 - `root` / `only` → widgets + router
 
-Two output bundles:
+Two output files (or groups, if chunked later):
 - `emroute.js` — the framework (hydration, router, custom elements)
 - `app.js` — the consumer's code (routes, widgets, manifests)
 
@@ -69,32 +79,49 @@ These manifests serve two purposes:
 
 ## Runtime Abstraction
 
-`ServerRuntime` is an abstract class defined by emroute. It abstracts both the platform (Deno, Node, Bun) and the source of files. Each runtime is initialized with a root — a directory path for filesystem runtimes, a connection for database runtimes, etc. This root IS the `appRoot`. The server never knows or cares about absolute paths, CWD, or where things physically live. It requests `routes/`, `widgets/`, `index.html` from the runtime, and the runtime resolves them against its own root.
+`Runtime` is an abstract class defined by emroute. It abstracts two dimensions: the **platform** (Deno, Node, Bun, browser) and the **resource provider** (filesystem, database, S3, CDN, IndexedDB).
+
+### Naming Convention
+
+Class name: `{Platform}{Provider}Runtime` — e.g. `DenoFilesystemRuntime`, `NodeSqliteRuntime`, `BrowserIndexedDbRuntime`.
+
+File name: `{platform}-{provider}.runtime.ts` — e.g. `deno-fs.runtime.ts`, `node-sqlite.runtime.ts`, `browser-indexeddb.runtime.ts`.
+
+Hybrid runtimes that compose multiple providers: `DenoHybridRuntime` / `deno-hybrid.runtime.ts`.
+
+### Interface
+
+Each runtime is initialized with a root — a directory path for filesystem runtimes, a connection for database runtimes, etc. This root IS the `appRoot`. The server never knows or cares about absolute paths, CWD, or where things physically live. It requests `routes/`, `widgets/`, `index.html` from the runtime, and the runtime resolves them against its own root.
 
 The consumer instantiates the runtime with the required constructor arguments and passes it to the server:
 
 ```ts
-const runtime = new DenoServerRuntime('../pathtor-app');
+const runtime = new DenoFilesystemRuntime('../pathtor-app');
 const emroute = await createEmrouteServer({ spa: 'leaf' }, runtime);
 ```
 
 Switching runtimes is painless — same interface, different constructor:
 
 ```ts
-const runtime = new DatabaseRuntime(dbConnection);
+const runtime = new DenoSqliteRuntime(dbConnection);
 const emroute = await createEmrouteServer({ spa: 'leaf' }, runtime);
 ```
 
 `appRoot` is not server config — it belongs to the runtime. Server config is purely behavioral.
 
-The runtime owns bundling as a method — `DenoServerRuntime` calls `deno bundle` via `Deno.Command`, an esbuild runtime would call esbuild as code. The server doesn't know or care about the mechanism.
+The runtime owns transpilation as a method — `DenoFilesystemRuntime` calls `deno bundle` via `Deno.Command`, an esbuild runtime would call esbuild as code. The server doesn't know or care about the mechanism.
 
-emroute ships two runtimes:
+### Package Split (option, not decided)
 
-- **`NodeServerRuntime`** — full `node:fs`/`node:http` based, compatible with Deno, Node, and Bun
-- **`DenoServerRuntime`** — extends the Node runtime, partially overrides with Deno-native APIs for Rust-level performance
+The runtime is a standalone abstraction. It could live in separate packages:
 
-Future: Bun-specific, SQLite-backed, and IndexedDB runtimes (full offline browser setup).
+- **`@emkodev/emroute`** — defines `Runtime` abstract class, router, SSR, server
+- **`@emkodev/emroute-runtime-node-fs`** — `node:fs` based, compatible with Deno, Node, and Bun. Ships as the default (re-exported from emroute for zero-config backward compat).
+- **`@emkodev/emroute-runtime-deno-fs`** — extends the Node FS runtime, overrides with Deno-native APIs for Rust-level performance
+
+Dependency flow: runtime packages depend on `@emkodev/emroute` (for the abstract class). Consumers depend on both emroute and their chosen runtime. Consumer instantiates the runtime and passes it to emroute.
+
+This unlocks community and first-party runtimes without touching emroute core: esbuild-based (in-memory transpilation), SQLite-backed, S3, IndexedDB (offline browser), Bun-native, etc.
 
 ## Security
 
@@ -214,9 +241,9 @@ See `spike/` directory for results.
 |-------|------|--------|
 | esbuild in-memory bundling | `spike/esbuild-memory.ts` | Proven |
 | deno bundle without filesystem | `spike/deno-bundle-memory.ts` | Proven (temp dir), stdin not supported |
-| `new Function()` module eval | `spike/module-eval-function.ts` | TODO |
-| `data:` URL dynamic import | `spike/module-eval-data-url.ts` | TODO |
-| Blob URL dynamic import | `spike/module-eval-blob-url.ts` | TODO |
+| `new Function()` module eval | `spike/module-eval-function.ts` | Proven (no module semantics, dependency injection needed) |
+| `data:` URL dynamic import | `spike/module-eval-data-url.ts` | Partial (works for single modules, cross-module import fails) |
+| Blob URL dynamic import | `spike/module-eval-blob-url.ts` | Proven (full module semantics, cross-module imports work) — **winner** |
 
 ## Migration Path
 
@@ -243,6 +270,46 @@ createEmrouteServer({ spa: 'leaf' }, new DenoServerRuntime('.'))
 
 `deno bundle --minify` exists but we skip it. HTTP compression (br/gzip) handles size reduction. Minification risks mangling HTML content inside template literals and widget render functions — some HTML elements are sensitive to whitespace/structure changes. Not worth it.
 
-### TypeScript 6.0 (Go-based compiler)
+### TypeScript 7 (Go-based compiler, formerly "6.0")
 
-TypeScript is close to releasing 6.0 with a Go-based compiler. Could become the native in-memory transpiler for non-filesystem runtimes — compile TS → JS without esbuild dependency. Worth watching timing-wise.
+Now called TypeScript 7 / `tsgo` (`@typescript/native-preview` on npm). JS output is partially implemented (`target: esnext` only). **Public API is not ready** — no programmatic usage, CLI only. No Deno integration. It's a `tsc` replacement (type checking + emit), not a bundler. When the code API lands, could become the native in-memory transpiler for our no-bundler path.
+
+---
+
+## ADRs
+
+### ADR-1: Runtime speaks Request/Response
+
+**Decision**: `ServerRuntime` methods use `Request`/`Response` as their API, not file paths and strings.
+
+**Context**: The runtime is a resource abstraction (read, list, find, write) that can be backed by filesystem, database, S3, memory, or anything else. The question was what the method signatures should look like — fs-like paths (`readTextFile(path): string`) or HTTP semantics (`read(request): Response`). The resulting API is closer to REST than filesystem — operations on resources via Request/Response, not paths and buffers.
+
+**Choice**: Request/Response for all runtime methods.
+
+```ts
+abstract class ServerRuntime {
+  abstract read(request: Request): Promise<Response>;
+  abstract list(request: Request): Promise<Response>;
+  abstract find(request: Request): Promise<Response>;
+  abstract write(request: Request): Promise<Response>;
+
+  static transpile(ts: string): string;
+  static compress(data: Uint8Array, encoding: 'br' | 'gzip'): Uint8Array;
+}
+```
+
+**Consequences**:
+
+- **No mime-type guessing** — Response carries content-type, compression, and all HTTP headers natively.
+- **Server becomes passthrough** — browser requests for static files go straight to `runtime.read(request)`, Response returned as-is. Consumer can attach extra headers via `handleRequest()`.
+- **Components always `fetch()`** — pages and widgets use `fetch()` for companion files (.html, .css, .md) in both SSR and browser. SSR intercepts `fetch()` locally against the runtime, browser `fetch()` hits the server which calls the same runtime method. One code path, guaranteed to work everywhere.
+- **No `baseUrl`, no `file://` hacks** — the runtime is a local origin behind `fetch()`.
+- **Testing is trivial** — test runtimes with `new Request()`, assert on `Response`. No server needed.
+- **`transpile()` and `compress()` are static utilities** — available to runtimes and consumers, but not part of the per-request interface. Runtimes use them internally when building Responses (e.g., transpile `.ts` before responding, pre-compress based on Accept-Encoding).
+- **PWA / offline** — Service Worker implements the same runtime interface, intercepts `fetch()`, serves from Cache API or IndexedDB. The app doesn't know it's offline.
+- **Desktop app** — Tauri/Electron runtime backs the same interface with local filesystem. No code changes.
+- **Remote data** — a runtime that `read()`s widgets or markdown from a CMS, CDN, or third-party service. Just another implementation. Third-party widgets are just another resource origin.
+- **Hybrid runtime** — a single runtime that mixes filesystem, API, S3, CDN, etc., racing or cascading them in parallel to resolve a request. First source to respond wins.
+- **Leaf + DB** — leaf mode serves shells and static assets from filesystem, while hash-routed content (`/#/` routes) pulls widgets and data from a database via the same `runtime.read()`. CMS in a box.
+- **No-code app builder** — emkoma (Emko Common Mark: native md renderer, raw editor, block-based visual editor with native widget support) + runtime = visual content editing, widget drag-and-drop into markdown, offline editing (IndexedDB runtime), SSR for SEO, and browser-based coding (pages, widgets, companion files) when tsgo exposes a code API for in-browser transpilation.
+- **REST API for free** — a runtime backed by hardkore repositories turns emroute into a REST layer: `read(/person/123)` → `repository.retrieve('123')` → Response with JSON. Same server serves web UI (filesystem runtime) and data API (repository runtime). No separate REST controllers. hardkore-api reuses emroute not just as a web-app server but as an API wrapper around its clean architecture repositories. The runtime's Request/Response API and hardkore's abstract Repository pattern share the same DNA — abstract contract, swappable implementations, dependency inversion.

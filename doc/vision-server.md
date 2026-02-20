@@ -9,12 +9,14 @@ No accidental decisions. No bandaids. Multipurpose, agnostic, layered architectu
 ## Zero-Config Default
 
 ```ts
-const runtime = new DenoServerRuntime('.');
+const runtime = new DenoFsRuntime('.');
 const emroute = await createEmrouteServer({ spa: 'leaf' }, runtime);
-emroute.serve(3000);
+Deno.serve((req) => emroute.handleRequest(req) ?? new Response('Not Found', { status: 404 }));
 ```
 
 `spa` mode is explicitly required — no inference, no magic. Everything else is filesystem conventions.
+
+> **Status**: `createEmrouteServer` accepts `Runtime` as second parameter. `appRoot`, `serve()`, compression, TLS, and response headers removed from server config/interface — consumer owns HTTP serving. All paths are Runtime-relative.
 
 ## Convention-Based Detection
 
@@ -34,6 +36,8 @@ No `routesDir`, `widgetsDir`, `entryPoint` config. Want different layouts? Imple
 Two distinct concerns, both browser-only. The server imports `.ts` natively (Deno, Node with loaders) — no transformation needed server-side.
 
 **Transpilation** (TS → JS) — required for browsers. The runtime provides a `transpile()` method. `DenoServerRuntime` uses `deno bundle` (single-file transpile), others can use esbuild, swc, or whatever. The server never knows the mechanism.
+
+> **Status**: `Runtime.transpile()` is now async (`Promise<string>`). `DenoFsRuntime.transpile()` lazy-loads `npm:typescript` on first call — not a published dependency (DenoFsRuntime is outside JSR publish exports). Benchmark: typescript ~5ms/file, swc ~2ms, esbuild ~4ms. Next: server serves transpiled `.ts` files on-the-fly (no `deno bundle` for dev).
 
 **Chunking** (merging files into fewer requests) — optional browser optimization, possibly unnecessary. HTTP/2 multiplexing handles parallel requests, pre-compression handles size. Individual transpiled files may be the permanent answer, not just a starting point.
 
@@ -72,6 +76,8 @@ No writing back to `index.html`. No generated HTML files. The source stays clean
 
 `routes.manifest.g.ts` and `widgets.manifest.g.ts` are written into the runtime (via `runtime.writeTextFile()`), not to a hardcoded filesystem path. The runtime decides where they go — filesystem runtimes write to disk, other runtimes can store them however they want.
 
+> **Status**: Manifests written via `runtime.command('/routes.manifest.g.ts', { body: code })`. Done.
+
 These manifests serve two purposes:
 
 1. The bundler consumes them into `app.js` — not necessarily via filesystem `import`. Bundlers like esbuild can work in-memory via code API, manifests can be fetched or lazily resolved. Filesystem import is the default path, not the only one.
@@ -108,6 +114,8 @@ const emroute = await createEmrouteServer({ spa: 'leaf' }, runtime);
 ```
 
 `appRoot` is not server config — it belongs to the runtime. Server config is purely behavioral.
+
+> **Status**: Done. `appRoot` removed from `EmrouteServerConfig` and `BuildConfig`. Runtime constructor receives the root. All server paths are Runtime-relative (starting with `/`).
 
 The runtime owns transpilation as a method — `DenoFilesystemRuntime` calls `deno bundle` via `Deno.Command`, an esbuild runtime would call esbuild as code. The server doesn't know or care about the mechanism.
 
@@ -160,13 +168,12 @@ Runtimes can also serve external content — e.g. fetching widgets or markdown f
 
 ## Composability
 
-The server exposes `handleRequest(req: Request): Promise<Response | null>` as the primary integration point. `serve(port)` is a convenience for standalone use. Real apps compose `handleRequest()` with their own server — emkoord, Hono, Express, or bare `Deno.serve`. No obstacles to wrapping.
+The server exposes `handleRequest(req: Request): Promise<Response | null>` as the primary integration point. ~~`serve(port)` is a convenience for standalone use.~~ Real apps compose `handleRequest()` with their own server — emkoord, Hono, Express, or bare `Deno.serve`. No obstacles to wrapping.
+
+> **Status**: `serve()` removed from `EmrouteServer` interface. HTTP serving is the consumer's job — Runtime doesn't know what serving is. Consumer wires `Deno.serve`, `node:http`, etc. directly.
 
 ```ts
-// Standalone
-emroute.serve(3000);
-
-// Composed with emkoord / Hono / anything
+// Consumer owns HTTP serving
 Deno.serve(async (req) => {
   if (isApiRoute(req)) return handleApi(req);
   return await emroute.handleRequest(req) ?? new Response('Not Found', { status: 404 });
@@ -264,6 +271,8 @@ createEmrouteServer({ appRoot: '.', spa: 'leaf' })
 createEmrouteServer({ spa: 'leaf' }, new DenoServerRuntime('.'))
 ```
 
+> **Status**: Runtime parameter is now required. `appRoot` removed from config. Backward compat path (step 3) deferred — explicit runtime is the only way.
+
 ## Notes
 
 ### No Minification
@@ -297,6 +306,8 @@ abstract class ServerRuntime {
   static compress(data: Uint8Array, encoding: 'br' | 'gzip'): Uint8Array;
 }
 ```
+
+> **Status**: Superseded by ADR-2 (`handle`/`query`/`command`). The `read`/`list`/`find`/`write` split was replaced with CQRS-style three-method API. See ADR-2 for final shape.
 
 **Consequences**:
 
@@ -332,8 +343,8 @@ abstract class Runtime {
   /** Write. Defaults to PUT; pass { method: "DELETE" } etc. to override. */
   command(resource, options?): FetchReturn;
 
-  static transpile(ts: string): string;
-  static compress(data: Uint8Array, encoding: "br" | "gzip"): Uint8Array;
+  static transpile(ts: string): Promise<string>;
+  static compress(data: Uint8Array, encoding: "br" | "gzip"): Promise<Uint8Array>;
 }
 ```
 
@@ -400,4 +411,8 @@ Every step that previously required `ServerRuntime` (`readTextFile`, `readDir`, 
 
 Tests: `test/unit/runtime-module-loader.test.ts`, `test/unit/runtime-walk.test.ts`.
 
-**Next step**: Wire `Runtime` into `emroute.server.ts`, replacing `ServerRuntime` calls with `query`/`command`/`handle`.
+~~**Next step**: Wire `Runtime` into `emroute.server.ts`, replacing `ServerRuntime` calls with `query`/`command`/`handle`.~~
+
+> **Status**: Done. `emroute.server.ts`, `route.generator.ts`, `widget.generator.ts` all use `Runtime`. `ServerRuntime` no longer used by generators or server. Unit tests (834) pass. Browser tests pass for `none` mode (70 steps). `leaf`/`root`/`only` browser tests need on-the-fly `.ts` transpilation in `handleRequest` — next step.
+
+**Next step**: Serve transpiled `.ts` files on-the-fly in `handleRequest` — when browser requests `.js` (or `.ts`), read the `.ts` source via Runtime, transpile, and return `text/javascript`. This replaces `deno bundle` subprocess in dev flow.

@@ -96,6 +96,10 @@ emroute ships two runtimes:
 
 Future: Bun-specific, SQLite-backed, and IndexedDB runtimes (full offline browser setup).
 
+## Security
+
+The runtime abstraction solves a security problem: when emroute runs inside another server (e.g. emkoord within hardkore-api), the consumer app directory (pathtor-app) is just a source for the runtime — not a served directory. The runtime controls exactly what files are exposed. No risk of accidentally serving internal app files, `.ts` source, `.env`, or anything else by blindly serving the whole appRoot. CWD becomes irrelevant.
+
 ## Static Files
 
 Static file serving (images, fonts, assets) goes through the runtime. The runtime decides how to handle it — filesystem runtimes serve from disk, hybrid runtimes can mix sources (e.g. database for pages, passthrough for `/assets/`).

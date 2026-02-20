@@ -313,3 +313,91 @@ abstract class ServerRuntime {
 - **Leaf + DB** — leaf mode serves shells and static assets from filesystem, while hash-routed content (`/#/` routes) pulls widgets and data from a database via the same `runtime.read()`. CMS in a box.
 - **No-code app builder** — emkoma (Emko Common Mark: native md renderer, raw editor, block-based visual editor with native widget support) + runtime = visual content editing, widget drag-and-drop into markdown, offline editing (IndexedDB runtime), SSR for SEO, and browser-based coding (pages, widgets, companion files) when tsgo exposes a code API for in-browser transpilation.
 - **REST API for free** — a runtime backed by hardkore repositories turns emroute into a REST layer: `read(/person/123)` → `repository.retrieve('123')` → Response with JSON. Same server serves web UI (filesystem runtime) and data API (repository runtime). No separate REST controllers. hardkore-api reuses emroute not just as a web-app server but as an API wrapper around its clean architecture repositories. The runtime's Request/Response API and hardkore's abstract Repository pattern share the same DNA — abstract contract, swappable implementations, dependency inversion.
+
+### ADR-2: Runtime API — handle / query / command
+
+**Decision**: The early ADR-1 sketch (`read`, `list`, `find`, `write`) was replaced with three methods following CQRS and fetch semantics.
+
+**Final API** (`server/runtime/abstract.runtime.ts`):
+
+```ts
+abstract class Runtime {
+  /** Raw passthrough — server forwards browser requests as-is. */
+  abstract handle(resource: FetchParams[0], init?: FetchParams[1]): FetchReturn;
+
+  /** Read. Returns Response, or string with { as: "text" }. */
+  abstract query(resource, options: { as: "text" }): Promise<string>;
+  abstract query(resource, options?): FetchReturn;
+
+  /** Write. Defaults to PUT; pass { method: "DELETE" } etc. to override. */
+  command(resource, options?): FetchReturn;
+
+  static transpile(ts: string): string;
+  static compress(data: Uint8Array, encoding: "br" | "gzip"): Uint8Array;
+}
+```
+
+**Why three, not four+**: `read`, `list`, `find` were all reads — no reason to split them. `query()` handles all reads; directory listing is just `query("/routes/")` returning a JSON array. `exists()` is `query(path)` → check `response.status !== 404`. No dedicated methods needed.
+
+**`{ as: "text" }` overload**: Semantically equivalent to `Accept: text/plain`. Exists for type safety — TypeScript narrows `Promise<string>` vs `FetchReturn`. Concrete runtimes can optimize (e.g. `DenoFsRuntime` calls `Deno.readTextFile()` directly, skipping Response construction).
+
+**`query` is abstract**: Forcing concrete runtimes to implement it allows them to avoid constructing a Response when the caller only wants text. The base class doesn't provide a default `this.handle().then(r => r.text())` implementation — that would defeat the purpose.
+
+**`command` is concrete**: Just delegates to `handle()` with `{ method: "PUT", ...options }`. Override via options (`{ method: "DELETE" }`, etc.).
+
+**`FetchParams` / `FetchReturn`**: Derived from `Parameters<typeof fetch>` and `ReturnType<typeof fetch>`. No manual typing — if fetch's signature evolves, Runtime follows.
+
+## Proven Results
+
+### Transpilers (all tested against real `.page.ts` fixtures)
+
+| Tool | Type | Resolves imports | Speed (ms/iter) |
+|------|------|-----------------|-----------------|
+| **swc** (`npm:@swc/core`) | programmatic | no (transpile only) | ~2 |
+| **esbuild** (`npm:esbuild`) | programmatic | no (transform mode) | ~3 |
+| **typescript** (`npm:typescript`) | programmatic | no (transpile only) | ~4 |
+| **deno bundle** | CLI | yes (full bundle) | ~24 |
+| **tsgo** (`go install`) | CLI | no (transpile only) | ~35 |
+
+Transpile-only tools strip types but preserve imports (`@emkodev/emroute` stays as-is). Deno resolves import maps even from blob URL context, so unresolved specifiers work — no import rewriting needed for SSR on Deno. `deno bundle` is the only tool that resolves + inlines everything into a self-contained JS string.
+
+tsgo is installable as a native Go binary via `go install github.com/microsoft/typescript-go/cmd/tsgo@latest`. No programmatic API yet — CLI only. The `@typescript/native-preview` npm package wraps it but npx overhead dominates (~660ms vs ~35ms native).
+
+Tests: `test/unit/module-loader.test.ts`, `test/unit/transpiler-bench.ts`.
+
+### Module Loaders (all tested with bundled JS from `deno bundle`)
+
+| Loader | Module semantics | Cross-module imports | Platform |
+|--------|-----------------|---------------------|----------|
+| **blob URL** | yes (`import()`) | yes | Deno, browsers |
+| **data: URL** | yes (`import()`) | yes | Deno, browsers |
+| **new Function()** | no (manual return) | no | everywhere |
+| **direct import()** | yes (native) | yes | Deno only (no transpile needed) |
+
+All four pass with real fixture `.page.ts` files. Blob URL and data: URL are functionally equivalent. `new Function()` requires stripping exports and knowing the binding name. Direct `import()` is Deno-only but needs no transpilation at all.
+
+Tests: `test/unit/module-loader.test.ts`.
+
+### Full Cycle (proven end-to-end)
+
+`runtime.query(path, { as: "text" })` → `transpileModule(source)` → `loadViaBlobUrl(js)` → `page.getData()` → `page.renderHTML({ data, context: { files: { html } } })` → rendered HTML with real data and companion template.
+
+Tested with `ArticlesPage` fixture: 6 articles loaded via `getData()`, companion HTML template with `{{articleCards}}` placeholders resolved, final HTML contains article titles and "articles published" count.
+
+### Server Startup Steps via Runtime
+
+Every step that previously required `ServerRuntime` (`readTextFile`, `readDir`, `writeTextFile`, `exists`, `stat`, `serveStaticFile`) has been proven through `Runtime`:
+
+| Server step | Old `ServerRuntime` | New `Runtime` | Tested |
+|---|---|---|---|
+| Scan routes/widgets dir | `readDir()` recursive | `query(dir)` → JSON listing, trailing `/` = directory | ✓ |
+| Check file existence | `exists(path)` | `query(path)` → `status !== 404` | ✓ |
+| Read companion files | `readTextFile(path)` | `query(path, { as: "text" })` | ✓ |
+| Resolve HTML shell | `readTextFile("index.html")` | `query("/index.html", { as: "text" })` | ✓ |
+| Write manifests | `writeTextFile(path, code)` | `command(path, { body: code })` | ✓ |
+| Load page modules | `import(fileUrl)` | `query(path, { as: "text" })` → transpile → blob URL | ✓ |
+| Static file passthrough | `serveStaticFile(req, path)` | `handle(request)` → Response | ✓ |
+
+Tests: `test/unit/runtime-module-loader.test.ts`, `test/unit/runtime-walk.test.ts`.
+
+**Next step**: Wire `Runtime` into `emroute.server.ts`, replacing `ServerRuntime` calls with `query`/`command`/`handle`.

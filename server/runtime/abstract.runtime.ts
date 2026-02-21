@@ -61,6 +61,14 @@ export abstract class Runtime {
     throw new Error("Not implemented");
   }
 
+  static bundle(
+    _runtime: Runtime,
+    _entryPoint: string,
+    _options?: { external?: string[] },
+  ): Promise<string> {
+    throw new Error("Not implemented");
+  }
+
   static compress(data: Uint8Array, encoding: "br" | "gzip"): Promise<Uint8Array> {
     throw new Error("Not implemented");
   }

@@ -6,5 +6,9 @@ node_modules/
 !doc/*.png
 *.g.ts
 test/browser/fixtures/_main.g.ts
+test/browser/fixtures/*.bundle.js
+test/browser/fixtures/emroute.js
+test/browser/fixtures/widgets.js
+test/browser/fixtures/app.js
 test/browser/fixtures/assets/*.wasm
 .claude/

@@ -208,10 +208,24 @@ function injectSsrContent(
  * When spa !== 'none' and an entryPoint is provided, injects a `<script>` tag.
  * Auto-discovers `/main.css` and injects a `<link>` tag.
  */
+/** Bundle output paths. */
+const BUNDLE_PATHS = {
+  emroute: '/emroute.js',
+  widgets: '/widgets.js',
+  app: '/app.js',
+} as const;
+
+/** Emroute bare specifiers to externalize when bundling consumer code. */
+const EMROUTE_EXTERNALS = [
+  '@emkodev/emroute/spa',
+  '@emkodev/emroute/overlay',
+  '@emkodev/emroute',
+] as const;
+
 async function resolveShell(
   config: EmrouteServerConfig,
   runtime: Runtime,
-  entryPoint?: string,
+  bundles: { importMap?: Record<string, string>; entryScript?: string },
 ): Promise<string> {
   const { spa = 'root' } = config;
 
@@ -228,10 +242,13 @@ async function resolveShell(
       : buildHtmlShell(config.title ?? 'emroute');
   }
 
-  // Inject <script> tag for the SPA bundle
-  if (spa !== 'none' && entryPoint) {
-    const scriptSrc = '/' + entryPoint.replace(/^\.\//, '').replace(/\.ts$/, '.js');
-    const scriptTag = `<script type="module" src="${scriptSrc}"></script>`;
+  // Inject import map + entry script for SPA
+  if (spa !== 'none' && bundles.importMap) {
+    const importMapTag = `<script type="importmap">${JSON.stringify({ imports: bundles.importMap })}</script>`;
+    shell = shell.replace('</head>', `  ${importMapTag}\n</head>`);
+  }
+  if (spa !== 'none' && bundles.entryScript) {
+    const scriptTag = `<script type="module" src="${bundles.entryScript}"></script>`;
     shell = shell.replace('</body>', `${scriptTag}\n</body>`);
   }
 
@@ -366,9 +383,58 @@ export async function createEmrouteServer(
 
   buildSsrRouters();
 
+  // ── Bundle for browser ──────────────────────────────────────────────
+
+  const importMap: Record<string, string> = {};
+  let entryScript: string | undefined;
+
+  if (spa !== 'none') {
+    const Ctor = runtime.constructor as typeof Runtime;
+    const start = performance.now();
+
+    // 1. emroute.js — framework (router, custom elements, hydration)
+    const spaEntry = import.meta.resolve('@emkodev/emroute/spa');
+    const emrouteJs = await Ctor.bundle(runtime, spaEntry);
+    await runtime.command(BUNDLE_PATHS.emroute, { body: emrouteJs });
+    for (const specifier of EMROUTE_EXTERNALS) {
+      importMap[specifier] = BUNDLE_PATHS.emroute;
+    }
+
+    // 2. widgets.js — widget components (if any)
+    if (widgetsDir) {
+      const widgetsJs = await Ctor.bundle(runtime, '/widgets.manifest.g.ts', {
+        external: [...EMROUTE_EXTERNALS],
+      });
+      await runtime.command(BUNDLE_PATHS.widgets, { body: widgetsJs });
+      importMap['/widgets.manifest.g.ts'] = BUNDLE_PATHS.widgets;
+    }
+
+    // 3. app.js — consumer entry point
+    if (config.entryPoint) {
+      const entryFile = config.entryPoint.startsWith('/')
+        ? config.entryPoint
+        : `/${config.entryPoint}`;
+      const external: string[] = [...EMROUTE_EXTERNALS];
+      if (widgetsDir) external.push('./widgets.manifest.g.ts');
+      const appJs = await Ctor.bundle(runtime, entryFile, { external });
+      await runtime.command(BUNDLE_PATHS.app, { body: appJs });
+      entryScript = BUNDLE_PATHS.app;
+    }
+
+    const elapsed = performance.now() - start;
+    const kb = (s: string) => `${Math.round(s.length / 1024)} KB`;
+    console.log(
+      `Bundled ${[
+        `emroute.js (${kb(emrouteJs)})`,
+        widgetsDir ? `widgets.js` : null,
+        entryScript ? `app.js` : null,
+      ].filter(Boolean).join(' + ')} in ${elapsed.toFixed(0)}ms`,
+    );
+  }
+
   // ── HTML shell ───────────────────────────────────────────────────────
 
-  const shell = await resolveShell(config, runtime, config.entryPoint);
+  const shell = await resolveShell(config, runtime, { importMap, entryScript });
   const title = config.title ?? 'emroute';
 
   // ── handleRequest ────────────────────────────────────────────────────
@@ -433,8 +499,10 @@ export async function createEmrouteServer(
       });
     }
 
-    // File requests — not handled by SSR, delegate to serve() or consumer
+    // File requests — pass through to runtime (bundled JS, CSS, images, etc.)
     if (isFileRequest(pathname)) {
+      const response = await runtime.handle(pathname);
+      if (response.status === 200) return response;
       return null;
     }
 

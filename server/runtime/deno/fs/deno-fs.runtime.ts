@@ -109,6 +109,8 @@ export class DenoFsRuntime extends Runtime {
       const content = body
         ? new Uint8Array(await new Response(body).arrayBuffer())
         : new Uint8Array();
+      const dir = path.slice(0, path.lastIndexOf("/"));
+      if (dir) await Deno.mkdir(dir, { recursive: true });
       await Deno.writeFile(path, content);
       return new Response(null, { status: 204 });
     } catch (error) {
@@ -116,19 +118,50 @@ export class DenoFsRuntime extends Runtime {
     }
   }
 
-  private static _ts: typeof import("npm:typescript").default | null = null;
+  // deno-lint-ignore no-explicit-any
+  private static _ts: any = null;
 
   static override async transpile(source: string): Promise<string> {
     if (!DenoFsRuntime._ts) {
       DenoFsRuntime._ts = (await import("npm:typescript")).default;
     }
-    const result = DenoFsRuntime._ts.transpileModule(source, {
+    const ts = DenoFsRuntime._ts;
+    const result = ts.transpileModule(source, {
       compilerOptions: {
-        target: DenoFsRuntime._ts.ScriptTarget.ESNext,
-        module: DenoFsRuntime._ts.ModuleKind.ESNext,
+        target: ts.ScriptTarget.ESNext,
+        module: ts.ModuleKind.ESNext,
         verbatimModuleSyntax: false,
       },
     });
     return result.outputText;
+  }
+
+  static override async bundle(
+    runtime: Runtime,
+    entryPoint: string,
+    options?: { external?: string[] },
+  ): Promise<string> {
+    // file: URLs and bare specifiers pass through directly;
+    // runtime-relative paths get resolved to absolute filesystem paths.
+    const entry = entryPoint.startsWith('file:') || (!entryPoint.startsWith('/') && !entryPoint.startsWith('.'))
+      ? entryPoint
+      : `${(runtime as DenoFsRuntime).root}${entryPoint}`;
+    const args = ["bundle"];
+    if (options?.external) {
+      for (const ext of options.external) {
+        args.push("--external", ext);
+      }
+    }
+    args.push(entry);
+    const cmd = new Deno.Command("deno", {
+      args,
+      stdout: "piped",
+      stderr: "piped",
+    });
+    const { code, stdout, stderr } = await cmd.output();
+    if (code !== 0) {
+      throw new Error(`deno bundle failed: ${new TextDecoder().decode(stderr)}`);
+    }
+    return new TextDecoder().decode(stdout);
   }
 }

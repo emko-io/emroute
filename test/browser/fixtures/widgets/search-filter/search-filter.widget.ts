@@ -27,7 +27,7 @@ class SearchFilterWidget extends WidgetComponent<
     const handler = data.target
       ? `oninput="var q=this.value.toLowerCase();document.querySelectorAll('#${
         escapeHtml(data.target)
-      }>*').forEach(function(el){el.style.display=el.textContent.toLowerCase().indexOf(q)>=0?'':'none'})"`
+      }>*').forEach(function(el){var t=(el.shadowRoot||el).textContent.toLowerCase();el.style.display=t.indexOf(q)>=0?'':'none'})"`
       : '';
     return `<div style="margin-bottom:1rem">
   <input type="text"

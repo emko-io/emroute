@@ -51,11 +51,14 @@ The SPA mode dictates what gets transpiled/served:
 - `leaf` → widgets hydration only (no router)
 - `root` / `only` → widgets + router
 
-Two output files (or groups, if chunked later):
-- `emroute.js` — the framework (hydration, router, custom elements)
-- `app.js` — the consumer's code (routes, widgets, manifests)
+Three output bundles:
+- `emroute.js` — the framework (router, custom elements, hydration, overlay)
+- `widgets.js` — widget components (separate for leaf mode where router isn't needed)
+- `app.js` — the consumer's code (routes, manifests, consumer entry point)
 
-`app.js` imports from `@emkodev/emroute/spa` as an external. An import map in the shell resolves it to `emroute.js`.
+All three connected via browser import map. `widgets.js` and `app.js` import `@emkodev/emroute/spa` as external. The import map resolves bare specifiers to bundled files.
+
+> **Status**: Three-bundle split proven with `deno bundle --external`. All 4 SPA modes pass browser tests (157 steps total). Bundle sizes: emroute.js ~61 KB, widgets.js ~20 KB, app.js ~61 KB. Total bundling time ~110ms.
 
 The server generates `_main.g.ts` (or uses consumer's `main.ts`), runs the bundler, and injects the right script tags into the shell — all based on the SPA mode. Source `index.html` is never modified.
 
@@ -66,7 +69,7 @@ The server builds the shell in memory at startup:
 1. Read source `index.html` (or generate default)
 2. Inject `<link>` for `main.css` if it exists
 3. Based on SPA mode and bundler output:
-   - Inject `<script type="importmap">` mapping `@emkodev/emroute/spa` → `/emroute.js`
+   - Inject `<script type="importmap">` mapping `@emkodev/emroute/spa`, `@emkodev/emroute/overlay`, `@emkodev/emroute` → `/emroute.js`, `./widgets.manifest.g.ts` → `/widgets.js`
    - Inject `<script type="module" src="/app.js">`
 4. Use this in-memory shell for all SSR responses
 
@@ -117,7 +120,7 @@ const emroute = await createEmrouteServer({ spa: 'leaf' }, runtime);
 
 > **Status**: Done. `appRoot` removed from `EmrouteServerConfig` and `BuildConfig`. Runtime constructor receives the root. All server paths are Runtime-relative (starting with `/`).
 
-The runtime owns transpilation as a method — `DenoFilesystemRuntime` calls `deno bundle` via `Deno.Command`, an esbuild runtime would call esbuild as code. The server doesn't know or care about the mechanism.
+The runtime owns transpilation and bundling as methods — `DenoFsRuntime` calls `deno bundle` via `Deno.Command`, an esbuild runtime would call esbuild as code. The server doesn't know or care about the mechanism. `Runtime.bundle()` is a static method that defaults to "Not implemented" — consumers can override it in their runtime or leave it as no-op and bundle externally (e.g. via `deno task`).
 
 ### Package Split (option, not decided)
 
@@ -205,6 +208,8 @@ What is a "chunk"? Options:
 
 Needs definition before implementation. Chunks affect the import map, live rebuild, and how the SPA loads code on navigation.
 
+> **Update**: The three-bundle split (emroute.js / widgets.js / app.js) is the first step toward chunking. `deno bundle --external` preserves bare specifiers, and browser import maps connect them. Future: per-route code splitting would add more entries to the import map. The current architecture supports this — each new chunk is just another import map entry.
+
 ### Do We Even Need a Bundler?
 
 If we control chunking (we define what goes into each chunk) and skip minification, what does a bundler actually do for us?
@@ -216,6 +221,8 @@ If we control chunking (we define what goes into each chunk) and skip minificati
 5. Tree-shaking → if we control chunks, we know what's needed
 
 A "bundler" might reduce to: transpile TS → JS, concatenate into our defined chunks, leave external imports (`@emkodev/emroute/spa`) for the browser import map. No esbuild, no `deno bundle`, no dependency. The runtime transpiles and concatenates. Zero-dependency claim stays intact.
+
+> **Update**: We tried the on-the-fly transpile approach (walk module graph, transpile each file, serve individually with import maps). It worked for simple cases but hit hard problems: `jsr:` specifiers unresolvable in browsers, 22+ individual module requests degrading load times, and import map complexity growing with the module graph. `deno bundle` solves all of these — it resolves everything (JSR, npm, relative) into a self-contained JS string. The tradeoff: we depend on a bundler, but `Runtime.bundle()` makes it swappable. The no-bundler path remains theoretically possible but practically inferior for now.
 
 **Pre-compressed chunks**: Chunks should be stored both raw and pre-compressed (brotli/gzip) so the server never compresses per-request. Both `CompressionStream` (Web API, gzip/deflate) and `node:zlib` (brotli) work at code level in Deno/Node/Bun — proven in spike. TypeScript transpilation + pre-compression should produce comparable bytes to a minified bundle, without the risks.
 
@@ -344,6 +351,7 @@ abstract class Runtime {
   command(resource, options?): FetchReturn;
 
   static transpile(ts: string): Promise<string>;
+  static bundle(runtime: Runtime, entryPoint: string, options?: { external?: string[] }): Promise<string>;
   static compress(data: Uint8Array, encoding: "br" | "gzip"): Promise<Uint8Array>;
 }
 ```
@@ -413,6 +421,46 @@ Tests: `test/unit/runtime-module-loader.test.ts`, `test/unit/runtime-walk.test.t
 
 ~~**Next step**: Wire `Runtime` into `emroute.server.ts`, replacing `ServerRuntime` calls with `query`/`command`/`handle`.~~
 
-> **Status**: Done. `emroute.server.ts`, `route.generator.ts`, `widget.generator.ts` all use `Runtime`. `ServerRuntime` no longer used by generators or server. Unit tests (834) pass. Browser tests pass for `none` mode (70 steps). `leaf`/`root`/`only` browser tests need on-the-fly `.ts` transpilation in `handleRequest` — next step.
+> **Status**: Done. `emroute.server.ts`, `route.generator.ts`, `widget.generator.ts` all use `Runtime`. `ServerRuntime` no longer used by generators or server. Unit tests (834) pass. All browser tests pass across all 4 SPA modes (none: 70, leaf: 12, root: 28, only: 47 steps).
 
-**Next step**: Serve transpiled `.ts` files on-the-fly in `handleRequest` — when browser requests `.js` (or `.ts`), read the `.ts` source via Runtime, transpile, and return `text/javascript`. This replaces `deno bundle` subprocess in dev flow.
+### Three-Bundle Split (proven end-to-end)
+
+`Runtime.bundle()` produces three bundles at server startup via `deno bundle --external`:
+
+| Bundle | Entry point | Externals | Contents |
+|--------|------------|-----------|----------|
+| `emroute.js` | `@emkodev/emroute/spa` (resolved via `import.meta.resolve`) | none | Framework: router, custom elements, hydration, overlay, utilities |
+| `widgets.js` | `/widgets.manifest.g.ts` | `@emkodev/emroute/*` | Widget components |
+| `app.js` | consumer's `main.ts` | `@emkodev/emroute/*`, `./widgets.manifest.g.ts` | Consumer code: routes, entry point |
+
+Import map in HTML shell connects them:
+```json
+{
+  "@emkodev/emroute/spa": "/emroute.js",
+  "@emkodev/emroute/overlay": "/emroute.js",
+  "@emkodev/emroute": "/emroute.js",
+  "/widgets.manifest.g.ts": "/widgets.js"
+}
+```
+
+Bundles are written into the runtime via `runtime.command()` and served as static files via `runtime.handle()`.
+
+### Learnings from the Bundling Spike
+
+**`deno bundle --external` does prefix matching**: `--external @emkodev/emroute` externalizes ALL `@emkodev/emroute/*` subpaths (including `/overlay`, `/spa`). This is why all emroute subpath exports must map to the same bundle file — you can't selectively externalize.
+
+**`@emkodev/emroute/spa` must re-export everything consumers import from `@emkodev/emroute`**: Since the import map points both `@emkodev/emroute` and `@emkodev/emroute/spa` to the same `emroute.js`, the spa module must export `escapeHtml`, `scopeWidgetCss`, overlay API, and all types that consumer code imports from the root specifier.
+
+**`import.meta.resolve()` is needed for framework entry point**: `deno bundle` doesn't resolve self-referential package names (`@emkodev/emroute/spa` from within the emroute project). Using `import.meta.resolve('@emkodev/emroute/spa')` gets the actual file URL, which `deno bundle` accepts. In a consumer project, this resolves through their import map to the JSR cache.
+
+**Import map keys must use absolute paths for relative specifiers**: `./widgets.manifest.g.ts` as an import map key resolves relative to the HTML page URL (e.g. `/html/widgets.manifest.g.ts`), not relative to the importing module (`/app.js`). Use `/widgets.manifest.g.ts` (absolute) to match the resolved URL from any importing context.
+
+**Shadow DOM and inline event handlers**: Inline `oninput` handlers that use `el.textContent` fail for custom elements with shadow DOM — text content lives inside the shadow root. Use `(el.shadowRoot||el).textContent` instead.
+
+**`accessor` keyword not supported by `transpileModule`**: TypeScript's `transpileModule` (used by `Runtime.transpile()`) doesn't handle the `accessor` keyword (TC39 decorators). Avoid decorator-specific syntax in code that goes through the transpile path.
+
+**`deno bundle` is experimental but functional**: Supports `--external` for bare specifiers, resolves JSR/npm/relative imports, produces clean ESM output. The `--external` flag and self-contained resolution make it suitable for the three-bundle split pattern. Risk: experimental status means it could change.
+
+**Bundling from code vs external task**: `Runtime.bundle()` shells out to `deno bundle` via `Deno.Command`. This is convenient for dev (zero-config startup) but consumers can also bundle externally (e.g. `deno task bundle`) and serve pre-built files. `Runtime.bundle()` defaults to "Not implemented" — not mandatory.
+
+**Next step**: Evaluate whether `build()` function needs updating to align with the three-bundle split (it currently uses the old `bundler` abstraction). Consider content-hash cache busting for bundle filenames.

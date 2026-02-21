@@ -102,7 +102,7 @@ export class RouteCore {
   private moduleCache: Map<string, unknown> = new Map();
   private widgetFileCache: Map<string, string> = new Map();
   private moduleLoaders: Record<string, () => Promise<unknown>>;
-  accessor currentRoute: MatchedRoute | null = null;
+  currentRoute: MatchedRoute | null = null;
   private baseUrl: string;
 
   constructor(manifest: RoutesManifest, options: RouteCoreOptions = {}) {

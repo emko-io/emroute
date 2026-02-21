@@ -21,11 +21,9 @@ import type { SpaMode } from '../../../src/type/widget.type.ts';
 import { type Browser, chromium, type Page } from 'npm:playwright@1.58.2';
 
 const FIXTURES_DIR = 'test/browser/fixtures';
-const BUNDLE_DIR = '.build';
 
 export interface TestServer {
   server: Deno.HttpServer;
-  bundleProcess?: { kill(): void };
   stop(): void;
   baseUrl(path?: string): string;
 }
@@ -33,10 +31,9 @@ export interface TestServer {
 export async function createTestServer(options: {
   mode: SpaMode;
   port: number;
-  watch?: boolean;
   entryPoint?: string;
 }): Promise<TestServer> {
-  const { mode, port, watch = false, entryPoint: customEntry } = options;
+  const { mode, port, entryPoint: customEntry } = options;
 
   const runtime = new DenoFsRuntime(FIXTURES_DIR);
 
@@ -105,17 +102,14 @@ export async function createTestServer(options: {
   const consumerEntry = customEntry ?? defaultEntry;
 
   // Generate entry point if needed
-  let entryPointName: string | undefined; // Runtime-relative name (for config)
-  let entryPointCwd: string | undefined; // CWD-relative path (for bundler)
+  let entryPointName: string | undefined;
   if (consumerEntry) {
     entryPointName = consumerEntry;
-    entryPointCwd = `${FIXTURES_DIR}/${consumerEntry}`;
   } else if (mode !== 'none') {
     const hasRoutes = true;
     const hasWidgets = true;
     const mainCode = generateMainTs(mode, hasRoutes, hasWidgets, '@emkodev/emroute');
     entryPointName = '_main.g.ts';
-    entryPointCwd = `${FIXTURES_DIR}/_main.g.ts`;
     await runtime.command(`/${entryPointName}`, { body: mainCode });
   }
 
@@ -130,56 +124,14 @@ export async function createTestServer(options: {
     baseUrl: `http://localhost:${port}`,
   }, runtime);
 
-  // Bundle (skip for 'none' mode)
-  let bundleProcess: { kill(): void } | undefined;
-
-  if (mode !== 'none' && entryPointCwd) {
-    const bundleOutput = `${BUNDLE_DIR}/${entryPointCwd.replace(/\.ts$/, '.js')}`;
-    await Deno.mkdir(BUNDLE_DIR, { recursive: true });
-
-    const args = ['bundle', '--platform', 'browser'];
-    if (watch) args.push('--watch');
-    args.push(entryPointCwd, '-o', bundleOutput);
-
-    const proc = new Deno.Command('deno', {
-      args,
-      stdout: 'inherit',
-      stderr: 'inherit',
-    }).spawn();
-
-    bundleProcess = { kill: () => proc.kill() };
-    await new Promise((resolve) => setTimeout(resolve, 3000));
-  }
-
-  // Serve — consumer handles HTTP directly
-  const bundleRuntime = new DenoFsRuntime(BUNDLE_DIR);
-
+  // Serve — server transpiles .ts on-the-fly, no bundling needed
   const server = Deno.serve({ port, onListen() {} }, async (req) => {
-    const response = await emroute.handleRequest(req);
-    if (response) return response;
-
-    const url = new URL(req.url);
-    const pathname = url.pathname;
-
-    // Try .build/ for bundled JS, then fixtures for static files
-    const buildResponse = await bundleRuntime.handle(pathname);
-    if (buildResponse.status === 200) return buildResponse;
-
-    const staticResponse = await runtime.handle(pathname);
-    if (staticResponse.status === 200) return staticResponse;
-
-    return new Response('Not Found', { status: 404 });
+    return await emroute.handleRequest(req) ?? new Response('Not Found', { status: 404 });
   });
 
   return {
     server,
-    bundleProcess,
     stop() {
-      try {
-        bundleProcess?.kill();
-      } catch {
-        // Bundle process may have already exited
-      }
       server.shutdown();
     },
     baseUrl(path = '/') {

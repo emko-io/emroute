@@ -29,7 +29,7 @@
 
 import { build, createEmrouteServer, generateMainTs } from './emroute.server.ts';
 import { denoBundler } from './deno.bundler.ts';
-import { denoServerRuntime } from './server.deno.ts';
+import { DenoFsRuntime } from './runtime/deno/fs/deno-fs.runtime.ts';
 import type { SpaMode } from '../src/type/widget.type.ts';
 import type { BasePath } from '../src/route/route.core.ts';
 import type { MarkdownRenderer } from '../src/type/markdown.type.ts';
@@ -39,6 +39,9 @@ import { discoverWidgets, generateWidgetsManifestCode } from './generator/widget
 import { createMarkdownRender } from './vendor/emko-md.vendor.js';
 
 const markdownRenderer: MarkdownRenderer = { render: createMarkdownRender() };
+
+/** Runtime rooted at cwd — used by emroute server and generators. */
+const runtime = new DenoFsRuntime(Deno.cwd());
 
 // ── Arg parsing ──────────────────────────────────────────────────────
 
@@ -131,18 +134,15 @@ interface ProjectInfo {
 }
 
 async function detectProject(spaOverride?: SpaMode): Promise<ProjectInfo> {
-  const routesStat = await denoServerRuntime.stat('routes');
-  if (!routesStat?.isDirectory) {
+  if (!await isDirectory('routes')) {
     console.error('Error: routes/ directory not found.');
     console.error('Create a routes/ directory with at least one page file.');
     Deno.exit(1);
   }
 
-  const widgetsStat = await denoServerRuntime.stat('widgets');
-  const widgetsDir = widgetsStat?.isDirectory ? 'widgets' : undefined;
+  const widgetsDir = await isDirectory('widgets') ? 'widgets' : undefined;
 
-  const mainStat = await denoServerRuntime.stat('main.ts');
-  const entryPoint = mainStat?.isFile ? 'main.ts' : undefined;
+  const entryPoint = await isFile('main.ts') ? 'main.ts' : undefined;
 
   let spaMode: SpaMode;
   if (spaOverride) {
@@ -161,7 +161,7 @@ async function detectProject(spaOverride?: SpaMode): Promise<ProjectInfo> {
 
 async function scanForPageTs(dir: string): Promise<boolean> {
   try {
-    for await (const entry of denoServerRuntime.readDir(dir)) {
+    for await (const entry of Deno.readDir(dir)) {
       if (entry.isFile && entry.name.endsWith('.page.ts')) {
         return true;
       }
@@ -186,7 +186,6 @@ const WATCH_DEBOUNCE_MS = 100;
 async function commandStart(flags: CliFlags): Promise<void> {
   const project = await detectProject(flags.spa);
   const basePath = buildBasePath(flags);
-  const appRoot = '.';
   const spa = project.spaMode;
 
   console.log(`[emroute] Starting dev server...`);
@@ -199,21 +198,20 @@ async function commandStart(flags: CliFlags): Promise<void> {
   // ── Entry point ──────────────────────────────────────────────────
 
   const consumerEntry = flags.entry ?? project.entryPoint;
-  let entryPoint: string;
-  if (consumerEntry && await denoServerRuntime.exists(`${appRoot}/${consumerEntry}`)) {
-    entryPoint = `${appRoot}/${consumerEntry}`;
-  } else {
+  let entryPoint: string | undefined;
+  if (consumerEntry && await isFile(consumerEntry)) {
+    entryPoint = consumerEntry;
+  } else if (spa !== 'none') {
     const hasRoutes = project.routesDir !== undefined;
     const hasWidgets = project.widgetsDir !== undefined;
     const mainCode = generateMainTs(spa, hasRoutes, hasWidgets, '@emkodev/emroute', basePath);
-    entryPoint = `${appRoot}/${GENERATED_MAIN}`;
-    await denoServerRuntime.writeTextFile(entryPoint, mainCode);
+    entryPoint = GENERATED_MAIN;
+    await runtime.command(`/${entryPoint}`, { body: mainCode });
   }
 
   // ── Create server ────────────────────────────────────────────────
 
   const emroute = await createEmrouteServer({
-    appRoot,
     routesDir: project.routesDir,
     widgetsDir: project.widgetsDir,
     entryPoint,
@@ -221,15 +219,13 @@ async function commandStart(flags: CliFlags): Promise<void> {
     basePath,
     baseUrl: `http://localhost:${flags.port}`,
     markdownRenderer,
-    responseHeaders: { 'Access-Control-Allow-Origin': '*' },
-  }, denoServerRuntime);
+  }, runtime);
 
   // ── Bundle ───────────────────────────────────────────────────────
 
-  if (spa !== 'none') {
-    const bundleEntry = entryPoint.replace(/^\.\//, '');
-    const bundleOutput = `${BUNDLE_DIR}/${bundleEntry.replace(/\.ts$/, '.js')}`;
-    await denoServerRuntime.mkdir(BUNDLE_DIR, { recursive: true });
+  if (spa !== 'none' && entryPoint) {
+    await Deno.mkdir(BUNDLE_DIR, { recursive: true });
+    const bundleOutput = `${BUNDLE_DIR}/${entryPoint.replace(/\.ts$/, '.js')}`;
 
     new Deno.Command('deno', {
       args: ['bundle', '--platform', 'browser', '--watch', entryPoint, '-o', bundleOutput],
@@ -242,18 +238,18 @@ async function commandStart(flags: CliFlags): Promise<void> {
 
   // ── Serve ────────────────────────────────────────────────────────
 
-  denoServerRuntime.serve(flags.port, async (req) => {
+  Deno.serve({ port: flags.port, onListen() {} }, async (req) => {
     const response = await emroute.handleRequest(req);
     if (response) return response;
 
-    // Try .build/ for bundled JS, then appRoot for static files
+    // Try .build/ for bundled JS, then cwd for static files
     const url = new URL(req.url);
     const pathname = url.pathname;
 
-    const buildResponse = await denoServerRuntime.serveStaticFile(req, `${BUNDLE_DIR}${pathname}`);
+    const buildResponse = await runtime.query(`/${BUNDLE_DIR}${pathname}`);
     if (buildResponse.status === 200) return buildResponse;
 
-    return await denoServerRuntime.serveStaticFile(req, `${appRoot}${pathname}`);
+    return await runtime.handle(pathname);
   });
 
   // ── Watch ────────────────────────────────────────────────────────
@@ -265,24 +261,27 @@ async function commandStart(flags: CliFlags): Promise<void> {
   }
 
   for (const watchPath of watchPaths) {
-    denoServerRuntime.watchDir(watchPath, (event) => {
-      const isRelevant = event.paths.some((p) =>
-        p.endsWith('.page.ts') || p.endsWith('.page.html') || p.endsWith('.page.md') ||
-        p.endsWith('.page.css') || p.endsWith('.error.ts') || p.endsWith('.redirect.ts') ||
-        p.endsWith('.widget.ts') || p.endsWith('.widget.css')
-      );
-      if (!isRelevant) return;
+    const watcher = Deno.watchFs(watchPath);
+    (async () => {
+      for await (const event of watcher) {
+        const isRelevant = event.paths.some((p) =>
+          p.endsWith('.page.ts') || p.endsWith('.page.html') || p.endsWith('.page.md') ||
+          p.endsWith('.page.css') || p.endsWith('.error.ts') || p.endsWith('.redirect.ts') ||
+          p.endsWith('.widget.ts') || p.endsWith('.widget.css')
+        );
+        if (!isRelevant) continue;
 
-      if (debounceTimer) clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(async () => {
-        try {
-          await emroute.rebuild();
-          console.log('[emroute] Rebuilt routes and widgets');
-        } catch (e) {
-          console.error('[emroute] Failed to rebuild:', e);
-        }
-      }, WATCH_DEBOUNCE_MS);
-    });
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(async () => {
+          try {
+            await emroute.rebuild();
+            console.log('[emroute] Rebuilt routes and widgets');
+          } catch (e) {
+            console.error('[emroute] Failed to rebuild:', e);
+          }
+        }, WATCH_DEBOUNCE_MS);
+      }
+    })();
   }
 
   console.log(`[emroute] Dev server running at http://localhost:${flags.port}/`);
@@ -306,7 +305,6 @@ async function commandBuild(flags: CliFlags): Promise<void> {
 
   const result = await build(
     {
-      appRoot: '.',
       routesDir: project.routesDir,
       widgetsDir: project.widgetsDir,
       outDir,
@@ -316,7 +314,7 @@ async function commandBuild(flags: CliFlags): Promise<void> {
       minify: flags.minify,
       bundler: denoBundler,
     },
-    denoServerRuntime,
+    runtime,
   );
 
   console.log(`[emroute] Build complete:`);
@@ -330,28 +328,26 @@ async function commandBuild(flags: CliFlags): Promise<void> {
 }
 
 async function commandGenerate(_flags: CliFlags): Promise<void> {
-  const routesStat = await denoServerRuntime.stat('routes');
-  if (!routesStat?.isDirectory) {
+  if (!await isDirectory('routes')) {
     console.error('Error: routes/ directory not found.');
     Deno.exit(1);
   }
 
   console.log(`[emroute] Generating manifests...`);
 
-  const manifest = await generateRoutesManifest('routes', denoServerRuntime);
+  const manifest = await generateRoutesManifest('routes', runtime);
   const routesCode = generateManifestCode(manifest, '@emkodev/emroute');
-  await denoServerRuntime.writeTextFile('routes.manifest.g.ts', routesCode);
+  await runtime.command('/routes.manifest.g.ts', { body: routesCode });
   console.log(`[emroute]   routes.manifest.g.ts (${manifest.routes.length} routes)`);
 
   for (const warning of manifest.warnings) {
     console.log(`[emroute]   ${warning}`);
   }
 
-  const widgetsStat = await denoServerRuntime.stat('widgets');
-  if (widgetsStat?.isDirectory) {
-    const entries = await discoverWidgets('widgets', denoServerRuntime, 'widgets');
+  if (await isDirectory('widgets')) {
+    const entries = await discoverWidgets('widgets', runtime, 'widgets');
     const widgetsCode = generateWidgetsManifestCode(entries, '@emkodev/emroute');
-    await denoServerRuntime.writeTextFile('widgets.manifest.g.ts', widgetsCode);
+    await runtime.command('/widgets.manifest.g.ts', { body: widgetsCode });
     console.log(`[emroute]   widgets.manifest.g.ts (${entries.length} widgets)`);
   }
 }
@@ -363,6 +359,22 @@ function buildBasePath(flags: CliFlags): BasePath | undefined {
     return { html: flags.htmlBase ?? '/html', md: flags.mdBase ?? '/md' };
   }
   return undefined;
+}
+
+async function isDirectory(path: string): Promise<boolean> {
+  try {
+    return (await Deno.stat(path)).isDirectory;
+  } catch {
+    return false;
+  }
+}
+
+async function isFile(path: string): Promise<boolean> {
+  try {
+    return (await Deno.stat(path)).isFile;
+  } catch {
+    return false;
+  }
 }
 
 // ── Main ─────────────────────────────────────────────────────────────

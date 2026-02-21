@@ -125,7 +125,9 @@ async function importWidgets(
 
   for (const entry of entries) {
     try {
-      const runtimePath = entry.modulePath.startsWith('/') ? entry.modulePath : `/${entry.modulePath}`;
+      const runtimePath = entry.modulePath.startsWith('/')
+        ? entry.modulePath
+        : `/${entry.modulePath}`;
       const source = await runtime.query(runtimePath, { as: 'text' });
       const js = await Ctor.transpile(source);
       const blob = new Blob([js], { type: 'text/javascript' });
@@ -244,7 +246,9 @@ async function resolveShell(
 
   // Inject import map + entry script for SPA
   if (spa !== 'none' && bundles.importMap) {
-    const importMapTag = `<script type="importmap">${JSON.stringify({ imports: bundles.importMap })}</script>`;
+    const importMapTag = `<script type="importmap">${
+      JSON.stringify({ imports: bundles.importMap })
+    }</script>`;
     shell = shell.replace('</head>', `  ${importMapTag}\n</head>`);
   }
   if (spa !== 'none' && bundles.entryScript) {
@@ -268,7 +272,6 @@ function isFileRequest(pathname: string): boolean {
   const lastSegment = pathname.split('/').pop() || '';
   return lastSegment.includes('.');
 }
-
 
 // ── createEmrouteServer ────────────────────────────────────────────────
 
@@ -383,53 +386,43 @@ export async function createEmrouteServer(
 
   buildSsrRouters();
 
-  // ── Bundle for browser ──────────────────────────────────────────────
+  // ── Detect pre-built bundles ────────────────────────────────────────
+  // Bundling is NOT a server concern — it's a build step that runs
+  // externally (deno task, npm script, esbuild, etc.). The server just
+  // detects what's available and builds the import map accordingly.
 
   const importMap: Record<string, string> = {};
   let entryScript: string | undefined;
 
   if (spa !== 'none') {
-    const Ctor = runtime.constructor as typeof Runtime;
-    const start = performance.now();
+    const hasEmroute = (await runtime.query(BUNDLE_PATHS.emroute)).status === 200;
+    const hasWidgets = widgetsDir && (await runtime.query(BUNDLE_PATHS.widgets)).status === 200;
+    const hasApp = (await runtime.query(BUNDLE_PATHS.app)).status === 200;
 
-    // 1. emroute.js — framework (router, custom elements, hydration)
-    const spaEntry = import.meta.resolve('@emkodev/emroute/spa');
-    const emrouteJs = await Ctor.bundle(runtime, spaEntry);
-    await runtime.command(BUNDLE_PATHS.emroute, { body: emrouteJs });
-    for (const specifier of EMROUTE_EXTERNALS) {
-      importMap[specifier] = BUNDLE_PATHS.emroute;
+    if (hasEmroute) {
+      for (const specifier of EMROUTE_EXTERNALS) {
+        importMap[specifier] = BUNDLE_PATHS.emroute;
+      }
     }
-
-    // 2. widgets.js — widget components (if any)
-    if (widgetsDir) {
-      const widgetsJs = await Ctor.bundle(runtime, '/widgets.manifest.g.ts', {
-        external: [...EMROUTE_EXTERNALS],
-      });
-      await runtime.command(BUNDLE_PATHS.widgets, { body: widgetsJs });
+    if (hasWidgets) {
       importMap['/widgets.manifest.g.ts'] = BUNDLE_PATHS.widgets;
     }
-
-    // 3. app.js — consumer entry point
-    if (config.entryPoint) {
-      const entryFile = config.entryPoint.startsWith('/')
-        ? config.entryPoint
-        : `/${config.entryPoint}`;
-      const external: string[] = [...EMROUTE_EXTERNALS];
-      if (widgetsDir) external.push('./widgets.manifest.g.ts');
-      const appJs = await Ctor.bundle(runtime, entryFile, { external });
-      await runtime.command(BUNDLE_PATHS.app, { body: appJs });
+    if (hasApp) {
       entryScript = BUNDLE_PATHS.app;
     }
 
-    const elapsed = performance.now() - start;
-    const kb = (s: string) => `${Math.round(s.length / 1024)} KB`;
-    console.log(
-      `Bundled ${[
-        `emroute.js (${kb(emrouteJs)})`,
-        widgetsDir ? `widgets.js` : null,
-        entryScript ? `app.js` : null,
-      ].filter(Boolean).join(' + ')} in ${elapsed.toFixed(0)}ms`,
-    );
+    const found = [
+      hasEmroute ? 'emroute.js' : null,
+      hasWidgets ? 'widgets.js' : null,
+      hasApp ? 'app.js' : null,
+    ].filter(Boolean);
+    if (found.length) {
+      console.log(`Bundles: ${found.join(' + ')}`);
+    } else {
+      console.warn(
+        '[emroute] No bundles found — JS features disabled. Run your bundle task first.',
+      );
+    }
   }
 
   // ── HTML shell ───────────────────────────────────────────────────────

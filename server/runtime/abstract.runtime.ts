@@ -1,25 +1,25 @@
 export const CONTENT_TYPES = new Map<string, string>([
-  [".html", "text/html; charset=utf-8"],
-  [".css", "text/css; charset=utf-8"],
-  [".js", "application/javascript; charset=utf-8"],
-  [".mjs", "application/javascript; charset=utf-8"],
-  [".ts", "text/typescript; charset=utf-8"],
-  [".json", "application/json; charset=utf-8"],
-  [".md", "text/plain; charset=utf-8"],
-  [".txt", "text/plain; charset=utf-8"],
-  [".wasm", "application/wasm"],
-  [".map", "application/json; charset=utf-8"],
-  [".png", "image/png"],
-  [".jpg", "image/jpeg"],
-  [".jpeg", "image/jpeg"],
-  [".gif", "image/gif"],
-  [".svg", "image/svg+xml"],
-  [".ico", "image/x-icon"],
-  [".webp", "image/webp"],
-  [".avif", "image/avif"],
-  [".woff", "font/woff"],
-  [".woff2", "font/woff2"],
-  [".ttf", "font/ttf"],
+  ['.html', 'text/html; charset=utf-8'],
+  ['.css', 'text/css; charset=utf-8'],
+  ['.js', 'application/javascript; charset=utf-8'],
+  ['.mjs', 'application/javascript; charset=utf-8'],
+  ['.ts', 'text/typescript; charset=utf-8'],
+  ['.json', 'application/json; charset=utf-8'],
+  ['.md', 'text/plain; charset=utf-8'],
+  ['.txt', 'text/plain; charset=utf-8'],
+  ['.wasm', 'application/wasm'],
+  ['.map', 'application/json; charset=utf-8'],
+  ['.png', 'image/png'],
+  ['.jpg', 'image/jpeg'],
+  ['.jpeg', 'image/jpeg'],
+  ['.gif', 'image/gif'],
+  ['.svg', 'image/svg+xml'],
+  ['.ico', 'image/x-icon'],
+  ['.webp', 'image/webp'],
+  ['.avif', 'image/avif'],
+  ['.woff', 'font/woff'],
+  ['.woff2', 'font/woff2'],
+  ['.ttf', 'font/ttf'],
 ]);
 
 export type FetchParams = Parameters<typeof fetch>;
@@ -44,32 +44,24 @@ export abstract class Runtime {
    */
   abstract query(
     resource: FetchParams[0],
-    options: FetchParams[1] & { as: "text" }
+    options: FetchParams[1] & { as: 'text' },
   ): Promise<string>;
   /** Read — returns full Response with headers, status, body. */
   abstract query(
     resource: FetchParams[0],
-    options?: FetchParams[1]
+    options?: FetchParams[1],
   ): FetchReturn;
 
   /** Write. Defaults to PUT; pass `{ method: "DELETE" }` etc. to override. */
   command(resource: FetchParams[0], options?: FetchParams[1]): FetchReturn {
-    return this.handle(resource, { method: "PUT", ...options });
+    return this.handle(resource, { method: 'PUT', ...options });
   }
 
-  static transpile(ts: string): Promise<string> {
-    throw new Error("Not implemented");
+  static transpile(_ts: string): Promise<string> {
+    throw new Error('Not implemented');
   }
 
-  static bundle(
-    _runtime: Runtime,
-    _entryPoint: string,
-    _options?: { external?: string[] },
-  ): Promise<string> {
-    throw new Error("Not implemented");
-  }
-
-  static compress(data: Uint8Array, encoding: "br" | "gzip"): Promise<Uint8Array> {
-    throw new Error("Not implemented");
+  static compress(_data: Uint8Array, _encoding: 'br' | 'gzip'): Promise<Uint8Array> {
+    throw new Error('Not implemented');
   }
 }

@@ -5,13 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.5.1] - 2026-02-19
+## [1.5.3-beta.1] - 2026-02-21
+
+> Versions 1.5.1 and 1.5.2 were yanked. This release includes all changes since 1.5.0.
 
 ### Changed
 
-- **Unified `ServerRuntime` abstract class** — `FileSystem` interface merged into
-  `ServerRuntime`. Generators now accept `GeneratorFs` (a Pick of ServerRuntime).
-  Deprecated `FileSystem` and `FileSystemError` aliases kept for backwards compat.
+- **`Runtime` abstract class** — replaces `ServerRuntime`/`FileSystem`. Speaks
+  `fetch()` signature (`Request`/`Response`) with three access patterns:
+  `handle()` (raw passthrough), `query()` (read, with `{ as: "text" }` shortcut),
+  `command()` (write). See ADR-1.
+
+- **Bundling removed from server** — `Runtime.bundle()` eliminated. Bundling is
+  a build step that runs externally (`deno task`, npm scripts, esbuild, etc.).
+  The server detects pre-built bundles (`emroute.js`, `widgets.js`, `app.js`)
+  and builds the import map accordingly.
+
+- **Three-bundle split** — framework (`emroute.js`), widgets (`widgets.js`),
+  and consumer app (`app.js`) are separate bundles connected via browser import
+  maps. `deno bundle --external` externalizes cross-bundle imports.
 
 - **Eliminated `dev.server.ts`** — `createDevServer` removed. All server concerns
   consolidated into `createEmrouteServer`. CLI and consumers wire bundling and
@@ -19,12 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Shell auto-discovery** — `createEmrouteServer` now auto-discovers
   `index.html` (custom shell) and `main.css` (stylesheet injection) in appRoot.
-  When `entryPoint` is provided and spa !== 'none', a `<script type="module">`
-  tag is injected into the shell automatically.
 
 - **Extracted `denoBundler`** — moved to `@emkodev/emroute/bundler/deno`.
-  `build()` requires explicit bundler when spa !== 'none'. Deprecated re-export
-  from `@emkodev/emroute/server/prod` kept for backwards compat.
+  `build()` requires explicit bundler when spa !== 'none'.
 
 - **Restructured server internals** — `tool/` moved to `server/generator/`,
   vendor files moved to `server/vendor/`. Export paths unchanged.
@@ -33,6 +42,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `generateMainTs` now imports `ComponentElement` and `createSpaHtmlRouter` from
   `@emkodev/emroute/spa` instead of the main export (was a silent bundling error).
+
+- Search filter in widgets now reads `shadowRoot.textContent` instead of
+  `element.textContent` (shadow DOM elements return empty string for the latter).
 
 ## [1.5.0] - 2026-02-18
 

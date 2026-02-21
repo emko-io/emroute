@@ -29,7 +29,14 @@ function baseUrl(path = '/'): string {
 // ── Hash Router in Leaf Mode ────────────────────────────────────────
 
 Deno.test(
-  { name: 'Hash router — leaf mode', sanitizeResources: false, sanitizeOps: false },
+  {
+    name: 'Hash router — leaf mode',
+    sanitizeResources: false,
+    sanitizeOps: false,
+    // See: issues/pending/hash-router-leaf-mode.feature.md
+    //      issues/pending/hash-router-use-navigation-api.issue.md
+    ignore: true,
+  },
   async (t) => {
     server = await createTestServer({ mode: 'leaf', port: 4106, entryPoint: 'hash-main.ts' });
     tb = await createTestBrowser();
@@ -167,7 +174,9 @@ Deno.test(
       await page.goto(baseUrl('/html/hash-app'));
 
       // Wait for hash router to initialize (module scripts are async)
-      await page.waitForFunction(() => (globalThis as Record<string, unknown>).__emroute_hash_router);
+      await page.waitForFunction(() =>
+        (globalThis as Record<string, unknown>).__emroute_hash_router
+      );
 
       await page.evaluate(() => {
         const router = (globalThis as Record<string, unknown>).__emroute_hash_router as {

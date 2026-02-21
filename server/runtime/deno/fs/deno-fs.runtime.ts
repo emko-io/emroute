@@ -3,17 +3,17 @@ import {
   type FetchParams,
   type FetchReturn,
   Runtime,
-} from "../../abstract.runtime.ts";
+} from '../../abstract.runtime.ts';
 
 export class DenoFsRuntime extends Runtime {
   private readonly root: string;
 
   constructor(root: string) {
     super();
-    this.root = root.endsWith("/") ? root.slice(0, -1) : root;
+    this.root = root.endsWith('/') ? root.slice(0, -1) : root;
   }
 
-  async handle(
+  handle(
     resource: FetchParams[0],
     init?: FetchParams[1],
   ): FetchReturn {
@@ -21,7 +21,7 @@ export class DenoFsRuntime extends Runtime {
     const path = `${this.root}${pathname}`;
 
     switch (method) {
-      case "PUT":
+      case 'PUT':
         return this.write(path, body);
       default:
         return this.read(path);
@@ -30,17 +30,17 @@ export class DenoFsRuntime extends Runtime {
 
   query(
     resource: FetchParams[0],
-    options: FetchParams[1] & { as: "text" },
+    options: FetchParams[1] & { as: 'text' },
   ): Promise<string>;
   query(
     resource: FetchParams[0],
     options?: FetchParams[1],
   ): FetchReturn;
-  async query(
+  query(
     resource: FetchParams[0],
-    options?: FetchParams[1] & { as?: "text" },
+    options?: FetchParams[1] & { as?: 'text' },
   ): Promise<Response | string> {
-    if (options?.as === "text") {
+    if (options?.as === 'text') {
       const pathname = this.parsePath(resource);
       return Deno.readTextFile(`${this.root}${pathname}`);
     }
@@ -48,7 +48,7 @@ export class DenoFsRuntime extends Runtime {
   }
 
   private parsePath(resource: FetchParams[0]): string {
-    if (typeof resource === "string") return resource;
+    if (typeof resource === 'string') return resource;
     if (resource instanceof URL) return resource.pathname;
     return new URL(resource.url).pathname;
   }
@@ -58,8 +58,8 @@ export class DenoFsRuntime extends Runtime {
     init?: RequestInit,
   ): [string, string, BodyInit | null] {
     const pathname = this.parsePath(resource);
-    if (typeof resource === "string" || resource instanceof URL) {
-      return [pathname, init?.method ?? "GET", init?.body ?? null];
+    if (typeof resource === 'string' || resource instanceof URL) {
+      return [pathname, init?.method ?? 'GET', init?.body ?? null];
     }
     return [
       pathname,
@@ -77,20 +77,20 @@ export class DenoFsRuntime extends Runtime {
       }
 
       const content = await Deno.readFile(path);
-      const ext = path.slice(path.lastIndexOf(".")).toLowerCase();
+      const ext = path.slice(path.lastIndexOf('.')).toLowerCase();
       const headers: HeadersInit = {
-        "Content-Type": CONTENT_TYPES.get(ext) ?? "application/octet-stream",
-        "Content-Length": content.byteLength.toString(),
+        'Content-Type': CONTENT_TYPES.get(ext) ?? 'application/octet-stream',
+        'Content-Length': content.byteLength.toString(),
       };
 
       if (info.mtime) {
-        headers["Last-Modified"] = info.mtime.toUTCString();
+        headers['Last-Modified'] = info.mtime.toUTCString();
       }
 
       return new Response(content, { status: 200, headers });
     } catch (error) {
       if (error instanceof Deno.errors.NotFound) {
-        return new Response("Not Found", { status: 404 });
+        return new Response('Not Found', { status: 404 });
       }
       return new Response(`Internal Error: ${error}`, { status: 500 });
     }
@@ -99,7 +99,7 @@ export class DenoFsRuntime extends Runtime {
   private async list(path: string): Promise<Response> {
     const entries: string[] = [];
     for await (const entry of Deno.readDir(path)) {
-      entries.push(entry.name + (entry.isDirectory ? "/" : ""));
+      entries.push(entry.name + (entry.isDirectory ? '/' : ''));
     }
     return Response.json(entries);
   }
@@ -109,7 +109,7 @@ export class DenoFsRuntime extends Runtime {
       const content = body
         ? new Uint8Array(await new Response(body).arrayBuffer())
         : new Uint8Array();
-      const dir = path.slice(0, path.lastIndexOf("/"));
+      const dir = path.slice(0, path.lastIndexOf('/'));
       if (dir) await Deno.mkdir(dir, { recursive: true });
       await Deno.writeFile(path, content);
       return new Response(null, { status: 204 });
@@ -123,7 +123,7 @@ export class DenoFsRuntime extends Runtime {
 
   static override async transpile(source: string): Promise<string> {
     if (!DenoFsRuntime._ts) {
-      DenoFsRuntime._ts = (await import("npm:typescript")).default;
+      DenoFsRuntime._ts = (await import('npm:typescript@~5.9')).default;
     }
     const ts = DenoFsRuntime._ts;
     const result = ts.transpileModule(source, {
@@ -134,34 +134,5 @@ export class DenoFsRuntime extends Runtime {
       },
     });
     return result.outputText;
-  }
-
-  static override async bundle(
-    runtime: Runtime,
-    entryPoint: string,
-    options?: { external?: string[] },
-  ): Promise<string> {
-    // file: URLs and bare specifiers pass through directly;
-    // runtime-relative paths get resolved to absolute filesystem paths.
-    const entry = entryPoint.startsWith('file:') || (!entryPoint.startsWith('/') && !entryPoint.startsWith('.'))
-      ? entryPoint
-      : `${(runtime as DenoFsRuntime).root}${entryPoint}`;
-    const args = ["bundle"];
-    if (options?.external) {
-      for (const ext of options.external) {
-        args.push("--external", ext);
-      }
-    }
-    args.push(entry);
-    const cmd = new Deno.Command("deno", {
-      args,
-      stdout: "piped",
-      stderr: "piped",
-    });
-    const { code, stdout, stderr } = await cmd.output();
-    if (code !== 0) {
-      throw new Error(`deno bundle failed: ${new TextDecoder().decode(stderr)}`);
-    }
-    return new TextDecoder().decode(stdout);
   }
 }

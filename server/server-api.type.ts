@@ -30,48 +30,6 @@ export interface SsrRenderResult {
   redirect?: string;
 }
 
-// ── Bundler ────────────────────────────────────────────────────────────
-
-/** Handle returned by `Bundler.watch()` to stop watching. */
-export interface BundleWatchHandle {
-  close(): void;
-}
-
-/** Options passed to a bundler for each bundle invocation. */
-export interface BundleOptions {
-  /** Target environment */
-  platform: 'browser';
-  /** Enable minification (default: false) */
-  minify?: boolean;
-  /** Enable obfuscation / mangling (default: false) */
-  obfuscate?: boolean;
-  /** Generate source maps (default: true in dev, false in prod) */
-  sourcemap?: boolean;
-  /** External modules — leave as bare imports, don't bundle them */
-  external?: string[];
-  /** Working directory for the bundler subprocess */
-  cwd?: string;
-}
-
-/**
- * Pluggable bundler interface.
- *
- * A bundler takes an entry point and produces a JS output file.
- * emroute ships a default bundler based on `deno bundle`; consumers
- * can swap in esbuild, Rollup, Vite, etc.
- */
-export interface Bundler {
-  /** Bundle a single entry point to an output file. */
-  bundle(entry: string, output: string, options: BundleOptions): Promise<void>;
-
-  /**
-   * Start watching an entry point and rebundle on changes.
-   * Optional — if not implemented, the dev server falls back to
-   * rebuild-on-change via file watcher.
-   */
-  watch?(entry: string, output: string, options: BundleOptions): Promise<BundleWatchHandle>;
-}
-
 // ── Server ─────────────────────────────────────────────────────────────
 
 /**
@@ -188,17 +146,8 @@ export interface BuildConfig {
   /** Entry point for app bundle (auto-generated if omitted) */
   entryPoint?: string;
 
-  /** Bundler implementation (default: deno bundle) */
-  bundler?: Bundler;
-
-  /** Enable minification (default: false in dev, true in prod) */
+  /** Enable minification (default: false) */
   minify?: boolean;
-
-  /** Enable obfuscation (default: false) */
-  obfuscate?: boolean;
-
-  /** Generate source maps (default: true in dev, false in prod) */
-  sourcemap?: boolean;
 
   /**
    * Core bundle strategy:

@@ -1,5 +1,5 @@
 import { assertEquals } from 'jsr:@std/assert';
-import { DenoFsRuntime } from '../../server/runtime/deno/fs/deno-fs.runtime.ts';
+import { DenoFsRuntime } from '../../runtime/deno/fs/deno-fs.runtime.ts';
 
 const runtime = new DenoFsRuntime('test/browser/fixtures');
 

@@ -141,7 +141,7 @@ export class DenoFsRuntime extends Runtime {
   static override async bundle(
     entryPoint: string,
     resolve: (path: string) => Promise<string | null>,
-    options?: { external?: string[] },
+    options?: { external?: string[]; minify?: boolean; resolveDir?: string },
   ): Promise<string> {
     const esbuild = await DenoFsRuntime.esbuild();
     const result = await esbuild.build({
@@ -151,6 +151,7 @@ export class DenoFsRuntime extends Runtime {
       format: 'esm',
       platform: 'neutral',
       external: options?.external,
+      minify: options?.minify,
       plugins: [{
         name: 'runtime-fs',
         setup(build: { onResolve: Function; onLoad: Function }) {
@@ -174,6 +175,7 @@ export class DenoFsRuntime extends Runtime {
               if (args.path === entryPoint) {
                 return { path: args.path, namespace: 'runtime' };
               }
+              // Bare specifiers — let esbuild resolve natively (needs resolveDir)
               return undefined;
             },
           );

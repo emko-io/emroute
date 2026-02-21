@@ -39,7 +39,7 @@ import { discoverWidgets, generateWidgetsManifestCode } from './generator/widget
 import { WidgetRegistry } from '../src/widget/widget.registry.ts';
 import type { WidgetComponent } from '../src/component/widget.component.ts';
 import { escapeHtml } from '../src/util/html.util.ts';
-import { Runtime } from './runtime/abstract.runtime.ts';
+import { Runtime } from '../runtime/abstract.runtime.ts';
 import type {
   BuildConfig,
   BuildResult,
@@ -672,7 +672,6 @@ export async function build(
     coreBundle: coreBundleStrategy = 'build',
   } = config;
 
-  const bundler = config.bundler;
   const minSuffix = config.minify ? '.min' : '';
 
   // Generate manifests via createEmrouteServer
@@ -727,11 +726,9 @@ export async function build(
     };
   }
 
-  // ── Core bundle ───────────────────────────────────────────────────
+  const RuntimeCtor = runtime.constructor as typeof Runtime;
 
-  if (!bundler) {
-    throw new Error('build() requires config.bundler when spa is not "none"');
-  }
+  // ── Core bundle ───────────────────────────────────────────────────
 
   let coreBundlePath: string | null = null;
   let coreBundleCdn: string | null = null;
@@ -748,15 +745,15 @@ export async function build(
     coreUrl = coreBundleCdn;
     console.log(`Core bundle: CDN → ${coreUrl}`);
   } else {
-    // Build core locally
+    // Build core — entry is a real file/jsr path, esbuild resolves natively
     const coreEntry = import.meta.resolve(CORE_IMPORT_SPECIFIER);
     coreBundlePath = `${outDir}/emroute${minSuffix}.js`;
-    await bundler.bundle(coreEntry, coreBundlePath, {
-      platform: 'browser',
-      minify: config.minify,
-      obfuscate: config.obfuscate,
-      sourcemap: config.sourcemap,
-    });
+    const coreJs = await RuntimeCtor.bundle(
+      coreEntry,
+      () => Promise.resolve(null),
+      { minify: config.minify },
+    );
+    await runtime.command(coreBundlePath, { body: coreJs });
     coreUrl = `/${coreBundlePath.replace(outDir + '/', '')}`;
     console.log(`Core bundle: ${coreEntry} → ${coreBundlePath}`);
   }
@@ -764,13 +761,12 @@ export async function build(
   // ── App bundle ────────────────────────────────────────────────────
 
   const appBundle = `${outDir}/app${minSuffix}.js`;
-  await bundler.bundle(entryPoint, appBundle, {
-    platform: 'browser',
-    minify: config.minify,
-    obfuscate: config.obfuscate,
-    sourcemap: config.sourcemap,
-    external: [CORE_IMPORT_SPECIFIER],
-  });
+  const appJs = await RuntimeCtor.bundle(
+    entryPoint,
+    (path) => runtime.query(path, { as: 'text' }).catch(() => null),
+    { external: [...EMROUTE_EXTERNALS], minify: config.minify },
+  );
+  await runtime.command(appBundle, { body: appJs });
   console.log(`App bundle:  ${entryPoint} → ${appBundle}`);
 
   // ── HTML shell with import map ────────────────────────────────────
@@ -808,7 +804,3 @@ export async function build(
   };
 }
 
-// ── Deprecated re-exports ─────────────────────────────────────────────
-
-/** @deprecated Import from '@emkodev/emroute/bundler/deno' instead. */
-export { denoBundler } from './deno.bundler.ts';

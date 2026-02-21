@@ -1,5 +1,5 @@
 import { assertEquals, assertExists, assertStringIncludes } from 'jsr:@std/assert';
-import { DenoFsRuntime } from '../../server/runtime/deno/fs/deno-fs.runtime.ts';
+import { DenoFsRuntime } from '../../runtime/deno/fs/deno-fs.runtime.ts';
 
 const FIXTURE = 'test/browser/fixtures/routes/blog.page.ts';
 const FIXTURE_ABS = `${Deno.cwd()}/${FIXTURE}`;

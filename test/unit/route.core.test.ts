@@ -247,14 +247,15 @@ Deno.test('RouteCore - constructor and initialization', async (t) => {
     assertEquals(router.contextProvider, provider);
   });
 
-  await t.step('sets baseUrl from options', () => {
+  await t.step('sets fileReader from options', () => {
     const manifest = createTestManifest();
-    const router = new RouteCore(manifest, { baseUrl: 'http://localhost:3000' });
+    const reader = (_path: string) => Promise.resolve('');
+    const router = new RouteCore(manifest, { fileReader: reader });
 
     assertExists(router);
   });
 
-  await t.step('defaults baseUrl to empty string', () => {
+  await t.step('defaults fileReader to fetch-based', () => {
     const manifest = createTestManifest();
     const router = new RouteCore(manifest);
 

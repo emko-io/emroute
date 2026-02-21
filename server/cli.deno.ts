@@ -28,8 +28,7 @@
  */
 
 import { build, createEmrouteServer, generateMainTs } from './emroute.server.ts';
-import { denoBundler } from './deno.bundler.ts';
-import { DenoFsRuntime } from './runtime/deno/fs/deno-fs.runtime.ts';
+import { DenoFsRuntime } from '../runtime/deno/fs/deno-fs.runtime.ts';
 import type { SpaMode } from '../src/type/widget.type.ts';
 import type { BasePath } from '../src/route/route.core.ts';
 import type { MarkdownRenderer } from '../src/type/markdown.type.ts';
@@ -311,7 +310,6 @@ async function commandBuild(flags: CliFlags): Promise<void> {
       basePath,
       entryPoint: flags.entry ?? project.entryPoint,
       minify: flags.minify,
-      bundler: denoBundler,
     },
     runtime,
   );

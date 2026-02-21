@@ -33,7 +33,7 @@ import type {
   RouteFiles,
   RoutesManifest,
 } from '../../src/type/route.type.ts';
-import type { Runtime } from '../runtime/abstract.runtime.ts';
+import type { Runtime } from '../../runtime/abstract.runtime.ts';
 
 /** Walk directory recursively and collect files via Runtime. */
 async function* walkDirectory(runtime: Runtime, dir: string): AsyncGenerator<string> {

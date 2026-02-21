@@ -9,7 +9,7 @@
  */
 
 import type { WidgetManifestEntry } from '../../src/type/widget.type.ts';
-import type { Runtime } from '../runtime/abstract.runtime.ts';
+import type { Runtime } from '../../runtime/abstract.runtime.ts';
 
 type WidgetFiles = { html?: string; md?: string; css?: string };
 

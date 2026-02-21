@@ -635,7 +635,7 @@ Deno.test(
     const restore = mockFetch({});
     try {
       const router = new SsrHtmlRouter(manifest, {
-        baseUrl: 'http://test',
+        fileReader: () => Promise.resolve(''),
       });
 
       await router.render('http://test/test');
@@ -681,7 +681,7 @@ Deno.test(
     const restore = mockFetch({});
     try {
       const router = new SsrHtmlRouter(manifest, {
-        baseUrl: 'http://test',
+        fileReader: () => Promise.resolve(''),
         extendContext: (base) => ({ ...base, rpc: true, apiVersion: 2 }),
       });
 
@@ -730,7 +730,7 @@ Deno.test(
     const restore = mockFetch({});
     try {
       const router = new SsrMdRouter(manifest, {
-        baseUrl: 'http://test',
+        fileReader: () => Promise.resolve(''),
       });
 
       await router.render('http://test/test');
@@ -776,7 +776,7 @@ Deno.test(
     const restore = mockFetch({});
     try {
       const router = new SsrMdRouter(manifest, {
-        baseUrl: 'http://test',
+        fileReader: () => Promise.resolve(''),
         extendContext: (base) => ({ ...base, rpc: true, feature: 'markdown' }),
       });
 
@@ -828,7 +828,7 @@ Deno.test(
     const restore = mockFetch({});
     try {
       const router = new SsrHtmlRouter(manifest, {
-        baseUrl: 'http://test',
+        fileReader: () => Promise.resolve(''),
         extendContext: (base) => ({ ...base, renderMode: 'html' }),
       });
 
@@ -875,7 +875,7 @@ Deno.test(
     const restore = mockFetch({});
     try {
       const router = new SsrMdRouter(manifest, {
-        baseUrl: 'http://test',
+        fileReader: () => Promise.resolve(''),
         extendContext: (base) => ({ ...base, renderMode: 'markdown' }),
       });
 
@@ -945,7 +945,7 @@ Deno.test(
     const restore = mockFetch({});
     try {
       const router = new SsrHtmlRouter(manifest, {
-        baseUrl: 'http://test',
+        fileReader: () => Promise.resolve(''),
         widgets,
         extendContext: (base) => ({
           ...base,
@@ -1018,7 +1018,7 @@ Deno.test(
     const restore = mockFetch({});
     try {
       const router = new SsrMdRouter(manifest, {
-        baseUrl: 'http://test',
+        fileReader: () => Promise.resolve(''),
         widgets,
         extendContext: (base) => ({
           ...base,
@@ -1109,7 +1109,7 @@ Deno.test(
     const restore = mockFetch({});
     try {
       const router = new SsrHtmlRouter(manifest, {
-        baseUrl: 'http://test',
+        fileReader: () => Promise.resolve(''),
       });
 
       await router.render('http://test/test');
@@ -1175,7 +1175,7 @@ Deno.test(
     const restore = mockFetch({});
     try {
       const router = new SsrHtmlRouter(manifest, {
-        baseUrl: 'http://test',
+        fileReader: () => Promise.resolve(''),
         extendContext: (base) => ({ ...base, appId: 'myapp' }),
       });
 
@@ -1238,7 +1238,7 @@ Deno.test(
     const restore = mockFetch({});
     try {
       const router = new SsrHtmlRouter(manifest, {
-        baseUrl: 'http://test',
+        fileReader: () => Promise.resolve(''),
         extendContext: (base) => ({
           ...base,
           locale: 'en-US',
@@ -1404,7 +1404,7 @@ Deno.test(
     const restore = mockFetch({});
     try {
       const router = new SsrHtmlRouter(manifest, {
-        baseUrl: 'http://test',
+        fileReader: () => Promise.resolve(''),
         extendContext: (base) => ({
           ...base,
           contextId: 'test-context',

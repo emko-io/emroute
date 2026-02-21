@@ -7,7 +7,7 @@
 
 import { generateRoutesManifest } from '../../server/generator/route.generator.ts';
 import { generateSitemap } from '../../server/generator/sitemap.generator.ts';
-import { DenoFsRuntime } from '../../server/runtime/deno/fs/deno-fs.runtime.ts';
+import { DenoFsRuntime } from '../../runtime/deno/fs/deno-fs.runtime.ts';
 
 const runtime = new DenoFsRuntime(Deno.cwd());
 const ROUTES_DIR = 'test/browser/fixtures/routes';

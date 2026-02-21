@@ -8,7 +8,7 @@
 
 import { assertEquals, assertStringIncludes } from '@std/assert';
 import { createEmrouteServer } from '../../server/emroute.server.ts';
-import { DenoFsRuntime } from '../../server/runtime/deno/fs/deno-fs.runtime.ts';
+import { DenoFsRuntime } from '../../runtime/deno/fs/deno-fs.runtime.ts';
 import { WidgetRegistry } from '../../src/widget/widget.registry.ts';
 import { externalWidget } from '../browser/fixtures/assets/external.widget.ts';
 import type { EmrouteServer } from '../../server/server-api.type.ts';

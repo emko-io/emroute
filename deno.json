@@ -25,24 +25,17 @@
   "exports": {
     ".": "./src/index.ts",
     "./spa": "./src/renderer/spa/mod.ts",
-    "./ssr/html": "./src/renderer/ssr/html.renderer.ts",
-    "./ssr/md": "./src/renderer/ssr/md.renderer.ts",
-    "./generator": "./server/generator/route.generator.ts",
-    "./widget-generator": "./server/generator/widget.generator.ts",
-    "./sitemap": "./server/generator/sitemap.generator.ts",
-    "./server": "./server/emroute.server.ts",
-    "./server/prod": "./server/emroute.server.ts",
-    "./server/cli": "./server/cli.deno.ts",
-    "./server/deno": "./server/runtime/deno/fs/deno-fs.runtime.ts",
-    "./server/runtime": "./server/runtime/abstract.runtime.ts",
-    "./bundler/deno": "./server/deno.bundler.ts",
     "./overlay": "./src/overlay/mod.ts",
-    "./types/navigation-api": "./src/type/navigation-api.d.ts"
+    "./server": "./server/emroute.server.ts",
+    "./server/cli": "./server/cli.deno.ts",
+    "./runtime": "./runtime/abstract.runtime.ts",
+    "./runtime/deno/fs": "./runtime/deno/fs/deno-fs.runtime.ts"
   },
   "publish": {
     "include": [
       "src/",
       "server/",
+      "runtime/",
       "doc/",
       "README.md",
       "LICENSE",

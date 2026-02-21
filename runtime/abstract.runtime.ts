@@ -66,12 +66,14 @@ export abstract class Runtime {
    *
    * Uses esbuild with a virtual filesystem plugin — no disk access needed.
    * The `resolve` callback reads file contents from the Runtime instance.
-   * Framework imports (`@emkodev/emroute/*`) are marked external by default.
+   *
+   * When `resolve` returns `null` for a path, esbuild falls back to native
+   * resolution (requires `resolveDir` to find node_modules / JSR packages).
    */
   static bundle(
     _entryPoint: string,
     _resolve: (path: string) => Promise<string | null>,
-    _options?: { external?: string[] },
+    _options?: { external?: string[]; minify?: boolean; resolveDir?: string },
   ): Promise<string> {
     throw new Error('Not implemented');
   }

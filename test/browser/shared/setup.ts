@@ -6,7 +6,7 @@
  */
 
 import { createEmrouteServer, generateMainTs } from '../../../server/emroute.server.ts';
-import { DenoFsRuntime } from '../../../server/runtime/deno/fs/deno-fs.runtime.ts';
+import { DenoFsRuntime } from '../../../runtime/deno/fs/deno-fs.runtime.ts';
 import {
   generateManifestCode,
   generateRoutesManifest,
@@ -121,7 +121,6 @@ export async function createTestServer(options: {
     entryPoint: entryPointName,
     markdownRenderer,
     spa: mode,
-    baseUrl: `http://localhost:${port}`,
   }, runtime);
 
   // Serve — server transpiles .ts on-the-fly, no bundling needed

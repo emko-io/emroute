@@ -21,8 +21,8 @@ import {
   generateManifestCode,
   generateRoutesManifest,
 } from '../../server/generator/route.generator.ts';
-import { Runtime } from '../../server/runtime/abstract.runtime.ts';
-import type { FetchParams, FetchReturn } from '../../server/runtime/abstract.runtime.ts';
+import { Runtime } from '../../runtime/abstract.runtime.ts';
+import type { FetchParams, FetchReturn } from '../../runtime/abstract.runtime.ts';
 
 // ============================================================================
 // Test Fixtures and Helpers

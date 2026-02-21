@@ -12,7 +12,7 @@
 
 import { assertEquals, assertExists, assertStringIncludes } from '@std/assert';
 import type { WidgetManifestEntry } from '../../src/type/widget.type.ts';
-import { Runtime } from '../../server/runtime/abstract.runtime.ts';
+import { Runtime } from '../../runtime/abstract.runtime.ts';
 import {
   discoverWidgetFiles,
   discoverWidgets,

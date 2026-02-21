@@ -22,7 +22,7 @@ import {
   generateRoutesManifest,
 } from './route.generator.ts';
 import { discoverWidgets, generateWidgetsManifestCode } from './widget.generator.ts';
-import { DenoFsRuntime } from '../runtime/deno/fs/deno-fs.runtime.ts';
+import { DenoFsRuntime } from '../../runtime/deno/fs/deno-fs.runtime.ts';
 
 const runtime = new DenoFsRuntime(Deno.cwd());
 

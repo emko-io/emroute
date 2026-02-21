@@ -13,7 +13,7 @@ import { createTestServer } from './setup.ts';
 const spaMode = (Deno.env.get('SPA_MODE') ?? 'only') as SpaMode;
 const port = Deno.env.get('TEST_PORT') ? Number(Deno.env.get('TEST_PORT')) : 4101;
 
-await createTestServer({ mode: spaMode, port, watch: true });
+await createTestServer({ mode: spaMode, port });
 console.log(
   `\nReady for manual testing (mode: ${spaMode}, port: ${port}). Press Ctrl+C to stop.\n`,
 );

@@ -168,8 +168,8 @@ export class DenoFsRuntime extends Runtime {
               }
               // Resolve relative imports against importer's directory
               if (args.path.startsWith('.') && args.namespace === 'runtime') {
-                const dir = args.importer.replace(/[^/]*$/, '');
-                return { path: dir + args.path.replace(/^\.\//, ''), namespace: 'runtime' };
+                const resolved = new URL(args.path, 'file://' + args.importer).pathname;
+                return { path: resolved, namespace: 'runtime' };
               }
               // Entry point
               if (args.path === entryPoint) {
@@ -192,5 +192,13 @@ export class DenoFsRuntime extends Runtime {
       }],
     });
     return result.outputFiles[0].text;
+  }
+
+  /** Stop the esbuild child process. Call after bundling is complete. */
+  static override async stopBundler(): Promise<void> {
+    if (DenoFsRuntime._esbuild) {
+      await DenoFsRuntime._esbuild.stop();
+      DenoFsRuntime._esbuild = null;
+    }
   }
 }

@@ -10,6 +10,7 @@
 
 import type { WidgetManifestEntry } from '../../src/type/widget.type.ts';
 import type { Runtime } from '../../runtime/abstract.runtime.ts';
+import { escapeForCodeString } from './route.generator.ts';
 
 type WidgetFiles = { html?: string; md?: string; css?: string };
 
@@ -74,10 +75,6 @@ export async function discoverWidgets(
   entries.sort((a, b) => a.name.localeCompare(b.name));
 
   return entries;
-}
-
-function escapeForCodeString(value: string): string {
-  return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 
 /**

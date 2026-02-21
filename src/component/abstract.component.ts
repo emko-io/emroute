@@ -23,8 +23,11 @@ import { escapeHtml } from '../util/html.util.ts';
  * Consumers can extend this interface via module augmentation
  * to add app-level services (RPC clients, auth, feature flags, etc.).
  */
+/** Shape of companion file contents (html, md, css). Used by generated `.page.files.g.ts` modules. */
+export type FileContents = { html?: string; md?: string; css?: string };
+
 export interface ComponentContext extends RouteInfo {
-  readonly files?: Readonly<{ html?: string; md?: string; css?: string }>;
+  readonly files?: Readonly<FileContents>;
   readonly signal?: AbortSignal;
   /** True when this component is the leaf (matched) route, false when rendered as a layout parent. */
   readonly isLeaf?: boolean;

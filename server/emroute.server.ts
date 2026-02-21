@@ -50,46 +50,16 @@ import type {
 // ── Module loaders ─────────────────────────────────────────────────────
 
 /**
- * Import a module from source via Runtime.bundle() + blob URL.
- *
- * Bundles the file (inlining relative imports, externalizing framework
- * specifiers) and imports the result via blob URL. The consumer's import
- * map resolves the external bare specifiers.
- */
-async function importFromRuntime(
-  path: string,
-  runtime: Runtime,
-): Promise<unknown> {
-  const Ctor = runtime.constructor as typeof Runtime;
-  const js = await Ctor.bundle(
-    path,
-    (p) => runtime.query(p, { as: 'text' }).catch(() => null),
-    { external: [...EMROUTE_EXTERNALS] },
-  );
-  const blob = new Blob([js], { type: 'text/javascript' });
-  const url = URL.createObjectURL(blob);
-  try {
-    return await import(url);
-  } finally {
-    URL.revokeObjectURL(url);
-  }
-}
-
-/**
  * Create module loaders for server-side SSR imports.
  *
- * Uses the consumer-provided `moduleLoader` callback when available.
- * Falls back to Runtime.bundle() + blob URL import — bundles each .page.ts
- * with framework imports as externals, then imports the bundled JS via blob URL.
+ * Requires the consumer-provided `moduleLoader` callback.
+ * Example: `moduleLoader: (path) => import(appRoot + path)`
  */
 function createModuleLoaders(
   manifest: RoutesManifest,
-  runtime: Runtime,
-  moduleLoader?: (path: string) => Promise<unknown>,
+  moduleLoader: (path: string) => Promise<unknown>,
 ): Record<string, () => Promise<unknown>> {
   const loaders: Record<string, () => Promise<unknown>> = {};
-
-  const load = moduleLoader ?? ((path: string) => importFromRuntime(path, runtime));
 
   const modulePaths = new Set<string>();
 
@@ -110,7 +80,7 @@ function createModuleLoaders(
   }
 
   for (const path of modulePaths) {
-    loaders[path] = () => load(path);
+    loaders[path] = () => moduleLoader(path);
   }
 
   return loaders;
@@ -134,18 +104,17 @@ function extractWidgetExport(
   return null;
 }
 
-/** Import widget modules for SSR via moduleLoader or Runtime.bundle() + blob URL. */
+/** Import widget modules for SSR via moduleLoader. */
 async function importWidgets(
   entries: WidgetManifestEntry[],
-  runtime: Runtime,
-  moduleLoader?: (path: string) => Promise<unknown>,
+  moduleLoader: (path: string) => Promise<unknown>,
   manual?: WidgetRegistry,
 ): Promise<{
   registry: WidgetRegistry;
   widgetFiles: Record<string, { html?: string; md?: string; css?: string }>;
 }> {
   const registry = new WidgetRegistry();
-  const load = moduleLoader ?? ((path: string) => importFromRuntime(path, runtime));
+  const load = moduleLoader;
 
   for (const entry of entries) {
     try {
@@ -321,6 +290,16 @@ export async function createEmrouteServer(
 
   const { html: htmlBase, md: mdBase } = config.basePath ?? DEFAULT_BASE_PATH;
 
+  // moduleLoader is required for SSR of .page.ts and .widget.ts files
+  const moduleLoader = config.moduleLoader;
+  const hasModules = routesDir || widgetsDir;
+  if (hasModules && !moduleLoader && spa !== 'only') {
+    throw new Error(
+      '[emroute] moduleLoader is required for SSR. ' +
+      'Example: moduleLoader: (path) => import(appRoot + path)',
+    );
+  }
+
   // ── Routes manifest ──────────────────────────────────────────────────
 
   let routesManifest: RoutesManifest;
@@ -333,7 +312,9 @@ export async function createEmrouteServer(
     await runtime.command('/routes.manifest.g.ts', { body: code });
 
     routesManifest = result;
-    routesManifest.moduleLoaders = createModuleLoaders(routesManifest, runtime, config.moduleLoader);
+    if (moduleLoader) {
+      routesManifest.moduleLoaders = createModuleLoaders(routesManifest, moduleLoader);
+    }
 
     console.log(`Scanned ${routesDir}/`);
     console.log(
@@ -358,12 +339,9 @@ export async function createEmrouteServer(
 
   if (widgetsDir) {
     discoveredWidgetEntries = await discoverWidgets(widgetsDir, runtime, widgetsDirName);
-    const imported = await importWidgets(
-      discoveredWidgetEntries,
-      runtime,
-      config.moduleLoader,
-      config.widgets,
-    );
+    const imported = moduleLoader
+      ? await importWidgets(discoveredWidgetEntries, moduleLoader, config.widgets)
+      : { registry: config.widgets ?? new WidgetRegistry(), widgetFiles: {} as typeof widgetFiles };
     widgets = imported.registry;
     widgetFiles = imported.widgetFiles;
 
@@ -410,43 +388,54 @@ export async function createEmrouteServer(
 
   buildSsrRouters();
 
-  // ── Detect pre-built bundles ────────────────────────────────────────
-  // Bundling is NOT a server concern — it's a build step that runs
-  // externally (deno task, npm script, esbuild, etc.). The server just
-  // detects what's available and builds the import map accordingly.
+  // ── Bundles ─────────────────────────────────────────────────────────
 
   const importMap: Record<string, string> = {};
   let entryScript: string | undefined;
 
   if (spa !== 'none') {
-    const hasEmroute = (await runtime.query(BUNDLE_PATHS.emroute)).status === 200;
-    const hasWidgets = widgetsDir && (await runtime.query(BUNDLE_PATHS.widgets)).status === 200;
-    const hasApp = (await runtime.query(BUNDLE_PATHS.app)).status === 200;
+    const RuntimeCtor = runtime.constructor as typeof Runtime;
 
-    if (hasEmroute) {
-      for (const specifier of EMROUTE_EXTERNALS) {
-        importMap[specifier] = BUNDLE_PATHS.emroute;
-      }
-    }
-    if (hasWidgets) {
-      importMap['/widgets.manifest.g.ts'] = BUNDLE_PATHS.widgets;
-    }
-    if (hasApp) {
-      entryScript = BUNDLE_PATHS.app;
-    }
+    // Generate entry point
+    const entryPoint = config.entryPoint
+      ? `/${config.entryPoint}`
+      : `/${GENERATED_MAIN}`;
 
-    const found = [
-      hasEmroute ? 'emroute.js' : null,
-      hasWidgets ? 'widgets.js' : null,
-      hasApp ? 'app.js' : null,
-    ].filter(Boolean);
-    if (found.length) {
-      console.log(`Bundles: ${found.join(' + ')}`);
-    } else {
-      console.warn(
-        '[emroute] No bundles found — JS features disabled. Run your bundle task first.',
+    if (!config.entryPoint) {
+      const mainCode = generateMainTs(
+        spa,
+        !!routesDir || !!config.routesManifest,
+        !!widgetsDir,
+        EMROUTE_PACKAGE_SPECIFIER,
+        config.basePath,
       );
+      await runtime.command(entryPoint, { body: mainCode });
     }
+
+    // Core bundle (emroute framework)
+    // import.meta.resolve returns file:// URL; convert to filesystem path for esbuild
+    const coreEntry = new URL(import.meta.resolve(CORE_IMPORT_SPECIFIER)).pathname;
+    const coreJs = await RuntimeCtor.bundle(
+      coreEntry,
+      (path) => Deno.readTextFile(path).catch(() => null),
+    );
+    await runtime.command(BUNDLE_PATHS.emroute, { body: coreJs });
+
+    // App bundle (consumer routes + widgets + manifests)
+    const appJs = await RuntimeCtor.bundle(
+      entryPoint,
+      (path) => runtime.query(path, { as: 'text' }).catch(() => null),
+      { external: [...EMROUTE_EXTERNALS] },
+    );
+    await runtime.command(BUNDLE_PATHS.app, { body: appJs });
+
+    for (const specifier of EMROUTE_EXTERNALS) {
+      importMap[specifier] = BUNDLE_PATHS.emroute;
+    }
+    entryScript = BUNDLE_PATHS.app;
+
+    await RuntimeCtor.stopBundler();
+    console.log(`Bundled: ${BUNDLE_PATHS.emroute}, ${BUNDLE_PATHS.app}`);
   }
 
   // ── HTML shell ───────────────────────────────────────────────────────
@@ -544,17 +533,16 @@ export async function createEmrouteServer(
       await runtime.command('/routes.manifest.g.ts', { body: code });
 
       routesManifest = result;
-      routesManifest.moduleLoaders = createModuleLoaders(routesManifest, runtime, config.moduleLoader);
+      if (moduleLoader) {
+        routesManifest.moduleLoaders = createModuleLoaders(routesManifest, moduleLoader);
+      }
     }
 
     if (widgetsDir) {
       discoveredWidgetEntries = await discoverWidgets(widgetsDir, runtime, widgetsDirName);
-      const imported = await importWidgets(
-        discoveredWidgetEntries,
-        runtime,
-        config.moduleLoader,
-        config.widgets,
-      );
+      const imported = moduleLoader
+        ? await importWidgets(discoveredWidgetEntries, moduleLoader, config.widgets)
+        : { registry: config.widgets ?? new WidgetRegistry(), widgetFiles: {} as typeof widgetFiles };
       widgets = imported.registry;
       widgetFiles = imported.widgetFiles;
 
@@ -563,6 +551,33 @@ export async function createEmrouteServer(
         EMROUTE_PACKAGE_SPECIFIER,
       );
       await runtime.command('/widgets.manifest.g.ts', { body: widgetManifestCode });
+    }
+
+    // Re-bundle app (routes/widgets may have changed)
+    if (spa !== 'none') {
+      const RuntimeCtor = runtime.constructor as typeof Runtime;
+      const entryPoint = config.entryPoint
+        ? `/${config.entryPoint}`
+        : `/${GENERATED_MAIN}`;
+
+      if (!config.entryPoint) {
+        const mainCode = generateMainTs(
+          spa,
+          !!routesDir || !!config.routesManifest,
+          !!widgetsDir,
+          EMROUTE_PACKAGE_SPECIFIER,
+          config.basePath,
+        );
+        await runtime.command(entryPoint, { body: mainCode });
+      }
+
+      const appJs = await RuntimeCtor.bundle(
+        entryPoint,
+        (path) => runtime.query(path, { as: 'text' }).catch(() => null),
+        { external: [...EMROUTE_EXTERNALS] },
+      );
+      await runtime.command(BUNDLE_PATHS.app, { body: appJs });
+      await RuntimeCtor.stopBundler();
     }
 
     buildSsrRouters();
@@ -752,12 +767,12 @@ export async function build(
     coreUrl = coreBundleCdn;
     console.log(`Core bundle: CDN → ${coreUrl}`);
   } else {
-    // Build core — entry is a real file/jsr path, esbuild resolves natively
-    const coreEntry = import.meta.resolve(CORE_IMPORT_SPECIFIER);
+    // Build core — import.meta.resolve returns file:// URL; convert to path for esbuild
+    const coreEntry = new URL(import.meta.resolve(CORE_IMPORT_SPECIFIER)).pathname;
     coreBundlePath = `${outDir}/emroute${minSuffix}.js`;
     const coreJs = await RuntimeCtor.bundle(
       coreEntry,
-      () => Promise.resolve(null),
+      (path) => Deno.readTextFile(path).catch(() => null),
       { minify: config.minify },
     );
     await runtime.command(coreBundlePath, { body: coreJs });

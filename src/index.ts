@@ -45,6 +45,7 @@ export {
   type ComponentContext,
   type ComponentManifestEntry,
   type ContextProvider,
+  type FileContents,
   type RenderContext,
 } from './component/abstract.component.ts';
 

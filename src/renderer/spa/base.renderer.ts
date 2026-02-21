@@ -118,9 +118,6 @@ export abstract class BaseRenderer {
       });
     } catch (error) {
       if (signal.aborted) return;
-      if (error instanceof Response) {
-        throw error;
-      }
       throw error;
     }
   }

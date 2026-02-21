@@ -279,7 +279,7 @@ export async function generateRoutesManifest(
 }
 
 /** Escape a string for use inside a single-quoted JS/TS string literal. */
-function escapeForCodeString(value: string): string {
+export function escapeForCodeString(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 

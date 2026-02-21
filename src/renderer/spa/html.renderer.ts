@@ -217,10 +217,8 @@ export class SpaHtmlRouter extends BaseRenderer {
       return;
     }
 
-    const matchUrl = new URL(pathname + urlObj.search, location.origin);
-
     try {
-      const matched = this.core.match(matchUrl);
+      const matched = this.core.match(urlObj);
 
       if (!matched) {
         logger.nav('not-found', pathname, pathname);
@@ -266,7 +264,7 @@ export class SpaHtmlRouter extends BaseRenderer {
     } catch (error) {
       if (signal.aborted) return;
       if (error instanceof Response) {
-        await this.renderStatusPage(error.status, pathname, error);
+        await this.renderStatusPage(error.status, pathname);
         return;
       }
       await this.handleError(error, pathname);
@@ -279,7 +277,6 @@ export class SpaHtmlRouter extends BaseRenderer {
   private async renderStatusPage(
     status: number,
     pathname: string,
-    _response?: Response,
   ): Promise<void> {
     if (!this.slot) return;
 
@@ -313,6 +310,25 @@ export class SpaHtmlRouter extends BaseRenderer {
     this.updateTitle();
   }
 
+  /** Try to load and render an error boundary or handler module into the slot. */
+  private async tryRenderErrorModule(modulePath: string): Promise<boolean> {
+    try {
+      const module = await this.core.loadModule<{ default: PageComponent }>(modulePath);
+      const component = module.default;
+      const minCtx = { pathname: '', pattern: '', params: {}, searchParams: new URLSearchParams() };
+      const data = await component.getData({ params: {}, context: minCtx });
+      const html = component.renderHTML({ data, params: {}, context: minCtx });
+      if (this.slot) {
+        this.slot.setHTMLUnsafe(html);
+        this.updateTitle();
+      }
+      return true;
+    } catch (e) {
+      console.error('[Router] Error module failed:', e);
+      return false;
+    }
+  }
+
   /**
    * Handle errors during navigation/rendering.
    */
@@ -327,58 +343,10 @@ export class SpaHtmlRouter extends BaseRenderer {
     });
 
     const boundary = this.core.matcher.findErrorBoundary(pathname);
-
-    if (boundary) {
-      try {
-        const module = await this.core.loadModule<{ default: PageComponent }>(
-          boundary.modulePath,
-        );
-        const component = module.default;
-        const minCtx = {
-          pathname: '',
-          pattern: '',
-          params: {},
-          searchParams: new URLSearchParams(),
-        };
-        const data = await component.getData({ params: {}, context: minCtx });
-        const html = component.renderHTML({ data, params: {}, context: minCtx });
-
-        if (this.slot) {
-          this.slot.setHTMLUnsafe(html);
-          this.updateTitle();
-        }
-        return;
-      } catch (e) {
-        console.error('[Router] Error boundary failed:', e);
-      }
-    }
+    if (boundary && await this.tryRenderErrorModule(boundary.modulePath)) return;
 
     const errorHandler = this.core.matcher.getErrorHandler();
-
-    if (errorHandler) {
-      try {
-        const module = await this.core.loadModule<{ default: PageComponent }>(
-          errorHandler.modulePath,
-        );
-        const component = module.default;
-        const minCtx = {
-          pathname: '',
-          pattern: '',
-          params: {},
-          searchParams: new URLSearchParams(),
-        };
-        const data = await component.getData({ params: {}, context: minCtx });
-        const html = component.renderHTML({ data, params: {}, context: minCtx });
-
-        if (this.slot) {
-          this.slot.setHTMLUnsafe(html);
-          this.updateTitle();
-        }
-        return;
-      } catch (e) {
-        console.error('[Router] Error handler failed:', e);
-      }
-    }
+    if (errorHandler && await this.tryRenderErrorModule(errorHandler.modulePath)) return;
 
     if (this.slot) {
       const message = error instanceof Error ? error.message : String(error);

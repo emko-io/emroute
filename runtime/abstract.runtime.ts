@@ -81,4 +81,9 @@ export abstract class Runtime {
   static compress(_data: Uint8Array, _encoding: 'br' | 'gzip'): Promise<Uint8Array> {
     throw new Error('Not implemented');
   }
+
+  /** Stop the bundler subprocess if running. No-op by default. */
+  static stopBundler(): Promise<void> {
+    return Promise.resolve();
+  }
 }

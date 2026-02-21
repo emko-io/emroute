@@ -62,8 +62,7 @@ export abstract class SsrRenderer {
       return { content: '', status: 301, redirect: normalized + query };
     }
 
-    const matchUrl = toUrl(pathname + urlObj.search);
-    const matched = this.core.match(matchUrl);
+    const matched = this.core.match(urlObj);
 
     const searchParams = urlObj.searchParams ?? new URLSearchParams();
 
@@ -135,50 +134,14 @@ export abstract class SsrRenderer {
 
       const boundary = this.core.matcher.findErrorBoundary(pathname);
       if (boundary) {
-        try {
-          const module = await this.core.loadModule<{ default: PageComponent }>(
-            boundary.modulePath,
-          );
-          const component = module.default;
-          const minCtx = {
-            pathname: '',
-            pattern: '',
-            params: {},
-            searchParams: new URLSearchParams(),
-          };
-          const data = await component.getData({ params: {}, context: minCtx });
-          const content = this.renderComponent(component, data, minCtx);
-          return { content, status: 500 };
-        } catch (e) {
-          logger.error(
-            `[${this.label}] Error boundary failed for ${pathname}`,
-            e instanceof Error ? e : undefined,
-          );
-        }
+        const result = await this.tryRenderErrorModule(boundary.modulePath, pathname, 'boundary');
+        if (result) return result;
       }
 
       const errorHandler = this.core.matcher.getErrorHandler();
       if (errorHandler) {
-        try {
-          const module = await this.core.loadModule<{ default: PageComponent }>(
-            errorHandler.modulePath,
-          );
-          const component = module.default;
-          const minCtx = {
-            pathname: '',
-            pattern: '',
-            params: {},
-            searchParams: new URLSearchParams(),
-          };
-          const data = await component.getData({ params: {}, context: minCtx });
-          const content = this.renderComponent(component, data, minCtx);
-          return { content, status: 500 };
-        } catch (e) {
-          logger.error(
-            `[${this.label}] Error handler failed for ${pathname}`,
-            e instanceof Error ? e : undefined,
-          );
-        }
+        const result = await this.tryRenderErrorModule(errorHandler.modulePath, pathname, 'handler');
+        if (result) return result;
       }
 
       return { content: this.renderErrorPage(error, pathname), status: 500 };
@@ -280,6 +243,33 @@ export abstract class SsrRenderer {
     context: ComponentContext,
   ): string {
     return this.renderContent(component, { data, params: {}, context });
+  }
+
+  /** Try to load and render an error boundary or handler module. Returns null on failure. */
+  private async tryRenderErrorModule(
+    modulePath: string,
+    pathname: string,
+    kind: 'boundary' | 'handler',
+  ): Promise<{ content: string; status: number } | null> {
+    try {
+      const module = await this.core.loadModule<{ default: PageComponent }>(modulePath);
+      const component = module.default;
+      const minCtx: ComponentContext = {
+        pathname: '',
+        pattern: '',
+        params: {},
+        searchParams: new URLSearchParams(),
+      };
+      const data = await component.getData({ params: {}, context: minCtx });
+      const content = this.renderComponent(component, data, minCtx);
+      return { content, status: 500 };
+    } catch (e) {
+      logger.error(
+        `[${this.label}] Error ${kind} failed for ${pathname}`,
+        e instanceof Error ? e : undefined,
+      );
+      return null;
+    }
   }
 
   protected abstract renderRedirect(to: string): string;

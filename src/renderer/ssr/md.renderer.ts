@@ -97,7 +97,7 @@ export class SsrMdRouter extends SsrRenderer {
   ): Promise<string> {
     return resolveRecursively(
       content,
-      (content) => parseWidgetBlocks(content),
+      parseWidgetBlocks,
       async (block) => {
         if (block.parseError || !block.params) {
           return `> **Error** (\`${block.widgetName}\`): ${block.parseError}`;
@@ -125,7 +125,7 @@ export class SsrMdRouter extends SsrRenderer {
           return widget.renderMarkdownError(e);
         }
       },
-      (content, replacements) => replaceWidgetBlocks(content, replacements),
+      replaceWidgetBlocks,
     );
   }
 }

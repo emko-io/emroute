@@ -54,7 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   DOM (real in browser, mock on server). Content renders to
   `this.shadowRoot.innerHTML` instead of `this.innerHTML`. Provides true Web
   Components spec compliance, better CSS encapsulation, and consistent behavior
-  across SSR and SPA rendering modes. See `SHADOW-DOM-ARCHITECTURE.md`.
+  across SSR and SPA rendering modes. See `doc/shadow-dom-architecture.md`.
 
 - **Navigation API replaces History API** — the SPA router now uses the browser's
   Navigation API (`window.navigation`) instead of `pushState`/`replaceState`/
@@ -174,7 +174,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`logger.warn()` in SPA logger** — always logs via `console.warn` (not gated
   by debug flag). Used for missing slot warnings during SPA navigation.
 
-- **`SHADOW-DOM-ARCHITECTURE.md`** — comprehensive documentation of the unified
+- **`doc/shadow-dom-architecture.md`** — comprehensive documentation of the unified
   Shadow DOM architecture, SSR mocks, rendering strategies, and migration
   patterns.
 

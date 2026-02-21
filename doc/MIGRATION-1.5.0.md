@@ -207,7 +207,7 @@ If you encounter issues:
 
 ## Need Help?
 
-- **Architecture details:** Read `SHADOW-DOM-ARCHITECTURE.md`
+- **Architecture details:** Read `doc/shadow-dom-architecture.md`
 - **API reference:** Check updated JSDoc comments in source
 - **Questions:** Open an issue on GitHub
 

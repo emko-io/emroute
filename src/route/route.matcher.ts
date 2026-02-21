@@ -6,7 +6,7 @@
  * - Dynamic segments (/projects/:id)
  * - Wildcard/catch-all (future)
  *
- * Uses native URLPattern API (Safari may need polyfill later).
+ * Uses native URLPattern API (supported in all major browsers).
  */
 
 /** Parse a URL path string into a URL object. Passes through URL objects unchanged. */

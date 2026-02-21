@@ -1,0 +1,1 @@
+Since we moved to Runtime approach, and handle() is already there for passthrough, sitemap could live in runtime and be build by sourcing from it.

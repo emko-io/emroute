@@ -123,7 +123,7 @@ deno task test            # run tests
 ### For contributors and architects
 
 - [Architecture overview](doc/architecture.md) — design philosophy, component model, rendering pipeline
-- [Architectural decisions](doc/architecture/) — ADR-0001 through ADR-0015
+- [Architectural decisions](doc/architecture/) — ADR-0001 through ADR-0016
 - [Migration guide for 1.5.0](doc/MIGRATION-1.5.0.md) — Shadow DOM, Navigation API, breaking changes
 
 <img src="doc/logo-full.png" alt="emroute" width="197" height="40">

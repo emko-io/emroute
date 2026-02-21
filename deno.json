@@ -1,6 +1,6 @@
 {
   "name": "@emkodev/emroute",
-  "version": "1.5.3-beta.1",
+  "version": "1.5.3-beta.2",
   "description": "File-based router with triple rendering (SPA, SSR HTML, SSR Markdown). Zero dependencies.",
   "license": "BSD-3-Clause",
   "author": "emko.dev",
@@ -33,8 +33,8 @@
     "./server": "./server/emroute.server.ts",
     "./server/prod": "./server/emroute.server.ts",
     "./server/cli": "./server/cli.deno.ts",
-    "./server/deno": "./server/server.deno.ts",
-    "./server/types": "./server/server.type.ts",
+    "./server/deno": "./server/runtime/deno/fs/deno-fs.runtime.ts",
+    "./server/runtime": "./server/runtime/abstract.runtime.ts",
     "./bundler/deno": "./server/deno.bundler.ts",
     "./overlay": "./src/overlay/mod.ts",
     "./types/navigation-api": "./src/type/navigation-api.d.ts"

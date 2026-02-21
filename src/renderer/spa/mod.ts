@@ -44,7 +44,15 @@ export type {
 export type { MarkdownRenderer } from '../../type/markdown.type.ts';
 export { type BasePath, DEFAULT_BASE_PATH } from '../../route/route.core.ts';
 export { escapeHtml, scopeWidgetCss } from '../../util/html.util.ts';
-export type { RedirectConfig, RouteConfig, RouteFiles, RouteFileType, RouteInfo, RouterState, ErrorBoundary } from '../../type/route.type.ts';
+export type {
+  ErrorBoundary,
+  RedirectConfig,
+  RouteConfig,
+  RouteFiles,
+  RouteFileType,
+  RouteInfo,
+  RouterState,
+} from '../../type/route.type.ts';
 export type { ParsedWidgetBlock, WidgetManifestEntry } from '../../type/widget.type.ts';
 export { type Logger, setLogger } from '../../type/logger.type.ts';
 
@@ -56,7 +64,12 @@ if (globalThis.customElements) {
 
 // Overlay API (tree-shakeable - only bundled if imported)
 export { createOverlayService } from '../../overlay/overlay.service.ts';
-export type { ModalOptions, OverlayService, PopoverOptions, ToastOptions } from '../../overlay/overlay.type.ts';
+export type {
+  ModalOptions,
+  OverlayService,
+  PopoverOptions,
+  ToastOptions,
+} from '../../overlay/overlay.type.ts';
 
 // Optional: Built-in widgets (tree-shakeable - only bundled if imported)
 export { PageTitleWidget } from '../../widget/page-title.widget.ts';

@@ -35,8 +35,15 @@ class MockFileSystem extends Runtime {
     this.dirs.add(path);
   }
 
-  handle(resource: Parameters<typeof fetch>[0], _init?: Parameters<typeof fetch>[1]): ReturnType<typeof fetch> {
-    const path = typeof resource === 'string' ? resource : resource instanceof URL ? resource.pathname : resource.url;
+  handle(
+    resource: Parameters<typeof fetch>[0],
+    _init?: Parameters<typeof fetch>[1],
+  ): ReturnType<typeof fetch> {
+    const path = typeof resource === 'string'
+      ? resource
+      : resource instanceof URL
+      ? resource.pathname
+      : resource.url;
 
     // Directory listing: path ends with /
     if (path.endsWith('/')) {
@@ -74,9 +81,18 @@ class MockFileSystem extends Runtime {
     return Promise.resolve(new Response('Not found', { status: 404 }));
   }
 
-  query(resource: Parameters<typeof fetch>[0], options: Parameters<typeof fetch>[1] & { as: 'text' }): Promise<string>;
-  query(resource: Parameters<typeof fetch>[0], options?: Parameters<typeof fetch>[1]): ReturnType<typeof fetch>;
-  query(resource: Parameters<typeof fetch>[0], options?: Parameters<typeof fetch>[1] & { as?: 'text' }): Promise<string> | ReturnType<typeof fetch> {
+  query(
+    resource: Parameters<typeof fetch>[0],
+    options: Parameters<typeof fetch>[1] & { as: 'text' },
+  ): Promise<string>;
+  query(
+    resource: Parameters<typeof fetch>[0],
+    options?: Parameters<typeof fetch>[1],
+  ): ReturnType<typeof fetch>;
+  query(
+    resource: Parameters<typeof fetch>[0],
+    options?: Parameters<typeof fetch>[1] & { as?: 'text' },
+  ): Promise<string> | ReturnType<typeof fetch> {
     if (options && 'as' in options && options.as === 'text') {
       return this.handle(resource, options).then((r) => r.text()) as Promise<string>;
     }

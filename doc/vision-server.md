@@ -42,6 +42,7 @@ Two distinct concerns, both browser-only. The server imports `.ts` natively (Den
 **Chunking** (merging files into fewer requests) — optional browser optimization, possibly unnecessary. HTTP/2 multiplexing handles parallel requests, pre-compression handles size. Individual transpiled files may be the permanent answer, not just a starting point.
 
 **Proven** (`spike/`):
+
 - **esbuild**: transpiles + bundles entirely in-memory via virtual filesystem plugin — no disk access. Non-filesystem runtimes can feed files directly.
 - **`deno bundle`**: requires filesystem paths, no stdin support. For non-filesystem runtimes, fallback is temp dir → transpile → clean up.
 
@@ -52,6 +53,7 @@ The SPA mode dictates what gets transpiled/served:
 - `root` / `only` → widgets + router
 
 Three output bundles:
+
 - `emroute.js` — the framework (router, custom elements, hydration, overlay)
 - `widgets.js` — widget components (separate for leaf mode where router isn't needed)
 - `app.js` — the consumer's code (routes, manifests, consumer entry point)
@@ -192,7 +194,7 @@ Deno.serve(async (req) => {
 - Whether SSR content is rendered
 
 | Mode   | SSR | JS Bundle | Router |
-|--------|-----|-----------|--------|
+| ------ | --- | --------- | ------ |
 | `none` | yes | no        | no     |
 | `leaf` | yes | yes       | no     |
 | `root` | yes | yes       | yes    |
@@ -203,6 +205,7 @@ Deno.serve(async (req) => {
 ### Chunked Bundling
 
 What is a "chunk"? Options:
+
 - A `some.{page|widget}.*` group clamped into a single `.ts` file per route/widget
 - A different shape entirely (e.g. shared dependency chunks, route-level code splitting)
 
@@ -251,13 +254,13 @@ See `spike/` directory for results.
 
 ## Spikes
 
-| Spike | File | Status |
-|-------|------|--------|
-| esbuild in-memory bundling | `spike/esbuild-memory.ts` | Proven |
-| deno bundle without filesystem | `spike/deno-bundle-memory.ts` | Proven (temp dir), stdin not supported |
-| `new Function()` module eval | `spike/module-eval-function.ts` | Proven (no module semantics, dependency injection needed) |
-| `data:` URL dynamic import | `spike/module-eval-data-url.ts` | Partial (works for single modules, cross-module import fails) |
-| Blob URL dynamic import | `spike/module-eval-blob-url.ts` | Proven (full module semantics, cross-module imports work) — **winner** |
+| Spike                          | File                            | Status                                                                 |
+| ------------------------------ | ------------------------------- | ---------------------------------------------------------------------- |
+| esbuild in-memory bundling     | `spike/esbuild-memory.ts`       | Proven                                                                 |
+| deno bundle without filesystem | `spike/deno-bundle-memory.ts`   | Proven (temp dir), stdin not supported                                 |
+| `new Function()` module eval   | `spike/module-eval-function.ts` | Proven (no module semantics, dependency injection needed)              |
+| `data:` URL dynamic import     | `spike/module-eval-data-url.ts` | Partial (works for single modules, cross-module import fails)          |
+| Blob URL dynamic import        | `spike/module-eval-blob-url.ts` | Proven (full module semantics, cross-module imports work) — **winner** |
 
 ## Migration Path
 
@@ -271,11 +274,11 @@ Not a 2.0 — evolve incrementally within 1.x.
 
 ```ts
 // Backward compat: appRoot in config, no runtime
-createEmrouteServer({ appRoot: '.', spa: 'leaf' })
+createEmrouteServer({ appRoot: '.', spa: 'leaf' });
 // → internally: new NodeServerRuntime('.')
 
 // New way: explicit runtime
-createEmrouteServer({ spa: 'leaf' }, new DenoServerRuntime('.'))
+createEmrouteServer({ spa: 'leaf' }, new DenoServerRuntime('.'));
 ```
 
 > **Status**: Runtime parameter is now required. `appRoot` removed from config. Backward compat path (step 3) deferred — explicit runtime is the only way.
@@ -344,15 +347,19 @@ abstract class Runtime {
   abstract handle(resource: FetchParams[0], init?: FetchParams[1]): FetchReturn;
 
   /** Read. Returns Response, or string with { as: "text" }. */
-  abstract query(resource, options: { as: "text" }): Promise<string>;
+  abstract query(resource, options: { as: 'text' }): Promise<string>;
   abstract query(resource, options?): FetchReturn;
 
   /** Write. Defaults to PUT; pass { method: "DELETE" } etc. to override. */
   command(resource, options?): FetchReturn;
 
   static transpile(ts: string): Promise<string>;
-  static bundle(runtime: Runtime, entryPoint: string, options?: { external?: string[] }): Promise<string>;
-  static compress(data: Uint8Array, encoding: "br" | "gzip"): Promise<Uint8Array>;
+  static bundle(
+    runtime: Runtime,
+    entryPoint: string,
+    options?: { external?: string[] },
+  ): Promise<string>;
+  static compress(data: Uint8Array, encoding: 'br' | 'gzip'): Promise<Uint8Array>;
 }
 ```
 
@@ -370,13 +377,13 @@ abstract class Runtime {
 
 ### Transpilers (all tested against real `.page.ts` fixtures)
 
-| Tool | Type | Resolves imports | Speed (ms/iter) |
-|------|------|-----------------|-----------------|
-| **swc** (`npm:@swc/core`) | programmatic | no (transpile only) | ~2 |
-| **esbuild** (`npm:esbuild`) | programmatic | no (transform mode) | ~3 |
-| **typescript** (`npm:typescript`) | programmatic | no (transpile only) | ~4 |
-| **deno bundle** | CLI | yes (full bundle) | ~24 |
-| **tsgo** (`go install`) | CLI | no (transpile only) | ~35 |
+| Tool                              | Type         | Resolves imports    | Speed (ms/iter) |
+| --------------------------------- | ------------ | ------------------- | --------------- |
+| **swc** (`npm:@swc/core`)         | programmatic | no (transpile only) | ~2              |
+| **esbuild** (`npm:esbuild`)       | programmatic | no (transform mode) | ~3              |
+| **typescript** (`npm:typescript`) | programmatic | no (transpile only) | ~4              |
+| **deno bundle**                   | CLI          | yes (full bundle)   | ~24             |
+| **tsgo** (`go install`)           | CLI          | no (transpile only) | ~35             |
 
 Transpile-only tools strip types but preserve imports (`@emkodev/emroute` stays as-is). Deno resolves import maps even from blob URL context, so unresolved specifiers work — no import rewriting needed for SSR on Deno. `deno bundle` is the only tool that resolves + inlines everything into a self-contained JS string.
 
@@ -386,12 +393,12 @@ Tests: `test/unit/module-loader.test.ts`, `test/unit/transpiler-bench.ts`.
 
 ### Module Loaders (all tested with bundled JS from `deno bundle`)
 
-| Loader | Module semantics | Cross-module imports | Platform |
-|--------|-----------------|---------------------|----------|
-| **blob URL** | yes (`import()`) | yes | Deno, browsers |
-| **data: URL** | yes (`import()`) | yes | Deno, browsers |
-| **new Function()** | no (manual return) | no | everywhere |
-| **direct import()** | yes (native) | yes | Deno only (no transpile needed) |
+| Loader              | Module semantics   | Cross-module imports | Platform                        |
+| ------------------- | ------------------ | -------------------- | ------------------------------- |
+| **blob URL**        | yes (`import()`)   | yes                  | Deno, browsers                  |
+| **data: URL**       | yes (`import()`)   | yes                  | Deno, browsers                  |
+| **new Function()**  | no (manual return) | no                   | everywhere                      |
+| **direct import()** | yes (native)       | yes                  | Deno only (no transpile needed) |
 
 All four pass with real fixture `.page.ts` files. Blob URL and data: URL are functionally equivalent. `new Function()` requires stripping exports and knowing the binding name. Direct `import()` is Deno-only but needs no transpilation at all.
 
@@ -407,15 +414,15 @@ Tested with `ArticlesPage` fixture: 6 articles loaded via `getData()`, companion
 
 Every step that previously required `ServerRuntime` (`readTextFile`, `readDir`, `writeTextFile`, `exists`, `stat`, `serveStaticFile`) has been proven through `Runtime`:
 
-| Server step | Old `ServerRuntime` | New `Runtime` | Tested |
-|---|---|---|---|
-| Scan routes/widgets dir | `readDir()` recursive | `query(dir)` → JSON listing, trailing `/` = directory | ✓ |
-| Check file existence | `exists(path)` | `query(path)` → `status !== 404` | ✓ |
-| Read companion files | `readTextFile(path)` | `query(path, { as: "text" })` | ✓ |
-| Resolve HTML shell | `readTextFile("index.html")` | `query("/index.html", { as: "text" })` | ✓ |
-| Write manifests | `writeTextFile(path, code)` | `command(path, { body: code })` | ✓ |
-| Load page modules | `import(fileUrl)` | `query(path, { as: "text" })` → transpile → blob URL | ✓ |
-| Static file passthrough | `serveStaticFile(req, path)` | `handle(request)` → Response | ✓ |
+| Server step             | Old `ServerRuntime`          | New `Runtime`                                         | Tested |
+| ----------------------- | ---------------------------- | ----------------------------------------------------- | ------ |
+| Scan routes/widgets dir | `readDir()` recursive        | `query(dir)` → JSON listing, trailing `/` = directory | ✓      |
+| Check file existence    | `exists(path)`               | `query(path)` → `status !== 404`                      | ✓      |
+| Read companion files    | `readTextFile(path)`         | `query(path, { as: "text" })`                         | ✓      |
+| Resolve HTML shell      | `readTextFile("index.html")` | `query("/index.html", { as: "text" })`                | ✓      |
+| Write manifests         | `writeTextFile(path, code)`  | `command(path, { body: code })`                       | ✓      |
+| Load page modules       | `import(fileUrl)`            | `query(path, { as: "text" })` → transpile → blob URL  | ✓      |
+| Static file passthrough | `serveStaticFile(req, path)` | `handle(request)` → Response                          | ✓      |
 
 Tests: `test/unit/runtime-module-loader.test.ts`, `test/unit/runtime-walk.test.ts`.
 
@@ -427,13 +434,14 @@ Tests: `test/unit/runtime-module-loader.test.ts`, `test/unit/runtime-walk.test.t
 
 `Runtime.bundle()` produces three bundles at server startup via `deno bundle --external`:
 
-| Bundle | Entry point | Externals | Contents |
-|--------|------------|-----------|----------|
-| `emroute.js` | `@emkodev/emroute/spa` (resolved via `import.meta.resolve`) | none | Framework: router, custom elements, hydration, overlay, utilities |
-| `widgets.js` | `/widgets.manifest.g.ts` | `@emkodev/emroute/*` | Widget components |
-| `app.js` | consumer's `main.ts` | `@emkodev/emroute/*`, `./widgets.manifest.g.ts` | Consumer code: routes, entry point |
+| Bundle       | Entry point                                                 | Externals                                       | Contents                                                          |
+| ------------ | ----------------------------------------------------------- | ----------------------------------------------- | ----------------------------------------------------------------- |
+| `emroute.js` | `@emkodev/emroute/spa` (resolved via `import.meta.resolve`) | none                                            | Framework: router, custom elements, hydration, overlay, utilities |
+| `widgets.js` | `/widgets.manifest.g.ts`                                    | `@emkodev/emroute/*`                            | Widget components                                                 |
+| `app.js`     | consumer's `main.ts`                                        | `@emkodev/emroute/*`, `./widgets.manifest.g.ts` | Consumer code: routes, entry point                                |
 
 Import map in HTML shell connects them:
+
 ```json
 {
   "@emkodev/emroute/spa": "/emroute.js",

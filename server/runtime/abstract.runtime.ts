@@ -1,4 +1,4 @@
-export const CONTENT_TYPES = new Map<string, string>([
+export const CONTENT_TYPES: Map<string, string> = new Map<string, string>([
   ['.html', 'text/html; charset=utf-8'],
   ['.css', 'text/css; charset=utf-8'],
   ['.js', 'application/javascript; charset=utf-8'],

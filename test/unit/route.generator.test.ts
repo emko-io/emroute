@@ -67,14 +67,20 @@ function createMockRuntime(files: string[]): Runtime {
 
   return new (class extends Runtime {
     handle(resource: FetchParams[0], _init?: FetchParams[1]): FetchReturn {
-      const path = typeof resource === 'string' ? resource : resource instanceof URL ? resource.pathname : resource.url;
+      const path = typeof resource === 'string'
+        ? resource
+        : resource instanceof URL
+        ? resource.pathname
+        : resource.url;
       const trailingPath = path.endsWith('/') ? path : path + '/';
 
       if (dirs.has(trailingPath)) {
-        return Promise.resolve(new Response(JSON.stringify(dirs.get(trailingPath)), {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        }));
+        return Promise.resolve(
+          new Response(JSON.stringify(dirs.get(trailingPath)), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          }),
+        );
       }
 
       // Check if it's a known file (any non-directory path that exists in some directory listing)

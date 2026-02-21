@@ -79,10 +79,14 @@ function resolveImports(js: string): string {
 
 // ── Module loaders ─────────────────────────────────────────────────────
 
-/** Create module loaders for server-side SSR imports via Runtime. */
+/** SSR prefix for transpiled module self-imports. */
+const SSR_MODULE_PREFIX = '/_ssr';
+
+/** Create module loaders for server-side SSR imports via self-fetch. */
 function createModuleLoaders(
   manifest: RoutesManifest,
   runtime: Runtime,
+  baseUrl?: string,
 ): Record<string, () => Promise<unknown>> {
   const loaders: Record<string, () => Promise<unknown>> = {};
   const modulePaths = new Set<string>();
@@ -103,19 +107,29 @@ function createModuleLoaders(
     }
   }
 
-  const Ctor = runtime.constructor as typeof Runtime;
-  for (const path of modulePaths) {
-    loaders[path] = async () => {
-      const source = await runtime.query(path, { as: 'text' });
-      const js = resolveImports(await Ctor.transpile(source));
-      const blob = new Blob([js], { type: 'text/javascript' });
-      const url = URL.createObjectURL(blob);
-      try {
-        return await import(url);
-      } finally {
-        URL.revokeObjectURL(url);
-      }
-    };
+  if (baseUrl) {
+    // Self-fetch: import via the server's own HTTP endpoint.
+    // The server transpiles .ts → .js at /_ssr/* paths.
+    // Bare specifiers resolve via the process import map.
+    for (const path of modulePaths) {
+      loaders[path] = () => import(`${baseUrl}${SSR_MODULE_PREFIX}${path}`);
+    }
+  } else {
+    // Fallback: blob URL (works when running from source with import maps)
+    const Ctor = runtime.constructor as typeof Runtime;
+    for (const path of modulePaths) {
+      loaders[path] = async () => {
+        const source = await runtime.query(path, { as: 'text' });
+        const js = resolveImports(await Ctor.transpile(source));
+        const blob = new Blob([js], { type: 'text/javascript' });
+        const url = URL.createObjectURL(blob);
+        try {
+          return await import(url);
+        } finally {
+          URL.revokeObjectURL(url);
+        }
+      };
+    }
   }
 
   return loaders;
@@ -338,7 +352,7 @@ export async function createEmrouteServer(
     await runtime.command('/routes.manifest.g.ts', { body: code });
 
     routesManifest = result;
-    routesManifest.moduleLoaders = createModuleLoaders(routesManifest, runtime);
+    routesManifest.moduleLoaders = createModuleLoaders(routesManifest, runtime, config.baseUrl);
 
     console.log(`Scanned ${routesDir}/`);
     console.log(
@@ -520,6 +534,22 @@ export async function createEmrouteServer(
       });
     }
 
+    // SSR module self-import: /_ssr/*.ts → transpile → serve as JS
+    if (pathname.startsWith(SSR_MODULE_PREFIX + '/')) {
+      const modulePath = pathname.slice(SSR_MODULE_PREFIX.length);
+      try {
+        const source = await runtime.query(modulePath, { as: 'text' });
+        const Ctor = runtime.constructor as typeof Runtime;
+        const js = await Ctor.transpile(source);
+        return new Response(js, {
+          status: 200,
+          headers: { 'Content-Type': 'application/javascript; charset=utf-8' },
+        });
+      } catch {
+        return new Response('Not Found', { status: 404 });
+      }
+    }
+
     // File requests — pass through to runtime (bundled JS, CSS, images, etc.)
     if (isFileRequest(pathname)) {
       const response = await runtime.handle(pathname);
@@ -548,7 +578,7 @@ export async function createEmrouteServer(
       await runtime.command('/routes.manifest.g.ts', { body: code });
 
       routesManifest = result;
-      routesManifest.moduleLoaders = createModuleLoaders(routesManifest, runtime);
+      routesManifest.moduleLoaders = createModuleLoaders(routesManifest, runtime, config.baseUrl);
     }
 
     if (widgetsDir) {

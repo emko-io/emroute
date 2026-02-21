@@ -2,20 +2,18 @@
  * Emroute Server
  *
  * Runtime-agnostic server that handles SSR rendering, manifest generation,
- * static file serving, and route matching. Works with any runtime (Deno,
- * Node, Bun) via the ServerRuntime abstraction.
+ * static file serving, and route matching. Works with any Runtime implementation
+ * (Deno, Node, Bun).
  *
  * Usage (standalone):
  * ```ts
  * import { createEmrouteServer } from '@emkodev/emroute/server';
- * import { denoServerRuntime } from '@emkodev/emroute/server/deno';
+ * import { DenoFsRuntime } from '@emkodev/emroute/server/deno';
  *
- * const emroute = await createEmrouteServer({
- *   appRoot: '.',
- *   spa: 'root',
- * }, denoServerRuntime);
+ * const runtime = new DenoFsRuntime('.');
+ * const emroute = await createEmrouteServer({ spa: 'root' }, runtime);
  *
- * emroute.serve(3000);
+ * Deno.serve((req) => emroute.handleRequest(req) ?? new Response('Not Found', { status: 404 }));
  * ```
  *
  * Usage (composable):
@@ -49,6 +47,36 @@ import type {
   EmrouteServerConfig,
 } from './server-api.type.ts';
 
+// ── Import rewriting ──────────────────────────────────────────────────
+
+/**
+ * Bare specifiers (e.g. '@emkodev/emroute') are unresolvable from blob: URLs.
+ * Rewrite them to the absolute URLs that Deno/Node resolved at startup.
+ */
+const KNOWN_SPECIFIERS = [
+  '@emkodev/emroute/spa',
+  '@emkodev/emroute/overlay',
+  '@emkodev/emroute',
+] as const;
+
+const specifierMap: Map<string, string> = new Map();
+for (const spec of KNOWN_SPECIFIERS) {
+  try {
+    specifierMap.set(spec, import.meta.resolve(spec));
+  } catch {
+    // Not resolvable in current environment — skip
+  }
+}
+
+/** Rewrite bare specifiers in transpiled JS to absolute URLs. */
+function resolveImports(js: string): string {
+  for (const [bare, resolved] of specifierMap) {
+    js = js.replaceAll(`from "${bare}"`, `from "${resolved}"`);
+    js = js.replaceAll(`from '${bare}'`, `from '${resolved}'`);
+  }
+  return js;
+}
+
 // ── Module loaders ─────────────────────────────────────────────────────
 
 /** Create module loaders for server-side SSR imports via Runtime. */
@@ -79,7 +107,7 @@ function createModuleLoaders(
   for (const path of modulePaths) {
     loaders[path] = async () => {
       const source = await runtime.query(path, { as: 'text' });
-      const js = await Ctor.transpile(source);
+      const js = resolveImports(await Ctor.transpile(source));
       const blob = new Blob([js], { type: 'text/javascript' });
       const url = URL.createObjectURL(blob);
       try {
@@ -129,7 +157,7 @@ async function importWidgets(
         ? entry.modulePath
         : `/${entry.modulePath}`;
       const source = await runtime.query(runtimePath, { as: 'text' });
-      const js = await Ctor.transpile(source);
+      const js = resolveImports(await Ctor.transpile(source));
       const blob = new Blob([js], { type: 'text/javascript' });
       const url = URL.createObjectURL(blob);
       let mod: Record<string, unknown>;

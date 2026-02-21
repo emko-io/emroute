@@ -27,7 +27,7 @@ import type { WidgetRegistry } from '../../widget/widget.registry.ts';
 export interface SsrRendererOptions extends RouteCoreOptions {
   /** Widget registry for server-side widget rendering */
   widgets?: WidgetRegistry;
-  /** Discovered widget file paths (from discoverWidgetFiles), keyed by widget name */
+  /** Widget companion file paths, keyed by widget name */
   widgetFiles?: Record<string, { html?: string; md?: string; css?: string }>;
 }
 

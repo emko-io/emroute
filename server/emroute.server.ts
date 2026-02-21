@@ -8,7 +8,7 @@
  * Usage (standalone):
  * ```ts
  * import { createEmrouteServer } from '@emkodev/emroute/server';
- * import { DenoFsRuntime } from '@emkodev/emroute/server/deno';
+ * import { DenoFsRuntime } from '@emkodev/emroute/runtime/deno/fs';
  *
  * const runtime = new DenoFsRuntime('.');
  * const emroute = await createEmrouteServer({ spa: 'root' }, runtime);
@@ -226,6 +226,13 @@ function injectSsrContent(
  * When spa !== 'none' and an entryPoint is provided, injects a `<script>` tag.
  * Auto-discovers `/main.css` and injects a `<link>` tag.
  */
+/**
+ * The bare specifier consumers use to import emroute.
+ * This is the import map key — maps to the actual JSR package in deno.json
+ * and in client-side `<script type="importmap">`.
+ */
+export const EMROUTE_PACKAGE_SPECIFIER = '@emkodev/emroute';
+
 /** Bundle output paths. */
 const BUNDLE_PATHS = {
   emroute: '/emroute.js',
@@ -235,9 +242,9 @@ const BUNDLE_PATHS = {
 
 /** Emroute bare specifiers to externalize when bundling consumer code. */
 const EMROUTE_EXTERNALS = [
-  '@emkodev/emroute/spa',
-  '@emkodev/emroute/overlay',
-  '@emkodev/emroute',
+  `${EMROUTE_PACKAGE_SPECIFIER}/spa`,
+  `${EMROUTE_PACKAGE_SPECIFIER}/overlay`,
+  EMROUTE_PACKAGE_SPECIFIER,
 ] as const;
 
 async function resolveShell(
@@ -322,7 +329,7 @@ export async function createEmrouteServer(
     const result = await generateRoutesManifest(routesDir, runtime);
 
     // Write manifest file for the SPA bundle (paths already Runtime-relative)
-    const code = generateManifestCode(result, '@emkodev/emroute', htmlBase);
+    const code = generateManifestCode(result, EMROUTE_PACKAGE_SPECIFIER, htmlBase);
     await runtime.command('/routes.manifest.g.ts', { body: code });
 
     routesManifest = result;
@@ -363,7 +370,7 @@ export async function createEmrouteServer(
     // Write widget manifest file for the SPA bundle
     const widgetManifestCode = generateWidgetsManifestCode(
       discoveredWidgetEntries,
-      '@emkodev/emroute',
+      EMROUTE_PACKAGE_SPECIFIER,
     );
     await runtime.command('/widgets.manifest.g.ts', { body: widgetManifestCode });
 
@@ -533,7 +540,7 @@ export async function createEmrouteServer(
   async function rebuild(): Promise<void> {
     if (routesDir) {
       const result = await generateRoutesManifest(routesDir, runtime);
-      const code = generateManifestCode(result, '@emkodev/emroute', htmlBase);
+      const code = generateManifestCode(result, EMROUTE_PACKAGE_SPECIFIER, htmlBase);
       await runtime.command('/routes.manifest.g.ts', { body: code });
 
       routesManifest = result;
@@ -553,7 +560,7 @@ export async function createEmrouteServer(
 
       const widgetManifestCode = generateWidgetsManifestCode(
         discoveredWidgetEntries,
-        '@emkodev/emroute',
+        EMROUTE_PACKAGE_SPECIFIER,
       );
       await runtime.command('/widgets.manifest.g.ts', { body: widgetManifestCode });
     }
@@ -642,7 +649,7 @@ export function generateMainTs(
 // ── build ─────────────────────────────────────────────────────────────
 
 /** The bare import specifier used by generated entry points. */
-const CORE_IMPORT_SPECIFIER = '@emkodev/emroute/spa';
+const CORE_IMPORT_SPECIFIER = `${EMROUTE_PACKAGE_SPECIFIER}/spa`;
 
 /**
  * Build static output for deployment.
@@ -700,7 +707,7 @@ export async function build(
       spa,
       hasRoutes,
       hasWidgets,
-      CORE_IMPORT_SPECIFIER,
+      EMROUTE_PACKAGE_SPECIFIER,
       basePath,
     );
     entryPoint = `/${GENERATED_MAIN}`;

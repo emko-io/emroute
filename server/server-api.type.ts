@@ -5,7 +5,6 @@
  * Consumers use `createEmrouteServer()` to get a full-featured server
  * that handles SSR, static files, manifest generation, and route matching.
  *
- * See: issues/pending/server-api-bundling.feature.md
  */
 
 import type { RoutesManifest } from '../src/type/route.type.ts';
@@ -59,15 +58,10 @@ export interface EmrouteServerConfig {
   basePath?: BasePath;
 
   /**
-   * Dynamic module loader for consumer `.page.ts` and `.widget.ts` files.
+   * Optional module loader override for `.page.ts` and `.widget.ts` files.
    *
-   * Required for SSR when emroute is consumed from JSR — JSR code cannot
-   * `import()` non-JSR URLs. The consumer provides this callback from their
-   * own (non-JSR) code, bridging Runtime content to ES module imports.
-   *
-   * ```ts
-   * moduleLoader: (path) => import(`http://localhost:${port}${path}`)
-   * ```
+   * By default, the server uses `Runtime.bundle()` + blob URL import.
+   * Provide this to use a custom loading strategy (e.g. direct file:// imports).
    */
   moduleLoader?: (path: string) => Promise<unknown>;
 

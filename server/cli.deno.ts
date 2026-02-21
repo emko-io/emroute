@@ -27,7 +27,7 @@
  *   --minify          Enable minification (build only)
  */
 
-import { build, createEmrouteServer, generateMainTs } from './emroute.server.ts';
+import { build, createEmrouteServer, EMROUTE_PACKAGE_SPECIFIER, generateMainTs } from './emroute.server.ts';
 import { DenoFsRuntime } from '../runtime/deno/fs/deno-fs.runtime.ts';
 import type { SpaMode } from '../src/type/widget.type.ts';
 import type { BasePath } from '../src/route/route.core.ts';
@@ -203,7 +203,7 @@ async function commandStart(flags: CliFlags): Promise<void> {
   } else if (spa !== 'none') {
     const hasRoutes = project.routesDir !== undefined;
     const hasWidgets = project.widgetsDir !== undefined;
-    const mainCode = generateMainTs(spa, hasRoutes, hasWidgets, '@emkodev/emroute', basePath);
+    const mainCode = generateMainTs(spa, hasRoutes, hasWidgets, EMROUTE_PACKAGE_SPECIFIER, basePath);
     entryPoint = GENERATED_MAIN;
     await runtime.command(`/${entryPoint}`, { body: mainCode });
   }
@@ -333,7 +333,7 @@ async function commandGenerate(_flags: CliFlags): Promise<void> {
   console.log(`[emroute] Generating manifests...`);
 
   const manifest = await generateRoutesManifest('routes', runtime);
-  const routesCode = generateManifestCode(manifest, '@emkodev/emroute');
+  const routesCode = generateManifestCode(manifest, EMROUTE_PACKAGE_SPECIFIER);
   await runtime.command('/routes.manifest.g.ts', { body: routesCode });
   console.log(`[emroute]   routes.manifest.g.ts (${manifest.routes.length} routes)`);
 
@@ -343,7 +343,7 @@ async function commandGenerate(_flags: CliFlags): Promise<void> {
 
   if (await isDirectory('widgets')) {
     const entries = await discoverWidgets('widgets', runtime, 'widgets');
-    const widgetsCode = generateWidgetsManifestCode(entries, '@emkodev/emroute');
+    const widgetsCode = generateWidgetsManifestCode(entries, EMROUTE_PACKAGE_SPECIFIER);
     await runtime.command('/widgets.manifest.g.ts', { body: widgetsCode });
     console.log(`[emroute]   widgets.manifest.g.ts (${entries.length} widgets)`);
   }

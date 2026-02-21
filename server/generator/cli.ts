@@ -23,6 +23,7 @@ import {
 } from './route.generator.ts';
 import { discoverWidgets, generateWidgetsManifestCode } from './widget.generator.ts';
 import { DenoFsRuntime } from '../../runtime/deno/fs/deno-fs.runtime.ts';
+import { EMROUTE_PACKAGE_SPECIFIER } from '../emroute.server.ts';
 
 const runtime = new DenoFsRuntime(Deno.cwd());
 
@@ -32,7 +33,7 @@ async function main() {
 
   const routesDir = positionalArgs[0] ?? 'routes';
   const outputFile = positionalArgs[1] ?? 'routes.manifest.g.ts';
-  const importPath = positionalArgs[2] ?? '@emkodev/emroute';
+  const importPath = positionalArgs[2] ?? EMROUTE_PACKAGE_SPECIFIER;
 
   console.log(`[Routes Generator] Scanning: ${routesDir}/`);
 

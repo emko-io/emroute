@@ -5,7 +5,7 @@
  * no filesystem access needed.
  *
  * Usage:
- *   import { generateSitemap } from '@emkodev/emroute/sitemap';
+ *   import { generateSitemap } from './server/generator/sitemap.generator.ts';
  *   const xml = await generateSitemap(manifest, { baseUrl: 'https://example.com' });
  *
  * Per sitemaps.org protocol:

@@ -101,10 +101,17 @@ export interface EmrouteServerConfig {
   basePath?: BasePath;
 
   /**
-   * Base URL for loading companion files (.html, .md, .css).
-   * Override for dev self-fetch or custom file resolution.
+   * Dynamic module loader for consumer `.page.ts` and `.widget.ts` files.
+   *
+   * Required for SSR when emroute is consumed from JSR — JSR code cannot
+   * `import()` non-JSR URLs. The consumer provides this callback from their
+   * own (non-JSR) code, bridging Runtime content to ES module imports.
+   *
+   * ```ts
+   * moduleLoader: (path) => import(`http://localhost:${port}${path}`)
+   * ```
    */
-  baseUrl?: string;
+  moduleLoader?: (path: string) => Promise<unknown>;
 
   /**
    * SPA entry point (Runtime-relative, e.g. 'main.ts' or '_main.g.ts').

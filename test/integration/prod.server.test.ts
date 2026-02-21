@@ -8,12 +8,13 @@
 
 import { assertEquals, assertStringIncludes } from '@std/assert';
 import { createEmrouteServer } from '../../server/emroute.server.ts';
-import { denoServerRuntime } from '../../server/server.deno.ts';
+import { DenoFsRuntime } from '../../server/runtime/deno/fs/deno-fs.runtime.ts';
 import { WidgetRegistry } from '../../src/widget/widget.registry.ts';
 import { externalWidget } from '../browser/fixtures/assets/external.widget.ts';
 import type { EmrouteServer } from '../../server/server-api.type.ts';
 
 const FIXTURES_DIR = 'test/browser/fixtures';
+const runtime = new DenoFsRuntime(FIXTURES_DIR);
 
 const TEST_PERMISSIONS: Deno.TestDefinition['permissions'] = {
   read: true,
@@ -35,13 +36,12 @@ async function createTestEmrouteServer(
   manualWidgets.add(externalWidget);
 
   return await createEmrouteServer({
-    appRoot: FIXTURES_DIR,
-    routesDir: `${FIXTURES_DIR}/routes`,
-    widgetsDir: `${FIXTURES_DIR}/widgets`,
+    routesDir: 'routes',
+    widgetsDir: 'widgets',
     widgets: manualWidgets,
     spa,
     title: 'Test App',
-  }, denoServerRuntime);
+  }, runtime);
 }
 
 // ── Construction ───────────────────────────────────────────────────────
@@ -72,7 +72,7 @@ Deno.test({
   permissions: TEST_PERMISSIONS,
   fn: async () => {
     try {
-      await createEmrouteServer({ appRoot: FIXTURES_DIR }, denoServerRuntime);
+      await createEmrouteServer({}, runtime);
       throw new Error('Should have thrown');
     } catch (e) {
       assertStringIncludes((e as Error).message, 'routesDir or routesManifest');

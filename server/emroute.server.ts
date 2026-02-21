@@ -47,48 +47,50 @@ import type {
   EmrouteServerConfig,
 } from './server-api.type.ts';
 
-// ── Import rewriting ──────────────────────────────────────────────────
-
-/**
- * Bare specifiers (e.g. '@emkodev/emroute') are unresolvable from blob: URLs.
- * Rewrite them to the absolute URLs that Deno/Node resolved at startup.
- */
-const KNOWN_SPECIFIERS = [
-  '@emkodev/emroute/spa',
-  '@emkodev/emroute/overlay',
-  '@emkodev/emroute',
-] as const;
-
-const specifierMap: Map<string, string> = new Map();
-for (const spec of KNOWN_SPECIFIERS) {
-  try {
-    specifierMap.set(spec, import.meta.resolve(spec));
-  } catch {
-    // Not resolvable in current environment — skip
-  }
-}
-
-/** Rewrite bare specifiers in transpiled JS to absolute URLs. */
-function resolveImports(js: string): string {
-  for (const [bare, resolved] of specifierMap) {
-    js = js.replaceAll(`from "${bare}"`, `from "${resolved}"`);
-    js = js.replaceAll(`from '${bare}'`, `from '${resolved}'`);
-  }
-  return js;
-}
-
 // ── Module loaders ─────────────────────────────────────────────────────
 
-/** SSR prefix for transpiled module self-imports. */
-const SSR_MODULE_PREFIX = '/_ssr';
+/**
+ * Import a module from source via Runtime.bundle() + blob URL.
+ *
+ * Bundles the file (inlining relative imports, externalizing framework
+ * specifiers) and imports the result via blob URL. The consumer's import
+ * map resolves the external bare specifiers.
+ */
+async function importFromRuntime(
+  path: string,
+  runtime: Runtime,
+): Promise<unknown> {
+  const Ctor = runtime.constructor as typeof Runtime;
+  const js = await Ctor.bundle(
+    path,
+    (p) => runtime.query(p, { as: 'text' }).catch(() => null),
+    { external: [...EMROUTE_EXTERNALS] },
+  );
+  const blob = new Blob([js], { type: 'text/javascript' });
+  const url = URL.createObjectURL(blob);
+  try {
+    return await import(url);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
 
-/** Create module loaders for server-side SSR imports via self-fetch. */
+/**
+ * Create module loaders for server-side SSR imports.
+ *
+ * Uses the consumer-provided `moduleLoader` callback when available.
+ * Falls back to Runtime.bundle() + blob URL import — bundles each .page.ts
+ * with framework imports as externals, then imports the bundled JS via blob URL.
+ */
 function createModuleLoaders(
   manifest: RoutesManifest,
   runtime: Runtime,
-  baseUrl?: string,
+  moduleLoader?: (path: string) => Promise<unknown>,
 ): Record<string, () => Promise<unknown>> {
   const loaders: Record<string, () => Promise<unknown>> = {};
+
+  const load = moduleLoader ?? ((path: string) => importFromRuntime(path, runtime));
+
   const modulePaths = new Set<string>();
 
   for (const route of manifest.routes) {
@@ -107,29 +109,8 @@ function createModuleLoaders(
     }
   }
 
-  if (baseUrl) {
-    // Self-fetch: import via the server's own HTTP endpoint.
-    // The server transpiles .ts → .js at /_ssr/* paths.
-    // Bare specifiers resolve via the process import map.
-    for (const path of modulePaths) {
-      loaders[path] = () => import(`${baseUrl}${SSR_MODULE_PREFIX}${path}`);
-    }
-  } else {
-    // Fallback: blob URL (works when running from source with import maps)
-    const Ctor = runtime.constructor as typeof Runtime;
-    for (const path of modulePaths) {
-      loaders[path] = async () => {
-        const source = await runtime.query(path, { as: 'text' });
-        const js = resolveImports(await Ctor.transpile(source));
-        const blob = new Blob([js], { type: 'text/javascript' });
-        const url = URL.createObjectURL(blob);
-        try {
-          return await import(url);
-        } finally {
-          URL.revokeObjectURL(url);
-        }
-      };
-    }
+  for (const path of modulePaths) {
+    loaders[path] = () => load(path);
   }
 
   return loaders;
@@ -153,33 +134,26 @@ function extractWidgetExport(
   return null;
 }
 
-/** Import widget modules for SSR via Runtime. */
+/** Import widget modules for SSR via moduleLoader or Runtime.bundle() + blob URL. */
 async function importWidgets(
   entries: WidgetManifestEntry[],
   runtime: Runtime,
+  moduleLoader?: (path: string) => Promise<unknown>,
   manual?: WidgetRegistry,
 ): Promise<{
   registry: WidgetRegistry;
   widgetFiles: Record<string, { html?: string; md?: string; css?: string }>;
 }> {
   const registry = new WidgetRegistry();
-  const Ctor = runtime.constructor as typeof Runtime;
+  const load = moduleLoader ?? ((path: string) => importFromRuntime(path, runtime));
 
   for (const entry of entries) {
     try {
       const runtimePath = entry.modulePath.startsWith('/')
         ? entry.modulePath
         : `/${entry.modulePath}`;
-      const source = await runtime.query(runtimePath, { as: 'text' });
-      const js = resolveImports(await Ctor.transpile(source));
-      const blob = new Blob([js], { type: 'text/javascript' });
-      const url = URL.createObjectURL(blob);
-      let mod: Record<string, unknown>;
-      try {
-        mod = await import(url) as Record<string, unknown>;
-      } finally {
-        URL.revokeObjectURL(url);
-      }
+
+      const mod = await load(runtimePath) as Record<string, unknown>;
       const instance = extractWidgetExport(mod);
       if (!instance) continue;
       registry.add(instance);
@@ -352,7 +326,7 @@ export async function createEmrouteServer(
     await runtime.command('/routes.manifest.g.ts', { body: code });
 
     routesManifest = result;
-    routesManifest.moduleLoaders = createModuleLoaders(routesManifest, runtime, config.baseUrl);
+    routesManifest.moduleLoaders = createModuleLoaders(routesManifest, runtime, config.moduleLoader);
 
     console.log(`Scanned ${routesDir}/`);
     console.log(
@@ -380,6 +354,7 @@ export async function createEmrouteServer(
     const imported = await importWidgets(
       discoveredWidgetEntries,
       runtime,
+      config.moduleLoader,
       config.widgets,
     );
     widgets = imported.registry;
@@ -409,7 +384,7 @@ export async function createEmrouteServer(
     }
 
     ssrHtmlRouter = new SsrHtmlRouter(prefixManifest(routesManifest, htmlBase), {
-      baseUrl: config.baseUrl,
+      fileReader: (path) => runtime.query(path, { as: 'text' }),
       basePath: htmlBase,
       markdownRenderer: config.markdownRenderer,
       extendContext: config.extendContext,
@@ -418,7 +393,7 @@ export async function createEmrouteServer(
     });
 
     ssrMdRouter = new SsrMdRouter(prefixManifest(routesManifest, mdBase), {
-      baseUrl: config.baseUrl,
+      fileReader: (path) => runtime.query(path, { as: 'text' }),
       basePath: mdBase,
       extendContext: config.extendContext,
       widgets,
@@ -534,22 +509,6 @@ export async function createEmrouteServer(
       });
     }
 
-    // SSR module self-import: /_ssr/*.ts → transpile → serve as JS
-    if (pathname.startsWith(SSR_MODULE_PREFIX + '/')) {
-      const modulePath = pathname.slice(SSR_MODULE_PREFIX.length);
-      try {
-        const source = await runtime.query(modulePath, { as: 'text' });
-        const Ctor = runtime.constructor as typeof Runtime;
-        const js = await Ctor.transpile(source);
-        return new Response(js, {
-          status: 200,
-          headers: { 'Content-Type': 'application/javascript; charset=utf-8' },
-        });
-      } catch {
-        return new Response('Not Found', { status: 404 });
-      }
-    }
-
     // File requests — pass through to runtime (bundled JS, CSS, images, etc.)
     if (isFileRequest(pathname)) {
       const response = await runtime.handle(pathname);
@@ -578,7 +537,7 @@ export async function createEmrouteServer(
       await runtime.command('/routes.manifest.g.ts', { body: code });
 
       routesManifest = result;
-      routesManifest.moduleLoaders = createModuleLoaders(routesManifest, runtime, config.baseUrl);
+      routesManifest.moduleLoaders = createModuleLoaders(routesManifest, runtime, config.moduleLoader);
     }
 
     if (widgetsDir) {
@@ -586,6 +545,7 @@ export async function createEmrouteServer(
       const imported = await importWidgets(
         discoveredWidgetEntries,
         runtime,
+        config.moduleLoader,
         config.widgets,
       );
       widgets = imported.registry;

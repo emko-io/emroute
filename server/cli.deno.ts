@@ -217,7 +217,6 @@ async function commandStart(flags: CliFlags): Promise<void> {
     entryPoint,
     spa,
     basePath,
-    baseUrl: `http://localhost:${flags.port}`,
     markdownRenderer,
   }, runtime);
 

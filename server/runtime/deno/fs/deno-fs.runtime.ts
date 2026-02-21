@@ -48,9 +48,9 @@ export class DenoFsRuntime extends Runtime {
   }
 
   private parsePath(resource: FetchParams[0]): string {
-    if (typeof resource === 'string') return resource;
-    if (resource instanceof URL) return resource.pathname;
-    return new URL(resource.url).pathname;
+    if (typeof resource === 'string') return decodeURIComponent(resource);
+    if (resource instanceof URL) return decodeURIComponent(resource.pathname);
+    return decodeURIComponent(new URL(resource.url).pathname);
   }
 
   private parse(
@@ -119,20 +119,76 @@ export class DenoFsRuntime extends Runtime {
   }
 
   // deno-lint-ignore no-explicit-any
-  private static _ts: any = null;
+  private static _esbuild: any = null;
+
+  private static async esbuild() {
+    if (!DenoFsRuntime._esbuild) {
+      DenoFsRuntime._esbuild = await import('npm:esbuild@^0.27.3');
+    }
+    return DenoFsRuntime._esbuild;
+  }
 
   static override async transpile(source: string): Promise<string> {
-    if (!DenoFsRuntime._ts) {
-      DenoFsRuntime._ts = (await import('npm:typescript@~5.9')).default;
-    }
-    const ts = DenoFsRuntime._ts;
-    const result = ts.transpileModule(source, {
-      compilerOptions: {
-        target: ts.ScriptTarget.ESNext,
-        module: ts.ModuleKind.ESNext,
-        verbatimModuleSyntax: false,
-      },
+    const esbuild = await DenoFsRuntime.esbuild();
+    const result = await esbuild.transform(source, {
+      loader: 'ts',
+      format: 'esm',
+      target: 'esnext',
     });
-    return result.outputText;
+    return result.code;
+  }
+
+  static override async bundle(
+    entryPoint: string,
+    resolve: (path: string) => Promise<string | null>,
+    options?: { external?: string[] },
+  ): Promise<string> {
+    const esbuild = await DenoFsRuntime.esbuild();
+    const result = await esbuild.build({
+      entryPoints: [entryPoint],
+      bundle: true,
+      write: false,
+      format: 'esm',
+      platform: 'neutral',
+      external: options?.external,
+      plugins: [{
+        name: 'runtime-fs',
+        setup(build: { onResolve: Function; onLoad: Function }) {
+          build.onResolve(
+            { filter: /.*/ },
+            (args: { path: string; importer: string; namespace: string }) => {
+              // Let external imports pass through
+              if (
+                options?.external?.some((ext) =>
+                  args.path === ext || args.path.startsWith(ext + '/')
+                )
+              ) {
+                return { path: args.path, external: true };
+              }
+              // Resolve relative imports against importer's directory
+              if (args.path.startsWith('.') && args.namespace === 'runtime') {
+                const dir = args.importer.replace(/[^/]*$/, '');
+                return { path: dir + args.path.replace(/^\.\//, ''), namespace: 'runtime' };
+              }
+              // Entry point
+              if (args.path === entryPoint) {
+                return { path: args.path, namespace: 'runtime' };
+              }
+              return undefined;
+            },
+          );
+
+          build.onLoad({ filter: /.*/, namespace: 'runtime' }, async (args: { path: string }) => {
+            const contents = await resolve(args.path);
+            if (contents === null) return undefined;
+            return {
+              contents,
+              loader: args.path.endsWith('.ts') ? 'ts' as const : 'js' as const,
+            };
+          });
+        },
+      }],
+    });
+    return result.outputFiles[0].text;
   }
 }

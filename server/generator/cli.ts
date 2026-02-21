@@ -20,10 +20,11 @@
 import {
   generateManifestCode,
   generateRoutesManifest,
-  ServerRuntimeError,
 } from './route.generator.ts';
 import { discoverWidgets, generateWidgetsManifestCode } from './widget.generator.ts';
-import { denoServerRuntime } from '../server.deno.ts';
+import { DenoFsRuntime } from '../runtime/deno/fs/deno-fs.runtime.ts';
+
+const runtime = new DenoFsRuntime(Deno.cwd());
 
 async function main() {
   const widgetsIdx = Deno.args.indexOf('--widgets');
@@ -35,8 +36,24 @@ async function main() {
 
   console.log(`[Routes Generator] Scanning: ${routesDir}/`);
 
-  try {
-    const manifest = await generateRoutesManifest(routesDir, denoServerRuntime);
+  // Check if routes directory exists
+  if ((await runtime.query(`/${routesDir}/`)).status === 404) {
+    console.log(`[Routes Generator] No routes directory found at: ${routesDir}/`);
+    console.log('[Routes Generator] Creating empty manifest...');
+
+    const emptyManifest = {
+      routes: [],
+      errorBoundaries: [],
+      statusPages: new Map(),
+      errorHandler: undefined,
+    };
+
+    const code = generateManifestCode(emptyManifest, importPath);
+    await runtime.command(`/${outputFile}`, { body: code });
+
+    console.log(`[Routes Generator] Generated empty: ${outputFile}`);
+  } else {
+    const manifest = await generateRoutesManifest(routesDir, runtime);
 
     console.log(`[Routes Generator] Found ${manifest.routes.length} routes`);
     console.log(`[Routes Generator] Found ${manifest.errorBoundaries.length} error boundaries`);
@@ -52,7 +69,7 @@ async function main() {
     }
 
     const code = generateManifestCode(manifest, importPath);
-    await denoServerRuntime.writeTextFile(outputFile, code);
+    await runtime.command(`/${outputFile}`, { body: code });
 
     console.log(`[Routes Generator] Generated: ${outputFile}`);
 
@@ -81,25 +98,6 @@ async function main() {
       console.log('\nError Handler:');
       console.log(`  ${manifest.errorHandler.modulePath}`);
     }
-  } catch (error) {
-    if (error instanceof ServerRuntimeError && error.code === 'NOT_FOUND') {
-      console.log(`[Routes Generator] No routes directory found at: ${routesDir}/`);
-      console.log('[Routes Generator] Creating empty manifest...');
-
-      const emptyManifest = {
-        routes: [],
-        errorBoundaries: [],
-        statusPages: new Map(),
-        errorHandler: undefined,
-      };
-
-      const code = generateManifestCode(emptyManifest, importPath);
-      await denoServerRuntime.writeTextFile(outputFile, code);
-
-      console.log(`[Routes Generator] Generated empty: ${outputFile}`);
-    } else {
-      throw error;
-    }
   }
 
   // Widget manifest generation
@@ -110,12 +108,15 @@ async function main() {
 
     console.log(`\n[Widgets Generator] Scanning: ${widgetsDir}/`);
 
-    try {
-      const entries = await discoverWidgets(widgetsDir, denoServerRuntime, widgetsDir);
+    if ((await runtime.query(`/${widgetsDir}/`)).status === 404) {
+      console.log(`[Widgets Generator] No widgets directory found at: ${widgetsDir}/`);
+      console.log('[Widgets Generator] Skipping widget manifest generation.');
+    } else {
+      const entries = await discoverWidgets(widgetsDir, runtime, widgetsDir);
       console.log(`[Widgets Generator] Found ${entries.length} widgets`);
 
       const code = generateWidgetsManifestCode(entries, importPath);
-      await denoServerRuntime.writeTextFile(widgetsOutput, code);
+      await runtime.command(`/${widgetsOutput}`, { body: code });
 
       console.log(`[Widgets Generator] Generated: ${widgetsOutput}`);
 
@@ -126,13 +127,6 @@ async function main() {
           const filesInfo = fileTypes ? ` [${fileTypes}]` : '';
           console.log(`  ${entry.name.padEnd(30)} → ${entry.modulePath}${filesInfo}`);
         }
-      }
-    } catch (error) {
-      if (error instanceof ServerRuntimeError && error.code === 'NOT_FOUND') {
-        console.log(`[Widgets Generator] No widgets directory found at: ${widgetsDir}/`);
-        console.log('[Widgets Generator] Skipping widget manifest generation.');
-      } else {
-        throw error;
       }
     }
   }

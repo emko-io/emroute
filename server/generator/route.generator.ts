@@ -33,7 +33,6 @@ import type {
   RouteFiles,
   RoutesManifest,
 } from '../../src/type/route.type.ts';
-import { ServerRuntimeError } from '../server.type.ts';
 import type { Runtime } from '../runtime/abstract.runtime.ts';
 
 /** Walk directory recursively and collect files via Runtime. */
@@ -423,6 +422,3 @@ ${moduleLoadersCode}
 `;
 }
 
-// Re-export types
-export type { DirEntry } from '../server.type.ts';
-export { ServerRuntimeError };

@@ -61,6 +61,21 @@ export abstract class Runtime {
     throw new Error('Not implemented');
   }
 
+  /**
+   * Bundle a module and its dependencies into a self-contained JS string.
+   *
+   * Uses esbuild with a virtual filesystem plugin — no disk access needed.
+   * The `resolve` callback reads file contents from the Runtime instance.
+   * Framework imports (`@emkodev/emroute/*`) are marked external by default.
+   */
+  static bundle(
+    _entryPoint: string,
+    _resolve: (path: string) => Promise<string | null>,
+    _options?: { external?: string[] },
+  ): Promise<string> {
+    throw new Error('Not implemented');
+  }
+
   static compress(_data: Uint8Array, _encoding: 'br' | 'gzip'): Promise<Uint8Array> {
     throw new Error('Not implemented');
   }

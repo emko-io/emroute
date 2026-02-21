@@ -11,9 +11,11 @@
     "jsr:@std/internal@^1.0.12": "1.0.12",
     "npm:@swc/core@*": "1.15.11",
     "npm:esbuild@*": "0.27.3",
+    "npm:esbuild@~0.27.3": "0.27.3",
     "npm:playwright@1.50.1": "1.50.1",
     "npm:playwright@1.58.2": "1.58.2",
-    "npm:typescript@*": "5.9.3"
+    "npm:typescript@*": "5.9.3",
+    "npm:typescript@5.9": "5.9.3"
   },
   "jsr": {
     "@emkodev/emko-md@0.1.0-beta.2": {

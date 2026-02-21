@@ -7,11 +7,12 @@
 
 import { generateRoutesManifest } from '../../server/generator/route.generator.ts';
 import { generateSitemap } from '../../server/generator/sitemap.generator.ts';
-import { denoServerRuntime } from '../../server/server.deno.ts';
+import { DenoFsRuntime } from '../../server/runtime/deno/fs/deno-fs.runtime.ts';
 
+const runtime = new DenoFsRuntime(Deno.cwd());
 const ROUTES_DIR = 'test/browser/fixtures/routes';
 
-const manifest = await generateRoutesManifest(ROUTES_DIR, denoServerRuntime);
+const manifest = await generateRoutesManifest(ROUTES_DIR, runtime);
 
 const xml = await generateSitemap(manifest, {
   baseUrl: 'https://example.com',

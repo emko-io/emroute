@@ -77,8 +77,12 @@ export const DEFAULT_ROOT_ROUTE: RouteConfig = {
 
 /** Options for RouteCore */
 export interface RouteCoreOptions {
-  /** Base URL for fetching files (e.g., 'http://myserver:8080') */
-  baseUrl?: string;
+  /**
+   * Read a companion file (.html, .md, .css) by path — returns its text content.
+   * SSR: `(path) => runtime.query(path, { as: 'text' })`.
+   * SPA default: `fetch(path, { headers: { Accept: 'text/plain' } }).then(r => r.text())`.
+   */
+  fileReader?: (path: string) => Promise<string>;
   /** Enriches every ComponentContext with app-level services before it reaches components. */
   extendContext?: ContextProvider;
   /** Base path prepended to route patterns for URL matching (e.g. '/html'). No trailing slash. */
@@ -103,12 +107,13 @@ export class RouteCore {
   private widgetFileCache: Map<string, string> = new Map();
   private moduleLoaders: Record<string, () => Promise<unknown>>;
   currentRoute: MatchedRoute | null = null;
-  private baseUrl: string;
+  private readFile: (path: string) => Promise<string>;
 
   constructor(manifest: RoutesManifest, options: RouteCoreOptions = {}) {
     this.basePath = options.basePath ?? '';
     this.matcher = new RouteMatcher(manifest);
-    this.baseUrl = options.baseUrl ?? '';
+    this.readFile = options.fileReader ??
+      ((path) => fetch(path, { headers: { Accept: 'text/plain' } }).then((r) => r.text()));
     this.contextProvider = options.extendContext;
     this.moduleLoaders = manifest.moduleLoaders ?? {};
   }
@@ -233,29 +238,19 @@ export class RouteCore {
 
   /**
    * Load widget file contents with caching.
-   * Relative paths are resolved via baseUrl; absolute URLs (http/https) are fetched directly.
    * Returns an object with loaded file contents.
    */
   async loadWidgetFiles(
     widgetFiles: { html?: string; md?: string; css?: string },
   ): Promise<{ html?: string; md?: string; css?: string }> {
     const load = async (path: string): Promise<string | undefined> => {
-      const cached = this.widgetFileCache.get(path);
+      const absPath = this.toAbsolutePath(path);
+      const cached = this.widgetFileCache.get(absPath);
       if (cached !== undefined) return cached;
 
       try {
-        const url = path.startsWith('http://') || path.startsWith('https://')
-          ? path
-          : this.baseUrl + this.toAbsolutePath(path);
-
-        const response = await fetch(url);
-        if (!response.ok) {
-          console.warn(`[RouteCore] Failed to load widget file ${path}: ${response.status}`);
-          return undefined;
-        }
-
-        const content = await response.text();
-        this.widgetFileCache.set(path, content);
+        const content = await this.readFile(absPath);
+        this.widgetFileCache.set(absPath, content);
         return content;
       } catch (e) {
         console.warn(
@@ -299,14 +294,8 @@ export class RouteCore {
     signal?: AbortSignal,
     isLeaf?: boolean,
   ): Promise<ComponentContext> {
-    const fetchFile = async (filePath: string): Promise<string> => {
-      const url = this.baseUrl + this.toAbsolutePath(filePath);
-      const response = await fetch(url, signal ? { signal } : undefined);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch ${filePath}: ${response.status}`);
-      }
-      return response.text();
-    };
+    const fetchFile = (filePath: string): Promise<string> =>
+      this.readFile(this.toAbsolutePath(filePath));
 
     const rf = route.files;
     const [html, md, css] = await Promise.all([

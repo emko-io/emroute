@@ -152,9 +152,11 @@ export class BunFsRuntime extends Runtime {
       bundle: true,
       write: false,
       format: 'esm',
-      platform: 'neutral',
+      platform: 'browser',
+      absWorkingDir: resolveDir,
       external: options?.external,
       minify: options?.minify,
+      loader: { '.ts': 'ts' },
       plugins: [{
         name: 'runtime-fs',
         setup(build: { onResolve: Function; onLoad: Function }) {

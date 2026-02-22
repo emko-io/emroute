@@ -11,7 +11,7 @@
  * - Event emission
  */
 
-import { assertEquals, assertExists } from '@std/assert';
+import { test, expect, describe } from 'bun:test';
 import { RouteCore } from '../../src/route/route.core.ts';
 import type { RoutesManifest } from '../../src/type/route.type.ts';
 import { PageComponent } from '../../src/component/page.component.ts';
@@ -58,9 +58,9 @@ class TestPage extends PageComponent {
   }
 }
 
-// ── Manifest Building ──────────────────────────────────────────────
+// -- Manifest Building --
 
-Deno.test('HashRouter manifest — routes are mapped correctly', () => {
+test('HashRouter manifest - routes are mapped correctly', () => {
   const loader = () => Promise.resolve({ default: new TestPage('test', '<h1>Test</h1>') });
   const manifest = buildHashManifest([
     { pattern: '/', loader },
@@ -68,20 +68,20 @@ Deno.test('HashRouter manifest — routes are mapped correctly', () => {
     { pattern: '/users/:id', loader },
   ]);
 
-  assertEquals(manifest.routes.length, 3);
-  assertEquals(manifest.routes[0].pattern, '/');
-  assertEquals(manifest.routes[1].pattern, '/settings');
-  assertEquals(manifest.routes[2].pattern, '/users/:id');
+  expect(manifest.routes.length).toEqual(3);
+  expect(manifest.routes[0].pattern).toEqual('/');
+  expect(manifest.routes[1].pattern).toEqual('/settings');
+  expect(manifest.routes[2].pattern).toEqual('/users/:id');
 
   // All routes are pages with ts files pointing to pattern
   for (const route of manifest.routes) {
-    assertEquals(route.type, 'page');
-    assertEquals(route.modulePath, route.pattern);
-    assertEquals(route.files?.ts, route.pattern);
+    expect(route.type).toEqual('page');
+    expect(route.modulePath).toEqual(route.pattern);
+    expect(route.files?.ts).toEqual(route.pattern);
   }
 });
 
-Deno.test('HashRouter manifest — moduleLoaders use pattern as key', () => {
+test('HashRouter manifest - moduleLoaders use pattern as key', () => {
   const loader1 = () => Promise.resolve({ default: 'a' });
   const loader2 = () => Promise.resolve({ default: 'b' });
   const manifest = buildHashManifest([
@@ -89,25 +89,25 @@ Deno.test('HashRouter manifest — moduleLoaders use pattern as key', () => {
     { pattern: '/bar', loader: loader2 },
   ]);
 
-  assertEquals(typeof manifest.moduleLoaders!['/foo'], 'function');
-  assertEquals(typeof manifest.moduleLoaders!['/bar'], 'function');
+  expect(typeof manifest.moduleLoaders!['/foo']).toEqual('function');
+  expect(typeof manifest.moduleLoaders!['/bar']).toEqual('function');
   // Loaders are the originals
-  assertEquals(manifest.moduleLoaders!['/foo'], loader1);
-  assertEquals(manifest.moduleLoaders!['/bar'], loader2);
+  expect(manifest.moduleLoaders!['/foo']).toEqual(loader1);
+  expect(manifest.moduleLoaders!['/bar']).toEqual(loader2);
 });
 
-Deno.test('HashRouter manifest — no error boundaries or status pages', () => {
+test('HashRouter manifest - no error boundaries or status pages', () => {
   const manifest = buildHashManifest([
     { pattern: '/', loader: () => Promise.resolve({}) },
   ]);
 
-  assertEquals(manifest.errorBoundaries.length, 0);
-  assertEquals(manifest.statusPages.size, 0);
+  expect(manifest.errorBoundaries.length).toEqual(0);
+  expect(manifest.statusPages.size).toEqual(0);
 });
 
-// ── Route Matching (no basePath) ───────────────────────────────────
+// -- Route Matching (no basePath) --
 
-Deno.test('HashRouter matching — static routes', () => {
+test('HashRouter matching - static routes', () => {
   const manifest = buildHashManifest([
     { pattern: '/', loader: () => Promise.resolve({}) },
     { pattern: '/settings', loader: () => Promise.resolve({}) },
@@ -115,23 +115,23 @@ Deno.test('HashRouter matching — static routes', () => {
   ]);
   const core = new RouteCore(manifest);
 
-  // '#/' → match '/'
+  // '#/' -> match '/'
   const root = core.match(new URL('/', 'http://localhost'));
-  assertExists(root);
-  assertEquals(root.route.pattern, '/');
+  expect(root).toBeDefined();
+  expect(root!.route.pattern).toEqual('/');
 
-  // '#/settings' → match '/settings'
+  // '#/settings' -> match '/settings'
   const settings = core.match(new URL('/settings', 'http://localhost'));
-  assertExists(settings);
-  assertEquals(settings.route.pattern, '/settings');
+  expect(settings).toBeDefined();
+  expect(settings!.route.pattern).toEqual('/settings');
 
-  // '#/about' → match '/about'
+  // '#/about' -> match '/about'
   const about = core.match(new URL('/about', 'http://localhost'));
-  assertExists(about);
-  assertEquals(about.route.pattern, '/about');
+  expect(about).toBeDefined();
+  expect(about!.route.pattern).toEqual('/about');
 });
 
-Deno.test('HashRouter matching — dynamic segments', () => {
+test('HashRouter matching - dynamic segments', () => {
   const manifest = buildHashManifest([
     { pattern: '/users/:id', loader: () => Promise.resolve({}) },
     { pattern: '/projects/:pid/tasks/:tid', loader: () => Promise.resolve({}) },
@@ -139,27 +139,27 @@ Deno.test('HashRouter matching — dynamic segments', () => {
   const core = new RouteCore(manifest);
 
   const user = core.match(new URL('/users/42', 'http://localhost'));
-  assertExists(user);
-  assertEquals(user.route.pattern, '/users/:id');
-  assertEquals(user.params, { id: '42' });
+  expect(user).toBeDefined();
+  expect(user!.route.pattern).toEqual('/users/:id');
+  expect(user!.params).toEqual({ id: '42' });
 
   const task = core.match(new URL('/projects/p1/tasks/t2', 'http://localhost'));
-  assertExists(task);
-  assertEquals(task.route.pattern, '/projects/:pid/tasks/:tid');
-  assertEquals(task.params, { pid: 'p1', tid: 't2' });
+  expect(task).toBeDefined();
+  expect(task!.route.pattern).toEqual('/projects/:pid/tasks/:tid');
+  expect(task!.params).toEqual({ pid: 'p1', tid: 't2' });
 });
 
-Deno.test('HashRouter matching — unmatched path returns undefined', () => {
+test('HashRouter matching - unmatched path returns undefined', () => {
   const manifest = buildHashManifest([
     { pattern: '/settings', loader: () => Promise.resolve({}) },
   ]);
   const core = new RouteCore(manifest);
 
   const result = core.match(new URL('/nonexistent', 'http://localhost'));
-  assertEquals(result, undefined);
+  expect(result).toEqual(undefined);
 });
 
-Deno.test('HashRouter matching — no basePath prefix', () => {
+test('HashRouter matching - no basePath prefix', () => {
   const manifest = buildHashManifest([
     { pattern: '/settings', loader: () => Promise.resolve({}) },
   ]);
@@ -167,26 +167,26 @@ Deno.test('HashRouter matching — no basePath prefix', () => {
 
   // Should NOT match with /html prefix
   const withPrefix = core.match(new URL('/html/settings', 'http://localhost'));
-  assertEquals(withPrefix, undefined);
+  expect(withPrefix).toEqual(undefined);
 
   // Should match bare path
   const bare = core.match(new URL('/settings', 'http://localhost'));
-  assertExists(bare);
+  expect(bare).toBeDefined();
 });
 
-// ── Route Hierarchy ────────────────────────────────────────────────
+// -- Route Hierarchy --
 
-Deno.test('HashRouter hierarchy — flat routes', () => {
+test('HashRouter hierarchy - flat routes', () => {
   const manifest = buildHashManifest([
     { pattern: '/settings', loader: () => Promise.resolve({}) },
   ]);
   const core = new RouteCore(manifest);
 
   const hierarchy = core.buildRouteHierarchy('/settings');
-  assertEquals(hierarchy, ['/', '/settings']);
+  expect(hierarchy).toEqual(['/', '/settings']);
 });
 
-Deno.test('HashRouter hierarchy — nested routes', () => {
+test('HashRouter hierarchy - nested routes', () => {
   const manifest = buildHashManifest([
     { pattern: '/settings', loader: () => Promise.resolve({}) },
     { pattern: '/settings/account', loader: () => Promise.resolve({}) },
@@ -194,22 +194,22 @@ Deno.test('HashRouter hierarchy — nested routes', () => {
   const core = new RouteCore(manifest);
 
   const hierarchy = core.buildRouteHierarchy('/settings/account');
-  assertEquals(hierarchy, ['/', '/settings', '/settings/account']);
+  expect(hierarchy).toEqual(['/', '/settings', '/settings/account']);
 });
 
-Deno.test('HashRouter hierarchy — root route', () => {
+test('HashRouter hierarchy - root route', () => {
   const manifest = buildHashManifest([
     { pattern: '/', loader: () => Promise.resolve({}) },
   ]);
   const core = new RouteCore(manifest);
 
   const hierarchy = core.buildRouteHierarchy('/');
-  assertEquals(hierarchy, ['/']);
+  expect(hierarchy).toEqual(['/']);
 });
 
-// ── Module Loading ─────────────────────────────────────────────────
+// -- Module Loading --
 
-Deno.test('HashRouter module loading — uses inline loader', async () => {
+test('HashRouter module loading - uses inline loader', async () => {
   const page = new TestPage('test', '<h1>Test</h1>');
   const manifest = buildHashManifest([
     { pattern: '/test', loader: () => Promise.resolve({ default: page }) },
@@ -218,10 +218,10 @@ Deno.test('HashRouter module loading — uses inline loader', async () => {
 
   // loadModule uses the moduleLoaders map, keyed by pattern
   const mod = await core.loadModule<{ default: TestPage }>('/test');
-  assertEquals(mod.default, page);
+  expect(mod.default).toEqual(page);
 });
 
-Deno.test('HashRouter module loading — caches loaded modules', async () => {
+test('HashRouter module loading - caches loaded modules', async () => {
   let callCount = 0;
   const page = new TestPage('test', '<h1>Test</h1>');
   const manifest = buildHashManifest([
@@ -237,29 +237,29 @@ Deno.test('HashRouter module loading — caches loaded modules', async () => {
 
   await core.loadModule('/test');
   await core.loadModule('/test');
-  assertEquals(callCount, 1, 'loader should only be called once');
+  expect(callCount).toEqual(1);
 });
 
-// ── toRouteInfo ────────────────────────────────────────────────────
+// -- toRouteInfo --
 
-Deno.test('HashRouter toRouteInfo — builds correct route info', () => {
+test('HashRouter toRouteInfo - builds correct route info', () => {
   const manifest = buildHashManifest([
     { pattern: '/users/:id', loader: () => Promise.resolve({}) },
   ]);
   const core = new RouteCore(manifest);
 
   const matched = core.match(new URL('/users/99', 'http://localhost'));
-  assertExists(matched);
+  expect(matched).toBeDefined();
 
-  const info = core.toRouteInfo(matched, '/users/99');
-  assertEquals(info.pathname, '/users/99');
-  assertEquals(info.pattern, '/users/:id');
-  assertEquals(info.params, { id: '99' });
+  const info = core.toRouteInfo(matched!, '/users/99');
+  expect(info.pathname).toEqual('/users/99');
+  expect(info.pattern).toEqual('/users/:id');
+  expect(info.params).toEqual({ id: '99' });
 });
 
-// ── Context Provider ───────────────────────────────────────────────
+// -- Context Provider --
 
-Deno.test('HashRouter context — extends context via provider', async () => {
+test('HashRouter context - extends context via provider', async () => {
   const manifest = buildHashManifest([
     { pattern: '/test', loader: () => Promise.resolve({}) },
   ]);
@@ -270,31 +270,31 @@ Deno.test('HashRouter context — extends context via provider', async () => {
   const core = new RouteCore(manifest, { extendContext });
 
   const matched = core.match(new URL('/test', 'http://localhost'));
-  assertExists(matched);
+  expect(matched).toBeDefined();
 
-  const routeInfo = core.toRouteInfo(matched, '/test');
-  const context = await core.buildComponentContext(routeInfo, matched.route);
-  assertEquals((context as ComponentContext & { custom: string }).custom, 'value');
+  const routeInfo = core.toRouteInfo(matched!, '/test');
+  const context = await core.buildComponentContext(routeInfo, matched!.route);
+  expect((context as ComponentContext & { custom: string }).custom).toEqual('value');
 });
 
-Deno.test('HashRouter context — no basePath in context', async () => {
+test('HashRouter context - no basePath in context', async () => {
   const manifest = buildHashManifest([
     { pattern: '/test', loader: () => Promise.resolve({}) },
   ]);
   const core = new RouteCore(manifest);
 
   const matched = core.match(new URL('/test', 'http://localhost'));
-  assertExists(matched);
+  expect(matched).toBeDefined();
 
-  const routeInfo = core.toRouteInfo(matched, '/test');
-  const context = await core.buildComponentContext(routeInfo, matched.route);
-  // No basePath set → context.basePath is undefined
-  assertEquals(context.basePath, undefined);
+  const routeInfo = core.toRouteInfo(matched!, '/test');
+  const context = await core.buildComponentContext(routeInfo, matched!.route);
+  // No basePath set -> context.basePath is undefined
+  expect(context.basePath).toEqual(undefined);
 });
 
-// ── Event Emission ─────────────────────────────────────────────────
+// -- Event Emission --
 
-Deno.test('HashRouter events — emits to listeners', () => {
+test('HashRouter events - emits to listeners', () => {
   const manifest = buildHashManifest([]);
   const core = new RouteCore(manifest);
 
@@ -304,12 +304,12 @@ Deno.test('HashRouter events — emits to listeners', () => {
   core.emit({ type: 'navigate', pathname: '/test', params: {} });
   core.emit({ type: 'load', pathname: '/test', params: {} });
 
-  assertEquals(events.length, 2);
-  assertEquals(events[0].type, 'navigate');
-  assertEquals(events[1].type, 'load');
+  expect(events.length).toEqual(2);
+  expect(events[0].type).toEqual('navigate');
+  expect(events[1].type).toEqual('load');
 });
 
-Deno.test('HashRouter events — removeListener stops emission', () => {
+test('HashRouter events - removeListener stops emission', () => {
   const manifest = buildHashManifest([]);
   const core = new RouteCore(manifest);
 
@@ -320,50 +320,50 @@ Deno.test('HashRouter events — removeListener stops emission', () => {
   remove();
   core.emit({ type: 'navigate', pathname: '/', params: {} });
 
-  assertEquals(events.length, 1);
+  expect(events.length).toEqual(1);
 });
 
-// ── buildComponentContext with no files ─────────────────────────────
+// -- buildComponentContext with no files --
 
-Deno.test('HashRouter context — no file fetching for hash routes', async () => {
+test('HashRouter context - no file fetching for hash routes', async () => {
   const manifest = buildHashManifest([
     { pattern: '/test', loader: () => Promise.resolve({}) },
   ]);
   const core = new RouteCore(manifest);
 
   const matched = core.match(new URL('/test', 'http://localhost'));
-  assertExists(matched);
+  expect(matched).toBeDefined();
 
-  const routeInfo = core.toRouteInfo(matched, '/test');
-  // files.ts = '/test' but html, md, css are undefined → no fetch attempts
-  const context = await core.buildComponentContext(routeInfo, matched.route);
+  const routeInfo = core.toRouteInfo(matched!, '/test');
+  // files.ts = '/test' but html, md, css are undefined -> no fetch attempts
+  const context = await core.buildComponentContext(routeInfo, matched!.route);
 
   // Files should have ts but no html/md/css content
-  assertEquals(context.files?.html, undefined);
-  assertEquals(context.files?.md, undefined);
-  assertEquals(context.files?.css, undefined);
+  expect(context.files?.html).toEqual(undefined);
+  expect(context.files?.md).toEqual(undefined);
+  expect(context.files?.css).toEqual(undefined);
 });
 
-// ── Wildcard and catch-all patterns ─────────────────────────────────
+// -- Wildcard and catch-all patterns --
 
-Deno.test('HashRouter matching — wildcard catch-all', () => {
+test('HashRouter matching - wildcard catch-all', () => {
   const manifest = buildHashManifest([
     { pattern: '/docs/:rest*', loader: () => Promise.resolve({}) },
   ]);
   const core = new RouteCore(manifest);
 
   const shallow = core.match(new URL('/docs/intro', 'http://localhost'));
-  assertExists(shallow);
-  assertEquals(shallow.params.rest, 'intro');
+  expect(shallow).toBeDefined();
+  expect(shallow!.params.rest).toEqual('intro');
 
   const deep = core.match(new URL('/docs/guide/getting-started', 'http://localhost'));
-  assertExists(deep);
-  assertEquals(deep.params.rest, 'guide/getting-started');
+  expect(deep).toBeDefined();
+  expect(deep!.params.rest).toEqual('guide/getting-started');
 });
 
-// ── Query string preservation ───────────────────────────────────────
+// -- Query string preservation --
 
-Deno.test('HashRouter matching — preserves search params', () => {
+test('HashRouter matching - preserves search params', () => {
   const manifest = buildHashManifest([
     { pattern: '/search', loader: () => Promise.resolve({}) },
   ]);
@@ -371,7 +371,7 @@ Deno.test('HashRouter matching — preserves search params', () => {
 
   const url = new URL('/search?q=hello&page=2', 'http://localhost');
   const matched = core.match(url);
-  assertExists(matched);
-  assertEquals(matched.searchParams?.get('q'), 'hello');
-  assertEquals(matched.searchParams?.get('page'), '2');
+  expect(matched).toBeDefined();
+  expect(matched!.searchParams?.get('q')).toEqual('hello');
+  expect(matched!.searchParams?.get('page')).toEqual('2');
 });

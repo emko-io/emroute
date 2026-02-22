@@ -12,7 +12,7 @@
  * - Multiple levels of context enrichment
  */
 
-import { assert, assertEquals } from '@std/assert';
+import { test, expect, describe } from 'bun:test';
 import { RouteCore } from '../../src/route/route.core.ts';
 import { SsrHtmlRouter } from '../../src/renderer/ssr/html.renderer.ts';
 import { SsrMdRouter } from '../../src/renderer/ssr/md.renderer.ts';
@@ -77,20 +77,20 @@ function mockFetch(contentMap: Record<string, string>) {
 // RouteCore Context Provider Storage
 // ============================================================================
 
-Deno.test('RouteCore - contextProvider is undefined by default', () => {
+test('RouteCore - contextProvider is undefined by default', () => {
   const core = new RouteCore(createTestManifest([]));
-  assertEquals(core.contextProvider, undefined);
+  expect(core.contextProvider).toEqual(undefined);
 });
 
-Deno.test('RouteCore - contextProvider is set from extendContext option', () => {
+test('RouteCore - contextProvider is set from extendContext option', () => {
   const provider: ContextProvider = (ctx) => ctx;
   const core = new RouteCore(createTestManifest([]), {
     extendContext: provider,
   });
-  assertEquals(core.contextProvider, provider);
+  expect(core.contextProvider).toEqual(provider);
 });
 
-Deno.test(
+test(
   'RouteCore - contextProvider can be accessed for inspection',
   () => {
     const provider: ContextProvider = (base) => ({
@@ -100,9 +100,9 @@ Deno.test(
     const core = new RouteCore(createTestManifest([]), {
       extendContext: provider,
     });
-    assert(core.contextProvider !== undefined);
+    expect(core.contextProvider !== undefined).toBeTruthy();
     // Verify it's the same function
-    assertEquals(core.contextProvider, provider);
+    expect(core.contextProvider).toEqual(provider);
   },
 );
 
@@ -110,7 +110,7 @@ Deno.test(
 // Base Context Preservation
 // ============================================================================
 
-Deno.test(
+test(
   'RouteCore - buildComponentContext preserves pathname from RouteInfo',
   async () => {
     const route = createTestRoute({
@@ -131,14 +131,14 @@ Deno.test(
     const restore = mockFetch({ '/hello.page.html': '<p>Hello</p>' });
     try {
       const ctx = await core.buildComponentContext(routeInfo, route);
-      assertEquals(ctx.pathname, '/hello');
+      expect(ctx.pathname).toEqual('/hello');
     } finally {
       restore();
     }
   },
 );
 
-Deno.test(
+test(
   'RouteCore - buildComponentContext preserves pattern from RouteInfo',
   async () => {
     const route = createTestRoute({
@@ -159,14 +159,14 @@ Deno.test(
     const restore = mockFetch({ '/users.page.html': '<div>User</div>' });
     try {
       const ctx = await core.buildComponentContext(routeInfo, route);
-      assertEquals(ctx.pattern, '/users/:id');
+      expect(ctx.pattern).toEqual('/users/:id');
     } finally {
       restore();
     }
   },
 );
 
-Deno.test(
+test(
   'RouteCore - buildComponentContext preserves params from RouteInfo',
   async () => {
     const route = createTestRoute({
@@ -187,14 +187,14 @@ Deno.test(
     const restore = mockFetch({ '/articles.page.html': '<article/>' });
     try {
       const ctx = await core.buildComponentContext(routeInfo, route);
-      assertEquals(ctx.params, { slug: 'hello-world' });
+      expect(ctx.params).toEqual({ slug: 'hello-world' });
     } finally {
       restore();
     }
   },
 );
 
-Deno.test(
+test(
   'RouteCore - buildComponentContext preserves searchParams',
   async () => {
     const route = createTestRoute({
@@ -216,15 +216,15 @@ Deno.test(
     const restore = mockFetch({ '/search.page.html': '<div>Search</div>' });
     try {
       const ctx = await core.buildComponentContext(routeInfo, route);
-      assertEquals(ctx.searchParams.get('q'), 'test');
-      assertEquals(ctx.searchParams.get('limit'), '10');
+      expect(ctx.searchParams.get('q')).toEqual('test');
+      expect(ctx.searchParams.get('limit')).toEqual('10');
     } finally {
       restore();
     }
   },
 );
 
-Deno.test(
+test(
   'RouteCore - buildComponentContext preserves files (html)',
   async () => {
     const route = createTestRoute({
@@ -245,14 +245,14 @@ Deno.test(
     const restore = mockFetch({ '/page.page.html': '<div>Content</div>' });
     try {
       const ctx = await core.buildComponentContext(routeInfo, route);
-      assertEquals(ctx.files?.html, '<div>Content</div>');
+      expect(ctx.files?.html).toEqual('<div>Content</div>');
     } finally {
       restore();
     }
   },
 );
 
-Deno.test(
+test(
   'RouteCore - buildComponentContext preserves files (markdown)',
   async () => {
     const route = createTestRoute({
@@ -273,14 +273,14 @@ Deno.test(
     const restore = mockFetch({ '/page.page.md': '# Page Content' });
     try {
       const ctx = await core.buildComponentContext(routeInfo, route);
-      assertEquals(ctx.files?.md, '# Page Content');
+      expect(ctx.files?.md).toEqual('# Page Content');
     } finally {
       restore();
     }
   },
 );
 
-Deno.test(
+test(
   'RouteCore - buildComponentContext preserves files (css)',
   async () => {
     const route = createTestRoute({
@@ -303,14 +303,14 @@ Deno.test(
     });
     try {
       const ctx = await core.buildComponentContext(routeInfo, route);
-      assertEquals(ctx.files?.css, 'body { color: red; }');
+      expect(ctx.files?.css).toEqual('body { color: red; }');
     } finally {
       restore();
     }
   },
 );
 
-Deno.test(
+test(
   'RouteCore - buildComponentContext preserves files (all types)',
   async () => {
     const route = createTestRoute({
@@ -339,16 +339,16 @@ Deno.test(
     });
     try {
       const ctx = await core.buildComponentContext(routeInfo, route);
-      assertEquals(ctx.files?.html, '<div>User</div>');
-      assertEquals(ctx.files?.md, '# User');
-      assertEquals(ctx.files?.css, '.user { display: flex; }');
+      expect(ctx.files?.html).toEqual('<div>User</div>');
+      expect(ctx.files?.md).toEqual('# User');
+      expect(ctx.files?.css).toEqual('.user { display: flex; }');
     } finally {
       restore();
     }
   },
 );
 
-Deno.test(
+test(
   'RouteCore - buildComponentContext preserves signal',
   async () => {
     const route = createTestRoute({
@@ -374,7 +374,7 @@ Deno.test(
         route,
         signal,
       );
-      assertEquals(ctx.signal, signal);
+      expect(ctx.signal).toEqual(signal);
     } finally {
       restore();
     }
@@ -385,7 +385,7 @@ Deno.test(
 // isLeaf in ComponentContext
 // ============================================================================
 
-Deno.test(
+test(
   'RouteCore - buildComponentContext sets isLeaf true when passed true',
   async () => {
     const route = createTestRoute({ pattern: '/leaf' });
@@ -398,11 +398,11 @@ Deno.test(
     };
 
     const ctx = await core.buildComponentContext(routeInfo, route, undefined, true);
-    assertEquals(ctx.isLeaf, true);
+    expect(ctx.isLeaf).toEqual(true);
   },
 );
 
-Deno.test(
+test(
   'RouteCore - buildComponentContext sets isLeaf false when passed false',
   async () => {
     const route = createTestRoute({ pattern: '/layout' });
@@ -415,11 +415,11 @@ Deno.test(
     };
 
     const ctx = await core.buildComponentContext(routeInfo, route, undefined, false);
-    assertEquals(ctx.isLeaf, false);
+    expect(ctx.isLeaf).toEqual(false);
   },
 );
 
-Deno.test(
+test(
   'RouteCore - buildComponentContext leaves isLeaf undefined when not passed',
   async () => {
     const route = createTestRoute({ pattern: '/page' });
@@ -432,11 +432,11 @@ Deno.test(
     };
 
     const ctx = await core.buildComponentContext(routeInfo, route);
-    assertEquals(ctx.isLeaf, undefined);
+    expect(ctx.isLeaf).toEqual(undefined);
   },
 );
 
-Deno.test(
+test(
   'RouteCore - isLeaf is preserved through contextProvider',
   async () => {
     const route = createTestRoute({ pattern: '/test' });
@@ -451,8 +451,8 @@ Deno.test(
     };
 
     const ctx = await core.buildComponentContext(routeInfo, route, undefined, true);
-    assertEquals(ctx.isLeaf, true);
-    assertEquals(asAny(ctx).custom, 'value');
+    expect(ctx.isLeaf).toEqual(true);
+    expect(asAny(ctx).custom).toEqual('value');
   },
 );
 
@@ -460,7 +460,7 @@ Deno.test(
 // Context Enrichment with Custom Properties
 // ============================================================================
 
-Deno.test(
+test(
   'RouteCore - buildComponentContext applies single custom property',
   async () => {
     const route = createTestRoute({
@@ -481,14 +481,14 @@ Deno.test(
     const restore = mockFetch({ '/hello.page.html': '<p>Hello</p>' });
     try {
       const ctx = await core.buildComponentContext(routeInfo, route);
-      assertEquals(asAny(ctx).locale, 'en-US');
+      expect(asAny(ctx).locale).toEqual('en-US');
     } finally {
       restore();
     }
   },
 );
 
-Deno.test(
+test(
   'RouteCore - buildComponentContext applies multiple custom properties',
   async () => {
     const route = createTestRoute({
@@ -514,16 +514,16 @@ Deno.test(
     const restore = mockFetch({ '/page.page.html': '<div>Page</div>' });
     try {
       const ctx = await core.buildComponentContext(routeInfo, route);
-      assertEquals(asAny(ctx).locale, 'en-US');
-      assertEquals(asAny(ctx).apiVersion, 3);
-      assertEquals(asAny(ctx).debug, false);
+      expect(asAny(ctx).locale).toEqual('en-US');
+      expect(asAny(ctx).apiVersion).toEqual(3);
+      expect(asAny(ctx).debug).toEqual(false);
     } finally {
       restore();
     }
   },
 );
 
-Deno.test(
+test(
   'RouteCore - buildComponentContext supports complex custom objects',
   async () => {
     const route = createTestRoute({
@@ -552,16 +552,16 @@ Deno.test(
     try {
       const ctx = await core.buildComponentContext(routeInfo, route);
       const service = asAny(ctx).service;
-      assertEquals(service.name, 'TestService');
-      assertEquals(service.version, '1.0');
-      assertEquals(service.call(), 'result');
+      expect(service.name).toEqual('TestService');
+      expect(service.version).toEqual('1.0');
+      expect(service.call()).toEqual('result');
     } finally {
       restore();
     }
   },
 );
 
-Deno.test(
+test(
   'RouteCore - contextProvider can access base RouteInfo properties',
   async () => {
     const route = createTestRoute({
@@ -587,11 +587,11 @@ Deno.test(
     const restore = mockFetch({ '/test.page.html': '<div>Test</div>' });
     try {
       await core.buildComponentContext(routeInfo, route);
-      assert(capturedBase !== undefined);
-      assertEquals(capturedBase.pathname, '/test');
-      assertEquals(capturedBase.pattern, '/test');
-      assertEquals(capturedBase.params, { id: '123' });
-      assertEquals(capturedBase.searchParams.get('tab'), 'info');
+      expect(capturedBase !== undefined).toBeTruthy();
+      expect(capturedBase!.pathname).toEqual('/test');
+      expect(capturedBase!.pattern).toEqual('/test');
+      expect(capturedBase!.params).toEqual({ id: '123' });
+      expect(capturedBase!.searchParams.get('tab')).toEqual('info');
     } finally {
       restore();
     }
@@ -602,7 +602,7 @@ Deno.test(
 // Context Passed to getData
 // ============================================================================
 
-Deno.test(
+test(
   'SsrHtmlRouter - context passed to page component getData',
   async () => {
     let capturedContext: ComponentContext | undefined;
@@ -640,15 +640,15 @@ Deno.test(
 
       await router.render('http://test/test');
 
-      assert(capturedContext !== undefined);
-      assertEquals(capturedContext.pathname, '/test');
+      expect(capturedContext !== undefined).toBeTruthy();
+      expect(capturedContext!.pathname).toEqual('/test');
     } finally {
       restore();
     }
   },
 );
 
-Deno.test(
+test(
   'SsrHtmlRouter - context enriched with extendContext in getData',
   async () => {
     let capturedContext: ComponentContext | undefined;
@@ -687,17 +687,17 @@ Deno.test(
 
       await router.render('http://test/test');
 
-      assert(capturedContext !== undefined);
-      assertEquals(asAny(capturedContext).rpc, true);
-      assertEquals(asAny(capturedContext).apiVersion, 2);
-      assertEquals(capturedContext.pathname, '/test');
+      expect(capturedContext !== undefined).toBeTruthy();
+      expect(asAny(capturedContext).rpc).toEqual(true);
+      expect(asAny(capturedContext).apiVersion).toEqual(2);
+      expect(capturedContext!.pathname).toEqual('/test');
     } finally {
       restore();
     }
   },
 );
 
-Deno.test(
+test(
   'SsrMdRouter - context passed to page component getData',
   async () => {
     let capturedContext: ComponentContext | undefined;
@@ -735,15 +735,15 @@ Deno.test(
 
       await router.render('http://test/test');
 
-      assert(capturedContext !== undefined);
-      assertEquals(capturedContext.pathname, '/test');
+      expect(capturedContext !== undefined).toBeTruthy();
+      expect(capturedContext!.pathname).toEqual('/test');
     } finally {
       restore();
     }
   },
 );
 
-Deno.test(
+test(
   'SsrMdRouter - context enriched with extendContext in getData',
   async () => {
     let capturedContext: ComponentContext | undefined;
@@ -782,9 +782,9 @@ Deno.test(
 
       await router.render('http://test/test');
 
-      assert(capturedContext !== undefined);
-      assertEquals(asAny(capturedContext).rpc, true);
-      assertEquals(asAny(capturedContext).feature, 'markdown');
+      expect(capturedContext !== undefined).toBeTruthy();
+      expect(asAny(capturedContext).rpc).toEqual(true);
+      expect(asAny(capturedContext).feature).toEqual('markdown');
     } finally {
       restore();
     }
@@ -795,7 +795,7 @@ Deno.test(
 // Context Passed to Render Methods
 // ============================================================================
 
-Deno.test(
+test(
   'SsrHtmlRouter - context passed to renderHTML via RenderArgs',
   async () => {
     let capturedRenderContext: ComponentContext | undefined;
@@ -834,15 +834,15 @@ Deno.test(
 
       await router.render('http://test/test');
 
-      assert(capturedRenderContext !== undefined);
-      assertEquals(asAny(capturedRenderContext).renderMode, 'html');
+      expect(capturedRenderContext !== undefined).toBeTruthy();
+      expect(asAny(capturedRenderContext).renderMode).toEqual('html');
     } finally {
       restore();
     }
   },
 );
 
-Deno.test(
+test(
   'SsrMdRouter - context passed to renderMarkdown via RenderArgs',
   async () => {
     let capturedRenderContext: ComponentContext | undefined;
@@ -881,8 +881,8 @@ Deno.test(
 
       await router.render('http://test/test');
 
-      assert(capturedRenderContext !== undefined);
-      assertEquals(asAny(capturedRenderContext).renderMode, 'markdown');
+      expect(capturedRenderContext !== undefined).toBeTruthy();
+      expect(asAny(capturedRenderContext).renderMode).toEqual('markdown');
     } finally {
       restore();
     }
@@ -893,7 +893,7 @@ Deno.test(
 // Widget Context Enrichment
 // ============================================================================
 
-Deno.test(
+test(
   'SsrHtmlRouter - context enriched for widget in HTML',
   async () => {
     let capturedWidgetContext: ComponentContext | undefined;
@@ -956,17 +956,17 @@ Deno.test(
 
       await router.render('http://test/wtest');
 
-      assert(capturedWidgetContext !== undefined);
-      assertEquals(asAny(capturedWidgetContext).rpc, true);
-      assertEquals(asAny(capturedWidgetContext).apiVersion, 3);
-      assertEquals(capturedWidgetContext.pathname, '/wtest');
+      expect(capturedWidgetContext !== undefined).toBeTruthy();
+      expect(asAny(capturedWidgetContext).rpc).toEqual(true);
+      expect(asAny(capturedWidgetContext).apiVersion).toEqual(3);
+      expect(capturedWidgetContext!.pathname).toEqual('/wtest');
     } finally {
       restore();
     }
   },
 );
 
-Deno.test(
+test(
   'SsrMdRouter - context enriched for widget in Markdown',
   async () => {
     let capturedWidgetContext: ComponentContext | undefined;
@@ -1029,10 +1029,10 @@ Deno.test(
 
       await router.render('http://test/wmd');
 
-      assert(capturedWidgetContext !== undefined);
-      assertEquals(asAny(capturedWidgetContext).rpc, true);
-      assertEquals(asAny(capturedWidgetContext).apiVersion, 3);
-      assertEquals(capturedWidgetContext.pathname, '/wmd');
+      expect(capturedWidgetContext !== undefined).toBeTruthy();
+      expect(asAny(capturedWidgetContext).rpc).toEqual(true);
+      expect(asAny(capturedWidgetContext).apiVersion).toEqual(3);
+      expect(capturedWidgetContext!.pathname).toEqual('/wmd');
     } finally {
       restore();
     }
@@ -1043,7 +1043,7 @@ Deno.test(
 // Context Without Provider
 // ============================================================================
 
-Deno.test(
+test(
   'RouteCore - buildComponentContext works without extendContext',
   async () => {
     const route = createTestRoute({
@@ -1064,19 +1064,18 @@ Deno.test(
     });
     try {
       const ctx = await core.buildComponentContext(routeInfo, route);
-      assertEquals(ctx.pathname, '/about');
-      assertEquals(ctx.files?.html, '<section>About</section>');
-      assertEquals(
+      expect(ctx.pathname).toEqual('/about');
+      expect(ctx.files?.html).toEqual('<section>About</section>');
+      expect(
         Object.prototype.hasOwnProperty.call(ctx, 'custom'),
-        false,
-      );
+      ).toEqual(false);
     } finally {
       restore();
     }
   },
 );
 
-Deno.test(
+test(
   'SsrHtmlRouter - page component receives base context when no extendContext provided',
   async () => {
     let capturedContext: ComponentContext | undefined;
@@ -1114,13 +1113,12 @@ Deno.test(
 
       await router.render('http://test/test');
 
-      assert(capturedContext !== undefined);
-      assertEquals(capturedContext.pathname, '/test');
+      expect(capturedContext !== undefined).toBeTruthy();
+      expect(capturedContext!.pathname).toEqual('/test');
       // Should only have base properties, no custom enrichment
-      assertEquals(
+      expect(
         Object.prototype.hasOwnProperty.call(capturedContext, 'custom'),
-        false,
-      );
+      ).toEqual(false);
     } finally {
       restore();
     }
@@ -1131,7 +1129,7 @@ Deno.test(
 // Multiple Routes with Context
 // ============================================================================
 
-Deno.test(
+test(
   'SsrHtmlRouter - context applied consistently across multiple routes',
   async () => {
     const capturedContexts: ComponentContext[] = [];
@@ -1182,9 +1180,9 @@ Deno.test(
       await router.render('http://test/route1');
       await router.render('http://test/route2');
 
-      assertEquals(capturedContexts.length, 2);
-      assertEquals(asAny(capturedContexts[0]).appId, 'myapp');
-      assertEquals(asAny(capturedContexts[1]).appId, 'myapp');
+      expect(capturedContexts.length).toEqual(2);
+      expect(asAny(capturedContexts[0]).appId).toEqual('myapp');
+      expect(asAny(capturedContexts[1]).appId).toEqual('myapp');
     } finally {
       restore();
     }
@@ -1195,7 +1193,7 @@ Deno.test(
 // Type Safety and Extended Context
 // ============================================================================
 
-Deno.test(
+test(
   'Context with extended type via generic parameter',
   async () => {
     type AppContext = ComponentContext & { locale: string; apiVersion: number };
@@ -1247,7 +1245,7 @@ Deno.test(
       });
 
       const result = await router.render('http://test/test');
-      assertEquals(result.status, 200);
+      expect(result.status).toEqual(200);
     } finally {
       restore();
     }
@@ -1258,7 +1256,7 @@ Deno.test(
 // Error Handling in Context Provider
 // ============================================================================
 
-Deno.test(
+test(
   'Context provider returning same base object reference',
   async () => {
     const route = createTestRoute({
@@ -1280,15 +1278,15 @@ Deno.test(
     const restore = mockFetch({ '/test.page.html': '<div>Test</div>' });
     try {
       const ctx = await core.buildComponentContext(routeInfo, route);
-      assertEquals(ctx.pathname, '/test');
-      assertEquals(ctx.files?.html, '<div>Test</div>');
+      expect(ctx.pathname).toEqual('/test');
+      expect(ctx.files?.html).toEqual('<div>Test</div>');
     } finally {
       restore();
     }
   },
 );
 
-Deno.test(
+test(
   'Context provider with complex nesting logic',
   async () => {
     const route = createTestRoute({
@@ -1330,10 +1328,10 @@ Deno.test(
     try {
       const ctx = await core.buildComponentContext(routeInfo, route);
       const services = asAny(ctx).services;
-      assertEquals(services.api.baseUrl, 'https://api.example.com');
-      assertEquals(services.cache.ttl, 3600);
+      expect(services.api.baseUrl).toEqual('https://api.example.com');
+      expect(services.cache.ttl).toEqual(3600);
       const features = asAny(ctx).features;
-      assertEquals(features.analytics, true);
+      expect(features.analytics).toEqual(true);
     } finally {
       restore();
     }
@@ -1344,7 +1342,7 @@ Deno.test(
 // Context with Route Hierarchy (Nesting)
 // ============================================================================
 
-Deno.test(
+test(
   'Context preserved across route hierarchy in SSR',
   async () => {
     const capturedContexts: ComponentContext[] = [];
@@ -1414,9 +1412,9 @@ Deno.test(
       await router.render('http://test/child');
 
       // Both root and child page should have the enriched context
-      assert(capturedContexts.length >= 1);
+      expect(capturedContexts.length >= 1).toBeTruthy();
       for (const ctx of capturedContexts) {
-        assertEquals(asAny(ctx).contextId, 'test-context');
+        expect(asAny(ctx).contextId).toEqual('test-context');
       }
     } finally {
       restore();

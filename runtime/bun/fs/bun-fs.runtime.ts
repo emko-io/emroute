@@ -1,3 +1,4 @@
+import { stat, readdir, mkdir } from 'node:fs/promises';
 import {
   CONTENT_TYPES,
   type FetchParams,
@@ -5,7 +6,7 @@ import {
   Runtime,
 } from '../../abstract.runtime.ts';
 
-export class DenoFsRuntime extends Runtime {
+export class BunFsRuntime extends Runtime {
   private readonly root: string;
 
   constructor(root: string) {
@@ -42,7 +43,7 @@ export class DenoFsRuntime extends Runtime {
   ): Promise<Response | string> {
     if (options?.as === 'text') {
       const pathname = this.parsePath(resource);
-      return Deno.readTextFile(`${this.root}${pathname}`);
+      return Bun.file(`${this.root}${pathname}`).text();
     }
     return this.handle(resource, options);
   }
@@ -70,13 +71,13 @@ export class DenoFsRuntime extends Runtime {
 
   private async read(path: string): Promise<Response> {
     try {
-      const info = await Deno.stat(path);
+      const info = await stat(path);
 
-      if (info.isDirectory) {
+      if (info.isDirectory()) {
         return this.list(path);
       }
 
-      const content = await Deno.readFile(path);
+      const content = new Uint8Array(await Bun.file(path).arrayBuffer());
       const ext = path.slice(path.lastIndexOf('.')).toLowerCase();
       const headers: HeadersInit = {
         'Content-Type': CONTENT_TYPES.get(ext) ?? 'application/octet-stream',
@@ -89,7 +90,7 @@ export class DenoFsRuntime extends Runtime {
 
       return new Response(content, { status: 200, headers });
     } catch (error) {
-      if (error instanceof Deno.errors.NotFound) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
         return new Response('Not Found', { status: 404 });
       }
       return new Response(`Internal Error: ${error}`, { status: 500 });
@@ -98,8 +99,9 @@ export class DenoFsRuntime extends Runtime {
 
   private async list(path: string): Promise<Response> {
     const entries: string[] = [];
-    for await (const entry of Deno.readDir(path)) {
-      entries.push(entry.name + (entry.isDirectory ? '/' : ''));
+    const dirents = await readdir(path, { withFileTypes: true });
+    for (const entry of dirents) {
+      entries.push(entry.name + (entry.isDirectory() ? '/' : ''));
     }
     return Response.json(entries);
   }
@@ -110,26 +112,26 @@ export class DenoFsRuntime extends Runtime {
         ? new Uint8Array(await new Response(body).arrayBuffer())
         : new Uint8Array();
       const dir = path.slice(0, path.lastIndexOf('/'));
-      if (dir) await Deno.mkdir(dir, { recursive: true });
-      await Deno.writeFile(path, content);
+      if (dir) await mkdir(dir, { recursive: true });
+      await Bun.write(path, content);
       return new Response(null, { status: 204 });
     } catch (error) {
       return new Response(`Write failed: ${error}`, { status: 500 });
     }
   }
 
-  // deno-lint-ignore no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private static _esbuild: any = null;
 
   private static async esbuild() {
-    if (!DenoFsRuntime._esbuild) {
-      DenoFsRuntime._esbuild = await import('npm:esbuild@^0.27.3');
+    if (!BunFsRuntime._esbuild) {
+      BunFsRuntime._esbuild = await import('esbuild');
     }
-    return DenoFsRuntime._esbuild;
+    return BunFsRuntime._esbuild;
   }
 
   static override async transpile(source: string): Promise<string> {
-    const esbuild = await DenoFsRuntime.esbuild();
+    const esbuild = await BunFsRuntime.esbuild();
     const result = await esbuild.transform(source, {
       loader: 'ts',
       format: 'esm',
@@ -143,7 +145,8 @@ export class DenoFsRuntime extends Runtime {
     resolve: (path: string) => Promise<string | null>,
     options?: { external?: string[]; minify?: boolean; resolveDir?: string },
   ): Promise<string> {
-    const esbuild = await DenoFsRuntime.esbuild();
+    const esbuild = await BunFsRuntime.esbuild();
+    const resolveDir = options?.resolveDir ?? process.cwd();
     const result = await esbuild.build({
       entryPoints: [entryPoint],
       bundle: true,
@@ -157,7 +160,12 @@ export class DenoFsRuntime extends Runtime {
         setup(build: { onResolve: Function; onLoad: Function }) {
           build.onResolve(
             { filter: /.*/ },
-            (args: { path: string; importer: string; namespace: string }) => {
+            (args: {
+              path: string;
+              importer: string;
+              namespace: string;
+              resolveDir: string;
+            }) => {
               // Let external imports pass through
               if (
                 options?.external?.some((ext) =>
@@ -168,14 +176,14 @@ export class DenoFsRuntime extends Runtime {
               }
               // Resolve relative imports against importer's directory
               if (args.path.startsWith('.') && args.namespace === 'runtime') {
-                const resolved = new URL(args.path, 'file://' + args.importer).pathname;
-                return { path: resolved, namespace: 'runtime' };
+                const dir = args.importer.replace(/[^/]*$/, '');
+                return { path: dir + args.path.replace(/^\.\//, ''), namespace: 'runtime' };
               }
-              // Entry point
-              if (args.path === entryPoint) {
+              // Entry point — load via virtual runtime namespace (only for virtual paths)
+              if (args.path === entryPoint && entryPoint.startsWith('/')) {
                 return { path: args.path, namespace: 'runtime' };
               }
-              // Bare specifiers — let esbuild resolve natively (needs resolveDir)
+              // Bare specifiers — let esbuild resolve from node_modules
               return undefined;
             },
           );
@@ -186,6 +194,7 @@ export class DenoFsRuntime extends Runtime {
             return {
               contents,
               loader: args.path.endsWith('.ts') ? 'ts' as const : 'js' as const,
+              resolveDir,
             };
           });
         },
@@ -196,9 +205,9 @@ export class DenoFsRuntime extends Runtime {
 
   /** Stop the esbuild child process. Call after bundling is complete. */
   static override async stopBundler(): Promise<void> {
-    if (DenoFsRuntime._esbuild) {
-      await DenoFsRuntime._esbuild.stop();
-      DenoFsRuntime._esbuild = null;
+    if (BunFsRuntime._esbuild) {
+      await BunFsRuntime._esbuild.stop();
+      BunFsRuntime._esbuild = null;
     }
   }
 }

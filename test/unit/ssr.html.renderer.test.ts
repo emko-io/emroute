@@ -17,7 +17,7 @@
  * - Edge cases and integration scenarios
  */
 
-import { assert, assertEquals, assertStringIncludes } from '@std/assert';
+import { test, expect, describe } from 'bun:test';
 import { createSsrHtmlRouter, SsrHtmlRouter } from '../../src/renderer/ssr/html.renderer.ts';
 import type { RouteConfig, RoutesManifest } from '../../src/type/route.type.ts';
 import type { MarkdownRenderer } from '../../src/type/markdown.type.ts';
@@ -103,39 +103,39 @@ function stubComponent(overrides: {
 // Constructor Initialization Tests
 // ============================================================================
 
-Deno.test('SsrHtmlRouter - constructor initializes without markdown renderer', () => {
+test('SsrHtmlRouter - constructor initializes without markdown renderer', () => {
   const manifest = createTestManifest();
   const router = new SsrHtmlRouter(manifest);
-  assertEquals(router instanceof SsrHtmlRouter, true);
+  expect(router instanceof SsrHtmlRouter).toEqual(true);
 });
 
-Deno.test('SsrHtmlRouter - constructor initializes with markdown renderer', () => {
+test('SsrHtmlRouter - constructor initializes with markdown renderer', () => {
   const markdownRenderer: MarkdownRenderer = {
     render: (md) => `<p>${md}</p>`,
   };
   const manifest = createTestManifest();
   const router = new SsrHtmlRouter(manifest, { markdownRenderer });
-  assertEquals(router instanceof SsrHtmlRouter, true);
+  expect(router instanceof SsrHtmlRouter).toEqual(true);
 });
 
-Deno.test('SsrHtmlRouter - createSsrHtmlRouter factory function', () => {
+test('SsrHtmlRouter - createSsrHtmlRouter factory function', () => {
   const manifest = createTestManifest();
   const router = createSsrHtmlRouter(manifest);
-  assertEquals(router instanceof SsrHtmlRouter, true);
+  expect(router instanceof SsrHtmlRouter).toEqual(true);
 });
 
-Deno.test('SsrHtmlRouter - constructor with widget registry', () => {
+test('SsrHtmlRouter - constructor with widget registry', () => {
   const registry = new WidgetRegistry();
   const manifest = createTestManifest();
   const router = new SsrHtmlRouter(manifest, { widgets: registry });
-  assertEquals(router instanceof SsrHtmlRouter, true);
+  expect(router instanceof SsrHtmlRouter).toEqual(true);
 });
 
 // ============================================================================
 // Slot Injection Tests (Single Level)
 // ============================================================================
 
-Deno.test('SsrHtmlRouter - injectSlot replaces <router-slot> with child content', async () => {
+test('SsrHtmlRouter - injectSlot replaces <router-slot> with child content', async () => {
   const routes: RouteConfig[] = [
     createTestRoute({
       pattern: '/',
@@ -159,17 +159,17 @@ Deno.test('SsrHtmlRouter - injectSlot replaces <router-slot> with child content'
 
   try {
     const result = await router.render('http://localhost/page');
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'Navigation');
-    assertStringIncludes(result.content, 'Page Content');
-    assertStringIncludes(result.content, 'Footer');
-    assertEquals(result.content.includes('<router-slot>'), false);
+    expect(result.status).toEqual(200);
+    expect(result.content).toContain('Navigation');
+    expect(result.content).toContain('Page Content');
+    expect(result.content).toContain('Footer');
+    expect(result.content.includes('<router-slot>')).toEqual(false);
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrHtmlRouter - stripSlots removes unconsumed <router-slot> tags', async () => {
+test('SsrHtmlRouter - stripSlots removes unconsumed <router-slot> tags', async () => {
   const routes: RouteConfig[] = [
     createTestRoute({
       pattern: '/leaf',
@@ -186,9 +186,9 @@ Deno.test('SsrHtmlRouter - stripSlots removes unconsumed <router-slot> tags', as
 
   try {
     const result = await router.render('http://localhost/leaf');
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'Leaf Page');
-    assertEquals(result.content.includes('<router-slot'), false);
+    expect(result.status).toEqual(200);
+    expect(result.content).toContain('Leaf Page');
+    expect(result.content.includes('<router-slot')).toEqual(false);
   } finally {
     restore();
   }
@@ -198,7 +198,7 @@ Deno.test('SsrHtmlRouter - stripSlots removes unconsumed <router-slot> tags', as
 // Nested Slot Injection Tests (Multiple Levels)
 // ============================================================================
 
-Deno.test('SsrHtmlRouter - nested slots inject correctly through hierarchy', async () => {
+test('SsrHtmlRouter - nested slots inject correctly through hierarchy', async () => {
   const routes: RouteConfig[] = [
     createTestRoute({
       pattern: '/',
@@ -228,18 +228,18 @@ Deno.test('SsrHtmlRouter - nested slots inject correctly through hierarchy', asy
 
   try {
     const result = await router.render('http://localhost/docs/guide');
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, '<html>');
-    assertStringIncludes(result.content, 'Docs Nav');
-    assertStringIncludes(result.content, '<h1>Guide</h1>');
-    assertStringIncludes(result.content, '</body></html>');
-    assertEquals(result.content.includes('<router-slot>'), false);
+    expect(result.status).toEqual(200);
+    expect(result.content).toContain('<html>');
+    expect(result.content).toContain('Docs Nav');
+    expect(result.content).toContain('<h1>Guide</h1>');
+    expect(result.content).toContain('</body></html>');
+    expect(result.content.includes('<router-slot>')).toEqual(false);
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrHtmlRouter - deeply nested slots (4 levels) compose correctly', async () => {
+test('SsrHtmlRouter - deeply nested slots (4 levels) compose correctly', async () => {
   const routes: RouteConfig[] = [
     createTestRoute({
       pattern: '/',
@@ -274,12 +274,12 @@ Deno.test('SsrHtmlRouter - deeply nested slots (4 levels) compose correctly', as
 
   try {
     const result = await router.render('http://localhost/l1/l2/l3');
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'L0');
-    assertStringIncludes(result.content, 'L1');
-    assertStringIncludes(result.content, 'L2');
-    assertStringIncludes(result.content, 'L3');
-    assertEquals(result.content.includes('<router-slot>'), false);
+    expect(result.status).toEqual(200);
+    expect(result.content).toContain('L0');
+    expect(result.content).toContain('L1');
+    expect(result.content).toContain('L2');
+    expect(result.content).toContain('L3');
+    expect(result.content.includes('<router-slot>')).toEqual(false);
   } finally {
     restore();
   }
@@ -307,7 +307,7 @@ class TestWidget extends WidgetComponent<Record<string, unknown>, { value: strin
   }
 }
 
-Deno.test('SsrHtmlRouter - widget resolution calls getData and renderHTML', async () => {
+test('SsrHtmlRouter - widget resolution calls getData and renderHTML', async () => {
   const routes: RouteConfig[] = [
     createTestRoute({
       pattern: '/widgets',
@@ -328,14 +328,14 @@ Deno.test('SsrHtmlRouter - widget resolution calls getData and renderHTML', asyn
 
   try {
     const result = await router.render('http://localhost/widgets');
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'Widget: hello');
+    expect(result.status).toEqual(200);
+    expect(result.content).toContain('Widget: hello');
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrHtmlRouter - widget renders with SSR data attribute', async () => {
+test('SsrHtmlRouter - widget renders with SSR data attribute', async () => {
   const routes: RouteConfig[] = [
     createTestRoute({
       pattern: '/widgets',
@@ -356,18 +356,17 @@ Deno.test('SsrHtmlRouter - widget renders with SSR data attribute', async () => 
 
   try {
     const result = await router.render('http://localhost/widgets');
-    assertEquals(result.status, 200);
-    assert(
+    expect(result.status).toEqual(200);
+    expect(
       result.content.includes(' ssr ') || result.content.includes(' ssr>'),
-      'should have boolean ssr attribute',
-    );
-    assertStringIncludes(result.content, 'Widget: ssr');
+    ).toBeTruthy();
+    expect(result.content).toContain('Widget: ssr');
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrHtmlRouter - multiple widgets on same page resolve concurrently', async () => {
+test('SsrHtmlRouter - multiple widgets on same page resolve concurrently', async () => {
   const routes: RouteConfig[] = [
     createTestRoute({
       pattern: '/multi-widgets',
@@ -393,9 +392,9 @@ Deno.test('SsrHtmlRouter - multiple widgets on same page resolve concurrently', 
 
   try {
     const result = await router.render('http://localhost/multi-widgets');
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'Widget: first');
-    assertStringIncludes(result.content, 'Widget: second');
+    expect(result.status).toEqual(200);
+    expect(result.content).toContain('Widget: first');
+    expect(result.content).toContain('Widget: second');
   } finally {
     restore();
   }
@@ -405,7 +404,7 @@ Deno.test('SsrHtmlRouter - multiple widgets on same page resolve concurrently', 
 // Status Page Rendering Tests
 // ============================================================================
 
-Deno.test('SsrHtmlRouter - 404 status page includes status and pathname', async () => {
+test('SsrHtmlRouter - 404 status page includes status and pathname', async () => {
   const routes: RouteConfig[] = [];
   const manifest = createTestManifest({ routes });
   const router = new SsrHtmlRouter(manifest);
@@ -414,17 +413,17 @@ Deno.test('SsrHtmlRouter - 404 status page includes status and pathname', async 
 
   try {
     const result = await router.render('http://localhost/missing/page');
-    assertEquals(result.status, 404);
-    assertStringIncludes(result.content, '<h1>');
-    assertStringIncludes(result.content, 'Not Found');
-    assertStringIncludes(result.content, 'Path:');
-    assertStringIncludes(result.content, '/missing/page');
+    expect(result.status).toEqual(404);
+    expect(result.content).toContain('<h1>');
+    expect(result.content).toContain('Not Found');
+    expect(result.content).toContain('Path:');
+    expect(result.content).toContain('/missing/page');
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrHtmlRouter - 500 error status page renders', async () => {
+test('SsrHtmlRouter - 500 error status page renders', async () => {
   const routes: RouteConfig[] = [
     createTestRoute({
       pattern: '/crash',
@@ -439,15 +438,15 @@ Deno.test('SsrHtmlRouter - 500 error status page renders', async () => {
 
   try {
     const result = await router.render('http://localhost/crash');
-    assertEquals(result.status, 500);
-    assertStringIncludes(result.content, '<h1>Error</h1>');
-    assertStringIncludes(result.content, 'Path:');
+    expect(result.status).toEqual(500);
+    expect(result.content).toContain('<h1>Error</h1>');
+    expect(result.content).toContain('Path:');
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrHtmlRouter - custom status page used when registered', async () => {
+test('SsrHtmlRouter - custom status page used when registered', async () => {
   const statusPageRoute = createTestRoute({
     pattern: '/404',
     modulePath: '/404.page.ts',
@@ -473,8 +472,8 @@ Deno.test('SsrHtmlRouter - custom status page used when registered', async () =>
 
   try {
     const result = await router.render('http://localhost/anything');
-    assertEquals(result.status, 404);
-    assertStringIncludes(result.content, 'Custom 404 Page');
+    expect(result.status).toEqual(404);
+    expect(result.content).toContain('Custom 404 Page');
   } finally {
     restore();
   }
@@ -484,7 +483,7 @@ Deno.test('SsrHtmlRouter - custom status page used when registered', async () =>
 // Error Boundary Handling Tests
 // ============================================================================
 
-Deno.test('SsrHtmlRouter - error boundary catches 500 errors in scoped path', async () => {
+test('SsrHtmlRouter - error boundary catches 500 errors in scoped path', async () => {
   const crashRoute = createTestRoute({
     pattern: '/admin/crash',
     modulePath: '/admin/crash.page.ts',
@@ -519,14 +518,14 @@ Deno.test('SsrHtmlRouter - error boundary catches 500 errors in scoped path', as
 
   try {
     const result = await router.render('http://localhost/admin/crash');
-    assertEquals(result.status, 500);
-    assertStringIncludes(result.content, 'Admin Error Boundary');
+    expect(result.status).toEqual(500);
+    expect(result.content).toContain('Admin Error Boundary');
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrHtmlRouter - error boundary takes precedence over root handler', async () => {
+test('SsrHtmlRouter - error boundary takes precedence over root handler', async () => {
   const crashRoute = createTestRoute({
     pattern: '/api/fail',
     modulePath: '/api/fail.page.ts',
@@ -572,8 +571,8 @@ Deno.test('SsrHtmlRouter - error boundary takes precedence over root handler', a
 
   try {
     const result = await router.render('http://localhost/api/fail');
-    assertEquals(result.status, 500);
-    assertStringIncludes(result.content, 'API Error Boundary');
+    expect(result.status).toEqual(500);
+    expect(result.content).toContain('API Error Boundary');
   } finally {
     restore();
   }
@@ -583,7 +582,7 @@ Deno.test('SsrHtmlRouter - error boundary takes precedence over root handler', a
 // Redirect Handling Tests
 // ============================================================================
 
-Deno.test('SsrHtmlRouter - renderRedirect returns meta refresh tag', async () => {
+test('SsrHtmlRouter - renderRedirect returns meta refresh tag', async () => {
   const routes: RouteConfig[] = [
     createTestRoute({
       pattern: '/old-path',
@@ -604,15 +603,15 @@ Deno.test('SsrHtmlRouter - renderRedirect returns meta refresh tag', async () =>
 
   try {
     const result = await router.render('http://localhost/old-path');
-    assertEquals(result.status, 301);
-    assertStringIncludes(result.content, '<meta http-equiv="refresh"');
-    assertStringIncludes(result.content, '/new-path');
+    expect(result.status).toEqual(301);
+    expect(result.content).toContain('<meta http-equiv="refresh"');
+    expect(result.content).toContain('/new-path');
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrHtmlRouter - redirect escapes URL in meta refresh', async () => {
+test('SsrHtmlRouter - redirect escapes URL in meta refresh', async () => {
   const routes: RouteConfig[] = [
     createTestRoute({
       pattern: '/old',
@@ -633,9 +632,9 @@ Deno.test('SsrHtmlRouter - redirect escapes URL in meta refresh', async () => {
 
   try {
     const result = await router.render('http://localhost/old');
-    assertEquals(result.status, 301);
+    expect(result.status).toEqual(301);
     // Verify HTML entities are escaped
-    assertEquals(result.content.includes('<script>'), false);
+    expect(result.content.includes('<script>')).toEqual(false);
   } finally {
     restore();
   }
@@ -645,7 +644,7 @@ Deno.test('SsrHtmlRouter - redirect escapes URL in meta refresh', async () => {
 // CSS Companion Injection Tests
 // ============================================================================
 
-Deno.test('SsrHtmlRouter - CSS from context is injected as <style> tag', async () => {
+test('SsrHtmlRouter - CSS from context is injected as <style> tag', async () => {
   const routes: RouteConfig[] = [
     createTestRoute({
       pattern: '/styled',
@@ -667,15 +666,15 @@ Deno.test('SsrHtmlRouter - CSS from context is injected as <style> tag', async (
 
   try {
     const result = await router.render('http://localhost/styled');
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, '<style>');
-    assertStringIncludes(result.content, 'color: red');
+    expect(result.status).toEqual(200);
+    expect(result.content).toContain('<style>');
+    expect(result.content).toContain('color: red');
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrHtmlRouter - CSS is only injected when present', async () => {
+test('SsrHtmlRouter - CSS is only injected when present', async () => {
   const routes: RouteConfig[] = [
     createTestRoute({
       pattern: '/no-css',
@@ -695,9 +694,9 @@ Deno.test('SsrHtmlRouter - CSS is only injected when present', async () => {
 
   try {
     const result = await router.render('http://localhost/no-css');
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'No CSS');
-    assertEquals(result.content.includes('<style>'), false);
+    expect(result.status).toEqual(200);
+    expect(result.content).toContain('No CSS');
+    expect(result.content.includes('<style>')).toEqual(false);
   } finally {
     restore();
   }
@@ -707,7 +706,7 @@ Deno.test('SsrHtmlRouter - CSS is only injected when present', async () => {
 // Route Hierarchy Composition Tests
 // ============================================================================
 
-Deno.test('SsrHtmlRouter - route hierarchy is built from pattern path segments', async () => {
+test('SsrHtmlRouter - route hierarchy is built from pattern path segments', async () => {
   const routes: RouteConfig[] = [
     createTestRoute({
       pattern: '/',
@@ -737,17 +736,17 @@ Deno.test('SsrHtmlRouter - route hierarchy is built from pattern path segments',
 
   try {
     const result = await router.render('http://localhost/shop/products');
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, '<html>');
-    assertStringIncludes(result.content, 'Shop');
-    assertStringIncludes(result.content, 'Products');
-    assertEquals(result.content.includes('<router-slot>'), false);
+    expect(result.status).toEqual(200);
+    expect(result.content).toContain('<html>');
+    expect(result.content).toContain('Shop');
+    expect(result.content).toContain('Products');
+    expect(result.content.includes('<router-slot>')).toEqual(false);
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrHtmlRouter - dynamic route parameters are passed through hierarchy', async () => {
+test('SsrHtmlRouter - dynamic route parameters are passed through hierarchy', async () => {
   const routes: RouteConfig[] = [
     createTestRoute({
       pattern: '/',
@@ -771,8 +770,8 @@ Deno.test('SsrHtmlRouter - dynamic route parameters are passed through hierarchy
 
   try {
     const result = await router.render('http://localhost/user/42');
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'User Page');
+    expect(result.status).toEqual(200);
+    expect(result.content).toContain('User Page');
   } finally {
     restore();
   }
@@ -782,7 +781,7 @@ Deno.test('SsrHtmlRouter - dynamic route parameters are passed through hierarchy
 // Markdown Expansion Tests
 // ============================================================================
 
-Deno.test('SsrHtmlRouter - markdown is expanded via MarkdownRenderer', async () => {
+test('SsrHtmlRouter - markdown is expanded via MarkdownRenderer', async () => {
   const markdownRenderer: MarkdownRenderer = {
     render: (md) => `<div class="markdown">${md}</div>`,
   };
@@ -804,15 +803,15 @@ Deno.test('SsrHtmlRouter - markdown is expanded via MarkdownRenderer', async () 
 
   try {
     const result = await router.render('http://localhost/docs');
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'Bold Text');
-    assertStringIncludes(result.content, 'markdown');
+    expect(result.status).toEqual(200);
+    expect(result.content).toContain('Bold Text');
+    expect(result.content).toContain('markdown');
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrHtmlRouter - markdown without renderer leaves <mark-down> tags', async () => {
+test('SsrHtmlRouter - markdown without renderer leaves <mark-down> tags', async () => {
   const routes: RouteConfig[] = [
     createTestRoute({
       pattern: '/docs',
@@ -830,14 +829,14 @@ Deno.test('SsrHtmlRouter - markdown without renderer leaves <mark-down> tags', a
 
   try {
     const result = await router.render('http://localhost/docs');
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, '<mark-down>');
+    expect(result.status).toEqual(200);
+    expect(result.content).toContain('<mark-down>');
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrHtmlRouter - multiple <mark-down> tags in single page are expanded', async () => {
+test('SsrHtmlRouter - multiple <mark-down> tags in single page are expanded', async () => {
   const markdownRenderer: MarkdownRenderer = {
     render: (md) => `<p>${md}</p>`,
   };
@@ -859,15 +858,15 @@ Deno.test('SsrHtmlRouter - multiple <mark-down> tags in single page are expanded
 
   try {
     const result = await router.render('http://localhost/multi-md');
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, '<p>First</p>');
-    assertStringIncludes(result.content, '<p>Second</p>');
+    expect(result.status).toEqual(200);
+    expect(result.content).toContain('<p>First</p>');
+    expect(result.content).toContain('<p>Second</p>');
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrHtmlRouter - HTML entities in markdown are unescaped before rendering', async () => {
+test('SsrHtmlRouter - HTML entities in markdown are unescaped before rendering', async () => {
   const markdownRenderer: MarkdownRenderer = {
     render: (md) => `[rendered]${md}[/rendered]`,
   };
@@ -889,9 +888,9 @@ Deno.test('SsrHtmlRouter - HTML entities in markdown are unescaped before render
 
   try {
     const result = await router.render('http://localhost/escape');
-    assertEquals(result.status, 200);
+    expect(result.status).toEqual(200);
     // Entities should be unescaped for the renderer
-    assertStringIncludes(result.content, '[rendered]<tag>[/rendered]');
+    expect(result.content).toContain('[rendered]<tag>[/rendered]');
   } finally {
     restore();
   }
@@ -914,7 +913,7 @@ class WidgetAwareRenderer implements MarkdownRenderer {
   }
 }
 
-Deno.test('SsrHtmlRouter - markdown renderer output with widget tags is processed', async () => {
+test('SsrHtmlRouter - markdown renderer output with widget tags is processed', async () => {
   const routes: RouteConfig[] = [
     createTestRoute({
       pattern: '/blog',
@@ -939,15 +938,15 @@ Deno.test('SsrHtmlRouter - markdown renderer output with widget tags is processe
 
   try {
     const result = await router.render('http://localhost/blog');
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, ' ssr>');
-    assertStringIncludes(result.content, 'Widget:');
+    expect(result.status).toEqual(200);
+    expect(result.content).toContain(' ssr>');
+    expect(result.content).toContain('Widget:');
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrHtmlRouter - markdown router-slot in leaf route is stripped as unconsumed', async () => {
+test('SsrHtmlRouter - markdown router-slot in leaf route is stripped as unconsumed', async () => {
   const routes: RouteConfig[] = [
     createTestRoute({
       pattern: '/nested-md',
@@ -967,9 +966,9 @@ Deno.test('SsrHtmlRouter - markdown router-slot in leaf route is stripped as unc
 
   try {
     const result = await router.render('http://localhost/nested-md');
-    assertEquals(result.status, 200);
-    // Leaf route — unconsumed slots are stripped from final output
-    assertEquals(result.content.includes('<router-slot'), false);
+    expect(result.status).toEqual(200);
+    // Leaf route -- unconsumed slots are stripped from final output
+    expect(result.content.includes('<router-slot')).toEqual(false);
   } finally {
     restore();
   }
@@ -979,7 +978,7 @@ Deno.test('SsrHtmlRouter - markdown router-slot in leaf route is stripped as unc
 // HTML Escaping and Security Tests
 // ============================================================================
 
-Deno.test('SsrHtmlRouter - error page escapes pathname to prevent XSS', async () => {
+test('SsrHtmlRouter - error page escapes pathname to prevent XSS', async () => {
   const routes: RouteConfig[] = [];
   const manifest = createTestManifest({ routes });
   const router = new SsrHtmlRouter(manifest);
@@ -988,14 +987,14 @@ Deno.test('SsrHtmlRouter - error page escapes pathname to prevent XSS', async ()
 
   try {
     const result = await router.render('http://localhost/<script>alert("xss")</script>');
-    assertEquals(result.status, 404);
-    assertEquals(result.content.includes('<script>'), false);
+    expect(result.status).toEqual(404);
+    expect(result.content.includes('<script>')).toEqual(false);
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrHtmlRouter - error page escapes error message to prevent XSS', async () => {
+test('SsrHtmlRouter - error page escapes error message to prevent XSS', async () => {
   const routes: RouteConfig[] = [
     createTestRoute({
       pattern: '/xss-test',
@@ -1023,10 +1022,10 @@ Deno.test('SsrHtmlRouter - error page escapes error message to prevent XSS', asy
 
   try {
     const result = await router.render('http://localhost/xss-test');
-    assertEquals(result.status, 500);
+    expect(result.status).toEqual(500);
     // Error message should be escaped in the HTML output
-    assertStringIncludes(result.content, '&lt;img');
-    assertEquals(result.content.includes('"alert'), false);
+    expect(result.content).toContain('&lt;img');
+    expect(result.content.includes('"alert')).toEqual(false);
   } finally {
     restore();
   }
@@ -1036,7 +1035,7 @@ Deno.test('SsrHtmlRouter - error page escapes error message to prevent XSS', asy
 // Edge Case and Integration Tests
 // ============================================================================
 
-Deno.test('SsrHtmlRouter - handles page with HTML + MD + CSS all present', async () => {
+test('SsrHtmlRouter - handles page with HTML + MD + CSS all present', async () => {
   const routes: RouteConfig[] = [
     createTestRoute({
       pattern: '/full',
@@ -1060,16 +1059,16 @@ Deno.test('SsrHtmlRouter - handles page with HTML + MD + CSS all present', async
 
   try {
     const result = await router.render('http://localhost/full');
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, '<style>');
-    assertStringIncludes(result.content, 'margin: 0');
-    assertStringIncludes(result.content, 'HTML Content');
+    expect(result.status).toEqual(200);
+    expect(result.content).toContain('<style>');
+    expect(result.content).toContain('margin: 0');
+    expect(result.content).toContain('HTML Content');
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrHtmlRouter - markdown with <mark-down> placeholder in HTML', async () => {
+test('SsrHtmlRouter - markdown with <mark-down> placeholder in HTML', async () => {
   const markdownRenderer: MarkdownRenderer = {
     render: (md) => `<section>${md}</section>`,
   };
@@ -1095,16 +1094,16 @@ Deno.test('SsrHtmlRouter - markdown with <mark-down> placeholder in HTML', async
 
   try {
     const result = await router.render('http://localhost/page-with-md');
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, '<h1>Title</h1>');
-    assertStringIncludes(result.content, '<section>');
-    assertStringIncludes(result.content, 'Content');
+    expect(result.status).toEqual(200);
+    expect(result.content).toContain('<h1>Title</h1>');
+    expect(result.content).toContain('<section>');
+    expect(result.content).toContain('Content');
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrHtmlRouter - leaf route with no files renders empty content', async () => {
+test('SsrHtmlRouter - leaf route with no files renders empty content', async () => {
   const routes: RouteConfig[] = [
     createTestRoute({
       pattern: '/empty',
@@ -1120,14 +1119,14 @@ Deno.test('SsrHtmlRouter - leaf route with no files renders empty content', asyn
 
   try {
     const result = await router.render('http://localhost/empty');
-    assertEquals(result.status, 200);
-    assertEquals(result.content, '');
+    expect(result.status).toEqual(200);
+    expect(result.content).toEqual('');
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrHtmlRouter - URL with query params is handled', async () => {
+test('SsrHtmlRouter - URL with query params is handled', async () => {
   const routes: RouteConfig[] = [
     createTestRoute({
       pattern: '/search',
@@ -1145,14 +1144,14 @@ Deno.test('SsrHtmlRouter - URL with query params is handled', async () => {
 
   try {
     const result = await router.render('http://localhost/search?q=test&limit=10');
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'Search');
+    expect(result.status).toEqual(200);
+    expect(result.content).toContain('Search');
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrHtmlRouter - URL with hash is handled', async () => {
+test('SsrHtmlRouter - URL with hash is handled', async () => {
   const routes: RouteConfig[] = [
     createTestRoute({
       pattern: '/docs',
@@ -1170,14 +1169,14 @@ Deno.test('SsrHtmlRouter - URL with hash is handled', async () => {
 
   try {
     const result = await router.render('http://localhost/docs#section-1');
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'Docs');
+    expect(result.status).toEqual(200);
+    expect(result.content).toContain('Docs');
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrHtmlRouter - pathname-only URL (no host) is handled', async () => {
+test('SsrHtmlRouter - pathname-only URL (no host) is handled', async () => {
   const routes: RouteConfig[] = [
     createTestRoute({
       pattern: '/simple',
@@ -1195,14 +1194,14 @@ Deno.test('SsrHtmlRouter - pathname-only URL (no host) is handled', async () => 
 
   try {
     const result = await router.render('/simple');
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'Simple');
+    expect(result.status).toEqual(200);
+    expect(result.content).toContain('Simple');
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrHtmlRouter - widget with no params uses default values', async () => {
+test('SsrHtmlRouter - widget with no params uses default values', async () => {
   const routes: RouteConfig[] = [
     createTestRoute({
       pattern: '/widget-default',
@@ -1224,14 +1223,14 @@ Deno.test('SsrHtmlRouter - widget with no params uses default values', async () 
 
   try {
     const result = await router.render('http://localhost/widget-default');
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'Widget: default');
+    expect(result.status).toEqual(200);
+    expect(result.content).toContain('Widget: default');
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrHtmlRouter - unknown widget tag is left unchanged', async () => {
+test('SsrHtmlRouter - unknown widget tag is left unchanged', async () => {
   const routes: RouteConfig[] = [
     createTestRoute({
       pattern: '/unknown-widget',
@@ -1251,8 +1250,8 @@ Deno.test('SsrHtmlRouter - unknown widget tag is left unchanged', async () => {
 
   try {
     const result = await router.render('http://localhost/unknown-widget');
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, '<widget-unknown>');
+    expect(result.status).toEqual(200);
+    expect(result.content).toContain('<widget-unknown>');
   } finally {
     restore();
   }
@@ -1262,7 +1261,7 @@ Deno.test('SsrHtmlRouter - unknown widget tag is left unchanged', async () => {
 // Return Value Structure Tests
 // ============================================================================
 
-Deno.test('SsrHtmlRouter - render returns object with content, status, and optional title', async () => {
+test('SsrHtmlRouter - render returns object with content, status, and optional title', async () => {
   const routes: RouteConfig[] = [
     createTestRoute({
       pattern: '/page',
@@ -1288,9 +1287,9 @@ Deno.test('SsrHtmlRouter - render returns object with content, status, and optio
 
   try {
     const result = await router.render('http://localhost/page');
-    assertEquals(typeof result.content, 'string');
-    assertEquals(typeof result.status, 'number');
-    assertEquals(result.title, 'Page Title');
+    expect(typeof result.content).toEqual('string');
+    expect(typeof result.status).toEqual('number');
+    expect(result.title).toEqual('Page Title');
   } finally {
     restore();
   }

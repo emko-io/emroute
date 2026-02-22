@@ -10,7 +10,7 @@
  * - Merging of discovered and declared files
  */
 
-import { assertEquals, assertExists, assertStringIncludes } from '@std/assert';
+import { test, expect, describe } from 'bun:test';
 import type { WidgetManifestEntry } from '../../src/type/widget.type.ts';
 import { Runtime } from '../../runtime/abstract.runtime.ts';
 import {
@@ -102,7 +102,7 @@ class MockFileSystem extends Runtime {
 // discoverWidgets Tests
 // ============================================================================
 
-Deno.test('discoverWidgets - single widget module with all companion files', async () => {
+test('discoverWidgets - single widget module with all companion files', async () => {
   const fs = new MockFileSystem();
   fs.addDir('widgets/greeting');
   fs.addFile('widgets/greeting/greeting.widget.ts');
@@ -112,31 +112,31 @@ Deno.test('discoverWidgets - single widget module with all companion files', asy
 
   const entries = await discoverWidgets('widgets', fs);
 
-  assertEquals(entries.length, 1);
-  assertEquals(entries[0].name, 'greeting');
-  assertEquals(entries[0].modulePath, 'greeting/greeting.widget.ts');
-  assertEquals(entries[0].tagName, 'widget-greeting');
-  assertExists(entries[0].files);
-  assertEquals(entries[0].files!.html, 'greeting/greeting.widget.html');
-  assertEquals(entries[0].files!.md, 'greeting/greeting.widget.md');
-  assertEquals(entries[0].files!.css, 'greeting/greeting.widget.css');
+  expect(entries.length).toEqual(1);
+  expect(entries[0].name).toEqual('greeting');
+  expect(entries[0].modulePath).toEqual('greeting/greeting.widget.ts');
+  expect(entries[0].tagName).toEqual('widget-greeting');
+  expect(entries[0].files).toBeDefined();
+  expect(entries[0].files!.html).toEqual('greeting/greeting.widget.html');
+  expect(entries[0].files!.md).toEqual('greeting/greeting.widget.md');
+  expect(entries[0].files!.css).toEqual('greeting/greeting.widget.css');
 });
 
-Deno.test('discoverWidgets - widget module without companion files', async () => {
+test('discoverWidgets - widget module without companion files', async () => {
   const fs = new MockFileSystem();
   fs.addDir('widgets/stat-card');
   fs.addFile('widgets/stat-card/stat-card.widget.ts');
 
   const entries = await discoverWidgets('widgets', fs);
 
-  assertEquals(entries.length, 1);
-  assertEquals(entries[0].name, 'stat-card');
-  assertEquals(entries[0].modulePath, 'stat-card/stat-card.widget.ts');
-  assertEquals(entries[0].tagName, 'widget-stat-card');
-  assertEquals(entries[0].files, undefined);
+  expect(entries.length).toEqual(1);
+  expect(entries[0].name).toEqual('stat-card');
+  expect(entries[0].modulePath).toEqual('stat-card/stat-card.widget.ts');
+  expect(entries[0].tagName).toEqual('widget-stat-card');
+  expect(entries[0].files).toEqual(undefined);
 });
 
-Deno.test('discoverWidgets - widget module with some companion files', async () => {
+test('discoverWidgets - widget module with some companion files', async () => {
   const fs = new MockFileSystem();
   fs.addDir('widgets/card');
   fs.addFile('widgets/card/card.widget.ts');
@@ -145,14 +145,14 @@ Deno.test('discoverWidgets - widget module with some companion files', async () 
 
   const entries = await discoverWidgets('widgets', fs);
 
-  assertEquals(entries.length, 1);
-  assertExists(entries[0].files);
-  assertEquals(entries[0].files!.html, 'card/card.widget.html');
-  assertEquals(entries[0].files!.css, 'card/card.widget.css');
-  assertEquals(entries[0].files!.md, undefined);
+  expect(entries.length).toEqual(1);
+  expect(entries[0].files).toBeDefined();
+  expect(entries[0].files!.html).toEqual('card/card.widget.html');
+  expect(entries[0].files!.css).toEqual('card/card.widget.css');
+  expect(entries[0].files!.md).toEqual(undefined);
 });
 
-Deno.test('discoverWidgets - ignores directories without module file', async () => {
+test('discoverWidgets - ignores directories without module file', async () => {
   const fs = new MockFileSystem();
   fs.addDir('widgets/greeting');
   fs.addFile('widgets/greeting/greeting.widget.ts');
@@ -161,11 +161,11 @@ Deno.test('discoverWidgets - ignores directories without module file', async () 
 
   const entries = await discoverWidgets('widgets', fs);
 
-  assertEquals(entries.length, 1);
-  assertEquals(entries[0].name, 'greeting');
+  expect(entries.length).toEqual(1);
+  expect(entries[0].name).toEqual('greeting');
 });
 
-Deno.test('discoverWidgets - multiple widgets sorted alphabetically', async () => {
+test('discoverWidgets - multiple widgets sorted alphabetically', async () => {
   const fs = new MockFileSystem();
   const names = ['zulu', 'alpha', 'mike', 'bravo'];
   for (const name of names) {
@@ -175,14 +175,14 @@ Deno.test('discoverWidgets - multiple widgets sorted alphabetically', async () =
 
   const entries = await discoverWidgets('widgets', fs);
 
-  assertEquals(entries.length, 4);
-  assertEquals(entries[0].name, 'alpha');
-  assertEquals(entries[1].name, 'bravo');
-  assertEquals(entries[2].name, 'mike');
-  assertEquals(entries[3].name, 'zulu');
+  expect(entries.length).toEqual(4);
+  expect(entries[0].name).toEqual('alpha');
+  expect(entries[1].name).toEqual('bravo');
+  expect(entries[2].name).toEqual('mike');
+  expect(entries[3].name).toEqual('zulu');
 });
 
-Deno.test('discoverWidgets - path prefix is applied to module and file paths', async () => {
+test('discoverWidgets - path prefix is applied to module and file paths', async () => {
   const fs = new MockFileSystem();
   fs.addDir('src/widgets/counter');
   fs.addFile('src/widgets/counter/counter.widget.ts');
@@ -190,21 +190,21 @@ Deno.test('discoverWidgets - path prefix is applied to module and file paths', a
 
   const entries = await discoverWidgets('src/widgets', fs, 'src/widgets');
 
-  assertEquals(entries.length, 1);
-  assertEquals(entries[0].modulePath, 'src/widgets/counter/counter.widget.ts');
-  assertEquals(entries[0].files!.html, 'src/widgets/counter/counter.widget.html');
+  expect(entries.length).toEqual(1);
+  expect(entries[0].modulePath).toEqual('src/widgets/counter/counter.widget.ts');
+  expect(entries[0].files!.html).toEqual('src/widgets/counter/counter.widget.html');
 });
 
-Deno.test('discoverWidgets - empty directory returns empty array', async () => {
+test('discoverWidgets - empty directory returns empty array', async () => {
   const fs = new MockFileSystem();
   fs.addDir('widgets');
 
   const entries = await discoverWidgets('widgets', fs);
 
-  assertEquals(entries.length, 0);
+  expect(entries.length).toEqual(0);
 });
 
-Deno.test('discoverWidgets - kebab-case widget names generate correct tag names', async () => {
+test('discoverWidgets - kebab-case widget names generate correct tag names', async () => {
   const fs = new MockFileSystem();
   const names = ['hero-banner', 'article-card', 'user-profile', 'search-bar'];
   for (const name of names) {
@@ -214,27 +214,27 @@ Deno.test('discoverWidgets - kebab-case widget names generate correct tag names'
 
   const entries = await discoverWidgets('widgets', fs);
 
-  assertEquals(entries[0].tagName, 'widget-article-card');
-  assertEquals(entries[1].tagName, 'widget-hero-banner');
-  assertEquals(entries[2].tagName, 'widget-search-bar');
-  assertEquals(entries[3].tagName, 'widget-user-profile');
+  expect(entries[0].tagName).toEqual('widget-article-card');
+  expect(entries[1].tagName).toEqual('widget-hero-banner');
+  expect(entries[2].tagName).toEqual('widget-search-bar');
+  expect(entries[3].tagName).toEqual('widget-user-profile');
 });
 
 // ============================================================================
 // generateWidgetsManifestCode Tests
 // ============================================================================
 
-Deno.test('generateWidgetsManifestCode - empty entries array', () => {
+test('generateWidgetsManifestCode - empty entries array', () => {
   const entries: WidgetManifestEntry[] = [];
   const code = generateWidgetsManifestCode(entries);
 
-  assertStringIncludes(code, 'export const widgetsManifest');
-  assertStringIncludes(code, 'WidgetsManifest');
-  assertStringIncludes(code, 'widgets: [');
-  assertStringIncludes(code, 'moduleLoaders: {');
+  expect(code).toContain('export const widgetsManifest');
+  expect(code).toContain('WidgetsManifest');
+  expect(code).toContain('widgets: [');
+  expect(code).toContain('moduleLoaders: {');
 });
 
-Deno.test('generateWidgetsManifestCode - single widget entry', () => {
+test('generateWidgetsManifestCode - single widget entry', () => {
   const entries: WidgetManifestEntry[] = [
     {
       name: 'greeting',
@@ -244,12 +244,12 @@ Deno.test('generateWidgetsManifestCode - single widget entry', () => {
   ];
   const code = generateWidgetsManifestCode(entries);
 
-  assertStringIncludes(code, "name: 'greeting'");
-  assertStringIncludes(code, "modulePath: 'widgets/greeting/greeting.widget.ts'");
-  assertStringIncludes(code, "tagName: 'widget-greeting'");
+  expect(code).toContain("name: 'greeting'");
+  expect(code).toContain("modulePath: 'widgets/greeting/greeting.widget.ts'");
+  expect(code).toContain("tagName: 'widget-greeting'");
 });
 
-Deno.test('generateWidgetsManifestCode - widget with companion files', () => {
+test('generateWidgetsManifestCode - widget with companion files', () => {
   const entries: WidgetManifestEntry[] = [
     {
       name: 'card',
@@ -264,14 +264,14 @@ Deno.test('generateWidgetsManifestCode - widget with companion files', () => {
   ];
   const code = generateWidgetsManifestCode(entries);
 
-  assertStringIncludes(code, "'card'");
-  assertStringIncludes(code, 'files: {');
-  assertStringIncludes(code, "html: 'widgets/card/card.widget.html'");
-  assertStringIncludes(code, "md: 'widgets/card/card.widget.md'");
-  assertStringIncludes(code, "css: 'widgets/card/card.widget.css'");
+  expect(code).toContain("'card'");
+  expect(code).toContain('files: {');
+  expect(code).toContain("html: 'widgets/card/card.widget.html'");
+  expect(code).toContain("md: 'widgets/card/card.widget.md'");
+  expect(code).toContain("css: 'widgets/card/card.widget.css'");
 });
 
-Deno.test('generateWidgetsManifestCode - multiple widgets with various file combinations', () => {
+test('generateWidgetsManifestCode - multiple widgets with various file combinations', () => {
   const entries: WidgetManifestEntry[] = [
     {
       name: 'alpha',
@@ -296,13 +296,13 @@ Deno.test('generateWidgetsManifestCode - multiple widgets with various file comb
   ];
   const code = generateWidgetsManifestCode(entries);
 
-  assertStringIncludes(code, "'alpha'");
-  assertStringIncludes(code, "'beta'");
-  assertStringIncludes(code, "'gamma'");
-  assertStringIncludes(code, "() => import('./");
+  expect(code).toContain("'alpha'");
+  expect(code).toContain("'beta'");
+  expect(code).toContain("'gamma'");
+  expect(code).toContain("() => import('./");
 });
 
-Deno.test('generateWidgetsManifestCode - includes module loaders for all entries', () => {
+test('generateWidgetsManifestCode - includes module loaders for all entries', () => {
   const entries: WidgetManifestEntry[] = [
     {
       name: 'greeting',
@@ -317,14 +317,14 @@ Deno.test('generateWidgetsManifestCode - includes module loaders for all entries
   ];
   const code = generateWidgetsManifestCode(entries);
 
-  assertStringIncludes(code, 'moduleLoaders: {');
-  assertStringIncludes(code, "'widgets/greeting/greeting.widget.ts'");
-  assertStringIncludes(code, "'widgets/counter/counter.widget.ts'");
-  assertStringIncludes(code, "() => import('./widgets/greeting/greeting.widget.ts')");
-  assertStringIncludes(code, "() => import('./widgets/counter/counter.widget.ts')");
+  expect(code).toContain('moduleLoaders: {');
+  expect(code).toContain("'widgets/greeting/greeting.widget.ts'");
+  expect(code).toContain("'widgets/counter/counter.widget.ts'");
+  expect(code).toContain("() => import('./widgets/greeting/greeting.widget.ts')");
+  expect(code).toContain("() => import('./widgets/counter/counter.widget.ts')");
 });
 
-Deno.test('generateWidgetsManifestCode - custom import path', () => {
+test('generateWidgetsManifestCode - custom import path', () => {
   const entries: WidgetManifestEntry[] = [
     {
       name: 'test',
@@ -334,10 +334,10 @@ Deno.test('generateWidgetsManifestCode - custom import path', () => {
   ];
   const code = generateWidgetsManifestCode(entries, 'my-package/emroute');
 
-  assertStringIncludes(code, "import type { WidgetsManifest } from 'my-package/emroute'");
+  expect(code).toContain("import type { WidgetsManifest } from 'my-package/emroute'");
 });
 
-Deno.test('generateWidgetsManifestCode - escapes special characters in names and paths', () => {
+test('generateWidgetsManifestCode - escapes special characters in names and paths', () => {
   const entries: WidgetManifestEntry[] = [
     {
       name: "test'widget",
@@ -347,10 +347,10 @@ Deno.test('generateWidgetsManifestCode - escapes special characters in names and
   ];
   const code = generateWidgetsManifestCode(entries);
 
-  assertStringIncludes(code, "test\\'widget");
+  expect(code).toContain("test\\'widget");
 });
 
-Deno.test('generateWidgetsManifestCode - valid TypeScript output structure', () => {
+test('generateWidgetsManifestCode - valid TypeScript output structure', () => {
   const entries: WidgetManifestEntry[] = [
     {
       name: 'demo',
@@ -363,13 +363,13 @@ Deno.test('generateWidgetsManifestCode - valid TypeScript output structure', () 
   ];
   const code = generateWidgetsManifestCode(entries);
 
-  assertEquals(typeof code, 'string');
-  assertStringIncludes(code, 'import type');
-  assertStringIncludes(code, 'export const widgetsManifest');
-  assertStringIncludes(code, 'WidgetsManifest');
+  expect(typeof code).toEqual('string');
+  expect(code).toContain('import type');
+  expect(code).toContain('export const widgetsManifest');
+  expect(code).toContain('WidgetsManifest');
 });
 
-Deno.test('generateWidgetsManifestCode - outputs all widgets from entries', () => {
+test('generateWidgetsManifestCode - outputs all widgets from entries', () => {
   const entries: WidgetManifestEntry[] = [
     {
       name: 'zeta',
@@ -384,15 +384,15 @@ Deno.test('generateWidgetsManifestCode - outputs all widgets from entries', () =
   ];
   const code = generateWidgetsManifestCode(entries);
 
-  assertStringIncludes(code, "name: 'zeta'");
-  assertStringIncludes(code, "name: 'alpha'");
+  expect(code).toContain("name: 'zeta'");
+  expect(code).toContain("name: 'alpha'");
 });
 
 // ============================================================================
 // Integration Tests
 // ============================================================================
 
-Deno.test('widget file discovery - end-to-end discovery and manifest generation', async () => {
+test('widget file discovery - end-to-end discovery and manifest generation', async () => {
   const fs = new MockFileSystem();
 
   // Create 3 widgets with different file combinations
@@ -414,20 +414,20 @@ Deno.test('widget file discovery - end-to-end discovery and manifest generation'
 
   const entries = await discoverWidgets('widgets', fs);
 
-  assertEquals(entries.length, 3);
-  assertEquals(entries[0].name, 'badge');
-  assertEquals(entries[1].name, 'counter');
-  assertEquals(entries[2].name, 'greeting');
+  expect(entries.length).toEqual(3);
+  expect(entries[0].name).toEqual('badge');
+  expect(entries[1].name).toEqual('counter');
+  expect(entries[2].name).toEqual('greeting');
 
   const code = generateWidgetsManifestCode(entries);
 
-  assertStringIncludes(code, "'badge'");
-  assertStringIncludes(code, "'counter'");
-  assertStringIncludes(code, "'greeting'");
-  assertStringIncludes(code, 'export const widgetsManifest');
+  expect(code).toContain("'badge'");
+  expect(code).toContain("'counter'");
+  expect(code).toContain("'greeting'");
+  expect(code).toContain('export const widgetsManifest');
 });
 
-Deno.test('widget file discovery - discovers nested widgets correctly', async () => {
+test('widget file discovery - discovers nested widgets correctly', async () => {
   const fs = new MockFileSystem();
 
   // Simulate a structure where only immediate children of widgetsDir are processed
@@ -439,10 +439,10 @@ Deno.test('widget file discovery - discovers nested widgets correctly', async ()
   const entries = await discoverWidgets('widgets', fs);
 
   // 'ui' directory should be checked, but it doesn't have a .widget.ts file
-  assertEquals(entries.length, 0);
+  expect(entries.length).toEqual(0);
 });
 
-Deno.test('widget file discovery - handles complex widget names with multiple hyphens', async () => {
+test('widget file discovery - handles complex widget names with multiple hyphens', async () => {
   const fs = new MockFileSystem();
   fs.addDir('widgets/user-profile-card');
   fs.addFile('widgets/user-profile-card/user-profile-card.widget.ts');
@@ -450,9 +450,8 @@ Deno.test('widget file discovery - handles complex widget names with multiple hy
 
   const entries = await discoverWidgets('widgets', fs);
 
-  assertEquals(entries.length, 1);
-  assertEquals(entries[0].name, 'user-profile-card');
-  assertEquals(entries[0].tagName, 'widget-user-profile-card');
-  assertEquals(entries[0].modulePath, 'user-profile-card/user-profile-card.widget.ts');
+  expect(entries.length).toEqual(1);
+  expect(entries[0].name).toEqual('user-profile-card');
+  expect(entries[0].tagName).toEqual('widget-user-profile-card');
+  expect(entries[0].modulePath).toEqual('user-profile-card/user-profile-card.widget.ts');
 });
-

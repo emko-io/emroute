@@ -16,7 +16,7 @@
  * - Route collision scenarios
  */
 
-import { assertEquals, assertExists } from '@std/assert';
+import { test, expect } from 'bun:test';
 import type { RouteConfig, RoutesManifest } from '../../src/type/route.type.ts';
 import {
   filePathToPattern,
@@ -49,16 +49,12 @@ function testMatch(
   const matcher = new RouteMatcher(manifest);
   const result = matcher.match(`http://localhost${url}`);
 
-  assertExists(result, `Expected to match ${url}`);
-  assertEquals(result.route.pattern, expected.pattern, `Pattern mismatch for ${url}`);
+  expect(result).toBeDefined();
+  expect(result.route.pattern).toEqual(expected.pattern);
 
   if (expected.params) {
     for (const [key, value] of Object.entries(expected.params)) {
-      assertEquals(
-        result.params[key],
-        value,
-        `Param ${key} mismatch for ${url}`,
-      );
+      expect(result.params[key]).toEqual(value);
     }
   }
 }
@@ -67,12 +63,12 @@ function testMatch(
 // Edge Case: Multiple Dynamic Segments in Same Path
 // ============================================================================
 
-Deno.test('combinations - multiple params in single segment (URLPattern limitation)', () => {
+test('combinations - multiple params in single segment (URLPattern limitation)', () => {
   // File: [user]-[id].page.ts
   // This becomes /:user-:id which URLPattern doesn't parse as two params
   // URLPattern interprets the hyphen as part of the pattern, not a separator
   const pattern = filePathToPattern('routes/users/[user]-[id].page.ts');
-  assertEquals(pattern, '/users/:user-:id');
+  expect(pattern).toEqual('/users/:user-:id');
 
   // URLPattern won't create separate params for :user and :id
   // This is a known limitation - consumers should avoid this pattern
@@ -86,30 +82,30 @@ Deno.test('combinations - multiple params in single segment (URLPattern limitati
   // Pattern is invalid/ambiguous, result may be undefined or incorrect
 });
 
-Deno.test('combinations - multiple params with underscores', () => {
+test('combinations - multiple params with underscores', () => {
   // File: [category]_[subcategory].page.ts
   const pattern = filePathToPattern('routes/products/[category]_[subcategory].page.ts');
-  assertEquals(pattern, '/products/:category_:subcategory');
+  expect(pattern).toEqual('/products/:category_:subcategory');
 });
 
-Deno.test('combinations - adjacent params without separator', () => {
+test('combinations - adjacent params without separator', () => {
   // File: [a][b].page.ts - becomes :a:b (unusual but technically valid)
   const pattern = filePathToPattern('routes/test/[a][b].page.ts');
-  assertEquals(pattern, '/test/:a:b');
+  expect(pattern).toEqual('/test/:a:b');
 });
 
 // ============================================================================
 // Edge Case: Conflicting Index Files
 // ============================================================================
 
-Deno.test('combinations - index.page.md + index.page.ts conflict', () => {
+test('combinations - index.page.md + index.page.ts conflict', () => {
   // Consumers might accidentally create multiple index files
   // Both would produce the same pattern, causing conflicts
   const pattern1 = filePathToPattern('routes/blog/index.page.md');
   const pattern2 = filePathToPattern('routes/blog/index.page.ts');
 
-  assertEquals(pattern1, pattern2);
-  assertEquals(pattern1, '/blog/:rest*');
+  expect(pattern1).toEqual(pattern2);
+  expect(pattern1).toEqual('/blog/:rest*');
 
   // Both routes would match the same URLs
   const routes = [createRoute(pattern1), createRoute(pattern2)];
@@ -118,17 +114,17 @@ Deno.test('combinations - index.page.md + index.page.ts conflict', () => {
 
   // First one wins (depends on manifest order)
   const result = matcher.match('http://localhost/blog/post-1');
-  assertExists(result);
+  expect(result).toBeDefined();
 });
 
-Deno.test('combinations - root index vs nested index wildcard collision', () => {
+test('combinations - root index vs nested index wildcard collision', () => {
   // routes/index.page.ts → /
   // routes/home/index.page.ts → /home/:rest*
   const root = filePathToPattern('routes/index.page.ts');
   const nested = filePathToPattern('routes/home/index.page.ts');
 
-  assertEquals(root, '/');
-  assertEquals(nested, '/home/:rest*');
+  expect(root).toEqual('/');
+  expect(nested).toEqual('/home/:rest*');
 
   // These don't actually conflict, just testing behavior
   const routes = [createRoute(root), createRoute(nested)];
@@ -140,7 +136,7 @@ Deno.test('combinations - root index vs nested index wildcard collision', () => 
 // Edge Case: Static vs Dynamic vs Wildcard Collision
 // ============================================================================
 
-Deno.test('combinations - three-way collision: static + dynamic + wildcard', () => {
+test('combinations - three-way collision: static + dynamic + wildcard', () => {
   // All in /projects path:
   // projects.page.ts → /projects (static)
   // projects/[id].page.ts → /projects/:id (dynamic)
@@ -150,9 +146,9 @@ Deno.test('combinations - three-way collision: static + dynamic + wildcard', () 
   const dynamic = filePathToPattern('routes/projects/[id].page.ts');
   const wildcard = filePathToPattern('routes/projects/index.page.ts');
 
-  assertEquals(static_route, '/projects');
-  assertEquals(dynamic, '/projects/:id');
-  assertEquals(wildcard, '/projects/:rest*');
+  expect(static_route).toEqual('/projects');
+  expect(dynamic).toEqual('/projects/:id');
+  expect(wildcard).toEqual('/projects/:rest*');
 
   // After sorting, static should come first, wildcard last
   const routes = [
@@ -162,9 +158,9 @@ Deno.test('combinations - three-way collision: static + dynamic + wildcard', () 
   ];
   const sorted = sortRoutesBySpecificity(routes);
 
-  assertEquals(sorted[0].pattern, '/projects/:id'); // More segments
-  assertEquals(sorted[1].pattern, '/projects'); // Static but fewer segments
-  assertEquals(sorted[2].pattern, '/projects/:rest*'); // Wildcard always last
+  expect(sorted[0].pattern).toEqual('/projects/:id'); // More segments
+  expect(sorted[1].pattern).toEqual('/projects'); // Static but fewer segments
+  expect(sorted[2].pattern).toEqual('/projects/:rest*'); // Wildcard always last
 
   // Test matching priority - /projects matches the static route
   testMatch(routes, '/projects', { pattern: '/projects' });
@@ -179,7 +175,7 @@ Deno.test('combinations - three-way collision: static + dynamic + wildcard', () 
   });
 });
 
-Deno.test('combinations - static should win over dynamic at same level', () => {
+test('combinations - static should win over dynamic at same level', () => {
   // projects/special.page.ts → /projects/special (static)
   // projects/[id].page.ts → /projects/:id (dynamic)
 
@@ -190,8 +186,8 @@ Deno.test('combinations - static should win over dynamic at same level', () => {
 
   // When properly sorted, static comes first
   const sorted = sortRoutesBySpecificity(routes);
-  assertEquals(sorted[0].pattern, '/projects/special');
-  assertEquals(sorted[1].pattern, '/projects/:id');
+  expect(sorted[0].pattern).toEqual('/projects/special');
+  expect(sorted[1].pattern).toEqual('/projects/:id');
 
   testMatch(routes, '/projects/special', { pattern: '/projects/special' });
   testMatch(routes, '/projects/123', { pattern: '/projects/:id', params: { id: '123' } });
@@ -201,7 +197,7 @@ Deno.test('combinations - static should win over dynamic at same level', () => {
 // Edge Case: Deep Nesting with Index Files
 // ============================================================================
 
-Deno.test('combinations - multiple index files at different depths', () => {
+test('combinations - multiple index files at different depths', () => {
   // docs/index.page.ts → /docs/:rest*
   // docs/api/index.page.ts → /docs/api/:rest*
   // docs/api/v1/index.page.ts → /docs/api/v1/:rest*
@@ -210,17 +206,17 @@ Deno.test('combinations - multiple index files at different depths', () => {
   const level2 = filePathToPattern('routes/docs/api/index.page.ts');
   const level3 = filePathToPattern('routes/docs/api/v1/index.page.ts');
 
-  assertEquals(level1, '/docs/:rest*');
-  assertEquals(level2, '/docs/api/:rest*');
-  assertEquals(level3, '/docs/api/v1/:rest*');
+  expect(level1).toEqual('/docs/:rest*');
+  expect(level2).toEqual('/docs/api/:rest*');
+  expect(level3).toEqual('/docs/api/v1/:rest*');
 
   const routes = [createRoute(level1), createRoute(level2), createRoute(level3)];
   const sorted = sortRoutesBySpecificity(routes);
 
   // More specific (deeper) wildcards come first
-  assertEquals(sorted[0].pattern, '/docs/api/v1/:rest*');
-  assertEquals(sorted[1].pattern, '/docs/api/:rest*');
-  assertEquals(sorted[2].pattern, '/docs/:rest*');
+  expect(sorted[0].pattern).toEqual('/docs/api/v1/:rest*');
+  expect(sorted[1].pattern).toEqual('/docs/api/:rest*');
+  expect(sorted[2].pattern).toEqual('/docs/:rest*');
 
   // Test that most specific matches first
   testMatch(routes, '/docs/api/v1/users', { pattern: '/docs/api/v1/:rest*' });
@@ -232,7 +228,7 @@ Deno.test('combinations - multiple index files at different depths', () => {
 // Edge Case: Index File + Sibling Pages
 // ============================================================================
 
-Deno.test('combinations - index wildcard + sibling static pages', () => {
+test('combinations - index wildcard + sibling static pages', () => {
   // blog/index.page.ts → /blog/:rest* (wildcard)
   // blog/archive.page.ts → /blog/archive (static)
   // blog/[slug].page.ts → /blog/:slug (dynamic)
@@ -241,17 +237,17 @@ Deno.test('combinations - index wildcard + sibling static pages', () => {
   const static_route = filePathToPattern('routes/blog/archive.page.ts');
   const dynamic = filePathToPattern('routes/blog/[slug].page.ts');
 
-  assertEquals(wildcard, '/blog/:rest*');
-  assertEquals(static_route, '/blog/archive');
-  assertEquals(dynamic, '/blog/:slug');
+  expect(wildcard).toEqual('/blog/:rest*');
+  expect(static_route).toEqual('/blog/archive');
+  expect(dynamic).toEqual('/blog/:slug');
 
   const routes = [createRoute(wildcard), createRoute(static_route), createRoute(dynamic)];
   const sorted = sortRoutesBySpecificity(routes);
 
   // Static comes first, dynamic second, wildcard last
-  assertEquals(sorted[0].pattern, '/blog/archive');
-  assertEquals(sorted[1].pattern, '/blog/:slug');
-  assertEquals(sorted[2].pattern, '/blog/:rest*');
+  expect(sorted[0].pattern).toEqual('/blog/archive');
+  expect(sorted[1].pattern).toEqual('/blog/:slug');
+  expect(sorted[2].pattern).toEqual('/blog/:rest*');
 
   testMatch(routes, '/blog/archive', { pattern: '/blog/archive' });
   testMatch(routes, '/blog/my-post', { pattern: '/blog/:slug', params: { slug: 'my-post' } });
@@ -265,12 +261,12 @@ Deno.test('combinations - index wildcard + sibling static pages', () => {
 // Edge Case: Param Names with Special Characters
 // ============================================================================
 
-Deno.test('combinations - param with hyphens (URLPattern limitation)', () => {
+test('combinations - param with hyphens (URLPattern limitation)', () => {
   // File: [item-id].page.ts → /items/:item-id
   // URLPattern doesn't support hyphens in param names
   // This creates an invalid pattern that won't match
   const pattern = filePathToPattern('routes/items/[item-id].page.ts');
-  assertEquals(pattern, '/items/:item-id');
+  expect(pattern).toEqual('/items/:item-id');
 
   // This pattern is invalid - URLPattern param names can't contain hyphens
   // Consumers should use underscores or camelCase: [itemId] or [item_id]
@@ -280,12 +276,12 @@ Deno.test('combinations - param with hyphens (URLPattern limitation)', () => {
 
   // Pattern compilation will fail or not match
   const result = matcher.match('http://localhost/items/abc-123');
-  assertEquals(result, undefined); // Doesn't match due to invalid pattern
+  expect(result).toEqual(undefined); // Doesn't match due to invalid pattern
 });
 
-Deno.test('combinations - param with underscores', () => {
+test('combinations - param with underscores', () => {
   const pattern = filePathToPattern('routes/users/[user_id].page.ts');
-  assertEquals(pattern, '/users/:user_id');
+  expect(pattern).toEqual('/users/:user_id');
 
   const routes = [createRoute(pattern)];
   testMatch(routes, '/users/user_42', {
@@ -294,9 +290,9 @@ Deno.test('combinations - param with underscores', () => {
   });
 });
 
-Deno.test('combinations - param with numbers', () => {
+test('combinations - param with numbers', () => {
   const pattern = filePathToPattern('routes/api/[v1].page.ts');
-  assertEquals(pattern, '/api/:v1');
+  expect(pattern).toEqual('/api/:v1');
 
   const routes = [createRoute(pattern)];
   testMatch(routes, '/api/test', { pattern: '/api/:v1', params: { v1: 'test' } });
@@ -306,17 +302,17 @@ Deno.test('combinations - param with numbers', () => {
 // Edge Case: Empty and Single-Character Segments
 // ============================================================================
 
-Deno.test('combinations - single character static route', () => {
+test('combinations - single character static route', () => {
   const pattern = filePathToPattern('routes/a.page.ts');
-  assertEquals(pattern, '/a');
+  expect(pattern).toEqual('/a');
 
   const routes = [createRoute(pattern)];
   testMatch(routes, '/a', { pattern: '/a' });
 });
 
-Deno.test('combinations - single character param', () => {
+test('combinations - single character param', () => {
   const pattern = filePathToPattern('routes/items/[x].page.ts');
-  assertEquals(pattern, '/items/:x');
+  expect(pattern).toEqual('/items/:x');
 
   const routes = [createRoute(pattern)];
   testMatch(routes, '/items/123', { pattern: '/items/:x', params: { x: '123' } });
@@ -326,17 +322,17 @@ Deno.test('combinations - single character param', () => {
 // Edge Case: Very Deep Nesting
 // ============================================================================
 
-Deno.test('combinations - deeply nested route (6+ levels)', () => {
+test('combinations - deeply nested route (6+ levels)', () => {
   const pattern = filePathToPattern('routes/a/b/c/d/e/f/g.page.ts');
-  assertEquals(pattern, '/a/b/c/d/e/f/g');
+  expect(pattern).toEqual('/a/b/c/d/e/f/g');
 
   const routes = [createRoute(pattern)];
   testMatch(routes, '/a/b/c/d/e/f/g', { pattern: '/a/b/c/d/e/f/g' });
 });
 
-Deno.test('combinations - deeply nested with multiple params', () => {
+test('combinations - deeply nested with multiple params', () => {
   const pattern = filePathToPattern('routes/[a]/[b]/[c]/[d]/[e].page.ts');
-  assertEquals(pattern, '/:a/:b/:c/:d/:e');
+  expect(pattern).toEqual('/:a/:b/:c/:d/:e');
 
   const routes = [createRoute(pattern)];
   testMatch(routes, '/1/2/3/4/5', {
@@ -345,11 +341,11 @@ Deno.test('combinations - deeply nested with multiple params', () => {
   });
 });
 
-Deno.test('combinations - deeply nested with alternating static and dynamic', () => {
+test('combinations - deeply nested with alternating static and dynamic', () => {
   const pattern = filePathToPattern(
     'routes/api/[version]/users/[id]/posts/[postId]/comments.page.ts',
   );
-  assertEquals(pattern, '/api/:version/users/:id/posts/:postId/comments');
+  expect(pattern).toEqual('/api/:version/users/:id/posts/:postId/comments');
 
   const routes = [createRoute(pattern)];
   testMatch(routes, '/api/v2/users/42/posts/100/comments', {
@@ -362,9 +358,9 @@ Deno.test('combinations - deeply nested with alternating static and dynamic', ()
 // Edge Case: Index Files with Dynamic Parents
 // ============================================================================
 
-Deno.test('combinations - index file under dynamic segment', () => {
+test('combinations - index file under dynamic segment', () => {
   const pattern = filePathToPattern('routes/users/[id]/index.page.ts');
-  assertEquals(pattern, '/users/:id/:rest*');
+  expect(pattern).toEqual('/users/:id/:rest*');
 
   const routes = [createRoute(pattern)];
   testMatch(routes, '/users/42/profile', {
@@ -377,9 +373,9 @@ Deno.test('combinations - index file under dynamic segment', () => {
   });
 });
 
-Deno.test('combinations - multiple levels of dynamic + index', () => {
+test('combinations - multiple levels of dynamic + index', () => {
   const pattern = filePathToPattern('routes/orgs/[orgId]/teams/[teamId]/index.page.ts');
-  assertEquals(pattern, '/orgs/:orgId/teams/:teamId/:rest*');
+  expect(pattern).toEqual('/orgs/:orgId/teams/:teamId/:rest*');
 
   const routes = [createRoute(pattern)];
   testMatch(routes, '/orgs/acme/teams/eng/members', {
@@ -392,50 +388,50 @@ Deno.test('combinations - multiple levels of dynamic + index', () => {
 // Edge Case: File Extensions
 // ============================================================================
 
-Deno.test('combinations - all file extensions produce same pattern', () => {
+test('combinations - all file extensions produce same pattern', () => {
   const ts = filePathToPattern('routes/about.page.ts');
   const html = filePathToPattern('routes/about.page.html');
   const md = filePathToPattern('routes/about.page.md');
   const css = filePathToPattern('routes/about.page.css');
 
-  assertEquals(ts, '/about');
-  assertEquals(html, '/about');
-  assertEquals(md, '/about');
-  assertEquals(css, '/about');
+  expect(ts).toEqual('/about');
+  expect(html).toEqual('/about');
+  expect(md).toEqual('/about');
+  expect(css).toEqual('/about');
 });
 
-Deno.test('combinations - error and redirect files', () => {
+test('combinations - error and redirect files', () => {
   const error = filePathToPattern('routes/admin.error.ts');
   const redirect = filePathToPattern('routes/old-page.redirect.ts');
 
-  assertEquals(error, '/admin');
-  assertEquals(redirect, '/old-page');
+  expect(error).toEqual('/admin');
+  expect(redirect).toEqual('/old-page');
 });
 
 // ============================================================================
 // Edge Case: Filenames with Dots and Special Chars
 // ============================================================================
 
-Deno.test('combinations - filename with dots', () => {
+test('combinations - filename with dots', () => {
   const pattern = filePathToPattern('routes/api.v1.page.ts');
-  assertEquals(pattern, '/api.v1');
+  expect(pattern).toEqual('/api.v1');
 });
 
-Deno.test('combinations - filename with hyphens', () => {
+test('combinations - filename with hyphens', () => {
   const pattern = filePathToPattern('routes/my-awesome-page.page.ts');
-  assertEquals(pattern, '/my-awesome-page');
+  expect(pattern).toEqual('/my-awesome-page');
 });
 
-Deno.test('combinations - filename with underscores', () => {
+test('combinations - filename with underscores', () => {
   const pattern = filePathToPattern('routes/my_component_page.page.ts');
-  assertEquals(pattern, '/my_component_page');
+  expect(pattern).toEqual('/my_component_page');
 });
 
 // ============================================================================
 // Edge Case: Sorting Large Mixed Route Sets
 // ============================================================================
 
-Deno.test('combinations - comprehensive sorting test', () => {
+test('combinations - comprehensive sorting test', () => {
   const routes = [
     createRoute('/'),
     createRoute('/about'),
@@ -463,10 +459,10 @@ Deno.test('combinations - comprehensive sorting test', () => {
   // All non-wildcards should come before wildcards
   if (wildcardStartIndex >= 0) {
     for (let i = 0; i < wildcardStartIndex; i++) {
-      assertEquals(sorted[i].pattern.includes(':rest*'), false);
+      expect(sorted[i].pattern.includes(':rest*')).toEqual(false);
     }
     for (let i = wildcardStartIndex; i < sorted.length; i++) {
-      assertEquals(sorted[i].pattern.includes(':rest*'), true);
+      expect(sorted[i].pattern.includes(':rest*')).toEqual(true);
     }
   }
 
@@ -474,11 +470,7 @@ Deno.test('combinations - comprehensive sorting test', () => {
   for (let i = 0; i < nonWildcards.length - 1; i++) {
     const segmentsA = nonWildcards[i].pattern.split('/').filter(Boolean).length;
     const segmentsB = nonWildcards[i + 1].pattern.split('/').filter(Boolean).length;
-    assertEquals(
-      segmentsA >= segmentsB,
-      true,
-      `Route ordering issue: ${nonWildcards[i].pattern} vs ${nonWildcards[i + 1].pattern}`,
-    );
+    expect(segmentsA >= segmentsB).toEqual(true);
   }
 });
 
@@ -486,7 +478,7 @@ Deno.test('combinations - comprehensive sorting test', () => {
 // Edge Case: URL Encoding and Special Characters in Params
 // ============================================================================
 
-Deno.test('combinations - URL encoded values in dynamic segments', () => {
+test('combinations - URL encoded values in dynamic segments', () => {
   const routes = [createRoute('/posts/:slug')];
   testMatch(routes, '/posts/hello%20world', {
     pattern: '/posts/:slug',
@@ -494,7 +486,7 @@ Deno.test('combinations - URL encoded values in dynamic segments', () => {
   });
 });
 
-Deno.test('combinations - special characters in URL paths', () => {
+test('combinations - special characters in URL paths', () => {
   const routes = [createRoute('/files/:path')];
   testMatch(routes, '/files/my-file.txt', {
     pattern: '/files/:path',
@@ -506,7 +498,7 @@ Deno.test('combinations - special characters in URL paths', () => {
 // Edge Case: Conflicting Patterns That Should Be Detected
 // ============================================================================
 
-Deno.test('combinations - identical patterns from different files', () => {
+test('combinations - identical patterns from different files', () => {
   // blog/[slug].page.ts → /blog/:slug
   // blog/[id].page.ts → /blog/:id
   // Both produce different param names but same pattern structure
@@ -514,8 +506,8 @@ Deno.test('combinations - identical patterns from different files', () => {
   const pattern1 = filePathToPattern('routes/blog/[slug].page.ts');
   const pattern2 = filePathToPattern('routes/blog/[id].page.ts');
 
-  assertEquals(pattern1, '/blog/:slug');
-  assertEquals(pattern2, '/blog/:id');
+  expect(pattern1).toEqual('/blog/:slug');
+  expect(pattern2).toEqual('/blog/:id');
 
   // These would conflict - URLPattern sees them as different but they match the same URLs
   const routes = [createRoute(pattern1), createRoute(pattern2)];
@@ -523,7 +515,7 @@ Deno.test('combinations - identical patterns from different files', () => {
   const matcher = new RouteMatcher(manifest);
 
   const result = matcher.match('http://localhost/blog/my-post');
-  assertExists(result);
+  expect(result).toBeDefined();
   // First one in sorted order wins
 });
 
@@ -531,7 +523,7 @@ Deno.test('combinations - identical patterns from different files', () => {
 // Real-World Scenario Tests
 // ============================================================================
 
-Deno.test('combinations - e-commerce site structure', () => {
+test('combinations - e-commerce site structure', () => {
   const routes = [
     createRoute('/'),
     createRoute('/products'),
@@ -563,7 +555,7 @@ Deno.test('combinations - e-commerce site structure', () => {
   });
 });
 
-Deno.test('combinations - documentation site with versions', () => {
+test('combinations - documentation site with versions', () => {
   const routes = [
     createRoute('/'),
     createRoute('/docs'),
@@ -588,7 +580,7 @@ Deno.test('combinations - documentation site with versions', () => {
 // Programmatic Route Generation Tests
 // ============================================================================
 
-Deno.test('combinations - generate all combinations of 2-level routes', () => {
+test('combinations - generate all combinations of 2-level routes', () => {
   // Generate routes like /a/b, /a/[b], /[a]/b, /[a]/[b]
   const variations = [
     'routes/a/b.page.ts',
@@ -600,19 +592,19 @@ Deno.test('combinations - generate all combinations of 2-level routes', () => {
   ];
 
   const patterns = variations.map(filePathToPattern);
-  assertEquals(patterns[0], '/a/b');
-  assertEquals(patterns[1], '/a/:b');
-  assertEquals(patterns[2], '/:a/b');
-  assertEquals(patterns[3], '/:a/:b');
-  assertEquals(patterns[4], '/a/:rest*');
-  assertEquals(patterns[5], '/:a/:rest*');
+  expect(patterns[0]).toEqual('/a/b');
+  expect(patterns[1]).toEqual('/a/:b');
+  expect(patterns[2]).toEqual('/:a/b');
+  expect(patterns[3]).toEqual('/:a/:b');
+  expect(patterns[4]).toEqual('/a/:rest*');
+  expect(patterns[5]).toEqual('/:a/:rest*');
 
   // All patterns are unique and valid
   const uniquePatterns = new Set(patterns);
-  assertEquals(uniquePatterns.size, patterns.length);
+  expect(uniquePatterns.size).toEqual(patterns.length);
 });
 
-Deno.test('combinations - generate param combinations for 3-level route', () => {
+test('combinations - generate param combinations for 3-level route', () => {
   // Test all 8 combinations of static/dynamic for a 3-segment path
   const combos = [
     'routes/a/b/c.page.ts', // sss
@@ -630,30 +622,30 @@ Deno.test('combinations - generate param combinations for 3-level route', () => 
   const sorted = sortRoutesBySpecificity(routes);
 
   // Most static segments should come first
-  assertEquals(sorted[0].pattern, '/a/b/c'); // All static
-  assertEquals(sorted[sorted.length - 1].pattern, '/:a/:b/:c'); // All dynamic
+  expect(sorted[0].pattern).toEqual('/a/b/c'); // All static
+  expect(sorted[sorted.length - 1].pattern).toEqual('/:a/:b/:c'); // All dynamic
 });
 
 // ============================================================================
 // Edge Case: Root Level Routes
 // ============================================================================
 
-Deno.test('combinations - root index does not become wildcard', () => {
+test('combinations - root index does not become wildcard', () => {
   // Root index should be exact /, not /:rest*
   const pattern = filePathToPattern('routes/index.page.ts');
-  assertEquals(pattern, '/');
-  assertEquals(pattern.includes(':rest*'), false);
+  expect(pattern).toEqual('/');
+  expect(pattern.includes(':rest*')).toEqual(false);
 });
 
-Deno.test('combinations - root level files', () => {
+test('combinations - root level files', () => {
   // All these should create root-level routes
   const about = filePathToPattern('routes/about.page.ts');
   const contact = filePathToPattern('routes/contact.page.ts');
   const pricing = filePathToPattern('routes/pricing.page.md');
 
-  assertEquals(about, '/about');
-  assertEquals(contact, '/contact');
-  assertEquals(pricing, '/pricing');
+  expect(about).toEqual('/about');
+  expect(contact).toEqual('/contact');
+  expect(pricing).toEqual('/pricing');
 
   const routes = [createRoute(about), createRoute(contact), createRoute(pricing)];
   testMatch(routes, '/about', { pattern: '/about' });
@@ -661,10 +653,10 @@ Deno.test('combinations - root level files', () => {
   testMatch(routes, '/pricing', { pattern: '/pricing' });
 });
 
-Deno.test('combinations - root level dynamic param', () => {
+test('combinations - root level dynamic param', () => {
   // routes/[slug].page.ts → /:slug
   const pattern = filePathToPattern('routes/[slug].page.ts');
-  assertEquals(pattern, '/:slug');
+  expect(pattern).toEqual('/:slug');
 
   const routes = [createRoute(pattern)];
   testMatch(routes, '/hello', { pattern: '/:slug', params: { slug: 'hello' } });
@@ -674,7 +666,7 @@ Deno.test('combinations - root level dynamic param', () => {
 // Edge Case: Maximum Collision Scenario
 // ============================================================================
 
-Deno.test('combinations - maximum collision: all pattern types at same path', () => {
+test('combinations - maximum collision: all pattern types at same path', () => {
   // Create every possible pattern type for /api/users
   const routes = [
     createRoute('/api/users'), // Static exact
@@ -704,16 +696,16 @@ Deno.test('combinations - maximum collision: all pattern types at same path', ()
 // Edge Case: Numeric Segments
 // ============================================================================
 
-Deno.test('combinations - numeric static segments', () => {
+test('combinations - numeric static segments', () => {
   // routes/api/v1/users.page.ts → /api/v1/users
   const pattern = filePathToPattern('routes/api/v1/users.page.ts');
-  assertEquals(pattern, '/api/v1/users');
+  expect(pattern).toEqual('/api/v1/users');
 
   const routes = [createRoute(pattern)];
   testMatch(routes, '/api/v1/users', { pattern: '/api/v1/users' });
 });
 
-Deno.test('combinations - numeric param values', () => {
+test('combinations - numeric param values', () => {
   const routes = [createRoute('/posts/:id')];
   testMatch(routes, '/posts/12345', { pattern: '/posts/:id', params: { id: '12345' } });
   testMatch(routes, '/posts/0', { pattern: '/posts/:id', params: { id: '0' } });
@@ -723,7 +715,7 @@ Deno.test('combinations - numeric param values', () => {
 // Edge Case: Empty Segments and Trailing Slashes
 // ============================================================================
 
-Deno.test('combinations - trailing slashes are normalized', () => {
+test('combinations - trailing slashes are normalized', () => {
   const routes = [createRoute('/about')];
   // URLPattern normalizes trailing slashes
   const manifest = createManifest(routes);
@@ -735,10 +727,10 @@ Deno.test('combinations - trailing slashes are normalized', () => {
   // Both should match (or both not match - depends on URLPattern behavior)
   // Document actual behavior
   if (withSlash) {
-    assertEquals(withSlash.route.pattern, '/about');
+    expect(withSlash.route.pattern).toEqual('/about');
   }
   if (withoutSlash) {
-    assertEquals(withoutSlash.route.pattern, '/about');
+    expect(withoutSlash.route.pattern).toEqual('/about');
   }
 });
 
@@ -746,7 +738,7 @@ Deno.test('combinations - trailing slashes are normalized', () => {
 // Edge Case: Case Sensitivity
 // ============================================================================
 
-Deno.test('combinations - route patterns are case-sensitive', () => {
+test('combinations - route patterns are case-sensitive', () => {
   const routes = [createRoute('/About'), createRoute('/about')];
   const manifest = createManifest(routes);
   const matcher = new RouteMatcher(manifest);
@@ -754,17 +746,17 @@ Deno.test('combinations - route patterns are case-sensitive', () => {
   const upper = matcher.match('http://localhost/About');
   const lower = matcher.match('http://localhost/about');
 
-  assertExists(upper);
-  assertExists(lower);
-  assertEquals(upper.route.pattern, '/About');
-  assertEquals(lower.route.pattern, '/about');
+  expect(upper).toBeDefined();
+  expect(lower).toBeDefined();
+  expect(upper.route.pattern).toEqual('/About');
+  expect(lower.route.pattern).toEqual('/about');
 });
 
 // ============================================================================
 // Edge Case: Very Long Param Values
 // ============================================================================
 
-Deno.test('combinations - long param values', () => {
+test('combinations - long param values', () => {
   const routes = [createRoute('/posts/:slug')];
   const longSlug = 'this-is-a-very-long-slug-that-contains-many-words-and-hyphens-to-test-matching';
 
@@ -778,7 +770,7 @@ Deno.test('combinations - long param values', () => {
 // Edge Case: Param Order Consistency
 // ============================================================================
 
-Deno.test('combinations - param extraction order matches pattern order', () => {
+test('combinations - param extraction order matches pattern order', () => {
   const routes = [createRoute('/:year/:month/:day/:slug')];
   testMatch(routes, '/2024/01/15/my-post', {
     pattern: '/:year/:month/:day/:slug',
@@ -790,13 +782,13 @@ Deno.test('combinations - param extraction order matches pattern order', () => {
 // Edge Case: Mixed File Extensions in Same Directory
 // ============================================================================
 
-Deno.test('combinations - mixed extensions create pattern conflicts', () => {
+test('combinations - mixed extensions create pattern conflicts', () => {
   // If consumer creates both .ts and .html for same route
   const ts = filePathToPattern('routes/about.page.ts');
   const html = filePathToPattern('routes/about.page.html');
 
-  assertEquals(ts, html); // Same pattern
-  assertEquals(ts, '/about');
+  expect(ts).toEqual(html); // Same pattern
+  expect(ts).toEqual('/about');
 
   // Both would appear in manifest, first one wins
   const routes = [createRoute(ts), createRoute(html)];
@@ -804,8 +796,8 @@ Deno.test('combinations - mixed extensions create pattern conflicts', () => {
   const matcher = new RouteMatcher(manifest);
 
   const result = matcher.match('http://localhost/about');
-  assertExists(result);
-  assertEquals(result.route.pattern, '/about');
+  expect(result).toBeDefined();
+  expect(result.route.pattern).toEqual('/about');
   // First route in manifest wins
 });
 
@@ -813,7 +805,7 @@ Deno.test('combinations - mixed extensions create pattern conflicts', () => {
 // Real-World: GitHub-like Routes
 // ============================================================================
 
-Deno.test('combinations - GitHub-like user and repo structure', () => {
+test('combinations - GitHub-like user and repo structure', () => {
   const routes = [
     createRoute('/'),
     createRoute('/explore'),

@@ -1,15 +1,15 @@
-#!/usr/bin/env -S deno run --allow-read
+#!/usr/bin/env bun
 /**
  * Print sitemap.xml from the browser test fixtures.
  *
- * Usage: deno run --allow-read test/browser/print-sitemap.ts
+ * Usage: bun test/browser/print-sitemap.ts
  */
 
 import { generateRoutesManifest } from '../../server/generator/route.generator.ts';
 import { generateSitemap } from '../../server/generator/sitemap.generator.ts';
-import { DenoFsRuntime } from '../../runtime/deno/fs/deno-fs.runtime.ts';
+import { BunFsRuntime } from '../../runtime/bun/fs/bun-fs.runtime.ts';
 
-const runtime = new DenoFsRuntime('test/browser/fixtures');
+const runtime = new BunFsRuntime('test/browser/fixtures');
 
 const manifest = await generateRoutesManifest('/routes', runtime);
 

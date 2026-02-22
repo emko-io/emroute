@@ -11,7 +11,7 @@
  * - Widget params extraction and conversion
  */
 
-import { assert, assertEquals, assertExists, assertStringIncludes } from '@std/assert';
+import { test, expect, describe } from 'bun:test';
 import { parseAttrsToParams, resolveWidgetTags } from '../../src/util/widget-resolve.util.ts';
 import { WidgetComponent } from '../../src/component/widget.component.ts';
 import { Component } from '../../src/component/abstract.component.ts';
@@ -205,110 +205,111 @@ class MockRegistry {
  * Test Suite: parseAttrsToParams
  */
 
-Deno.test('parseAttrsToParams - empty string', () => {
-  assertEquals(parseAttrsToParams(''), {});
+test('parseAttrsToParams - empty string', () => {
+  expect(parseAttrsToParams('')).toEqual({});
 });
 
-Deno.test('parseAttrsToParams - single double-quoted attribute', () => {
-  assertEquals(parseAttrsToParams('coin="bitcoin"'), { coin: 'bitcoin' });
+test('parseAttrsToParams - single double-quoted attribute', () => {
+  expect(parseAttrsToParams('coin="bitcoin"')).toEqual({ coin: 'bitcoin' });
 });
 
-Deno.test('parseAttrsToParams - single single-quoted attribute', () => {
-  assertEquals(parseAttrsToParams("coin='ethereum'"), { coin: 'ethereum' });
+test('parseAttrsToParams - single single-quoted attribute', () => {
+  expect(parseAttrsToParams("coin='ethereum'")).toEqual({ coin: 'ethereum' });
 });
 
-Deno.test('parseAttrsToParams - unquoted attribute', () => {
-  assertEquals(parseAttrsToParams('amount=1000'), { amount: 1000 });
+test('parseAttrsToParams - unquoted attribute', () => {
+  expect(parseAttrsToParams('amount=1000')).toEqual({ amount: 1000 });
 });
 
-Deno.test('parseAttrsToParams - boolean attribute (no value)', () => {
-  assertEquals(parseAttrsToParams('disabled'), { disabled: '' });
+test('parseAttrsToParams - boolean attribute (no value)', () => {
+  expect(parseAttrsToParams('disabled')).toEqual({ disabled: '' });
 });
 
-Deno.test('parseAttrsToParams - multiple attributes mixed quotes', () => {
-  assertEquals(parseAttrsToParams('coin="bitcoin" amount=50 enabled'), {
+test('parseAttrsToParams - multiple attributes mixed quotes', () => {
+  expect(parseAttrsToParams('coin="bitcoin" amount=50 enabled')).toEqual({
     coin: 'bitcoin',
     amount: 50,
     enabled: '',
   });
 });
 
-Deno.test('parseAttrsToParams - kebab-case converted to camelCase', () => {
-  assertEquals(parseAttrsToParams('my-coin="bitcoin"'), { myCoin: 'bitcoin' });
+test('parseAttrsToParams - kebab-case converted to camelCase', () => {
+  expect(parseAttrsToParams('my-coin="bitcoin"')).toEqual({ myCoin: 'bitcoin' });
 });
 
-Deno.test('parseAttrsToParams - multiple kebab-case attributes', () => {
-  assertEquals(parseAttrsToParams('my-coin="bitcoin" your-amount=42'), {
+test('parseAttrsToParams - multiple kebab-case attributes', () => {
+  expect(parseAttrsToParams('my-coin="bitcoin" your-amount=42')).toEqual({
     myCoin: 'bitcoin',
     yourAmount: 42,
   });
 });
 
-Deno.test('parseAttrsToParams - JSON number values parsed', () => {
-  assertEquals(parseAttrsToParams('count="42"'), { count: 42 });
+test('parseAttrsToParams - JSON number values parsed', () => {
+  expect(parseAttrsToParams('count="42"')).toEqual({ count: 42 });
 });
 
-Deno.test('parseAttrsToParams - JSON boolean values parsed', () => {
-  assertEquals(parseAttrsToParams('active="true" disabled="false"'), {
+test('parseAttrsToParams - JSON boolean values parsed', () => {
+  expect(parseAttrsToParams('active="true" disabled="false"')).toEqual({
     active: true,
     disabled: false,
   });
 });
 
-Deno.test('parseAttrsToParams - JSON null parsed', () => {
-  assertEquals(parseAttrsToParams('value="null"'), { value: null });
+test('parseAttrsToParams - JSON null parsed', () => {
+  expect(parseAttrsToParams('value="null"')).toEqual({ value: null });
 });
 
-Deno.test('parseAttrsToParams - JSON object parsed', () => {
-  assertEquals(parseAttrsToParams('config=\'{"x":1,"y":2}\''), {
+test('parseAttrsToParams - JSON object parsed', () => {
+  expect(parseAttrsToParams('config=\'{"x":1,"y":2}\'')).toEqual({
     config: { x: 1, y: 2 },
   });
 });
 
-Deno.test('parseAttrsToParams - invalid JSON falls back to string', () => {
-  assertEquals(parseAttrsToParams('text="not json"'), { text: 'not json' });
+test('parseAttrsToParams - invalid JSON falls back to string', () => {
+  expect(parseAttrsToParams('text="not json"')).toEqual({ text: 'not json' });
 });
 
-Deno.test('parseAttrsToParams - HTML entities decoded in double quotes', () => {
-  assertEquals(parseAttrsToParams('text="hello &amp; goodbye"'), {
+test('parseAttrsToParams - HTML entities decoded in double quotes', () => {
+  expect(parseAttrsToParams('text="hello &amp; goodbye"')).toEqual({
     text: 'hello & goodbye',
   });
 });
 
-Deno.test('parseAttrsToParams - HTML entities decoded in single quotes', () => {
-  assertEquals(parseAttrsToParams("text='hello &amp; goodbye'"), {
+test('parseAttrsToParams - HTML entities decoded in single quotes', () => {
+  expect(parseAttrsToParams("text='hello &amp; goodbye'")).toEqual({
     text: 'hello & goodbye',
   });
 });
 
-Deno.test('parseAttrsToParams - quotes decoded', () => {
-  assertEquals(parseAttrsToParams('text="say &quot;hello&quot;"'), {
+test('parseAttrsToParams - quotes decoded', () => {
+  expect(parseAttrsToParams('text="say &quot;hello&quot;"')).toEqual({
     text: 'say "hello"',
   });
 });
 
-Deno.test('parseAttrsToParams - ssr attribute is skipped', () => {
-  assertEquals(parseAttrsToParams('coin="bitcoin" ssr="ignored"'), {
+test('parseAttrsToParams - ssr attribute is skipped', () => {
+  expect(parseAttrsToParams('coin="bitcoin" ssr="ignored"')).toEqual({
     coin: 'bitcoin',
   });
 });
 
-Deno.test('parseAttrsToParams - lazy attribute is skipped', () => {
-  assertEquals(parseAttrsToParams('name="test" lazy'), {
+test('parseAttrsToParams - lazy attribute is skipped', () => {
+  expect(parseAttrsToParams('name="test" lazy')).toEqual({
     name: 'test',
   });
 });
 
-Deno.test('parseAttrsToParams - whitespace handling in attributes', () => {
-  assertEquals(parseAttrsToParams('coin="bitcoin" amount=50'), {
+test('parseAttrsToParams - whitespace handling in attributes', () => {
+  expect(parseAttrsToParams('coin="bitcoin" amount=50')).toEqual({
     coin: 'bitcoin',
     amount: 50,
   });
 });
 
-Deno.test('parseAttrsToParams - complex real-world example', () => {
-  assertEquals(
+test('parseAttrsToParams - complex real-world example', () => {
+  expect(
     parseAttrsToParams('coin="bitcoin" price=42000 active="true" my-custom-prop="value"'),
+  ).toEqual(
     {
       coin: 'bitcoin',
       price: 42000,
@@ -322,78 +323,78 @@ Deno.test('parseAttrsToParams - complex real-world example', () => {
  * Test Suite: resolveWidgetTags - Basic Resolution
  */
 
-Deno.test('resolveWidgetTags - no widgets in HTML', async () => {
+test('resolveWidgetTags - no widgets in HTML', async () => {
   const html = '<div>No widgets here</div>';
   const registry = new MockRegistry();
   const routeInfo = createTestRouteInfo();
 
   const result = await resolveWidgetTags(html, registry, routeInfo);
-  assertEquals(result, html);
+  expect(result).toEqual(html);
 });
 
-Deno.test('resolveWidgetTags - single widget resolution', async () => {
+test('resolveWidgetTags - single widget resolution', async () => {
   const html = '<widget-simple></widget-simple>';
   const registry = new MockRegistry(new SimpleWidget());
   const routeInfo = createTestRouteInfo();
 
   const result = await resolveWidgetTags(html, registry, routeInfo);
-  assertStringIncludes(result, '<widget-simple');
-  assertStringIncludes(result, 'Hello Widget');
-  assertStringIncludes(result, '</widget-simple>');
+  expect(result).toContain('<widget-simple');
+  expect(result).toContain('Hello Widget');
+  expect(result).toContain('</widget-simple>');
 });
 
-Deno.test('resolveWidgetTags - multiple widgets in HTML', async () => {
+test('resolveWidgetTags - multiple widgets in HTML', async () => {
   const html = '<div><widget-simple></widget-simple><widget-simple></widget-simple></div>';
   const registry = new MockRegistry(new SimpleWidget());
   const routeInfo = createTestRouteInfo();
 
   const result = await resolveWidgetTags(html, registry, routeInfo);
   const matches = result.match(/<widget-simple/g);
-  assertEquals(matches?.length, 2);
+  expect(matches?.length).toEqual(2);
 });
 
-Deno.test('resolveWidgetTags - widget not in registry returns unchanged', async () => {
+test('resolveWidgetTags - widget not in registry returns unchanged', async () => {
   const html = '<widget-unknown></widget-unknown>';
   const registry = new MockRegistry();
   const routeInfo = createTestRouteInfo();
 
   const result = await resolveWidgetTags(html, registry, routeInfo);
-  assertEquals(result, html);
+  expect(result).toEqual(html);
 });
 
-Deno.test('resolveWidgetTags - mixed registered and unregistered widgets', async () => {
+test('resolveWidgetTags - mixed registered and unregistered widgets', async () => {
   const html = '<div><widget-simple></widget-simple><widget-unknown></widget-unknown></div>';
   const registry = new MockRegistry(new SimpleWidget());
   const routeInfo = createTestRouteInfo();
 
   const result = await resolveWidgetTags(html, registry, routeInfo);
-  assertStringIncludes(result, 'Hello Widget');
-  assertStringIncludes(result, '<widget-unknown></widget-unknown>');
+  expect(result).toContain('Hello Widget');
+  expect(result).toContain('<widget-unknown></widget-unknown>');
 });
 
 /**
  * Test Suite: resolveWidgetTags - Attributes and Params
  */
 
-Deno.test('resolveWidgetTags - widget with single attribute', async () => {
+test('resolveWidgetTags - widget with single attribute', async () => {
   const html = '<widget-param-widget count="5"></widget-param-widget>';
   const registry = new MockRegistry(new ParamWidget());
   const routeInfo = createTestRouteInfo();
 
   const result = await resolveWidgetTags(html, registry, routeInfo);
-  assertStringIncludes(result, 'Anonymous: 5');
+  expect(result).toContain('Anonymous: 5');
 });
 
-Deno.test('resolveWidgetTags - widget with multiple attributes', async () => {
+test('resolveWidgetTags - widget with multiple attributes', async () => {
   const html = '<widget-param-widget count="10" name="Alice"></widget-param-widget>';
   const registry = new MockRegistry(new ParamWidget());
   const routeInfo = createTestRouteInfo();
 
   const result = await resolveWidgetTags(html, registry, routeInfo);
-  assertStringIncludes(result, 'Alice: 10');
+  expect(result).toContain('Alice: 10');
 });
 
-Deno.test('resolveWidgetTags - widget with kebab-case attributes', async () => {
+test('resolveWidgetTags - widget with kebab-case attributes', async () => {
   const html = '<widget-param-widget your-count="15" your-name="Bob"></widget-param-widget>';
   const registry = new MockRegistry(
     new (class extends ParamWidget {
@@ -408,42 +409,42 @@ Deno.test('resolveWidgetTags - widget with kebab-case attributes', async () => {
   const routeInfo = createTestRouteInfo();
 
   const result = await resolveWidgetTags(html, registry, routeInfo);
-  assertStringIncludes(result, 'Bob: 15');
+  expect(result).toContain('Bob: 15');
 });
 
-Deno.test('resolveWidgetTags - lazy attribute is preserved in output', async () => {
+test('resolveWidgetTags - lazy attribute is preserved in output', async () => {
   const html = '<widget-simple lazy></widget-simple>';
   const registry = new MockRegistry(new SimpleWidget());
   const routeInfo = createTestRouteInfo();
 
   const result = await resolveWidgetTags(html, registry, routeInfo);
-  assertStringIncludes(result, 'lazy');
+  expect(result).toContain('lazy');
 });
 
 /**
  * Test Suite: resolveWidgetTags - Data and SSR Attributes
  */
 
-Deno.test('resolveWidgetTags - injects boolean ssr attribute', async () => {
+test('resolveWidgetTags - injects boolean ssr attribute', async () => {
   const html = '<widget-simple></widget-simple>';
   const registry = new MockRegistry(new SimpleWidget());
   const routeInfo = createTestRouteInfo();
 
   const result = await resolveWidgetTags(html, registry, routeInfo);
-  assert(result.includes(' ssr ') || result.includes(' ssr>'), 'should have boolean ssr attribute');
+  expect(result.includes(' ssr ') || result.includes(' ssr>')).toBeTruthy();
 });
 
-Deno.test('resolveWidgetTags - default widget has no light DOM data', async () => {
+test('resolveWidgetTags - default widget has no light DOM data', async () => {
   const html = '<widget-simple></widget-simple>';
   const registry = new MockRegistry(new SimpleWidget());
   const routeInfo = createTestRouteInfo();
 
   const result = await resolveWidgetTags(html, registry, routeInfo);
   // Without exposeSsrData, no JSON data in light DOM
-  assertStringIncludes(result, '</template></widget-simple>');
+  expect(result).toContain('</template></widget-simple>');
 });
 
-Deno.test('resolveWidgetTags - exposeSsrData serializes data into light DOM', async () => {
+test('resolveWidgetTags - exposeSsrData serializes data into light DOM', async () => {
   const html = '<widget-simple></widget-simple>';
   const registry = new MockRegistry(
     new (class extends SimpleWidget {
@@ -454,12 +455,12 @@ Deno.test('resolveWidgetTags - exposeSsrData serializes data into light DOM', as
 
   const result = await resolveWidgetTags(html, registry, routeInfo);
   // Data should appear as light DOM text after </template>
-  assertStringIncludes(result, '</template>');
-  assertStringIncludes(result, 'Hello Widget');
-  assertStringIncludes(result, 'message');
+  expect(result).toContain('</template>');
+  expect(result).toContain('Hello Widget');
+  expect(result).toContain('message');
 });
 
-Deno.test('resolveWidgetTags - escapes ampersands in light DOM data', async () => {
+test('resolveWidgetTags - escapes ampersands in light DOM data', async () => {
   const html = '<widget-simple></widget-simple>';
   const registry = new MockRegistry(
     new (class extends SimpleWidget {
@@ -472,10 +473,10 @@ Deno.test('resolveWidgetTags - escapes ampersands in light DOM data', async () =
   const routeInfo = createTestRouteInfo();
 
   const result = await resolveWidgetTags(html, registry, routeInfo);
-  assertStringIncludes(result, '&amp;');
+  expect(result).toContain('&amp;');
 });
 
-Deno.test('resolveWidgetTags - escapes single quotes in light DOM data', async () => {
+test('resolveWidgetTags - escapes single quotes in light DOM data', async () => {
   const html = '<widget-simple></widget-simple>';
   const registry = new MockRegistry(
     new (class extends SimpleWidget {
@@ -488,23 +489,23 @@ Deno.test('resolveWidgetTags - escapes single quotes in light DOM data', async (
   const routeInfo = createTestRouteInfo();
 
   const result = await resolveWidgetTags(html, registry, routeInfo);
-  assertStringIncludes(result, '&#39;');
+  expect(result).toContain('&#39;');
 });
 
 /**
  * Test Suite: resolveWidgetTags - Context Handling
  */
 
-Deno.test('resolveWidgetTags - passes route info to widget context', async () => {
+test('resolveWidgetTags - passes route info to widget context', async () => {
   const html = '<widget-context-widget></widget-context-widget>';
   const registry = new MockRegistry(new ContextWidget());
   const routeInfo = createTestRouteInfo('/test/path', '/test/:id');
 
   const result = await resolveWidgetTags(html, registry, routeInfo);
-  assertStringIncludes(result, '/test/path');
+  expect(result).toContain('/test/path');
 });
 
-Deno.test('resolveWidgetTags - uses context provider if supplied', async () => {
+test('resolveWidgetTags - uses context provider if supplied', async () => {
   const html = '<widget-simple></widget-simple>';
   const registry = new MockRegistry(new SimpleWidget());
   const routeInfo = createTestRouteInfo();
@@ -515,10 +516,10 @@ Deno.test('resolveWidgetTags - uses context provider if supplied', async () => {
   });
 
   const result = await resolveWidgetTags(html, registry, routeInfo, undefined, contextProvider);
-  assertStringIncludes(result, 'Hello Widget');
+  expect(result).toContain('Hello Widget');
 });
 
-Deno.test('resolveWidgetTags - file loader is called if supplied', async () => {
+test('resolveWidgetTags - file loader is called if supplied', async () => {
   const html = '<widget-file-widget></widget-file-widget>';
   const registry = new MockRegistry(new FileWidget());
   const routeInfo = createTestRouteInfo();
@@ -526,16 +527,16 @@ Deno.test('resolveWidgetTags - file loader is called if supplied', async () => {
   let fileLoaderCalled = false;
   const fileLoader: WidgetFileLoader = (widgetName: string) => {
     fileLoaderCalled = true;
-    assertEquals(widgetName, 'file-widget');
+    expect(widgetName).toEqual('file-widget');
     return Promise.resolve({ html: '<div>Loaded from file</div>' });
   };
 
   const result = await resolveWidgetTags(html, registry, routeInfo, fileLoader);
-  assertEquals(fileLoaderCalled, true);
-  assertStringIncludes(result, 'File content');
+  expect(fileLoaderCalled).toEqual(true);
+  expect(result).toContain('File content');
 });
 
-Deno.test('resolveWidgetTags - file loader receives declared files', async () => {
+test('resolveWidgetTags - file loader receives declared files', async () => {
   const html = '<widget-file-widget></widget-file-widget>';
   const fileWidget = new FileWidget();
   const registry = new MockRegistry(fileWidget);
@@ -548,43 +549,43 @@ Deno.test('resolveWidgetTags - file loader receives declared files', async () =>
   };
 
   await resolveWidgetTags(html, registry, routeInfo, fileLoader);
-  assertEquals(declaredFiles, fileWidget.files);
+  expect(declaredFiles).toEqual(fileWidget.files);
 });
 
 /**
  * Test Suite: resolveWidgetTags - Error Handling
  */
 
-Deno.test('resolveWidgetTags - widget getData error leaves tag unchanged', async () => {
+test('resolveWidgetTags - widget getData error leaves tag unchanged', async () => {
   const html = '<widget-error-widget></widget-error-widget>';
   const registry = new MockRegistry(new ErrorWidget());
   const routeInfo = createTestRouteInfo();
 
   const result = await resolveWidgetTags(html, registry, routeInfo);
-  assertEquals(result, html);
+  expect(result).toEqual(html);
 });
 
-Deno.test('resolveWidgetTags - widget render error leaves tag unchanged', async () => {
+test('resolveWidgetTags - widget render error leaves tag unchanged', async () => {
   const html = '<widget-render-error></widget-render-error>';
   const registry = new MockRegistry(new RenderErrorWidget());
   const routeInfo = createTestRouteInfo();
 
   const result = await resolveWidgetTags(html, registry, routeInfo);
-  assertEquals(result, html);
+  expect(result).toEqual(html);
 });
 
-Deno.test('resolveWidgetTags - error in one widget does not break others', async () => {
+test('resolveWidgetTags - error in one widget does not break others', async () => {
   const html =
     '<div><widget-simple></widget-simple><widget-error-widget></widget-error-widget></div>';
   const registry = new MockRegistry(new SimpleWidget(), new ErrorWidget());
   const routeInfo = createTestRouteInfo();
 
   const result = await resolveWidgetTags(html, registry, routeInfo);
-  assertStringIncludes(result, 'Hello Widget');
-  assertStringIncludes(result, '<widget-error-widget></widget-error-widget>');
+  expect(result).toContain('Hello Widget');
+  expect(result).toContain('<widget-error-widget></widget-error-widget>');
 });
 
-Deno.test('resolveWidgetTags - file loader error leaves tag unchanged', async () => {
+test('resolveWidgetTags - file loader error leaves tag unchanged', async () => {
   const html = '<widget-simple></widget-simple>';
   const registry = new MockRegistry(new SimpleWidget());
   const routeInfo = createTestRouteInfo();
@@ -594,122 +595,122 @@ Deno.test('resolveWidgetTags - file loader error leaves tag unchanged', async ()
   };
 
   const result = await resolveWidgetTags(html, registry, routeInfo, fileLoader);
-  assertEquals(result, html);
+  expect(result).toEqual(html);
 });
 
 /**
  * Test Suite: resolveWidgetTags - Tag Matching and Content
  */
 
-Deno.test('resolveWidgetTags - captures widget name with hyphens', async () => {
+test('resolveWidgetTags - captures widget name with hyphens', async () => {
   const html = '<widget-param-widget count="5"></widget-param-widget>';
   const registry = new MockRegistry(new ParamWidget());
   const routeInfo = createTestRouteInfo();
 
   const result = await resolveWidgetTags(html, registry, routeInfo);
-  assertStringIncludes(result, '<widget-param-widget');
+  expect(result).toContain('<widget-param-widget');
 });
 
-Deno.test('resolveWidgetTags - preserves original attributes in output', async () => {
+test('resolveWidgetTags - preserves original attributes in output', async () => {
   const html = '<widget-simple id="my-widget" class="styled"></widget-simple>';
   const registry = new MockRegistry(new SimpleWidget());
   const routeInfo = createTestRouteInfo();
 
   const result = await resolveWidgetTags(html, registry, routeInfo);
-  assertStringIncludes(result, 'id="my-widget"');
-  assertStringIncludes(result, 'class="styled"');
+  expect(result).toContain('id="my-widget"');
+  expect(result).toContain('class="styled"');
 });
 
-Deno.test('resolveWidgetTags - handles nested angle brackets in content', async () => {
+test('resolveWidgetTags - handles nested angle brackets in content', async () => {
   const html = '<div><widget-simple></widget-simple></div>';
   const registry = new MockRegistry(new SimpleWidget());
   const routeInfo = createTestRouteInfo();
 
   const result = await resolveWidgetTags(html, registry, routeInfo);
-  assertEquals(result.startsWith('<div>'), true);
-  assertEquals(result.endsWith('</div>'), true);
+  expect(result.startsWith('<div>')).toEqual(true);
+  expect(result.endsWith('</div>')).toEqual(true);
 });
 
-Deno.test('resolveWidgetTags - replaces widgets from end to preserve indices', async () => {
+test('resolveWidgetTags - replaces widgets from end to preserve indices', async () => {
   const html = '<widget-simple></widget-simple>TEXT<widget-simple></widget-simple>';
   const registry = new MockRegistry(new SimpleWidget());
   const routeInfo = createTestRouteInfo();
 
   const result = await resolveWidgetTags(html, registry, routeInfo);
-  assertStringIncludes(result, 'TEXT');
+  expect(result).toContain('TEXT');
   const matches = result.match(/<widget-simple/g);
-  assertEquals(matches?.length, 2);
+  expect(matches?.length).toEqual(2);
 });
 
 /**
  * Test Suite: resolveWidgetTags - Widget Name Validation
  */
 
-Deno.test('resolveWidgetTags - widget names must start with lowercase letter', async () => {
+test('resolveWidgetTags - widget names must start with lowercase letter', async () => {
   const html = '<widget-123invalid></widget-123invalid>';
   const registry = new MockRegistry();
   const routeInfo = createTestRouteInfo();
 
   const result = await resolveWidgetTags(html, registry, routeInfo);
-  assertEquals(result, html);
+  expect(result).toEqual(html);
 });
 
-Deno.test('resolveWidgetTags - widget names can contain numbers after first char', async () => {
+test('resolveWidgetTags - widget names can contain numbers after first char', async () => {
   const html = '<widget-widget2></widget-widget2>';
   const registry = new MockRegistry(new Widget2());
   const routeInfo = createTestRouteInfo();
 
   const result = await resolveWidgetTags(html, registry, routeInfo);
-  assertStringIncludes(result, 'Hello Widget');
+  expect(result).toContain('Hello Widget');
 });
 
 /**
  * Test Suite: resolveWidgetTags - Attribute Edge Cases
  */
 
-Deno.test('resolveWidgetTags - empty attribute value', async () => {
+test('resolveWidgetTags - empty attribute value', async () => {
   const html = '<widget-simple attr=""></widget-simple>';
   const registry = new MockRegistry(new SimpleWidget());
   const routeInfo = createTestRouteInfo();
 
   const result = await resolveWidgetTags(html, registry, routeInfo);
-  assertStringIncludes(result, 'attr=""');
+  expect(result).toContain('attr=""');
 });
 
-Deno.test('resolveWidgetTags - attribute with only spaces', async () => {
+test('resolveWidgetTags - attribute with only spaces', async () => {
   const html = '<widget-simple attr="   "></widget-simple>';
   const registry = new MockRegistry(new SimpleWidget());
   const routeInfo = createTestRouteInfo();
 
   const result = await resolveWidgetTags(html, registry, routeInfo);
-  assertStringIncludes(result, 'attr=');
+  expect(result).toContain('attr=');
 });
 
-Deno.test('resolveWidgetTags - self-closing widget tag syntax not matched', async () => {
+test('resolveWidgetTags - self-closing widget tag syntax not matched', async () => {
   const html = '<widget-simple />';
   const registry = new MockRegistry(new SimpleWidget());
   const routeInfo = createTestRouteInfo();
 
   const result = await resolveWidgetTags(html, registry, routeInfo);
-  assertEquals(result, html);
+  expect(result).toEqual(html);
 });
 
 /**
  * Test Suite: Complex Scenarios
  */
 
-Deno.test('resolveWidgetTags - concurrent widget resolution', async () => {
+test('resolveWidgetTags - concurrent widget resolution', async () => {
   const html =
     '<widget-simple></widget-simple><widget-param-widget count="5"></widget-param-widget>';
   const registry = new MockRegistry(new SimpleWidget(), new ParamWidget());
   const routeInfo = createTestRouteInfo();
 
   const result = await resolveWidgetTags(html, registry, routeInfo);
-  assertStringIncludes(result, 'Hello Widget');
-  assertStringIncludes(result, 'Anonymous: 5');
+  expect(result).toContain('Hello Widget');
+  expect(result).toContain('Anonymous: 5');
 });
 
-Deno.test('resolveWidgetTags - widget with all attribute quote styles', async () => {
+test('resolveWidgetTags - widget with all attribute quote styles', async () => {
   const customWidget = new (class extends ParamWidget {
     override getData({ params }: { params: Record<string, string>; context: ComponentContext }) {
       return Promise.resolve({
@@ -725,21 +726,21 @@ Deno.test('resolveWidgetTags - widget with all attribute quote styles', async ()
   const routeInfo = createTestRouteInfo();
 
   const result = await resolveWidgetTags(html, registry, routeInfo);
-  assertStringIncludes(result, 'sum: 18');
+  expect(result).toContain('sum: 18');
 });
 
-Deno.test('resolveWidgetTags - very long HTML document with multiple widgets', async () => {
+test('resolveWidgetTags - very long HTML document with multiple widgets', async () => {
   const long = '<div>' + '<widget-simple></widget-simple>'.repeat(10) + '</div>';
   const registry = new MockRegistry(new SimpleWidget());
   const routeInfo = createTestRouteInfo();
 
   const result = await resolveWidgetTags(long, registry, routeInfo);
   const matches = result.match(/<widget-simple/g);
-  assertEquals(matches?.length, 10);
-  assertStringIncludes(result, 'Hello Widget');
+  expect(matches?.length).toEqual(10);
+  expect(result).toContain('Hello Widget');
 });
 
-Deno.test('resolveWidgetTags - whitespace around widget tags', async () => {
+test('resolveWidgetTags - whitespace around widget tags', async () => {
   const html = `
     <widget-simple></widget-simple>
     <widget-param-widget count="5"></widget-param-widget>
@@ -748,15 +749,15 @@ Deno.test('resolveWidgetTags - whitespace around widget tags', async () => {
   const routeInfo = createTestRouteInfo();
 
   const result = await resolveWidgetTags(html, registry, routeInfo);
-  assertStringIncludes(result, 'Hello Widget');
-  assertStringIncludes(result, 'Anonymous: 5');
+  expect(result).toContain('Hello Widget');
+  expect(result).toContain('Anonymous: 5');
 });
 
 /**
  * Test Suite: Nested Widget Resolution
  */
 
-Deno.test('resolveWidgetTags - nested widgets are resolved', async () => {
+test('resolveWidgetTags - nested widgets are resolved', async () => {
   class InnerWidget extends WidgetComponent<Record<string, unknown>, { text: string }> {
     override readonly name = 'inner';
     override getData(): Promise<{ text: string }> {
@@ -790,12 +791,12 @@ Deno.test('resolveWidgetTags - nested widgets are resolved', async () => {
   const result = await resolveWidgetTags(html, registry, routeInfo);
 
   // Both outer and inner should be resolved
-  assertStringIncludes(result, 'Outer:');
-  assertStringIncludes(result, '<span>Inner</span>');
-  assert(result.includes(' ssr ') || result.includes(' ssr>'), 'should have boolean ssr attribute');
+  expect(result).toContain('Outer:');
+  expect(result).toContain('<span>Inner</span>');
+  expect(result.includes(' ssr ') || result.includes(' ssr>')).toBeTruthy();
 });
 
-Deno.test('resolveWidgetTags - deeply nested widgets (3 levels)', async () => {
+test('resolveWidgetTags - deeply nested widgets (3 levels)', async () => {
   class Level3Widget extends WidgetComponent<Record<string, unknown>, { level: number }> {
     override readonly name = 'level3';
     override getData(): Promise<{ level: number }> {
@@ -846,12 +847,12 @@ Deno.test('resolveWidgetTags - deeply nested widgets (3 levels)', async () => {
   const result = await resolveWidgetTags(html, registry, routeInfo);
 
   // All three levels should be resolved
-  assertStringIncludes(result, 'Level 1:');
-  assertStringIncludes(result, 'Level 2:');
-  assertStringIncludes(result, '<span>Level 3</span>');
+  expect(result).toContain('Level 1:');
+  expect(result).toContain('Level 2:');
+  expect(result).toContain('<span>Level 3</span>');
 });
 
-Deno.test('resolveWidgetTags - nested widgets with params', async () => {
+test('resolveWidgetTags - nested widgets with params', async () => {
   class CounterWidget extends WidgetComponent<{ value?: number }, { count: number }> {
     override readonly name = 'counter';
     override getData({ params }: this['DataArgs']): Promise<{ count: number }> {
@@ -886,11 +887,11 @@ Deno.test('resolveWidgetTags - nested widgets with params', async () => {
 
   const result = await resolveWidgetTags(html, registry, routeInfo);
 
-  assertStringIncludes(result, 'Card');
-  assertStringIncludes(result, 'Count: 42');
+  expect(result).toContain('Card');
+  expect(result).toContain('Count: 42');
 });
 
-Deno.test('resolveWidgetTags - max depth limit prevents infinite loops', async () => {
+test('resolveWidgetTags - max depth limit prevents infinite loops', async () => {
   class RecursiveWidget extends WidgetComponent<Record<string, unknown>, { text: string }> {
     override readonly name = 'recursive';
     override getData(): Promise<{ text: string }> {
@@ -912,32 +913,32 @@ Deno.test('resolveWidgetTags - max depth limit prevents infinite loops', async (
   const result = await resolveWidgetTags(html, registry, routeInfo);
 
   // Should stop after max depth and still return valid HTML
-  assertExists(result);
-  assertStringIncludes(result, 'widget-recursive');
+  expect(result).toBeDefined();
+  expect(result).toContain('widget-recursive');
 });
 
 /**
  * Test Suite: parseAttrsToParams Edge Cases
  */
 
-Deno.test('parseAttrsToParams - JSON array parsed', () => {
-  assertEquals(parseAttrsToParams("items='[1,2,3]'"), { items: [1, 2, 3] });
+test('parseAttrsToParams - JSON array parsed', () => {
+  expect(parseAttrsToParams("items='[1,2,3]'")).toEqual({ items: [1, 2, 3] });
 });
 
-Deno.test('parseAttrsToParams - nested JSON object', () => {
-  assertEquals(parseAttrsToParams('config=\'{"user":{"name":"Alice"}}\''), {
+test('parseAttrsToParams - nested JSON object', () => {
+  expect(parseAttrsToParams('config=\'{"user":{"name":"Alice"}}\'')).toEqual({
     config: { user: { name: 'Alice' } },
   });
 });
 
-Deno.test('parseAttrsToParams - attribute with dash at start requires quotes', () => {
-  assertEquals(parseAttrsToParams('-attr="value"'), { attr: 'value' });
+test('parseAttrsToParams - attribute with dash at start requires quotes', () => {
+  expect(parseAttrsToParams('-attr="value"')).toEqual({ attr: 'value' });
 });
 
-Deno.test('parseAttrsToParams - multiple consecutive spaces between attributes', () => {
-  assertEquals(parseAttrsToParams('a="1" b="2"'), { a: 1, b: 2 });
+test('parseAttrsToParams - multiple consecutive spaces between attributes', () => {
+  expect(parseAttrsToParams('a="1" b="2"')).toEqual({ a: 1, b: 2 });
 });
 
-Deno.test('parseAttrsToParams - attributes separated by space', () => {
-  assertEquals(parseAttrsToParams('x="100" y="200"'), { x: 100, y: 200 });
+test('parseAttrsToParams - attributes separated by space', () => {
+  expect(parseAttrsToParams('x="100" y="200"')).toEqual({ x: 100, y: 200 });
 });

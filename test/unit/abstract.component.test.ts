@@ -11,7 +11,7 @@
  * - HTML escaping for security
  */
 
-import { assertEquals, assertExists, assertStringIncludes } from '@std/assert';
+import { test, expect, describe } from 'bun:test';
 import type { ComponentContext } from '../../src/component/abstract.component.ts';
 import { Component } from '../../src/component/abstract.component.ts';
 
@@ -152,56 +152,56 @@ class ContextAwareComponent extends Component<
 // Component Name Tests
 // ============================================================================
 
-Deno.test('Component - name property identifies the component', () => {
+test('Component - name property identifies the component', () => {
   const component = new TestComponent();
-  assertEquals(component.name, 'test-component');
+  expect(component.name).toEqual('test-component');
 });
 
-Deno.test('Component - different components have different names', () => {
+test('Component - different components have different names', () => {
   const testComp = new TestComponent();
   const customComp = new CustomHtmlComponent();
   const validatingComp = new ValidatingComponent();
 
-  assertEquals(testComp.name, 'test-component');
-  assertEquals(customComp.name, 'custom-html');
-  assertEquals(validatingComp.name, 'validating');
+  expect(testComp.name).toEqual('test-component');
+  expect(customComp.name).toEqual('custom-html');
+  expect(validatingComp.name).toEqual('validating');
 });
 
 // ============================================================================
 // getData() Abstract Method Tests
 // ============================================================================
 
-Deno.test('Component - getData() must be implemented by subclass', async () => {
+test('Component - getData() must be implemented by subclass', async () => {
   const component = new TestComponent();
   const data = await component.getData({
     params: { id: '123' },
     context: createMockContext(),
   });
 
-  assertEquals(data, { name: 'Item 123' });
+  expect(data).toEqual({ name: 'Item 123' });
 });
 
-Deno.test('Component - getData() receives params', async () => {
+test('Component - getData() receives params', async () => {
   const component = new TestComponent();
   const data = await component.getData({
     params: { id: 'custom-id' },
     context: createMockContext(),
   });
 
-  assertStringIncludes(data?.name || '', 'custom-id');
+  expect(data?.name || '').toContain('custom-id');
 });
 
-Deno.test('Component - getData() can return null for loading/missing states', async () => {
+test('Component - getData() can return null for loading/missing states', async () => {
   const component = new TestComponent();
   const data = await component.getData({
     params: { id: 'error' },
     context: createMockContext(),
   });
 
-  assertEquals(data, null);
+  expect(data).toEqual(null);
 });
 
-Deno.test('Component - getData() receives abort signal', async () => {
+test('Component - getData() receives abort signal', async () => {
   const controller = new AbortController();
   const component = new TestComponent();
 
@@ -211,10 +211,10 @@ Deno.test('Component - getData() receives abort signal', async () => {
     context: createMockContext(),
   });
 
-  assertEquals(data, { name: 'Item 123' });
+  expect(data).toEqual({ name: 'Item 123' });
 });
 
-Deno.test('Component - getData() receives context', async () => {
+test('Component - getData() receives context', async () => {
   const component = new ContextAwareComponent();
   const context = createMockContext<AppContext>({
     userId: 'user-1',
@@ -226,15 +226,15 @@ Deno.test('Component - getData() receives context', async () => {
     context,
   });
 
-  assertEquals(data?.userId, 'user-1');
-  assertEquals(data?.isAdmin, true);
+  expect(data?.userId).toEqual('user-1');
+  expect(data?.isAdmin).toEqual(true);
 });
 
 // ============================================================================
 // renderMarkdown() Abstract Method Tests
 // ============================================================================
 
-Deno.test('Component - renderMarkdown() must be implemented by subclass', () => {
+test('Component - renderMarkdown() must be implemented by subclass', () => {
   const component = new TestComponent();
   const markdown = component.renderMarkdown({
     data: { name: 'Test Item' },
@@ -242,10 +242,10 @@ Deno.test('Component - renderMarkdown() must be implemented by subclass', () => 
     context: createMockContext(),
   });
 
-  assertStringIncludes(markdown, 'Test Item');
+  expect(markdown).toContain('Test Item');
 });
 
-Deno.test('Component - renderMarkdown() receives data', () => {
+test('Component - renderMarkdown() receives data', () => {
   const component = new TestComponent();
   const markdown = component.renderMarkdown({
     data: { name: 'Custom Name' },
@@ -253,10 +253,10 @@ Deno.test('Component - renderMarkdown() receives data', () => {
     context: createMockContext(),
   });
 
-  assertEquals(markdown, '# Custom Name');
+  expect(markdown).toEqual('# Custom Name');
 });
 
-Deno.test('Component - renderMarkdown() handles null data', () => {
+test('Component - renderMarkdown() handles null data', () => {
   const component = new TestComponent();
   const markdown = component.renderMarkdown({
     data: null,
@@ -264,10 +264,10 @@ Deno.test('Component - renderMarkdown() handles null data', () => {
     context: createMockContext(),
   });
 
-  assertEquals(markdown, '# Loading...');
+  expect(markdown).toEqual('# Loading...');
 });
 
-Deno.test('Component - renderMarkdown() receives params', () => {
+test('Component - renderMarkdown() receives params', () => {
   const component = new TestComponent();
   const markdown = component.renderMarkdown({
     data: { name: 'Item' },
@@ -275,10 +275,10 @@ Deno.test('Component - renderMarkdown() receives params', () => {
     context: createMockContext(),
   });
 
-  assertStringIncludes(markdown, 'Item');
+  expect(markdown).toContain('Item');
 });
 
-Deno.test('Component - renderMarkdown() receives context', () => {
+test('Component - renderMarkdown() receives context', () => {
   const component = new ContextAwareComponent();
   const context = createMockContext<AppContext>({ userId: 'u123' });
 
@@ -288,14 +288,14 @@ Deno.test('Component - renderMarkdown() receives context', () => {
     context,
   });
 
-  assertStringIncludes(markdown, 'u123');
+  expect(markdown).toContain('u123');
 });
 
 // ============================================================================
 // renderHTML() Default Implementation Tests
 // ============================================================================
 
-Deno.test('Component - renderHTML() default: returns loading state when data is null', () => {
+test('Component - renderHTML() default: returns loading state when data is null', () => {
   const component = new TestComponent();
   const html = component.renderHTML({
     data: null,
@@ -303,11 +303,11 @@ Deno.test('Component - renderHTML() default: returns loading state when data is 
     context: createMockContext(),
   });
 
-  assertStringIncludes(html, 'Loading...');
-  assertStringIncludes(html, 'data-component="test-component"');
+  expect(html).toContain('Loading...');
+  expect(html).toContain('data-component="test-component"');
 });
 
-Deno.test('Component - renderHTML() default: wraps markdown in container', () => {
+test('Component - renderHTML() default: wraps markdown in container', () => {
   const component = new TestComponent();
   const html = component.renderHTML({
     data: { name: 'Test Content' },
@@ -315,11 +315,11 @@ Deno.test('Component - renderHTML() default: wraps markdown in container', () =>
     context: createMockContext(),
   });
 
-  assertStringIncludes(html, 'data-component="test-component"');
-  assertStringIncludes(html, 'data-markdown');
+  expect(html).toContain('data-component="test-component"');
+  expect(html).toContain('data-markdown');
 });
 
-Deno.test('Component - renderHTML() default: escapes markdown content for HTML safety', () => {
+test('Component - renderHTML() default: escapes markdown content for HTML safety', () => {
   class EscapeTestComponent extends Component<unknown, { content: string }> {
     override readonly name = 'escape-test';
 
@@ -339,11 +339,11 @@ Deno.test('Component - renderHTML() default: escapes markdown content for HTML s
     context: createMockContext(),
   });
 
-  assertEquals(html.includes('<script>'), false);
-  assertStringIncludes(html, '&lt;script&gt;');
+  expect(html.includes('<script>')).toEqual(false);
+  expect(html).toContain('&lt;script&gt;');
 });
 
-Deno.test('Component - renderHTML() can be overridden for custom HTML', () => {
+test('Component - renderHTML() can be overridden for custom HTML', () => {
   const component = new CustomHtmlComponent();
   const html = component.renderHTML({
     data: { content: 'Custom Content' },
@@ -351,10 +351,10 @@ Deno.test('Component - renderHTML() can be overridden for custom HTML', () => {
     context: createMockContext(),
   });
 
-  assertEquals(html, '<custom-wrapper>Custom Content</custom-wrapper>');
+  expect(html).toEqual('<custom-wrapper>Custom Content</custom-wrapper>');
 });
 
-Deno.test('Component - renderHTML() custom: can have custom loading state', () => {
+test('Component - renderHTML() custom: can have custom loading state', () => {
   const component = new CustomHtmlComponent();
   const html = component.renderHTML({
     data: null,
@@ -362,14 +362,14 @@ Deno.test('Component - renderHTML() custom: can have custom loading state', () =
     context: createMockContext(),
   });
 
-  assertStringIncludes(html, 'custom-loading');
+  expect(html).toContain('custom-loading');
 });
 
 // ============================================================================
 // renderError() Method Tests
 // ============================================================================
 
-Deno.test('Component - renderError() formats Error objects', () => {
+test('Component - renderError() formats Error objects', () => {
   const component = new TestComponent();
   const error = new Error('Something went wrong');
   const html = component.renderError({
@@ -377,31 +377,31 @@ Deno.test('Component - renderError() formats Error objects', () => {
     params: { id: '123' },
   });
 
-  assertStringIncludes(html, 'Something went wrong');
-  assertStringIncludes(html, 'data-component="test-component"');
+  expect(html).toContain('Something went wrong');
+  expect(html).toContain('data-component="test-component"');
 });
 
-Deno.test('Component - renderError() handles non-Error objects', () => {
+test('Component - renderError() handles non-Error objects', () => {
   const component = new TestComponent();
   const html = component.renderError({
     error: 'String error message',
     params: { id: '123' },
   });
 
-  assertStringIncludes(html, 'String error message');
+  expect(html).toContain('String error message');
 });
 
-Deno.test('Component - renderError() handles unknown error types', () => {
+test('Component - renderError() handles unknown error types', () => {
   const component = new TestComponent();
   const html = component.renderError({
     error: { message: 'Object error' },
     params: { id: '123' },
   });
 
-  assertStringIncludes(html, '[object Object]');
+  expect(html).toContain('[object Object]');
 });
 
-Deno.test('Component - renderError() escapes error messages for HTML safety', () => {
+test('Component - renderError() escapes error messages for HTML safety', () => {
   const component = new TestComponent();
   const error = new Error('<script>alert("xss")</script>');
   const html = component.renderError({
@@ -409,11 +409,11 @@ Deno.test('Component - renderError() escapes error messages for HTML safety', ()
     params: { id: '123' },
   });
 
-  assertEquals(html.includes('<script>'), false);
-  assertStringIncludes(html, '&lt;script&gt;');
+  expect(html.includes('<script>')).toEqual(false);
+  expect(html).toContain('&lt;script&gt;');
 });
 
-Deno.test('Component - renderError() includes component name in output', () => {
+test('Component - renderError() includes component name in output', () => {
   const customComp = new CustomHtmlComponent();
   const error = new Error('Test error');
   const html = customComp.renderError({
@@ -421,102 +421,102 @@ Deno.test('Component - renderError() includes component name in output', () => {
     params: { id: '123' },
   });
 
-  assertStringIncludes(html, 'data-component="custom-html"');
+  expect(html).toContain('data-component="custom-html"');
 });
 
 // ============================================================================
 // renderMarkdownError() Method Tests
 // ============================================================================
 
-Deno.test('Component - renderMarkdownError() formats Error objects', () => {
+test('Component - renderMarkdownError() formats Error objects', () => {
   const component = new TestComponent();
   const error = new Error('Markdown error');
   const markdown = component.renderMarkdownError(error);
 
-  assertStringIncludes(markdown, 'Markdown error');
-  assertStringIncludes(markdown, 'test-component');
+  expect(markdown).toContain('Markdown error');
+  expect(markdown).toContain('test-component');
 });
 
-Deno.test('Component - renderMarkdownError() handles non-Error objects', () => {
+test('Component - renderMarkdownError() handles non-Error objects', () => {
   const component = new TestComponent();
   const markdown = component.renderMarkdownError('String error');
 
-  assertStringIncludes(markdown, 'String error');
-  assertStringIncludes(markdown, '`test-component`');
+  expect(markdown).toContain('String error');
+  expect(markdown).toContain('`test-component`');
 });
 
-Deno.test('Component - renderMarkdownError() includes component name', () => {
+test('Component - renderMarkdownError() includes component name', () => {
   const component = new ValidatingComponent();
   const error = new Error('Validation failed');
   const markdown = component.renderMarkdownError(error);
 
-  assertStringIncludes(markdown, '`validating`');
+  expect(markdown).toContain('`validating`');
 });
 
 // ============================================================================
 // validateParams() Optional Method Tests
 // ============================================================================
 
-Deno.test('Component - validateParams() is optional and undefined by default', () => {
+test('Component - validateParams() is optional and undefined by default', () => {
   const component = new TestComponent();
   const validate = component.validateParams;
 
-  assertEquals(typeof validate, 'undefined');
+  expect(typeof validate).toEqual('undefined');
 });
 
-Deno.test('Component - validateParams() can be implemented', () => {
+test('Component - validateParams() can be implemented', () => {
   const component = new ValidatingComponent();
   const result = component.validateParams({ id: '123' });
 
-  assertEquals(result, undefined);
+  expect(result).toEqual(undefined);
 });
 
-Deno.test('Component - validateParams() returns error message on validation failure', () => {
+test('Component - validateParams() returns error message on validation failure', () => {
   const component = new ValidatingComponent();
   const result = component.validateParams({ id: '' });
 
-  assertEquals(result, 'ID is required');
+  expect(result).toEqual('ID is required');
 });
 
-Deno.test('Component - validateParams() validates param types', () => {
+test('Component - validateParams() validates param types', () => {
   const component = new ValidatingComponent();
   const result = component.validateParams({ id: 'not-a-number' });
 
-  assertEquals(result, 'ID must be a number');
+  expect(result).toEqual('ID must be a number');
 });
 
-Deno.test('Component - validateParams() returns undefined for valid params', () => {
+test('Component - validateParams() returns undefined for valid params', () => {
   const component = new ValidatingComponent();
   const validResult = component.validateParams({ id: '42' });
 
-  assertEquals(validResult, undefined);
+  expect(validResult).toEqual(undefined);
 });
 
 // ============================================================================
 // destroy() Optional Lifecycle Hook Tests
 // ============================================================================
 
-Deno.test('Component - destroy() is optional and not called by default', () => {
+test('Component - destroy() is optional and not called by default', () => {
   const component = new TestComponent();
   const destroy = component.destroy;
 
-  assertEquals(typeof destroy, 'undefined');
+  expect(typeof destroy).toEqual('undefined');
 });
 
-Deno.test('Component - destroy() can be implemented for cleanup', () => {
+test('Component - destroy() can be implemented for cleanup', () => {
   const component = new ValidatingComponent();
 
   // Verify destroy was not called yet
-  assertEquals(component.destroyCalled, false);
+  expect(component.destroyCalled).toEqual(false);
 
   // Call destroy
   component.destroy?.();
 
   // Verify destroy was called
-  assertEquals(component.destroyCalled, true);
+  expect(component.destroyCalled).toEqual(true);
 });
 
-Deno.test('Component - destroy() can clear resources', () => {
+test('Component - destroy() can clear resources', () => {
   class ResourceComponent extends Component<unknown, unknown> {
     override readonly name = 'resource';
     listeners: (() => void)[] = [];
@@ -542,28 +542,28 @@ Deno.test('Component - destroy() can clear resources', () => {
   component.addListener(() => {});
   component.addListener(() => {});
 
-  assertEquals(component.listeners.length, 2);
+  expect(component.listeners.length).toEqual(2);
 
   component.destroy();
 
-  assertEquals(component.listeners.length, 0);
+  expect(component.listeners.length).toEqual(0);
 });
 
 // ============================================================================
 // Generic Type Parameters Tests
 // ============================================================================
 
-Deno.test('Component - Generic TParams is used in getData', async () => {
+test('Component - Generic TParams is used in getData', async () => {
   const component = new TestComponent();
   const data = await component.getData({
     params: { id: '456' },
     context: createMockContext(),
   });
 
-  assertStringIncludes(data?.name || '', '456');
+  expect(data?.name || '').toContain('456');
 });
 
-Deno.test('Component - Generic TData is used in renderMarkdown', () => {
+test('Component - Generic TData is used in renderMarkdown', () => {
   const component = new TestComponent();
   const markdown = component.renderMarkdown({
     data: { name: 'Typed Data' },
@@ -571,10 +571,10 @@ Deno.test('Component - Generic TData is used in renderMarkdown', () => {
     context: createMockContext(),
   });
 
-  assertStringIncludes(markdown, 'Typed Data');
+  expect(markdown).toContain('Typed Data');
 });
 
-Deno.test('Component - Generic TContext extends ComponentContext', () => {
+test('Component - Generic TContext extends ComponentContext', () => {
   const component = new ContextAwareComponent();
   const context = createMockContext<AppContext>({
     userId: 'test-user',
@@ -587,34 +587,34 @@ Deno.test('Component - Generic TContext extends ComponentContext', () => {
     context,
   });
 
-  assertStringIncludes(data, 'test-user');
+  expect(data).toContain('test-user');
 });
 
 // ============================================================================
 // ComponentContext Tests
 // ============================================================================
 
-Deno.test('Component - ComponentContext includes route info', () => {
+test('Component - ComponentContext includes route info', () => {
   const context = createMockContext({
     pathname: '/projects/123',
     pattern: '/projects/:id',
     params: { id: '123' },
   });
 
-  assertEquals(context.pathname, '/projects/123');
-  assertEquals(context.pattern, '/projects/:id');
-  assertEquals(context.params.id, '123');
+  expect(context.pathname).toEqual('/projects/123');
+  expect(context.pattern).toEqual('/projects/:id');
+  expect(context.params.id).toEqual('123');
 });
 
-Deno.test('Component - ComponentContext includes search params', () => {
+test('Component - ComponentContext includes search params', () => {
   const searchParams = new URLSearchParams('sort=date&filter=active');
   const context = createMockContext({ searchParams });
 
-  assertEquals(context.searchParams.get('sort'), 'date');
-  assertEquals(context.searchParams.get('filter'), 'active');
+  expect(context.searchParams.get('sort')).toEqual('date');
+  expect(context.searchParams.get('filter')).toEqual('active');
 });
 
-Deno.test('Component - ComponentContext can include file content', () => {
+test('Component - ComponentContext can include file content', () => {
   const context = createMockContext({
     files: {
       html: '<div>HTML</div>',
@@ -623,54 +623,54 @@ Deno.test('Component - ComponentContext can include file content', () => {
     },
   });
 
-  assertExists(context.files);
-  assertEquals(context.files!.html, '<div>HTML</div>');
-  assertEquals(context.files!.md, '# Markdown');
-  assertEquals(context.files!.css, '.class { color: red; }');
+  expect(context.files).toBeDefined();
+  expect(context.files!.html).toEqual('<div>HTML</div>');
+  expect(context.files!.md).toEqual('# Markdown');
+  expect(context.files!.css).toEqual('.class { color: red; }');
 });
 
-Deno.test('Component - ComponentContext can include abort signal', () => {
+test('Component - ComponentContext can include abort signal', () => {
   const controller = new AbortController();
   const context = createMockContext({
     signal: controller.signal,
   });
 
-  assertExists(context.signal);
-  assertEquals(context.signal!.aborted, false);
+  expect(context.signal).toBeDefined();
+  expect(context.signal!.aborted).toEqual(false);
 });
 
-Deno.test('Component - ComponentContext signal can be used for request cancellation', () => {
+test('Component - ComponentContext signal can be used for request cancellation', () => {
   const controller = new AbortController();
   const context = createMockContext({
     signal: controller.signal,
   });
 
-  assertEquals(context.signal!.aborted, false);
+  expect(context.signal!.aborted).toEqual(false);
   controller.abort();
-  assertEquals(context.signal!.aborted, true);
+  expect(context.signal!.aborted).toEqual(true);
 });
 
 // ============================================================================
 // Element Reference Tests
 // ============================================================================
 
-Deno.test('Component - element property is optional and undefined by default', () => {
+test('Component - element property is optional and undefined by default', () => {
   const component = new TestComponent();
 
-  assertEquals(component.element, undefined);
+  expect(component.element).toEqual(undefined);
 });
 
 // ============================================================================
 // Files Property Tests
 // ============================================================================
 
-Deno.test('Component - files property is optional', () => {
+test('Component - files property is optional', () => {
   const component = new TestComponent();
 
-  assertEquals(component.files, undefined);
+  expect(component.files).toEqual(undefined);
 });
 
-Deno.test('Component - files property can contain file content', () => {
+test('Component - files property can contain file content', () => {
   // Create a component with files via constructor/initialization
   class ComponentWithFiles extends Component<unknown, unknown> {
     override readonly name = 'with-files';
@@ -691,16 +691,16 @@ Deno.test('Component - files property can contain file content', () => {
 
   const component = new ComponentWithFiles();
 
-  assertEquals(component.files?.html, '<div>Content</div>');
-  assertEquals(component.files?.md, '# Content');
-  assertEquals(component.files?.css, '.style {}');
+  expect(component.files?.html).toEqual('<div>Content</div>');
+  expect(component.files?.md).toEqual('# Content');
+  expect(component.files?.css).toEqual('.style {}');
 });
 
 // ============================================================================
 // Type Carrier Tests (DataArgs and RenderArgs)
 // ============================================================================
 
-Deno.test('Component - DataArgs type carrier provides correct type hints', async () => {
+test('Component - DataArgs type carrier provides correct type hints', async () => {
   const component = new TestComponent();
 
   // This test verifies the type system works
@@ -712,10 +712,10 @@ Deno.test('Component - DataArgs type carrier provides correct type hints', async
   };
 
   const data = await component.getData(args);
-  assertStringIncludes(data?.name || '', 'test');
+  expect(data?.name || '').toContain('test');
 });
 
-Deno.test('Component - RenderArgs type carrier provides correct type hints', () => {
+test('Component - RenderArgs type carrier provides correct type hints', () => {
   const component = new TestComponent();
 
   // This test verifies the RenderArgs type system
@@ -726,14 +726,14 @@ Deno.test('Component - RenderArgs type carrier provides correct type hints', () 
   };
 
   const markdown = component.renderMarkdown(args);
-  assertStringIncludes(markdown, 'Test');
+  expect(markdown).toContain('Test');
 });
 
 // ============================================================================
 // Integration & Contract Tests
 // ============================================================================
 
-Deno.test('Component - contract: getData → renderMarkdown pipeline works', async () => {
+test('Component - contract: getData -> renderMarkdown pipeline works', async () => {
   const component = new TestComponent();
 
   // Get data
@@ -749,10 +749,10 @@ Deno.test('Component - contract: getData → renderMarkdown pipeline works', asy
     context: createMockContext(),
   });
 
-  assertStringIncludes(markdown, 'integration');
+  expect(markdown).toContain('integration');
 });
 
-Deno.test('Component - contract: getData → renderHTML pipeline works', async () => {
+test('Component - contract: getData -> renderHTML pipeline works', async () => {
   const component = new TestComponent();
 
   // Get data
@@ -768,10 +768,10 @@ Deno.test('Component - contract: getData → renderHTML pipeline works', async (
     context: createMockContext(),
   });
 
-  assertStringIncludes(html, 'data-markdown');
+  expect(html).toContain('data-markdown');
 });
 
-Deno.test('Component - contract: null data flows through pipeline', async () => {
+test('Component - contract: null data flows through pipeline', async () => {
   const component = new TestComponent();
 
   // Get null data
@@ -780,7 +780,7 @@ Deno.test('Component - contract: null data flows through pipeline', async () => 
     context: createMockContext(),
   });
 
-  assertEquals(data, null);
+  expect(data).toEqual(null);
 
   // Render markdown with null
   const markdown = component.renderMarkdown({
@@ -789,7 +789,7 @@ Deno.test('Component - contract: null data flows through pipeline', async () => 
     context: createMockContext(),
   });
 
-  assertStringIncludes(markdown, 'Loading');
+  expect(markdown).toContain('Loading');
 
   // Render HTML with null
   const html = component.renderHTML({
@@ -798,10 +798,10 @@ Deno.test('Component - contract: null data flows through pipeline', async () => 
     context: createMockContext(),
   });
 
-  assertStringIncludes(html, 'Loading');
+  expect(html).toContain('Loading');
 });
 
-Deno.test('Component - contract: error handling flow', () => {
+test('Component - contract: error handling flow', () => {
   const component = new TestComponent();
   const error = new Error('Test error');
 
@@ -811,20 +811,20 @@ Deno.test('Component - contract: error handling flow', () => {
     params: { id: '123' },
   });
 
-  assertStringIncludes(htmlError, 'Test error');
+  expect(htmlError).toContain('Test error');
 
   // renderMarkdownError for markdown
   const mdError = component.renderMarkdownError(error);
 
-  assertStringIncludes(mdError, 'Test error');
-  assertStringIncludes(mdError, 'test-component');
+  expect(mdError).toContain('Test error');
+  expect(mdError).toContain('test-component');
 });
 
 // ============================================================================
 // Type Safety & Polymorphism Tests
 // ============================================================================
 
-Deno.test('Component - subclasses can have different TParams types', () => {
+test('Component - subclasses can have different TParams types', () => {
   class StringParamComponent extends Component<{ query: string }, unknown> {
     override readonly name = 'string-params';
 
@@ -864,11 +864,11 @@ Deno.test('Component - subclasses can have different TParams types', () => {
     context: createMockContext(),
   });
 
-  assertStringIncludes(strMd, 'search');
-  assertStringIncludes(numMd, '42');
+  expect(strMd).toContain('search');
+  expect(numMd).toContain('42');
 });
 
-Deno.test('Component - subclasses can have different TData types', () => {
+test('Component - subclasses can have different TData types', () => {
   class UserData extends Component<unknown, { userId: string; name: string }> {
     override readonly name = 'user-data';
 
@@ -908,11 +908,11 @@ Deno.test('Component - subclasses can have different TData types', () => {
     context: createMockContext(),
   });
 
-  assertStringIncludes(userMd, 'Alice');
-  assertStringIncludes(postMd, 'My Post');
+  expect(userMd).toContain('Alice');
+  expect(postMd).toContain('My Post');
 });
 
-Deno.test('Component - subclasses can extend ComponentContext with custom properties', () => {
+test('Component - subclasses can extend ComponentContext with custom properties', () => {
   interface CustomContext extends ComponentContext {
     readonly userId: string;
     readonly permissions: string[];
@@ -953,5 +953,5 @@ Deno.test('Component - subclasses can extend ComponentContext with custom proper
     context,
   });
 
-  assertStringIncludes(markdown, 'Edit allowed');
+  expect(markdown).toContain('Edit allowed');
 });

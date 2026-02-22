@@ -16,7 +16,7 @@
  * - server/generator/route.generator.ts: Route manifest generation implementation
  */
 
-import { assertEquals, assertExists, assertStringIncludes } from '@std/assert';
+import { test, expect, describe } from 'bun:test';
 import {
   generateManifestCode,
   generateRoutesManifest,
@@ -107,68 +107,68 @@ function createMockRuntime(files: string[]): Runtime {
 // Flat File Routes
 // ============================================================================
 
-Deno.test('generator - flat file produces exact route', async () => {
+test('generator - flat file produces exact route', async () => {
   const runtime = createMockRuntime(['routes/about.page.md']);
   const result = await generateRoutesManifest('routes', runtime);
 
-  assertEquals(result.routes.length, 1);
-  assertEquals(result.routes[0].pattern, '/about');
-  assertEquals(result.routes[0].files?.md, 'routes/about.page.md');
-  assertEquals(result.routes[0].type, 'page');
+  expect(result.routes.length).toEqual(1);
+  expect(result.routes[0].pattern).toEqual('/about');
+  expect(result.routes[0].files?.md).toEqual('routes/about.page.md');
+  expect(result.routes[0].type).toEqual('page');
 });
 
-Deno.test('generator - root index page', async () => {
+test('generator - root index page', async () => {
   const runtime = createMockRuntime(['routes/index.page.ts']);
   const result = await generateRoutesManifest('routes', runtime);
 
-  assertEquals(result.routes.length, 1);
-  assertEquals(result.routes[0].pattern, '/');
-  assertEquals(result.routes[0].files?.ts, 'routes/index.page.ts');
+  expect(result.routes.length).toEqual(1);
+  expect(result.routes[0].pattern).toEqual('/');
+  expect(result.routes[0].files?.ts).toEqual('routes/index.page.ts');
 });
 
-Deno.test('generator - nested flat file route', async () => {
+test('generator - nested flat file route', async () => {
   const runtime = createMockRuntime(['routes/projects/list.page.html']);
   const result = await generateRoutesManifest('routes', runtime);
 
-  assertEquals(result.routes.length, 1);
-  assertEquals(result.routes[0].pattern, '/projects/list');
-  assertEquals(result.routes[0].files?.html, 'routes/projects/list.page.html');
+  expect(result.routes.length).toEqual(1);
+  expect(result.routes[0].pattern).toEqual('/projects/list');
+  expect(result.routes[0].files?.html).toEqual('routes/projects/list.page.html');
 });
 
 // ============================================================================
 // Directory Index Routes (Wildcard)
 // ============================================================================
 
-Deno.test('generator - directory index produces wildcard route', async () => {
+test('generator - directory index produces wildcard route', async () => {
   const runtime = createMockRuntime(['routes/about/index.page.md']);
   const result = await generateRoutesManifest('routes', runtime);
 
-  assertEquals(result.routes.length, 1);
-  assertEquals(result.routes[0].pattern, '/about/:rest*');
-  assertEquals(result.routes[0].files?.md, 'routes/about/index.page.md');
+  expect(result.routes.length).toEqual(1);
+  expect(result.routes[0].pattern).toEqual('/about/:rest*');
+  expect(result.routes[0].files?.md).toEqual('routes/about/index.page.md');
 });
 
-Deno.test('generator - root index stays exact (no wildcard)', async () => {
+test('generator - root index stays exact (no wildcard)', async () => {
   const runtime = createMockRuntime(['routes/index.page.ts']);
   const result = await generateRoutesManifest('routes', runtime);
 
-  assertEquals(result.routes.length, 1);
-  assertEquals(result.routes[0].pattern, '/');
+  expect(result.routes.length).toEqual(1);
+  expect(result.routes[0].pattern).toEqual('/');
 });
 
-Deno.test('generator - deeply nested directory index becomes wildcard', async () => {
+test('generator - deeply nested directory index becomes wildcard', async () => {
   const runtime = createMockRuntime(['routes/docs/guides/index.page.md']);
   const result = await generateRoutesManifest('routes', runtime);
 
-  assertEquals(result.routes.length, 1);
-  assertEquals(result.routes[0].pattern, '/docs/guides/:rest*');
+  expect(result.routes.length).toEqual(1);
+  expect(result.routes[0].pattern).toEqual('/docs/guides/:rest*');
 });
 
 // ============================================================================
 // Flat + Directory Coexistence
 // ============================================================================
 
-Deno.test('generator - flat and directory index are separate routes', async () => {
+test('generator - flat and directory index are separate routes', async () => {
   const runtime = createMockRuntime([
     'routes/crypto.page.html',
     'routes/crypto/index.page.md',
@@ -176,13 +176,13 @@ Deno.test('generator - flat and directory index are separate routes', async () =
   const result = await generateRoutesManifest('routes', runtime);
 
   const exact = result.routes.find((r) => r.pattern === '/crypto');
-  assertEquals(exact?.files?.html, 'routes/crypto.page.html');
+  expect(exact?.files?.html).toEqual('routes/crypto.page.html');
 
   const wildcard = result.routes.find((r) => r.pattern === '/crypto/:rest*');
-  assertEquals(wildcard?.files?.md, 'routes/crypto/index.page.md');
+  expect(wildcard?.files?.md).toEqual('routes/crypto/index.page.md');
 });
 
-Deno.test('generator - same file type: flat and directory produce separate routes', async () => {
+test('generator - same file type: flat and directory produce separate routes', async () => {
   const runtime = createMockRuntime([
     'routes/crypto.page.md',
     'routes/crypto/index.page.md',
@@ -190,13 +190,13 @@ Deno.test('generator - same file type: flat and directory produce separate route
   const result = await generateRoutesManifest('routes', runtime);
 
   const exact = result.routes.find((r) => r.pattern === '/crypto');
-  assertEquals(exact?.files?.md, 'routes/crypto.page.md');
+  expect(exact?.files?.md).toEqual('routes/crypto.page.md');
 
   const wildcard = result.routes.find((r) => r.pattern === '/crypto/:rest*');
-  assertEquals(wildcard?.files?.md, 'routes/crypto/index.page.md');
+  expect(wildcard?.files?.md).toEqual('routes/crypto/index.page.md');
 });
 
-Deno.test('generator - children coexist with wildcard parent and flat layout', async () => {
+test('generator - children coexist with wildcard parent and flat layout', async () => {
   const runtime = createMockRuntime([
     'routes/crypto.page.html',
     'routes/crypto/index.page.md',
@@ -206,102 +206,102 @@ Deno.test('generator - children coexist with wildcard parent and flat layout', a
   const result = await generateRoutesManifest('routes', runtime);
 
   const exact = result.routes.find((r) => r.pattern === '/crypto');
-  assertEquals(exact?.files?.html, 'routes/crypto.page.html');
+  expect(exact?.files?.html).toEqual('routes/crypto.page.html');
 
   const wildcard = result.routes.find((r) => r.pattern === '/crypto/:rest*');
-  assertEquals(wildcard?.files?.md, 'routes/crypto/index.page.md');
+  expect(wildcard?.files?.md).toEqual('routes/crypto/index.page.md');
 
   const eth = result.routes.find((r) => r.pattern === '/crypto/eth');
-  assertEquals(eth?.files?.md, 'routes/crypto/eth.page.md');
+  expect(eth?.files?.md).toEqual('routes/crypto/eth.page.md');
 
   const sol = result.routes.find((r) => r.pattern === '/crypto/sol');
-  assertEquals(sol?.files?.md, 'routes/crypto/sol.page.md');
+  expect(sol?.files?.md).toEqual('routes/crypto/sol.page.md');
 });
 
 // ============================================================================
 // Dynamic Route Segments ([param])
 // ============================================================================
 
-Deno.test('generator - dynamic segment produces :param pattern', async () => {
+test('generator - dynamic segment produces :param pattern', async () => {
   const runtime = createMockRuntime(['routes/projects/[id].page.ts']);
   const result = await generateRoutesManifest('routes', runtime);
 
-  assertEquals(result.routes.length, 1);
-  assertEquals(result.routes[0].pattern, '/projects/:id');
-  assertEquals(result.routes[0].files?.ts, 'routes/projects/[id].page.ts');
+  expect(result.routes.length).toEqual(1);
+  expect(result.routes[0].pattern).toEqual('/projects/:id');
+  expect(result.routes[0].files?.ts).toEqual('routes/projects/[id].page.ts');
 });
 
-Deno.test('generator - multiple dynamic segments', async () => {
+test('generator - multiple dynamic segments', async () => {
   const runtime = createMockRuntime(['routes/users/[userId]/posts/[postId].page.md']);
   const result = await generateRoutesManifest('routes', runtime);
 
-  assertEquals(result.routes.length, 1);
-  assertEquals(result.routes[0].pattern, '/users/:userId/posts/:postId');
+  expect(result.routes.length).toEqual(1);
+  expect(result.routes[0].pattern).toEqual('/users/:userId/posts/:postId');
 });
 
-Deno.test('generator - dynamic segment with directory index', async () => {
+test('generator - dynamic segment with directory index', async () => {
   const runtime = createMockRuntime(['routes/projects/[id]/index.page.ts']);
   const result = await generateRoutesManifest('routes', runtime);
 
-  assertEquals(result.routes.length, 1);
-  assertEquals(result.routes[0].pattern, '/projects/:id/:rest*');
+  expect(result.routes.length).toEqual(1);
+  expect(result.routes[0].pattern).toEqual('/projects/:id/:rest*');
 });
 
 // ============================================================================
 // Sort Order (specificity)
 // ============================================================================
 
-Deno.test('generator - wildcard routes sort after specific routes', async () => {
+test('generator - wildcard routes sort after specific routes', async () => {
   const runtime = createMockRuntime([
     'routes/crypto/index.page.md',
     'routes/crypto/eth.page.md',
   ]);
   const result = await generateRoutesManifest('routes', runtime);
 
-  assertEquals(result.routes[0].pattern, '/crypto/eth');
-  assertEquals(result.routes[1].pattern, '/crypto/:rest*');
+  expect(result.routes[0].pattern).toEqual('/crypto/eth');
+  expect(result.routes[1].pattern).toEqual('/crypto/:rest*');
 });
 
-Deno.test('generator - static routes before dynamic routes', async () => {
+test('generator - static routes before dynamic routes', async () => {
   const runtime = createMockRuntime([
     'routes/projects/new.page.md',
     'routes/projects/[id].page.md',
   ]);
   const result = await generateRoutesManifest('routes', runtime);
 
-  assertEquals(result.routes[0].pattern, '/projects/new');
-  assertEquals(result.routes[1].pattern, '/projects/:id');
+  expect(result.routes[0].pattern).toEqual('/projects/new');
+  expect(result.routes[1].pattern).toEqual('/projects/:id');
 });
 
-Deno.test('generator - longer paths sort before shorter paths', async () => {
+test('generator - longer paths sort before shorter paths', async () => {
   const runtime = createMockRuntime([
     'routes/api/v1/users.page.ts',
     'routes/api/users.page.ts',
   ]);
   const result = await generateRoutesManifest('routes', runtime);
 
-  assertEquals(result.routes[0].pattern, '/api/v1/users');
-  assertEquals(result.routes[1].pattern, '/api/users');
+  expect(result.routes[0].pattern).toEqual('/api/v1/users');
+  expect(result.routes[1].pattern).toEqual('/api/users');
 });
 
 // ============================================================================
 // CSS Companion Files
 // ============================================================================
 
-Deno.test('generator - css companion file is grouped with page route', async () => {
+test('generator - css companion file is grouped with page route', async () => {
   const runtime = createMockRuntime([
     'routes/about.page.html',
     'routes/about.page.css',
   ]);
   const result = await generateRoutesManifest('routes', runtime);
 
-  assertEquals(result.routes.length, 1);
-  assertEquals(result.routes[0].pattern, '/about');
-  assertEquals(result.routes[0].files?.html, 'routes/about.page.html');
-  assertEquals(result.routes[0].files?.css, 'routes/about.page.css');
+  expect(result.routes.length).toEqual(1);
+  expect(result.routes[0].pattern).toEqual('/about');
+  expect(result.routes[0].files?.html).toEqual('routes/about.page.html');
+  expect(result.routes[0].files?.css).toEqual('routes/about.page.css');
 });
 
-Deno.test('generator - css companion with ts and md files', async () => {
+test('generator - css companion with ts and md files', async () => {
   const runtime = createMockRuntime([
     'routes/dashboard.page.ts',
     'routes/dashboard.page.md',
@@ -309,51 +309,51 @@ Deno.test('generator - css companion with ts and md files', async () => {
   ]);
   const result = await generateRoutesManifest('routes', runtime);
 
-  assertEquals(result.routes.length, 1);
-  assertEquals(result.routes[0].files?.ts, 'routes/dashboard.page.ts');
-  assertEquals(result.routes[0].files?.md, 'routes/dashboard.page.md');
-  assertEquals(result.routes[0].files?.css, 'routes/dashboard.page.css');
-  assertEquals(result.routes[0].modulePath, 'routes/dashboard.page.ts');
+  expect(result.routes.length).toEqual(1);
+  expect(result.routes[0].files?.ts).toEqual('routes/dashboard.page.ts');
+  expect(result.routes[0].files?.md).toEqual('routes/dashboard.page.md');
+  expect(result.routes[0].files?.css).toEqual('routes/dashboard.page.css');
+  expect(result.routes[0].modulePath).toEqual('routes/dashboard.page.ts');
 });
 
-Deno.test('generator - css file alone does not create a route', async () => {
+test('generator - css file alone does not create a route', async () => {
   const runtime = createMockRuntime(['routes/orphan.page.css']);
   const result = await generateRoutesManifest('routes', runtime);
 
-  assertEquals(result.routes.length, 0);
+  expect(result.routes.length).toEqual(0);
 });
 
-Deno.test('generator - nested css companion file', async () => {
+test('generator - nested css companion file', async () => {
   const runtime = createMockRuntime([
     'routes/projects/[id].page.ts',
     'routes/projects/[id].page.css',
   ]);
   const result = await generateRoutesManifest('routes', runtime);
 
-  assertEquals(result.routes.length, 1);
-  assertEquals(result.routes[0].pattern, '/projects/:id');
-  assertEquals(result.routes[0].files?.ts, 'routes/projects/[id].page.ts');
-  assertEquals(result.routes[0].files?.css, 'routes/projects/[id].page.css');
+  expect(result.routes.length).toEqual(1);
+  expect(result.routes[0].pattern).toEqual('/projects/:id');
+  expect(result.routes[0].files?.ts).toEqual('routes/projects/[id].page.ts');
+  expect(result.routes[0].files?.css).toEqual('routes/projects/[id].page.css');
 });
 
-Deno.test('generator - css with directory index route', async () => {
+test('generator - css with directory index route', async () => {
   const runtime = createMockRuntime([
     'routes/docs/index.page.md',
     'routes/docs/index.page.css',
   ]);
   const result = await generateRoutesManifest('routes', runtime);
 
-  assertEquals(result.routes.length, 1);
-  assertEquals(result.routes[0].pattern, '/docs/:rest*');
-  assertEquals(result.routes[0].files?.md, 'routes/docs/index.page.md');
-  assertEquals(result.routes[0].files?.css, 'routes/docs/index.page.css');
+  expect(result.routes.length).toEqual(1);
+  expect(result.routes[0].pattern).toEqual('/docs/:rest*');
+  expect(result.routes[0].files?.md).toEqual('routes/docs/index.page.md');
+  expect(result.routes[0].files?.css).toEqual('routes/docs/index.page.css');
 });
 
 // ============================================================================
 // File Type Precedence
 // ============================================================================
 
-Deno.test('generator - ts takes precedence over html and md', async () => {
+test('generator - ts takes precedence over html and md', async () => {
   const runtime = createMockRuntime([
     'routes/dashboard.page.ts',
     'routes/dashboard.page.html',
@@ -361,76 +361,76 @@ Deno.test('generator - ts takes precedence over html and md', async () => {
   ]);
   const result = await generateRoutesManifest('routes', runtime);
 
-  assertEquals(result.routes.length, 1);
-  assertEquals(result.routes[0].modulePath, 'routes/dashboard.page.ts');
-  assertEquals(result.routes[0].files?.ts, 'routes/dashboard.page.ts');
-  assertEquals(result.routes[0].files?.html, 'routes/dashboard.page.html');
-  assertEquals(result.routes[0].files?.md, 'routes/dashboard.page.md');
+  expect(result.routes.length).toEqual(1);
+  expect(result.routes[0].modulePath).toEqual('routes/dashboard.page.ts');
+  expect(result.routes[0].files?.ts).toEqual('routes/dashboard.page.ts');
+  expect(result.routes[0].files?.html).toEqual('routes/dashboard.page.html');
+  expect(result.routes[0].files?.md).toEqual('routes/dashboard.page.md');
 });
 
-Deno.test('generator - html takes precedence over md when ts is absent', async () => {
+test('generator - html takes precedence over md when ts is absent', async () => {
   const runtime = createMockRuntime([
     'routes/about.page.html',
     'routes/about.page.md',
   ]);
   const result = await generateRoutesManifest('routes', runtime);
 
-  assertEquals(result.routes.length, 1);
-  assertEquals(result.routes[0].modulePath, 'routes/about.page.html');
-  assertEquals(result.routes[0].files?.html, 'routes/about.page.html');
-  assertEquals(result.routes[0].files?.md, 'routes/about.page.md');
+  expect(result.routes.length).toEqual(1);
+  expect(result.routes[0].modulePath).toEqual('routes/about.page.html');
+  expect(result.routes[0].files?.html).toEqual('routes/about.page.html');
+  expect(result.routes[0].files?.md).toEqual('routes/about.page.md');
 });
 
-Deno.test('generator - md becomes modulePath when no ts or html', async () => {
+test('generator - md becomes modulePath when no ts or html', async () => {
   const runtime = createMockRuntime(['routes/guide.page.md']);
   const result = await generateRoutesManifest('routes', runtime);
 
-  assertEquals(result.routes.length, 1);
-  assertEquals(result.routes[0].modulePath, 'routes/guide.page.md');
+  expect(result.routes.length).toEqual(1);
+  expect(result.routes[0].modulePath).toEqual('routes/guide.page.md');
 });
 
 // ============================================================================
 // Error Handling (.error.ts)
 // ============================================================================
 
-Deno.test('generator - index.error.ts at root becomes errorHandler', async () => {
+test('generator - index.error.ts at root becomes errorHandler', async () => {
   const runtime = createMockRuntime([
     'routes/index.page.md',
     'routes/index.error.ts',
   ]);
   const result = await generateRoutesManifest('routes', runtime);
 
-  assertEquals(result.errorHandler?.pattern, '/');
-  assertEquals(result.errorHandler?.type, 'error');
-  assertEquals(result.errorHandler?.modulePath, 'routes/index.error.ts');
-  assertEquals(result.errorBoundaries.length, 0);
+  expect(result.errorHandler?.pattern).toEqual('/');
+  expect(result.errorHandler?.type).toEqual('error');
+  expect(result.errorHandler?.modulePath).toEqual('routes/index.error.ts');
+  expect(result.errorBoundaries.length).toEqual(0);
 });
 
-Deno.test('generator - scoped .error.ts becomes error boundary', async () => {
+test('generator - scoped .error.ts becomes error boundary', async () => {
   const runtime = createMockRuntime([
     'routes/projects/[id].page.ts',
     'routes/projects/[id].error.ts',
   ]);
   const result = await generateRoutesManifest('routes', runtime);
 
-  assertEquals(result.errorBoundaries.length, 1);
-  assertEquals(result.errorBoundaries[0].pattern, '/projects');
-  assertEquals(result.errorBoundaries[0].modulePath, 'routes/projects/[id].error.ts');
-  assertEquals(result.errorHandler, undefined);
+  expect(result.errorBoundaries.length).toEqual(1);
+  expect(result.errorBoundaries[0].pattern).toEqual('/projects');
+  expect(result.errorBoundaries[0].modulePath).toEqual('routes/projects/[id].error.ts');
+  expect(result.errorHandler).toEqual(undefined);
 });
 
-Deno.test('generator - nested error boundary strips file, not pattern', async () => {
+test('generator - nested error boundary strips file, not pattern', async () => {
   const runtime = createMockRuntime([
     'routes/docs/guides/[slug].page.md',
     'routes/docs/guides/[slug].error.ts',
   ]);
   const result = await generateRoutesManifest('routes', runtime);
 
-  assertEquals(result.errorBoundaries.length, 1);
-  assertEquals(result.errorBoundaries[0].pattern, '/docs/guides');
+  expect(result.errorBoundaries.length).toEqual(1);
+  expect(result.errorBoundaries[0].pattern).toEqual('/docs/guides');
 });
 
-Deno.test('generator - root error handler and scoped boundary coexist', async () => {
+test('generator - root error handler and scoped boundary coexist', async () => {
   const runtime = createMockRuntime([
     'routes/index.error.ts',
     'routes/projects/[id].error.ts',
@@ -438,12 +438,12 @@ Deno.test('generator - root error handler and scoped boundary coexist', async ()
   ]);
   const result = await generateRoutesManifest('routes', runtime);
 
-  assertEquals(result.errorHandler?.modulePath, 'routes/index.error.ts');
-  assertEquals(result.errorBoundaries.length, 1);
-  assertEquals(result.errorBoundaries[0].pattern, '/projects');
+  expect(result.errorHandler?.modulePath).toEqual('routes/index.error.ts');
+  expect(result.errorBoundaries.length).toEqual(1);
+  expect(result.errorBoundaries[0].pattern).toEqual('/projects');
 });
 
-Deno.test('generator - multiple error boundaries', async () => {
+test('generator - multiple error boundaries', async () => {
   const runtime = createMockRuntime([
     'routes/api/users/[id].page.ts',
     'routes/api/users/[id].error.ts',
@@ -452,28 +452,28 @@ Deno.test('generator - multiple error boundaries', async () => {
   ]);
   const result = await generateRoutesManifest('routes', runtime);
 
-  assertEquals(result.errorBoundaries.length, 2);
-  assertEquals(result.errorBoundaries.some((b) => b.pattern === '/api/users'), true);
-  assertEquals(result.errorBoundaries.some((b) => b.pattern === '/admin'), true);
+  expect(result.errorBoundaries.length).toEqual(2);
+  expect(result.errorBoundaries.some((b) => b.pattern === '/api/users')).toEqual(true);
+  expect(result.errorBoundaries.some((b) => b.pattern === '/admin')).toEqual(true);
 });
 
-Deno.test('generator - bare error.ts at root is ignored (not a route)', async () => {
+test('generator - bare error.ts at root is ignored (not a route)', async () => {
   const runtime = createMockRuntime([
     'routes/index.page.md',
     'routes/error.ts',
   ]);
   const result = await generateRoutesManifest('routes', runtime);
 
-  assertEquals(result.errorHandler, undefined);
-  assertEquals(result.errorBoundaries.length, 0);
-  assertEquals(result.routes.length, 1);
+  expect(result.errorHandler).toEqual(undefined);
+  expect(result.errorBoundaries.length).toEqual(0);
+  expect(result.routes.length).toEqual(1);
 });
 
 // ============================================================================
 // Status Pages (404, 401, 403)
 // ============================================================================
 
-Deno.test('generator - status pages are registered by code', async () => {
+test('generator - status pages are registered by code', async () => {
   const runtime = createMockRuntime([
     'routes/index.page.md',
     'routes/404.page.html',
@@ -481,30 +481,30 @@ Deno.test('generator - status pages are registered by code', async () => {
   ]);
   const result = await generateRoutesManifest('routes', runtime);
 
-  assertEquals(result.statusPages.size, 2);
-  assertEquals(result.statusPages.get(404)?.statusCode, 404);
-  assertEquals(result.statusPages.get(404)?.files?.html, 'routes/404.page.html');
-  assertEquals(result.statusPages.get(401)?.statusCode, 401);
-  assertEquals(result.statusPages.get(401)?.files?.ts, 'routes/401.page.ts');
+  expect(result.statusPages.size).toEqual(2);
+  expect(result.statusPages.get(404)?.statusCode).toEqual(404);
+  expect(result.statusPages.get(404)?.files?.html).toEqual('routes/404.page.html');
+  expect(result.statusPages.get(401)?.statusCode).toEqual(401);
+  expect(result.statusPages.get(401)?.files?.ts).toEqual('routes/401.page.ts');
 });
 
-Deno.test('generator - 403 status page', async () => {
+test('generator - 403 status page', async () => {
   const runtime = createMockRuntime(['routes/403.page.md']);
   const result = await generateRoutesManifest('routes', runtime);
 
-  assertEquals(result.statusPages.size, 1);
-  assertEquals(result.statusPages.get(403)?.statusCode, 403);
-  assertEquals(result.statusPages.get(403)?.files?.md, 'routes/403.page.md');
+  expect(result.statusPages.size).toEqual(1);
+  expect(result.statusPages.get(403)?.statusCode).toEqual(403);
+  expect(result.statusPages.get(403)?.files?.md).toEqual('routes/403.page.md');
 });
 
-Deno.test('generator - status page pattern is fixed to /{code}', async () => {
+test('generator - status page pattern is fixed to /{code}', async () => {
   const runtime = createMockRuntime(['routes/404.page.html']);
   const result = await generateRoutesManifest('routes', runtime);
 
-  assertEquals(result.statusPages.get(404)?.pattern, '/404');
+  expect(result.statusPages.get(404)?.pattern).toEqual('/404');
 });
 
-Deno.test('generator - status page with companion css', async () => {
+test('generator - status page with companion css', async () => {
   const runtime = createMockRuntime([
     'routes/404.page.html',
     'routes/404.page.css',
@@ -512,12 +512,12 @@ Deno.test('generator - status page with companion css', async () => {
   const result = await generateRoutesManifest('routes', runtime);
 
   const statusPage = result.statusPages.get(404);
-  assertEquals(statusPage?.files?.html, 'routes/404.page.html');
+  expect(statusPage?.files?.html).toEqual('routes/404.page.html');
   // CSS files don't get added to status pages because they don't match the status page pattern
-  assertEquals(statusPage?.files?.css, undefined);
+  expect(statusPage?.files?.css).toEqual(undefined);
 });
 
-Deno.test('generator - status page and regular routes coexist', async () => {
+test('generator - status page and regular routes coexist', async () => {
   const runtime = createMockRuntime([
     'routes/index.page.md',
     'routes/about.page.md',
@@ -525,51 +525,51 @@ Deno.test('generator - status page and regular routes coexist', async () => {
   ]);
   const result = await generateRoutesManifest('routes', runtime);
 
-  assertEquals(result.routes.length, 2);
-  assertEquals(result.statusPages.size, 1);
-  assertEquals(result.routes.some((r) => r.pattern === '/'), true);
-  assertEquals(result.routes.some((r) => r.pattern === '/about'), true);
+  expect(result.routes.length).toEqual(2);
+  expect(result.statusPages.size).toEqual(1);
+  expect(result.routes.some((r) => r.pattern === '/')).toEqual(true);
+  expect(result.routes.some((r) => r.pattern === '/about')).toEqual(true);
 });
 
 // ============================================================================
 // Redirect Detection (.redirect.ts)
 // ============================================================================
 
-Deno.test('generator - redirect file creates redirect route', async () => {
+test('generator - redirect file creates redirect route', async () => {
   const runtime = createMockRuntime([
     'routes/old.redirect.ts',
   ]);
   const result = await generateRoutesManifest('routes', runtime);
 
-  assertEquals(result.routes.length, 1);
-  assertEquals(result.routes[0].pattern, '/old');
-  assertEquals(result.routes[0].type, 'redirect');
-  assertEquals(result.routes[0].modulePath, 'routes/old.redirect.ts');
+  expect(result.routes.length).toEqual(1);
+  expect(result.routes[0].pattern).toEqual('/old');
+  expect(result.routes[0].type).toEqual('redirect');
+  expect(result.routes[0].modulePath).toEqual('routes/old.redirect.ts');
 });
 
-Deno.test('generator - nested redirect route', async () => {
+test('generator - nested redirect route', async () => {
   const runtime = createMockRuntime([
     'routes/legacy/api/v1.redirect.ts',
   ]);
   const result = await generateRoutesManifest('routes', runtime);
 
-  assertEquals(result.routes.length, 1);
-  assertEquals(result.routes[0].pattern, '/legacy/api/v1');
-  assertEquals(result.routes[0].type, 'redirect');
+  expect(result.routes.length).toEqual(1);
+  expect(result.routes[0].pattern).toEqual('/legacy/api/v1');
+  expect(result.routes[0].type).toEqual('redirect');
 });
 
-Deno.test('generator - dynamic redirect route', async () => {
+test('generator - dynamic redirect route', async () => {
   const runtime = createMockRuntime([
     'routes/old-posts/[id].redirect.ts',
   ]);
   const result = await generateRoutesManifest('routes', runtime);
 
-  assertEquals(result.routes.length, 1);
-  assertEquals(result.routes[0].pattern, '/old-posts/:id');
-  assertEquals(result.routes[0].type, 'redirect');
+  expect(result.routes.length).toEqual(1);
+  expect(result.routes[0].pattern).toEqual('/old-posts/:id');
+  expect(result.routes[0].type).toEqual('redirect');
 });
 
-Deno.test('generator - redirects and pages coexist', async () => {
+test('generator - redirects and pages coexist', async () => {
   const runtime = createMockRuntime([
     'routes/index.page.md',
     'routes/about.page.md',
@@ -577,16 +577,16 @@ Deno.test('generator - redirects and pages coexist', async () => {
   ]);
   const result = await generateRoutesManifest('routes', runtime);
 
-  assertEquals(result.routes.length, 3);
+  expect(result.routes.length).toEqual(3);
   const redirect = result.routes.find((r) => r.pattern === '/old-about');
-  assertEquals(redirect?.type, 'redirect');
+  expect(redirect?.type).toEqual('redirect');
 });
 
 // ============================================================================
 // Parent Route Association (Nesting)
 // ============================================================================
 
-Deno.test('generator - nested route has parent reference', async () => {
+test('generator - nested route has parent reference', async () => {
   const runtime = createMockRuntime([
     'routes/projects/list.page.md',
     'routes/projects/[id].page.ts',
@@ -594,10 +594,10 @@ Deno.test('generator - nested route has parent reference', async () => {
   const result = await generateRoutesManifest('routes', runtime);
 
   const idRoute = result.routes.find((r) => r.pattern === '/projects/:id');
-  assertEquals(idRoute?.parent, '/projects');
+  expect(idRoute?.parent).toEqual('/projects');
 });
 
-Deno.test('generator - root routes have no parent', async () => {
+test('generator - root routes have no parent', async () => {
   const runtime = createMockRuntime([
     'routes/about.page.md',
     'routes/contact.page.md',
@@ -605,11 +605,11 @@ Deno.test('generator - root routes have no parent', async () => {
   const result = await generateRoutesManifest('routes', runtime);
 
   for (const route of result.routes) {
-    assertEquals(route.parent, undefined);
+    expect(route.parent).toEqual(undefined);
   }
 });
 
-Deno.test('generator - deeply nested routes have correct parent', async () => {
+test('generator - deeply nested routes have correct parent', async () => {
   const runtime = createMockRuntime([
     'routes/admin/users/list.page.ts',
     'routes/admin/users/[id]/edit.page.ts',
@@ -617,14 +617,14 @@ Deno.test('generator - deeply nested routes have correct parent', async () => {
   const result = await generateRoutesManifest('routes', runtime);
 
   const editRoute = result.routes.find((r) => r.pattern === '/admin/users/:id/edit');
-  assertEquals(editRoute?.parent, '/admin/users/:id');
+  expect(editRoute?.parent).toEqual('/admin/users/:id');
 });
 
 // ============================================================================
 // Module Loader Generation
 // ============================================================================
 
-Deno.test('generator - collects all .ts module paths for loaders', async () => {
+test('generator - collects all .ts module paths for loaders', async () => {
   const runtime = createMockRuntime([
     'routes/index.page.ts',
     'routes/dashboard.page.ts',
@@ -634,29 +634,29 @@ Deno.test('generator - collects all .ts module paths for loaders', async () => {
   const result = await generateRoutesManifest('routes', runtime);
   const code = generateManifestCode(result);
 
-  assertStringIncludes(code, 'routes/index.page.ts');
-  assertStringIncludes(code, 'routes/dashboard.page.ts');
-  assertStringIncludes(code, 'routes/projects/[id].page.ts');
-  assertStringIncludes(code, 'routes/index.error.ts');
+  expect(code).toContain('routes/index.page.ts');
+  expect(code).toContain('routes/dashboard.page.ts');
+  expect(code).toContain('routes/projects/[id].page.ts');
+  expect(code).toContain('routes/index.error.ts');
 });
 
-Deno.test('generator - module loaders use dynamic import', async () => {
+test('generator - module loaders use dynamic import', async () => {
   const runtime = createMockRuntime(['routes/index.page.ts']);
   const result = await generateRoutesManifest('routes', runtime);
   const code = generateManifestCode(result);
 
-  assertStringIncludes(code, 'import(');
+  expect(code).toContain('import(');
 });
 
-Deno.test('generator - module loaders keyed by full path', async () => {
+test('generator - module loaders keyed by full path', async () => {
   const runtime = createMockRuntime(['routes/dashboard.page.ts']);
   const result = await generateRoutesManifest('routes', runtime);
   const code = generateManifestCode(result);
 
-  assertStringIncludes(code, "'routes/dashboard.page.ts'");
+  expect(code).toContain("'routes/dashboard.page.ts'");
 });
 
-Deno.test('generator - ignores non-.ts files in module loaders', async () => {
+test('generator - ignores non-.ts files in module loaders', async () => {
   const runtime = createMockRuntime([
     'routes/about.page.html',
     'routes/guide.page.md',
@@ -666,18 +666,18 @@ Deno.test('generator - ignores non-.ts files in module loaders', async () => {
 
   // Module loaders should be empty or not include these files
   const hasImportModule = code.includes("': () => import(");
-  assertEquals(hasImportModule, false);
+  expect(hasImportModule).toEqual(false);
 });
 
-Deno.test('generator - status page .ts modules in loaders', async () => {
+test('generator - status page .ts modules in loaders', async () => {
   const runtime = createMockRuntime(['routes/404.page.ts']);
   const result = await generateRoutesManifest('routes', runtime);
   const code = generateManifestCode(result);
 
-  assertStringIncludes(code, "'routes/404.page.ts'");
+  expect(code).toContain("'routes/404.page.ts'");
 });
 
-Deno.test('generator - error boundary modules in loaders', async () => {
+test('generator - error boundary modules in loaders', async () => {
   const runtime = createMockRuntime([
     'routes/projects/[id].page.ts',
     'routes/projects/[id].error.ts',
@@ -685,23 +685,23 @@ Deno.test('generator - error boundary modules in loaders', async () => {
   const result = await generateRoutesManifest('routes', runtime);
   const code = generateManifestCode(result);
 
-  assertStringIncludes(code, "'routes/projects/[id].error.ts'");
+  expect(code).toContain("'routes/projects/[id].error.ts'");
 });
 
 // ============================================================================
 // Manifest Code Generation
 // ============================================================================
 
-Deno.test('generator - produces valid TypeScript code', async () => {
+test('generator - produces valid TypeScript code', async () => {
   const runtime = createMockRuntime(['routes/about.page.md']);
   const result = await generateRoutesManifest('routes', runtime);
   const code = generateManifestCode(result);
 
-  assertStringIncludes(code, 'import type { RoutesManifest }');
-  assertStringIncludes(code, 'export const routesManifest: RoutesManifest');
+  expect(code).toContain('import type { RoutesManifest }');
+  expect(code).toContain('export const routesManifest: RoutesManifest');
 });
 
-Deno.test('generator - includes routes array', async () => {
+test('generator - includes routes array', async () => {
   const runtime = createMockRuntime([
     'routes/about.page.md',
     'routes/contact.page.md',
@@ -709,12 +709,12 @@ Deno.test('generator - includes routes array', async () => {
   const result = await generateRoutesManifest('routes', runtime);
   const code = generateManifestCode(result);
 
-  assertStringIncludes(code, 'routes: [');
-  assertStringIncludes(code, "pattern: '/about'");
-  assertStringIncludes(code, "pattern: '/contact'");
+  expect(code).toContain('routes: [');
+  expect(code).toContain("pattern: '/about'");
+  expect(code).toContain("pattern: '/contact'");
 });
 
-Deno.test('generator - includes errorBoundaries array', async () => {
+test('generator - includes errorBoundaries array', async () => {
   const runtime = createMockRuntime([
     'routes/projects/[id].page.ts',
     'routes/projects/[id].error.ts',
@@ -722,76 +722,76 @@ Deno.test('generator - includes errorBoundaries array', async () => {
   const result = await generateRoutesManifest('routes', runtime);
   const code = generateManifestCode(result);
 
-  assertStringIncludes(code, 'errorBoundaries: [');
-  assertStringIncludes(code, "pattern: '/projects'");
+  expect(code).toContain('errorBoundaries: [');
+  expect(code).toContain("pattern: '/projects'");
 });
 
-Deno.test('generator - includes statusPages map', async () => {
+test('generator - includes statusPages map', async () => {
   const runtime = createMockRuntime(['routes/404.page.html']);
   const result = await generateRoutesManifest('routes', runtime);
   const code = generateManifestCode(result);
 
-  assertStringIncludes(code, 'statusPages: new Map([');
-  assertStringIncludes(code, '[404, {');
+  expect(code).toContain('statusPages: new Map([');
+  expect(code).toContain('[404, {');
 });
 
-Deno.test('generator - includes errorHandler if present', async () => {
+test('generator - includes errorHandler if present', async () => {
   const runtime = createMockRuntime(['routes/index.error.ts']);
   const result = await generateRoutesManifest('routes', runtime);
   const code = generateManifestCode(result);
 
-  assertStringIncludes(code, 'errorHandler: {');
-  assertStringIncludes(code, "pattern: '/'");
+  expect(code).toContain('errorHandler: {');
+  expect(code).toContain("pattern: '/'");
 });
 
-Deno.test('generator - errorHandler is undefined if absent', async () => {
+test('generator - errorHandler is undefined if absent', async () => {
   const runtime = createMockRuntime(['routes/index.page.md']);
   const result = await generateRoutesManifest('routes', runtime);
   const code = generateManifestCode(result);
 
-  assertStringIncludes(code, 'errorHandler: undefined');
+  expect(code).toContain('errorHandler: undefined');
 });
 
-Deno.test('generator - includes moduleLoaders object', async () => {
+test('generator - includes moduleLoaders object', async () => {
   const runtime = createMockRuntime(['routes/index.page.ts']);
   const result = await generateRoutesManifest('routes', runtime);
   const code = generateManifestCode(result);
 
-  assertStringIncludes(code, 'moduleLoaders: {');
-  assertStringIncludes(code, '() => import(');
+  expect(code).toContain('moduleLoaders: {');
+  expect(code).toContain('() => import(');
 });
 
-Deno.test('generator - includes custom import path in generated code', async () => {
+test('generator - includes custom import path in generated code', async () => {
   const runtime = createMockRuntime(['routes/about.page.md']);
   const result = await generateRoutesManifest('routes', runtime);
   const customPath = '@mycompany/routing-lib';
   const code = generateManifestCode(result, customPath);
 
-  assertStringIncludes(code, customPath);
+  expect(code).toContain(customPath);
 });
 
-Deno.test('generator - escapes quotes in file paths', async () => {
+test('generator - escapes quotes in file paths', async () => {
   const runtime = createMockRuntime(["routes/page-with-'quotes'.page.ts"]);
   const result = await generateRoutesManifest('routes', runtime);
   const code = generateManifestCode(result);
 
-  assertStringIncludes(code, "\\'");
+  expect(code).toContain("\\'");
 });
 
-Deno.test('generator - escapes backslashes in file paths', async () => {
+test('generator - escapes backslashes in file paths', async () => {
   const runtime = createMockRuntime(['routes/page.page.ts']);
   const result = await generateRoutesManifest('routes', runtime);
   const code = generateManifestCode(result);
 
   // Code should be valid TypeScript (no unescaped backslashes)
-  assertExists(code);
+  expect(code).toBeDefined();
 });
 
 // ============================================================================
 // Collision Detection
 // ============================================================================
 
-Deno.test('generator - flat and directory are separate patterns (no collision)', async () => {
+test('generator - flat and directory are separate patterns (no collision)', async () => {
   const runtime = createMockRuntime([
     'routes/products.page.ts',
     'routes/products/index.page.ts',
@@ -800,11 +800,11 @@ Deno.test('generator - flat and directory are separate patterns (no collision)',
 
   // Flat file creates /products, directory index creates /products/:rest*
   // These are different patterns, so no collision detected
-  assertEquals(result.warnings.length, 0);
-  assertEquals(result.routes.length, 2);
+  expect(result.warnings.length).toEqual(0);
+  expect(result.routes.length).toEqual(2);
 });
 
-Deno.test('generator - multiple file types for same route no collision', async () => {
+test('generator - multiple file types for same route no collision', async () => {
   const runtime = createMockRuntime([
     'routes/about.page.ts',
     'routes/about.page.html',
@@ -812,39 +812,39 @@ Deno.test('generator - multiple file types for same route no collision', async (
   const result = await generateRoutesManifest('routes', runtime);
 
   // Both ts and html are flat files for /about pattern, no collision since they're the same route
-  assertEquals(result.warnings.length, 0);
-  assertEquals(result.routes.length, 1);
+  expect(result.warnings.length).toEqual(0);
+  expect(result.routes.length).toEqual(1);
 });
 
-Deno.test('generator - no collision for pure directory index', async () => {
+test('generator - no collision for pure directory index', async () => {
   const runtime = createMockRuntime([
     'routes/items/index.page.ts',
     'routes/items/index.page.html',
   ]);
   const result = await generateRoutesManifest('routes', runtime);
 
-  assertEquals(result.warnings.length, 0);
+  expect(result.warnings.length).toEqual(0);
 });
 
 // ============================================================================
 // Empty Directories
 // ============================================================================
 
-Deno.test('generator - handles empty routes directory', async () => {
+test('generator - handles empty routes directory', async () => {
   const runtime = createMockRuntime([]);
   const result = await generateRoutesManifest('routes', runtime);
 
-  assertEquals(result.routes.length, 0);
-  assertEquals(result.errorBoundaries.length, 0);
-  assertEquals(result.statusPages.size, 0);
-  assertEquals(result.errorHandler, undefined);
+  expect(result.routes.length).toEqual(0);
+  expect(result.errorBoundaries.length).toEqual(0);
+  expect(result.statusPages.size).toEqual(0);
+  expect(result.errorHandler).toEqual(undefined);
 });
 
 // ============================================================================
 // Complex Real-World Scenarios
 // ============================================================================
 
-Deno.test('generator - real-world blog structure', async () => {
+test('generator - real-world blog structure', async () => {
   const runtime = createMockRuntime([
     'routes/index.page.ts',
     'routes/about.page.md',
@@ -861,13 +861,13 @@ Deno.test('generator - real-world blog structure', async () => {
   const result = await generateRoutesManifest('routes', runtime);
 
   // index, about, blog (flat), blog (directory index), blog/slug, admin/dashboard, admin/users/id = 7 routes
-  assertEquals(result.routes.length, 7);
-  assertEquals(result.errorBoundaries.length, 1);
-  assertEquals(result.statusPages.size, 1);
-  assertEquals(result.errorHandler?.modulePath, 'routes/index.error.ts');
+  expect(result.routes.length).toEqual(7);
+  expect(result.errorBoundaries.length).toEqual(1);
+  expect(result.statusPages.size).toEqual(1);
+  expect(result.errorHandler?.modulePath).toEqual('routes/index.error.ts');
 });
 
-Deno.test('generator - real-world with all file types', async () => {
+test('generator - real-world with all file types', async () => {
   const runtime = createMockRuntime([
     'routes/docs.page.html',
     'routes/docs.page.css',
@@ -880,30 +880,30 @@ Deno.test('generator - real-world with all file types', async () => {
   const code = generateManifestCode(result);
 
   // /docs (flat), /docs/:rest* (directory index), /docs/:slug (dynamic)
-  assertEquals(result.routes.length, 3);
+  expect(result.routes.length).toEqual(3);
   // The flat /docs route has the html file, but CSS is added separately
   const docsRoute = result.routes.find((r) => r.pattern === '/docs');
-  assertEquals(docsRoute?.files?.html, 'routes/docs.page.html');
-  assertEquals(docsRoute?.files?.css, 'routes/docs.page.css');
-  assertStringIncludes(code, 'moduleLoaders');
+  expect(docsRoute?.files?.html).toEqual('routes/docs.page.html');
+  expect(docsRoute?.files?.css).toEqual('routes/docs.page.css');
+  expect(code).toContain('moduleLoaders');
 });
 
-Deno.test('generator - deeply nested structure', async () => {
+test('generator - deeply nested structure', async () => {
   const runtime = createMockRuntime([
     'routes/api/v1/users/[userId]/posts/[postId]/comments/[commentId].page.ts',
   ]);
   const result = await generateRoutesManifest('routes', runtime);
 
-  assertEquals(result.routes.length, 1);
-  assertEquals(result.routes[0].pattern, '/api/v1/users/:userId/posts/:postId/comments/:commentId');
-  assertEquals(result.routes[0].parent, '/api/v1/users/:userId/posts/:postId/comments');
+  expect(result.routes.length).toEqual(1);
+  expect(result.routes[0].pattern).toEqual('/api/v1/users/:userId/posts/:postId/comments/:commentId');
+  expect(result.routes[0].parent).toEqual('/api/v1/users/:userId/posts/:postId/comments');
 });
 
 // ============================================================================
 // Edge Cases
 // ============================================================================
 
-Deno.test('generator - ignores non-route files', async () => {
+test('generator - ignores non-route files', async () => {
   const runtime = createMockRuntime([
     'routes/README.md',
     'routes/utils.ts',
@@ -911,28 +911,28 @@ Deno.test('generator - ignores non-route files', async () => {
   ]);
   const result = await generateRoutesManifest('routes', runtime);
 
-  assertEquals(result.routes.length, 0);
+  expect(result.routes.length).toEqual(0);
 });
 
-Deno.test('generator - handles routes with hyphens', async () => {
+test('generator - handles routes with hyphens', async () => {
   const runtime = createMockRuntime(['routes/my-route-name.page.md']);
   const result = await generateRoutesManifest('routes', runtime);
 
-  assertEquals(result.routes[0].pattern, '/my-route-name');
+  expect(result.routes[0].pattern).toEqual('/my-route-name');
 });
 
-Deno.test('generator - handles routes with numbers', async () => {
+test('generator - handles routes with numbers', async () => {
   const runtime = createMockRuntime(['routes/v2-api.page.ts']);
   const result = await generateRoutesManifest('routes', runtime);
 
-  assertEquals(result.routes[0].pattern, '/v2-api');
+  expect(result.routes[0].pattern).toEqual('/v2-api');
 });
 
 // ============================================================================
 // Manifest Integrity
 // ============================================================================
 
-Deno.test('generator - all routes have required fields', async () => {
+test('generator - all routes have required fields', async () => {
   const runtime = createMockRuntime([
     'routes/index.page.ts',
     'routes/about.page.md',
@@ -940,13 +940,13 @@ Deno.test('generator - all routes have required fields', async () => {
   const result = await generateRoutesManifest('routes', runtime);
 
   for (const route of result.routes) {
-    assertExists(route.pattern);
-    assertExists(route.type);
-    assertExists(route.modulePath);
+    expect(route.pattern).toBeDefined();
+    expect(route.type).toBeDefined();
+    expect(route.modulePath).toBeDefined();
   }
 });
 
-Deno.test('generator - all error boundaries have required fields', async () => {
+test('generator - all error boundaries have required fields', async () => {
   const runtime = createMockRuntime([
     'routes/api/[id].page.ts',
     'routes/api/[id].error.ts',
@@ -954,29 +954,29 @@ Deno.test('generator - all error boundaries have required fields', async () => {
   const result = await generateRoutesManifest('routes', runtime);
 
   for (const boundary of result.errorBoundaries) {
-    assertExists(boundary.pattern);
-    assertExists(boundary.modulePath);
+    expect(boundary.pattern).toBeDefined();
+    expect(boundary.modulePath).toBeDefined();
   }
 });
 
-Deno.test('generator - status pages keyed correctly', async () => {
+test('generator - status pages keyed correctly', async () => {
   const runtime = createMockRuntime([
     'routes/404.page.html',
     'routes/401.page.ts',
   ]);
   const result = await generateRoutesManifest('routes', runtime);
 
-  assertEquals(result.statusPages.has(404), true);
-  assertEquals(result.statusPages.has(401), true);
-  assertEquals(result.statusPages.get(404)?.statusCode, 404);
-  assertEquals(result.statusPages.get(401)?.statusCode, 401);
+  expect(result.statusPages.has(404)).toEqual(true);
+  expect(result.statusPages.has(401)).toEqual(true);
+  expect(result.statusPages.get(404)?.statusCode).toEqual(404);
+  expect(result.statusPages.get(401)?.statusCode).toEqual(401);
 });
 
 // ============================================================================
 // Route Type Consistency
 // ============================================================================
 
-Deno.test('generator - all regular routes have type page', async () => {
+test('generator - all regular routes have type page', async () => {
   const runtime = createMockRuntime([
     'routes/about.page.md',
     'routes/contact.page.html',
@@ -986,14 +986,14 @@ Deno.test('generator - all regular routes have type page', async () => {
 
   for (const route of result.routes) {
     if (!route.modulePath.includes('404') && !route.modulePath.includes('401')) {
-      assertEquals(route.type, 'page');
+      expect(route.type).toEqual('page');
     }
   }
 });
 
-Deno.test('generator - redirect routes have type redirect', async () => {
+test('generator - redirect routes have type redirect', async () => {
   const runtime = createMockRuntime(['routes/old-page.redirect.ts']);
   const result = await generateRoutesManifest('routes', runtime);
 
-  assertEquals(result.routes[0].type, 'redirect');
+  expect(result.routes[0].type).toEqual('redirect');
 });

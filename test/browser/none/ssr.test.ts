@@ -19,7 +19,7 @@
  * - Widget rendering in SSR mode
  */
 
-import { assert, assertEquals } from '@std/assert';
+import { test, expect, describe, beforeAll, afterAll } from 'bun:test';
 import { createTestServer, type TestServer } from '../shared/setup.ts';
 
 let server: TestServer;
@@ -30,857 +30,710 @@ function baseUrl(path = '/'): string {
 
 // ── Mode Behavior ───────────────────────────────────────────────────
 
-Deno.test(
-  { name: "SPA mode 'none' — SSR behavior", sanitizeResources: false, sanitizeOps: false },
-  async (t) => {
+describe("SPA mode 'none' — SSR behavior", () => {
+  beforeAll(async () => {
     server = await createTestServer({ mode: 'none', port: 4101 });
+  });
 
-    await t.step('GET / redirects to /html/', async () => {
-      const res = await fetch(baseUrl('/'), { redirect: 'manual' });
-      assertEquals(res.status, 302);
-      const location = res.headers.get('location');
-      assert(location?.endsWith('/html/'), `expected redirect to /html/, got ${location}`);
-    });
-
-    await t.step('GET /about redirects to /html/about', async () => {
-      const res = await fetch(baseUrl('/about'), { redirect: 'manual' });
-      assertEquals(res.status, 302);
-      const location = res.headers.get('location');
-      assert(
-        location?.endsWith('/html/about'),
-        `expected redirect to /html/about, got ${location}`,
-      );
-    });
-
-    await t.step('GET /html/about serves SSR HTML', async () => {
-      const res = await fetch(baseUrl('/html/about'));
-      assertEquals(res.status, 200);
-      const html = await res.text();
-      assert(html.includes('<h1'), 'SSR HTML response should contain rendered content');
-      assertEquals(res.headers.get('content-type'), 'text/html; charset=utf-8');
-    });
-
-    await t.step('GET /md/about serves SSR Markdown', async () => {
-      const res = await fetch(baseUrl('/md/about'));
-      assertEquals(res.status, 200);
-      const md = await res.text();
-      assert(md.includes('About'), 'SSR Markdown response should contain content');
-      assert(
-        res.headers.get('content-type')?.includes('text/markdown'),
-        'should have markdown content type',
-      );
-    });
-
+  afterAll(() => {
     server.stop();
-  },
-);
+  });
+
+  test('GET / redirects to /html/', async () => {
+    const res = await fetch(baseUrl('/'), { redirect: 'manual' });
+    expect(res.status).toEqual(302);
+    const location = res.headers.get('location');
+    expect(location?.endsWith('/html/')).toBeTruthy();
+  });
+
+  test('GET /about redirects to /html/about', async () => {
+    const res = await fetch(baseUrl('/about'), { redirect: 'manual' });
+    expect(res.status).toEqual(302);
+    const location = res.headers.get('location');
+    expect(location?.endsWith('/html/about')).toBeTruthy();
+  });
+
+  test('GET /html/about serves SSR HTML', async () => {
+    const res = await fetch(baseUrl('/html/about'));
+    expect(res.status).toEqual(200);
+    const html = await res.text();
+    expect(html).toContain('<h1');
+    expect(res.headers.get('content-type')).toEqual('text/html; charset=utf-8');
+  });
+
+  test('GET /md/about serves SSR Markdown', async () => {
+    const res = await fetch(baseUrl('/md/about'));
+    expect(res.status).toEqual(200);
+    const md = await res.text();
+    expect(md).toContain('About');
+    expect(res.headers.get('content-type')?.includes('text/markdown')).toBeTruthy();
+  });
+});
 
 // ── SSR HTML ─────────────────────────────────────────────────────────
 
-Deno.test(
-  { name: 'SSR HTML renderer', sanitizeResources: false, sanitizeOps: false },
-  async (t) => {
+describe('SSR HTML renderer', () => {
+  beforeAll(async () => {
     server = await createTestServer({ mode: 'none', port: 4101 });
+  });
 
-    // --- .page.md ---
-
-    await t.step('.page.md renders expanded markdown as HTML', async () => {
-      const res = await fetch(baseUrl('/html/'));
-      assertEquals(res.status, 200);
-      const html = await res.text();
-      assert(
-        !html.includes('<mark-down>'),
-        'should expand <mark-down> when renderer is configured',
-      );
-      assert(html.includes('emroute'), 'should contain rendered heading');
-    });
-
-    // --- .page.html ---
-
-    await t.step('.page.html renders HTML content directly', async () => {
-      const res = await fetch(baseUrl('/html/about'));
-      assertEquals(res.status, 200);
-      const html = await res.text();
-      assert(html.includes('<h1>About</h1>'), 'should contain About heading');
-      assert(html.includes('About Page'), 'should contain title text');
-      assert(html.includes('section-1'), 'should contain section anchor');
-      assert(
-        html.includes('<widget-failing'),
-        'should contain failing widget tag (left as-is because getData throws)',
-      );
-    });
-
-    // --- .page.ts ---
-
-    await t.step('.page.ts component renders with getData', async () => {
-      const res = await fetch(baseUrl('/html/projects/42'));
-      assertEquals(res.status, 200);
-      const html = await res.text();
-      assert(html.includes('Project 42'), 'should contain project name');
-      assert(html.includes('ID: 42'), 'should contain project ID');
-    });
-
-    // --- .page.ts + .page.html (params) ---
-
-    await t.step('.page.ts + .page.html replaces template slots from params', async () => {
-      const res = await fetch(baseUrl('/html/docs'));
-      assertEquals(res.status, 200);
-      const html = await res.text();
-      assert(html.includes('Topic: general'), 'should replace {{topic}} in template');
-      assert(html.includes('Documentation'), 'should include getTitle result');
-    });
-
-    // --- .page.ts + .page.html (getData) ---
-
-    await t.step('.page.ts + .page.html injects getData into template', async () => {
-      const res = await fetch(baseUrl('/html/profile'));
-      assertEquals(res.status, 200);
-      const html = await res.text();
-      assert(html.includes('Alice'), 'should contain name from getData');
-      assert(html.includes('Role: Engineer'), 'should contain role');
-      assert(html.includes('Builds things.'), 'should contain bio');
-    });
-
-    // --- .page.ts + .page.md ---
-
-    await t.step('.page.ts + .page.md renders markdown + custom content', async () => {
-      const res = await fetch(baseUrl('/html/blog'));
-      assertEquals(res.status, 200);
-      const html = await res.text();
-      assert(html.includes('Blog'), 'should contain expanded markdown heading');
-      assert(html.includes('Posts: 0'), 'should contain blog footer');
-    });
-
-    // --- Nested dynamic ---
-
-    await t.step('nested dynamic route renders full hierarchy', async () => {
-      const res = await fetch(baseUrl('/html/projects/42/tasks'));
-      assertEquals(res.status, 200);
-      const html = await res.text();
-      assert(html.includes('Project 42'), 'should contain parent project');
-      assert(html.includes('Tasks for 42'), 'should contain tasks heading');
-      assert(html.includes('Task A for 42'), 'should contain task items');
-    });
-
-    // --- Flat file vs directory index ---
-
-    await t.step('flat file renders exact match', async () => {
-      const res = await fetch(baseUrl('/html/projects'));
-      assertEquals(res.status, 200);
-      const html = await res.text();
-      assert(html.includes('All Projects'), 'should contain flat file content');
-    });
-
-    await t.step('directory index catches unmatched children', async () => {
-      const res = await fetch(baseUrl('/html/projects/unknown/extra'));
-      assertEquals(res.status, 200);
-      const html = await res.text();
-      assert(html.includes('Project Hub'), 'should contain directory index content');
-    });
-
-    // --- Nesting: .html + .md (4 levels) ---
-
-    await t.step('nesting (.html+.md) — root level', async () => {
-      const res = await fetch(baseUrl('/html/nesting'));
-      assertEquals(res.status, 200);
-      const html = await res.text();
-      assert(html.includes('[nesting] .html BEFORE slot'), 'should contain nesting root content');
-      assert(html.includes('[nesting] .html AFTER slot'), 'should contain nesting root footer');
-    });
-
-    await t.step('nesting (.html+.md) — level 1', async () => {
-      const res = await fetch(baseUrl('/html/nesting/lvl-one'));
-      assertEquals(res.status, 200);
-      const html = await res.text();
-      assert(html.includes('[nesting] .html BEFORE slot'), 'should contain root wrapper');
-      assert(html.includes('[lvl-one] .html BEFORE slot'), 'should contain lvl-one content');
-      assert(html.includes('[lvl-one] .html AFTER slot'), 'should contain lvl-one footer');
-    });
-
-    await t.step('nesting (.html+.md) — level 2', async () => {
-      const res = await fetch(baseUrl('/html/nesting/lvl-one/level-two'));
-      assertEquals(res.status, 200);
-      const html = await res.text();
-      assert(html.includes('[nesting] .html BEFORE slot'), 'should contain root wrapper');
-      assert(html.includes('[lvl-one] .html BEFORE slot'), 'should contain lvl-one wrapper');
-      assert(html.includes('[level-two] .html BEFORE slot'), 'should contain level-two content');
-    });
-
-    await t.step('nesting (.html+.md) — level 3 (leaf)', async () => {
-      const res = await fetch(baseUrl('/html/nesting/lvl-one/level-two/level-three'));
-      assertEquals(res.status, 200);
-      const html = await res.text();
-      assert(html.includes('[nesting] .html BEFORE slot'), 'should contain root wrapper');
-      assert(html.includes('[lvl-one] .html BEFORE slot'), 'should contain lvl-one wrapper');
-      assert(html.includes('[level-two] .html BEFORE slot'), 'should contain level-two wrapper');
-      assert(
-        html.includes('[level-three] .html BEFORE slot'),
-        'should contain level-three leaf content',
-      );
-      assert(
-        html.includes('[level-three] .html AFTER slot'),
-        'leaf should have both before/after markers',
-      );
-    });
-
-    // --- Nesting: .ts + .html (4 levels) ---
-
-    await t.step('nesting-ts-html (.ts+.html) — root level', async () => {
-      const res = await fetch(baseUrl('/html/nesting-ts-html'));
-      assertEquals(res.status, 200);
-      const html = await res.text();
-      assert(
-        html.includes('[nesting-ts-html] .html BEFORE slot'),
-        'should contain root content',
-      );
-    });
-
-    await t.step('nesting-ts-html (.ts+.html) — level 1', async () => {
-      const res = await fetch(baseUrl('/html/nesting-ts-html/lvl-one'));
-      assertEquals(res.status, 200);
-      const html = await res.text();
-      assert(
-        html.includes('[nesting-ts-html] .html BEFORE slot'),
-        'should contain root wrapper',
-      );
-      assert(
-        html.includes('[lvl-one-ts-html] .html BEFORE slot'),
-        'should contain lvl-one content',
-      );
-    });
-
-    await t.step('nesting-ts-html (.ts+.html) — level 2', async () => {
-      const res = await fetch(baseUrl('/html/nesting-ts-html/lvl-one/level-two'));
-      assertEquals(res.status, 200);
-      const html = await res.text();
-      assert(
-        html.includes('[nesting-ts-html] .html BEFORE slot'),
-        'should contain root wrapper',
-      );
-      assert(
-        html.includes('[lvl-one-ts-html] .html BEFORE slot'),
-        'should contain lvl-one wrapper',
-      );
-      assert(
-        html.includes('[level-two-ts-html] .html BEFORE slot'),
-        'should contain level-two content',
-      );
-    });
-
-    await t.step('nesting-ts-html (.ts+.html) — level 3 (leaf)', async () => {
-      const res = await fetch(baseUrl('/html/nesting-ts-html/lvl-one/level-two/level-three'));
-      assertEquals(res.status, 200);
-      const html = await res.text();
-      assert(
-        html.includes('[nesting-ts-html] .html BEFORE slot'),
-        'should contain root wrapper',
-      );
-      assert(
-        html.includes('[lvl-one-ts-html] .html BEFORE slot'),
-        'should contain lvl-one wrapper',
-      );
-      assert(
-        html.includes('[level-two-ts-html] .html BEFORE slot'),
-        'should contain level-two wrapper',
-      );
-      assert(
-        html.includes('[level-three-ts-html] .html'),
-        'should contain level-three leaf content',
-      );
-    });
-
-    // --- Nesting: .ts + .md (4 levels) ---
-
-    await t.step('nesting-ts-md (.ts+.md) — root level', async () => {
-      const res = await fetch(baseUrl('/html/nesting-ts-md'));
-      assertEquals(res.status, 200);
-      const html = await res.text();
-      assert(html.includes('[nesting-ts-md] .md BEFORE slot'), 'should contain root content');
-    });
-
-    await t.step('nesting-ts-md (.ts+.md) — level 1', async () => {
-      const res = await fetch(baseUrl('/html/nesting-ts-md/lvl-one'));
-      assertEquals(res.status, 200);
-      const html = await res.text();
-      assert(html.includes('[nesting-ts-md] .md BEFORE slot'), 'should contain root wrapper');
-      assert(html.includes('[lvl-one-ts-md] .md BEFORE slot'), 'should contain lvl-one content');
-    });
-
-    await t.step('nesting-ts-md (.ts+.md) — level 2', async () => {
-      const res = await fetch(baseUrl('/html/nesting-ts-md/lvl-one/level-two'));
-      assertEquals(res.status, 200);
-      const html = await res.text();
-      assert(html.includes('[nesting-ts-md] .md BEFORE slot'), 'should contain root wrapper');
-      assert(html.includes('[lvl-one-ts-md] .md BEFORE slot'), 'should contain lvl-one wrapper');
-      assert(
-        html.includes('[level-two-ts-md] .md BEFORE slot'),
-        'should contain level-two content',
-      );
-    });
-
-    await t.step('nesting-ts-md (.ts+.md) — level 3 (leaf)', async () => {
-      const res = await fetch(baseUrl('/html/nesting-ts-md/lvl-one/level-two/level-three'));
-      assertEquals(res.status, 200);
-      const html = await res.text();
-      assert(html.includes('[nesting-ts-md] .md BEFORE slot'), 'should contain root wrapper');
-      assert(html.includes('[lvl-one-ts-md] .md BEFORE slot'), 'should contain lvl-one wrapper');
-      assert(
-        html.includes('[level-two-ts-md] .md BEFORE slot'),
-        'should contain level-two wrapper',
-      );
-      assert(html.includes('[level-three-ts-md] .md'), 'should contain level-three leaf content');
-    });
-
-    // --- Nesting: .ts only parents + mixed leaves ---
-
-    await t.step('nesting-ts (ts-only parents) — typescript leaf', async () => {
-      const res = await fetch(
-        baseUrl('/html/nesting-ts/lvl-one/level-two/level-three/typescript'),
-      );
-      assertEquals(res.status, 200);
-      const html = await res.text();
-      assert(
-        html.includes('[typescript-leaf] rendered by .ts renderHTML'),
-        'should render typescript leaf via renderHTML override',
-      );
-      assert(
-        !html.includes('BEFORE slot'),
-        'ts-only parents should be transparent passthrough',
-      );
-    });
-
-    await t.step('nesting-ts (ts-only parents) — markdown leaf', async () => {
-      const res = await fetch(
-        baseUrl('/html/nesting-ts/lvl-one/level-two/level-three/markdown'),
-      );
-      assertEquals(res.status, 200);
-      const html = await res.text();
-      assert(
-        html.includes('[markdown-leaf] rendered by .md file'),
-        'should render markdown leaf content',
-      );
-    });
-
-    await t.step('nesting-ts (ts-only parents) — html leaf', async () => {
-      const res = await fetch(baseUrl('/html/nesting-ts/lvl-one/level-two/level-three/html'));
-      assertEquals(res.status, 200);
-      const html = await res.text();
-      assert(
-        html.includes('[html-leaf] rendered by .html file'),
-        'should render html leaf content',
-      );
-    });
-
-    // --- Redirect ---
-
-    await t.step('redirect returns meta refresh', async () => {
-      const res = await fetch(baseUrl('/html/old'), { redirect: 'manual' });
-      assertEquals(res.status, 302);
-      const html = await res.text();
-      assert(html.includes('http-equiv="refresh"'), 'should contain meta refresh');
-      assert(html.includes('/about'), 'should contain redirect target');
-    });
-
-    // --- 404 ---
-
-    await t.step('returns 404 for unknown routes', async () => {
-      const res = await fetch(baseUrl('/html/nonexistent'));
-      assertEquals(res.status, 404);
-      const html = await res.text();
-      assert(html.includes('Oops'), 'should contain custom 404 page content');
-    });
-
-    // --- Widgets in HTML: SSR rendering ---
-
-    await t.step('widgets in .page.html are rendered server-side with ssr attribute', async () => {
-      const res = await fetch(baseUrl('/html/widgets-html'));
-      assertEquals(res.status, 200);
-      const html = await res.text();
-      assert(html.includes('Widgets in HTML'), 'should contain page title');
-      // Greeting widget (no params) should be rendered with ssr
-      assert(html.includes('Hello, World!'), 'should render greeting widget with default name');
-      assert(
-        html.includes(' ssr ') || html.includes(' ssr>'),
-        'should have ssr attribute on rendered widgets',
-      );
-      // Greeting widget (with name param) should use the param
-      assert(html.includes('Hello, Developer!'), 'should render greeting widget with name param');
-      // Info card widget should be rendered
-      assert(html.includes('SSR Widget'), 'should render info card title');
-      assert(html.includes('Rendered on the server.'), 'should render info card description');
-      // Failing widget should be left as-is (getData throws)
-      assert(html.includes('<widget-failing'), 'should leave failing widget as-is');
-    });
-
-    // --- Widgets in Markdown: SSR rendering ---
-
-    await t.step('widgets in .page.md are rendered server-side via resolveWidgetTags', async () => {
-      const res = await fetch(baseUrl('/html/widgets'));
-      assertEquals(res.status, 200);
-      const html = await res.text();
-      assert(html.includes('Widgets in Markdown'), 'should contain page heading');
-      // After markdown expansion, widget fenced blocks become <widget-*> elements
-      // Then resolveWidgetTags renders them with ssr attribute
-      assert(html.includes('Hello, World!'), 'should render greeting widget (no params)');
-      assert(html.includes('Hello, Developer!'), 'should render greeting widget (with name)');
-      assert(html.includes('Widget Rendering'), 'should render info card title');
-    });
-
-    // --- File-backed widgets: SSR rendering ---
-
-    await t.step('file-backed widget renders HTML from static file', async () => {
-      const res = await fetch(baseUrl('/html/widget-files'));
-      assertEquals(res.status, 200);
-      const html = await res.text();
-      assert(html.includes('Widget Files in HTML'), 'should contain page title');
-      // File widget should have loaded its HTML from the static file
-      assert(
-        html.includes('This HTML was loaded from a static file'),
-        'should render file widget from static HTML file',
-      );
-      assert(
-        html.includes(' ssr ') || html.includes(' ssr>'),
-        'file widget should have ssr attribute',
-      );
-      // Greeting widget (no files) should still work as before
-      assert(html.includes('Hello, World!'), 'greeting widget without files still works');
-    });
-
-    await t.step('remote widget renders HTML from absolute URL', async () => {
-      const res = await fetch(baseUrl('/html/widget-files'));
-      assertEquals(res.status, 200);
-      const html = await res.text();
-      assert(
-        html.includes('This HTML was loaded from an absolute URL'),
-        'should render remote widget from absolute URL',
-      );
-    });
-
-    // --- CSS file injection: page ---
-
-    await t.step('.page.css injects <style> tag into SSR HTML', async () => {
-      const res = await fetch(baseUrl('/html/about'));
-      assertEquals(res.status, 200);
-      const html = await res.text();
-      assert(html.includes('<style>'), 'should contain <style> tag from .page.css');
-      assert(html.includes('.about-page h1'), 'should contain CSS content from about.page.css');
-      assert(html.includes('border-bottom'), 'should contain full CSS rule');
-      // Style should appear before the HTML content
-      const styleIdx = html.indexOf('<style>');
-      const h1Idx = html.indexOf('<h1>About</h1>');
-      assert(styleIdx < h1Idx, '<style> should appear before page content');
-    });
-
-    // --- CSS file injection: widget (local) ---
-
-    await t.step('file-backed widget with CSS injects @scope-wrapped <style> tag', async () => {
-      const res = await fetch(baseUrl('/html/widget-files'));
-      assertEquals(res.status, 200);
-      const html = await res.text();
-      assert(html.includes('<style>'), 'should contain <style> tag from widget CSS');
-      assert(
-        html.includes('@scope (widget-file-widget)'),
-        'should wrap CSS in @scope for widget element',
-      );
-      assert(html.includes('.widget-file'), 'should contain local widget CSS content');
-      assert(html.includes('border-radius'), 'should contain full CSS rule from local file');
-    });
-
-    // --- CSS file injection: widget (remote/absolute URL) ---
-
-    await t.step('remote widget with CSS injects <style> tag from absolute URL', async () => {
-      const res = await fetch(baseUrl('/html/widget-files'));
-      assertEquals(res.status, 200);
-      const html = await res.text();
-      assert(html.includes('.widget-remote'), 'should contain remote widget CSS content');
-      assert(html.includes('border-left'), 'should contain full CSS rule from remote file');
-    });
-
-    // --- Mixed widgets: auto-discovered + manual registry ---
-
-    await t.step('auto-discovered widget renders in mixed-widgets page', async () => {
-      const res = await fetch(baseUrl('/html/mixed-widgets'));
-      assertEquals(res.status, 200);
-      const html = await res.text();
-      assert(
-        html.includes('<widget-greeting'),
-        'should contain auto-discovered greeting widget tag',
-      );
-      assert(
-        html.includes(' ssr ') || html.includes(' ssr>'),
-        'greeting widget should have ssr attribute',
-      );
-    });
-
-    await t.step('lazy widget is still pre-rendered server-side', async () => {
-      const res = await fetch(baseUrl('/html/mixed-widgets'));
-      assertEquals(res.status, 200);
-      const html = await res.text();
-      assert(
-        html.includes('<widget-greeting lazy'),
-        'should preserve lazy attribute on widget tag',
-      );
-      assert(html.includes('Hello, Lazy!'), 'SSR should render lazy widget content');
-      assert(
-        html.includes(' ssr ') || html.includes(' ssr>'),
-        'lazy widget should have ssr attribute',
-      );
-    });
-
-    await t.step('manually-registered external widget renders in mixed-widgets page', async () => {
-      const res = await fetch(baseUrl('/html/mixed-widgets'));
-      assertEquals(res.status, 200);
-      const html = await res.text();
-      assert(
-        html.includes('<widget-external'),
-        'should contain manually-registered external widget tag',
-      );
-      assert(
-        html.includes('External widget from manual-registry'),
-        'external widget should render with SSR content',
-      );
-    });
-
-    // --- main.css auto-injection ---
-
-    await t.step('main.css is auto-injected as <link> in <head>', async () => {
-      const res = await fetch(baseUrl('/html/'));
-      assertEquals(res.status, 200);
-      const html = await res.text();
-      assert(
-        html.includes('<link rel="stylesheet" href="/main.css">'),
-        'should contain <link> for main.css',
-      );
-      const linkIdx = html.indexOf('<link rel="stylesheet" href="/main.css">');
-      const headEndIdx = html.indexOf('</head>');
-      assert(linkIdx < headEndIdx, 'main.css link should appear inside <head>');
-    });
-
-    // --- Error: getData throws ---
-
-    await t.step('getData() throw returns 500 with root error handler', async () => {
-      const res = await fetch(baseUrl('/html/crash'));
-      assertEquals(res.status, 500);
-      const html = await res.text();
-      assert(html.includes('Something Went Wrong'), 'should render root error handler');
-    });
-
+  afterAll(() => {
     server.stop();
-  },
-);
+  });
+
+  // --- .page.md ---
+
+  test('.page.md renders expanded markdown as HTML', async () => {
+    const res = await fetch(baseUrl('/html/'));
+    expect(res.status).toEqual(200);
+    const html = await res.text();
+    expect(html.includes('<mark-down>')).toBe(false);
+    expect(html).toContain('emroute');
+  });
+
+  // --- .page.html ---
+
+  test('.page.html renders HTML content directly', async () => {
+    const res = await fetch(baseUrl('/html/about'));
+    expect(res.status).toEqual(200);
+    const html = await res.text();
+    expect(html).toContain('<h1>About</h1>');
+    expect(html).toContain('About Page');
+    expect(html).toContain('section-1');
+    expect(html).toContain('<widget-failing');
+  });
+
+  // --- .page.ts ---
+
+  test('.page.ts component renders with getData', async () => {
+    const res = await fetch(baseUrl('/html/projects/42'));
+    expect(res.status).toEqual(200);
+    const html = await res.text();
+    expect(html).toContain('Project 42');
+    expect(html).toContain('ID: 42');
+  });
+
+  // --- .page.ts + .page.html (params) ---
+
+  test('.page.ts + .page.html replaces template slots from params', async () => {
+    const res = await fetch(baseUrl('/html/docs'));
+    expect(res.status).toEqual(200);
+    const html = await res.text();
+    expect(html).toContain('Topic: general');
+    expect(html).toContain('Documentation');
+  });
+
+  // --- .page.ts + .page.html (getData) ---
+
+  test('.page.ts + .page.html injects getData into template', async () => {
+    const res = await fetch(baseUrl('/html/profile'));
+    expect(res.status).toEqual(200);
+    const html = await res.text();
+    expect(html).toContain('Alice');
+    expect(html).toContain('Role: Engineer');
+    expect(html).toContain('Builds things.');
+  });
+
+  // --- .page.ts + .page.md ---
+
+  test('.page.ts + .page.md renders markdown + custom content', async () => {
+    const res = await fetch(baseUrl('/html/blog'));
+    expect(res.status).toEqual(200);
+    const html = await res.text();
+    expect(html).toContain('Blog');
+    expect(html).toContain('Posts: 0');
+  });
+
+  // --- Nested dynamic ---
+
+  test('nested dynamic route renders full hierarchy', async () => {
+    const res = await fetch(baseUrl('/html/projects/42/tasks'));
+    expect(res.status).toEqual(200);
+    const html = await res.text();
+    expect(html).toContain('Project 42');
+    expect(html).toContain('Tasks for 42');
+    expect(html).toContain('Task A for 42');
+  });
+
+  // --- Flat file vs directory index ---
+
+  test('flat file renders exact match', async () => {
+    const res = await fetch(baseUrl('/html/projects'));
+    expect(res.status).toEqual(200);
+    const html = await res.text();
+    expect(html).toContain('All Projects');
+  });
+
+  test('directory index catches unmatched children', async () => {
+    const res = await fetch(baseUrl('/html/projects/unknown/extra'));
+    expect(res.status).toEqual(200);
+    const html = await res.text();
+    expect(html).toContain('Project Hub');
+  });
+
+  // --- Nesting: .html + .md (4 levels) ---
+
+  test('nesting (.html+.md) — root level', async () => {
+    const res = await fetch(baseUrl('/html/nesting'));
+    expect(res.status).toEqual(200);
+    const html = await res.text();
+    expect(html).toContain('[nesting] .html BEFORE slot');
+    expect(html).toContain('[nesting] .html AFTER slot');
+  });
+
+  test('nesting (.html+.md) — level 1', async () => {
+    const res = await fetch(baseUrl('/html/nesting/lvl-one'));
+    expect(res.status).toEqual(200);
+    const html = await res.text();
+    expect(html).toContain('[nesting] .html BEFORE slot');
+    expect(html).toContain('[lvl-one] .html BEFORE slot');
+    expect(html).toContain('[lvl-one] .html AFTER slot');
+  });
+
+  test('nesting (.html+.md) — level 2', async () => {
+    const res = await fetch(baseUrl('/html/nesting/lvl-one/level-two'));
+    expect(res.status).toEqual(200);
+    const html = await res.text();
+    expect(html).toContain('[nesting] .html BEFORE slot');
+    expect(html).toContain('[lvl-one] .html BEFORE slot');
+    expect(html).toContain('[level-two] .html BEFORE slot');
+  });
+
+  test('nesting (.html+.md) — level 3 (leaf)', async () => {
+    const res = await fetch(baseUrl('/html/nesting/lvl-one/level-two/level-three'));
+    expect(res.status).toEqual(200);
+    const html = await res.text();
+    expect(html).toContain('[nesting] .html BEFORE slot');
+    expect(html).toContain('[lvl-one] .html BEFORE slot');
+    expect(html).toContain('[level-two] .html BEFORE slot');
+    expect(html).toContain('[level-three] .html BEFORE slot');
+    expect(html).toContain('[level-three] .html AFTER slot');
+  });
+
+  // --- Nesting: .ts + .html (4 levels) ---
+
+  test('nesting-ts-html (.ts+.html) — root level', async () => {
+    const res = await fetch(baseUrl('/html/nesting-ts-html'));
+    expect(res.status).toEqual(200);
+    const html = await res.text();
+    expect(html).toContain('[nesting-ts-html] .html BEFORE slot');
+  });
+
+  test('nesting-ts-html (.ts+.html) — level 1', async () => {
+    const res = await fetch(baseUrl('/html/nesting-ts-html/lvl-one'));
+    expect(res.status).toEqual(200);
+    const html = await res.text();
+    expect(html).toContain('[nesting-ts-html] .html BEFORE slot');
+    expect(html).toContain('[lvl-one-ts-html] .html BEFORE slot');
+  });
+
+  test('nesting-ts-html (.ts+.html) — level 2', async () => {
+    const res = await fetch(baseUrl('/html/nesting-ts-html/lvl-one/level-two'));
+    expect(res.status).toEqual(200);
+    const html = await res.text();
+    expect(html).toContain('[nesting-ts-html] .html BEFORE slot');
+    expect(html).toContain('[lvl-one-ts-html] .html BEFORE slot');
+    expect(html).toContain('[level-two-ts-html] .html BEFORE slot');
+  });
+
+  test('nesting-ts-html (.ts+.html) — level 3 (leaf)', async () => {
+    const res = await fetch(baseUrl('/html/nesting-ts-html/lvl-one/level-two/level-three'));
+    expect(res.status).toEqual(200);
+    const html = await res.text();
+    expect(html).toContain('[nesting-ts-html] .html BEFORE slot');
+    expect(html).toContain('[lvl-one-ts-html] .html BEFORE slot');
+    expect(html).toContain('[level-two-ts-html] .html BEFORE slot');
+    expect(html).toContain('[level-three-ts-html] .html');
+  });
+
+  // --- Nesting: .ts + .md (4 levels) ---
+
+  test('nesting-ts-md (.ts+.md) — root level', async () => {
+    const res = await fetch(baseUrl('/html/nesting-ts-md'));
+    expect(res.status).toEqual(200);
+    const html = await res.text();
+    expect(html).toContain('[nesting-ts-md] .md BEFORE slot');
+  });
+
+  test('nesting-ts-md (.ts+.md) — level 1', async () => {
+    const res = await fetch(baseUrl('/html/nesting-ts-md/lvl-one'));
+    expect(res.status).toEqual(200);
+    const html = await res.text();
+    expect(html).toContain('[nesting-ts-md] .md BEFORE slot');
+    expect(html).toContain('[lvl-one-ts-md] .md BEFORE slot');
+  });
+
+  test('nesting-ts-md (.ts+.md) — level 2', async () => {
+    const res = await fetch(baseUrl('/html/nesting-ts-md/lvl-one/level-two'));
+    expect(res.status).toEqual(200);
+    const html = await res.text();
+    expect(html).toContain('[nesting-ts-md] .md BEFORE slot');
+    expect(html).toContain('[lvl-one-ts-md] .md BEFORE slot');
+    expect(html).toContain('[level-two-ts-md] .md BEFORE slot');
+  });
+
+  test('nesting-ts-md (.ts+.md) — level 3 (leaf)', async () => {
+    const res = await fetch(baseUrl('/html/nesting-ts-md/lvl-one/level-two/level-three'));
+    expect(res.status).toEqual(200);
+    const html = await res.text();
+    expect(html).toContain('[nesting-ts-md] .md BEFORE slot');
+    expect(html).toContain('[lvl-one-ts-md] .md BEFORE slot');
+    expect(html).toContain('[level-two-ts-md] .md BEFORE slot');
+    expect(html).toContain('[level-three-ts-md] .md');
+  });
+
+  // --- Nesting: .ts only parents + mixed leaves ---
+
+  test('nesting-ts (ts-only parents) — typescript leaf', async () => {
+    const res = await fetch(
+      baseUrl('/html/nesting-ts/lvl-one/level-two/level-three/typescript'),
+    );
+    expect(res.status).toEqual(200);
+    const html = await res.text();
+    expect(html).toContain('[typescript-leaf] rendered by .ts renderHTML');
+    expect(html.includes('BEFORE slot')).toBe(false);
+  });
+
+  test('nesting-ts (ts-only parents) — markdown leaf', async () => {
+    const res = await fetch(
+      baseUrl('/html/nesting-ts/lvl-one/level-two/level-three/markdown'),
+    );
+    expect(res.status).toEqual(200);
+    const html = await res.text();
+    expect(html).toContain('[markdown-leaf] rendered by .md file');
+  });
+
+  test('nesting-ts (ts-only parents) — html leaf', async () => {
+    const res = await fetch(baseUrl('/html/nesting-ts/lvl-one/level-two/level-three/html'));
+    expect(res.status).toEqual(200);
+    const html = await res.text();
+    expect(html).toContain('[html-leaf] rendered by .html file');
+  });
+
+  // --- Redirect ---
+
+  test('redirect returns meta refresh', async () => {
+    const res = await fetch(baseUrl('/html/old'), { redirect: 'manual' });
+    expect(res.status).toEqual(302);
+    const html = await res.text();
+    expect(html).toContain('http-equiv="refresh"');
+    expect(html).toContain('/about');
+  });
+
+  // --- 404 ---
+
+  test('returns 404 for unknown routes', async () => {
+    const res = await fetch(baseUrl('/html/nonexistent'));
+    expect(res.status).toEqual(404);
+    const html = await res.text();
+    expect(html).toContain('Oops');
+  });
+
+  // --- Widgets in HTML: SSR rendering ---
+
+  test('widgets in .page.html are rendered server-side with ssr attribute', async () => {
+    const res = await fetch(baseUrl('/html/widgets-html'));
+    expect(res.status).toEqual(200);
+    const html = await res.text();
+    expect(html).toContain('Widgets in HTML');
+    expect(html).toContain('Hello, World!');
+    expect(html.includes(' ssr ') || html.includes(' ssr>')).toBeTruthy();
+    expect(html).toContain('Hello, Developer!');
+    expect(html).toContain('SSR Widget');
+    expect(html).toContain('Rendered on the server.');
+    expect(html).toContain('<widget-failing');
+  });
+
+  // --- Widgets in Markdown: SSR rendering ---
+
+  test('widgets in .page.md are rendered server-side via resolveWidgetTags', async () => {
+    const res = await fetch(baseUrl('/html/widgets'));
+    expect(res.status).toEqual(200);
+    const html = await res.text();
+    expect(html).toContain('Widgets in Markdown');
+    expect(html).toContain('Hello, World!');
+    expect(html).toContain('Hello, Developer!');
+    expect(html).toContain('Widget Rendering');
+  });
+
+  // --- File-backed widgets: SSR rendering ---
+
+  test('file-backed widget renders HTML from static file', async () => {
+    const res = await fetch(baseUrl('/html/widget-files'));
+    expect(res.status).toEqual(200);
+    const html = await res.text();
+    expect(html).toContain('Widget Files in HTML');
+    expect(html).toContain('This HTML was loaded from a static file');
+    expect(html.includes(' ssr ') || html.includes(' ssr>')).toBeTruthy();
+    expect(html).toContain('Hello, World!');
+  });
+
+  test('remote widget renders HTML from absolute URL', async () => {
+    const res = await fetch(baseUrl('/html/widget-files'));
+    expect(res.status).toEqual(200);
+    const html = await res.text();
+    expect(html).toContain('This HTML was loaded from an absolute URL');
+  });
+
+  // --- CSS file injection: page ---
+
+  test('.page.css injects <style> tag into SSR HTML', async () => {
+    const res = await fetch(baseUrl('/html/about'));
+    expect(res.status).toEqual(200);
+    const html = await res.text();
+    expect(html).toContain('<style>');
+    expect(html).toContain('.about-page h1');
+    expect(html).toContain('border-bottom');
+    const styleIdx = html.indexOf('<style>');
+    const h1Idx = html.indexOf('<h1>About</h1>');
+    expect(styleIdx < h1Idx).toBeTruthy();
+  });
+
+  // --- CSS file injection: widget (local) ---
+
+  test('file-backed widget with CSS injects @scope-wrapped <style> tag', async () => {
+    const res = await fetch(baseUrl('/html/widget-files'));
+    expect(res.status).toEqual(200);
+    const html = await res.text();
+    expect(html).toContain('<style>');
+    expect(html).toContain('@scope (widget-file-widget)');
+    expect(html).toContain('.widget-file');
+    expect(html).toContain('border-radius');
+  });
+
+  // --- CSS file injection: widget (remote/absolute URL) ---
+
+  test('remote widget with CSS injects <style> tag from absolute URL', async () => {
+    const res = await fetch(baseUrl('/html/widget-files'));
+    expect(res.status).toEqual(200);
+    const html = await res.text();
+    expect(html).toContain('.widget-remote');
+    expect(html).toContain('border-left');
+  });
+
+  // --- Mixed widgets: auto-discovered + manual registry ---
+
+  test('auto-discovered widget renders in mixed-widgets page', async () => {
+    const res = await fetch(baseUrl('/html/mixed-widgets'));
+    expect(res.status).toEqual(200);
+    const html = await res.text();
+    expect(html).toContain('<widget-greeting');
+    expect(html.includes(' ssr ') || html.includes(' ssr>')).toBeTruthy();
+  });
+
+  test('lazy widget is still pre-rendered server-side', async () => {
+    const res = await fetch(baseUrl('/html/mixed-widgets'));
+    expect(res.status).toEqual(200);
+    const html = await res.text();
+    expect(html).toContain('<widget-greeting lazy');
+    expect(html).toContain('Hello, Lazy!');
+    expect(html.includes(' ssr ') || html.includes(' ssr>')).toBeTruthy();
+  });
+
+  test('manually-registered external widget renders in mixed-widgets page', async () => {
+    const res = await fetch(baseUrl('/html/mixed-widgets'));
+    expect(res.status).toEqual(200);
+    const html = await res.text();
+    expect(html).toContain('<widget-external');
+    expect(html).toContain('External widget from manual-registry');
+  });
+
+  // --- main.css auto-injection ---
+
+  test('main.css is auto-injected as <link> in <head>', async () => {
+    const res = await fetch(baseUrl('/html/'));
+    expect(res.status).toEqual(200);
+    const html = await res.text();
+    expect(html).toContain('<link rel="stylesheet" href="/main.css">');
+    const linkIdx = html.indexOf('<link rel="stylesheet" href="/main.css">');
+    const headEndIdx = html.indexOf('</head>');
+    expect(linkIdx < headEndIdx).toBeTruthy();
+  });
+
+  // --- Error: getData throws ---
+
+  test('getData() throw returns 500 with root error handler', async () => {
+    const res = await fetch(baseUrl('/html/crash'));
+    expect(res.status).toEqual(500);
+    const html = await res.text();
+    expect(html).toContain('Something Went Wrong');
+  });
+});
 
 // ── SSR Markdown ─────────────────────────────────────────────────────
 
-Deno.test(
-  { name: 'SSR Markdown renderer', sanitizeResources: false, sanitizeOps: false },
-  async (t) => {
+describe('SSR Markdown renderer', () => {
+  beforeAll(async () => {
     server = await createTestServer({ mode: 'none', port: 4101 });
+  });
 
-    // --- .page.md ---
-
-    await t.step('.page.md returns raw markdown content', async () => {
-      const res = await fetch(baseUrl('/md/'));
-      assertEquals(res.status, 200);
-      assertEquals(
-        res.headers.get('content-type'),
-        'text/markdown; charset=utf-8; variant=CommonMark',
-      );
-      const md = await res.text();
-      assert(md.includes('# emroute'), 'should contain markdown heading');
-      assert(
-        md.includes('[About](/html/about)'),
-        'should contain markdown link with /html/ prefix',
-      );
-    });
-
-    // --- .page.html ---
-
-    await t.step('.page.html + .page.md returns markdown content', async () => {
-      const res = await fetch(baseUrl('/md/about'));
-      assertEquals(res.status, 200);
-      const md = await res.text();
-      assert(md.includes('About (from markdown)'), 'should contain markdown file content');
-    });
-
-    // --- .page.ts ---
-
-    await t.step('.page.ts component renders via renderMarkdown', async () => {
-      const res = await fetch(baseUrl('/md/projects/42'));
-      assertEquals(res.status, 200);
-      const md = await res.text();
-      assert(md.includes('# Project 42'), 'should contain project heading');
-    });
-
-    // --- .page.ts + .page.html (params) ---
-
-    await t.step('.page.ts + .page.html uses renderMarkdown override', async () => {
-      const res = await fetch(baseUrl('/md/docs'));
-      assertEquals(res.status, 200);
-      const md = await res.text();
-      assert(md.includes('# Docs'), 'should contain docs markdown from override');
-    });
-
-    // --- .page.ts + .page.html (getData) ---
-
-    await t.step('.page.ts + .page.html renders markdown from getData', async () => {
-      const res = await fetch(baseUrl('/md/profile'));
-      assertEquals(res.status, 200);
-      const md = await res.text();
-      assert(md.includes('# Alice'), 'should contain name from getData');
-      assert(md.includes('Engineer'), 'should contain role');
-    });
-
-    // --- .page.ts + .page.md ---
-
-    await t.step('.page.ts + .page.md returns markdown from context', async () => {
-      const res = await fetch(baseUrl('/md/blog'));
-      assertEquals(res.status, 200);
-      const md = await res.text();
-      assert(md.includes('# Blog'), 'should contain blog heading from md file');
-    });
-
-    // --- Nested dynamic ---
-
-    await t.step('nested dynamic route renders full hierarchy', async () => {
-      const res = await fetch(baseUrl('/md/projects/42/tasks'));
-      assertEquals(res.status, 200);
-      const md = await res.text();
-      assert(md.includes('# Project 42'), 'should contain parent project');
-      assert(md.includes('# Tasks for 42'), 'should contain tasks heading');
-      assert(md.includes('- Task A for 42'), 'should contain task items');
-    });
-
-    // --- Flat file vs directory index ---
-
-    await t.step('flat file renders exact match', async () => {
-      const res = await fetch(baseUrl('/md/projects'));
-      assertEquals(res.status, 200);
-      const md = await res.text();
-      assert(md.includes('All Projects'), 'should contain flat file content');
-    });
-
-    await t.step('directory index catches unmatched children', async () => {
-      const res = await fetch(baseUrl('/md/projects/unknown/extra'));
-      assertEquals(res.status, 200);
-      const md = await res.text();
-      assert(md.includes('Project Hub'), 'should contain directory index content');
-    });
-
-    // --- Nesting: .html + .md (4 levels) ---
-
-    await t.step('nesting (.html+.md) — root level markdown', async () => {
-      const res = await fetch(baseUrl('/md/nesting'));
-      assertEquals(res.status, 200);
-      const md = await res.text();
-      assert(
-        md.includes('[nesting] .md BEFORE slot'),
-        'should contain nesting root markdown content',
-      );
-      assert(
-        md.includes('[nesting] .md AFTER slot'),
-        'should contain nesting root markdown footer',
-      );
-    });
-
-    await t.step('nesting (.html+.md) — level 1 markdown', async () => {
-      const res = await fetch(baseUrl('/md/nesting/lvl-one'));
-      assertEquals(res.status, 200);
-      const md = await res.text();
-      assert(md.includes('[nesting] .md BEFORE slot'), 'should contain root wrapper');
-      assert(md.includes('[lvl-one] .md BEFORE slot'), 'should contain lvl-one markdown');
-      assert(md.includes('[lvl-one] .md AFTER slot'), 'should contain lvl-one footer');
-    });
-
-    await t.step('nesting (.html+.md) — level 2 markdown', async () => {
-      const res = await fetch(baseUrl('/md/nesting/lvl-one/level-two'));
-      assertEquals(res.status, 200);
-      const md = await res.text();
-      assert(md.includes('[nesting] .md BEFORE slot'), 'should contain root wrapper');
-      assert(md.includes('[lvl-one] .md BEFORE slot'), 'should contain lvl-one wrapper');
-      assert(md.includes('[level-two] .md BEFORE slot'), 'should contain level-two markdown');
-    });
-
-    await t.step('nesting (.html+.md) — level 3 markdown (leaf)', async () => {
-      const res = await fetch(baseUrl('/md/nesting/lvl-one/level-two/level-three'));
-      assertEquals(res.status, 200);
-      const md = await res.text();
-      assert(md.includes('[nesting] .md BEFORE slot'), 'should contain root wrapper');
-      assert(md.includes('[lvl-one] .md BEFORE slot'), 'should contain lvl-one wrapper');
-      assert(md.includes('[level-two] .md BEFORE slot'), 'should contain level-two wrapper');
-      assert(md.includes('[level-three] .md'), 'should contain level-three leaf markdown');
-    });
-
-    // --- Nesting: .ts + .html (no .md) — expected root-only behavior ---
-
-    await t.step('nesting-ts-html (.ts+.html, no .md) — root only visible', async () => {
-      const res = await fetch(baseUrl('/md/nesting-ts-html'));
-      assertEquals(res.status, 200);
-      const md = await res.text();
-      assert(
-        md.includes('[nesting-ts-html] .md BEFORE slot') === false,
-        'should not have markdown content (no .md file)',
-      );
-    });
-
-    await t.step('nesting-ts-html — level 1 (root-only expected)', async () => {
-      const res = await fetch(baseUrl('/md/nesting-ts-html/lvl-one'));
-      assertEquals(res.status, 200);
-      const md = await res.text();
-      const hasNoVisibleNesting = !md.includes('[lvl-one] .md BEFORE slot');
-      assert(
-        hasNoVisibleNesting,
-        'level without .md file should be invisible in SSR Markdown',
-      );
-    });
-
-    // --- Nesting: .ts + .md (4 levels) ---
-
-    await t.step('nesting-ts-md (.ts+.md) — root level markdown', async () => {
-      const res = await fetch(baseUrl('/md/nesting-ts-md'));
-      assertEquals(res.status, 200);
-      const md = await res.text();
-      assert(
-        md.includes('[nesting-ts-md] .md BEFORE slot'),
-        'should contain root markdown content',
-      );
-    });
-
-    await t.step('nesting-ts-md (.ts+.md) — level 1 markdown', async () => {
-      const res = await fetch(baseUrl('/md/nesting-ts-md/lvl-one'));
-      assertEquals(res.status, 200);
-      const md = await res.text();
-      assert(md.includes('[nesting-ts-md] .md BEFORE slot'), 'should contain root wrapper');
-      assert(md.includes('[lvl-one-ts-md] .md BEFORE slot'), 'should contain lvl-one markdown');
-    });
-
-    await t.step('nesting-ts-md (.ts+.md) — level 2 markdown', async () => {
-      const res = await fetch(baseUrl('/md/nesting-ts-md/lvl-one/level-two'));
-      assertEquals(res.status, 200);
-      const md = await res.text();
-      assert(md.includes('[nesting-ts-md] .md BEFORE slot'), 'should contain root wrapper');
-      assert(md.includes('[lvl-one-ts-md] .md BEFORE slot'), 'should contain lvl-one wrapper');
-      assert(md.includes('[level-two-ts-md] .md BEFORE slot'), 'should contain level-two markdown');
-    });
-
-    await t.step('nesting-ts-md (.ts+.md) — level 3 markdown (leaf)', async () => {
-      const res = await fetch(baseUrl('/md/nesting-ts-md/lvl-one/level-two/level-three'));
-      assertEquals(res.status, 200);
-      const md = await res.text();
-      assert(md.includes('[nesting-ts-md] .md BEFORE slot'), 'should contain root wrapper');
-      assert(md.includes('[lvl-one-ts-md] .md BEFORE slot'), 'should contain lvl-one wrapper');
-      assert(md.includes('[level-two-ts-md] .md BEFORE slot'), 'should contain level-two wrapper');
-      assert(md.includes('[level-three-ts-md] .md'), 'should contain level-three leaf markdown');
-    });
-
-    // --- Nesting: .ts only parents + mixed leaves ---
-
-    await t.step('nesting-ts (ts-only parents) — typescript leaf markdown', async () => {
-      const res = await fetch(
-        baseUrl('/md/nesting-ts/lvl-one/level-two/level-three/typescript'),
-      );
-      assertEquals(res.status, 200);
-      const md = await res.text();
-      assert(
-        md.includes('[typescript-leaf] rendered by .ts renderMarkdown'),
-        'should render typescript leaf via renderMarkdown override',
-      );
-    });
-
-    await t.step('nesting-ts (ts-only parents) — markdown leaf', async () => {
-      const res = await fetch(
-        baseUrl('/md/nesting-ts/lvl-one/level-two/level-three/markdown'),
-      );
-      assertEquals(res.status, 200);
-      const md = await res.text();
-      assert(
-        md.includes('[markdown-leaf] rendered by .md file'),
-        'should render markdown leaf content',
-      );
-    });
-
-    await t.step('nesting-ts (ts-only parents) — html leaf (no .md, root-only)', async () => {
-      const res = await fetch(baseUrl('/md/nesting-ts/lvl-one/level-two/level-three/html'));
-      assertEquals(res.status, 200);
-      const md = await res.text();
-      const hasNoVisibleContent = !md.includes('[html-leaf] .md');
-      assert(hasNoVisibleContent, 'html-only leaf should be invisible in SSR Markdown');
-    });
-
-    // --- Redirect ---
-
-    await t.step('redirect returns plain text with target', async () => {
-      const res = await fetch(baseUrl('/md/old'), { redirect: 'manual' });
-      assertEquals(res.status, 302);
-      const md = await res.text();
-      assert(md.includes('/about'), 'should contain redirect target');
-    });
-
-    // --- 404 ---
-
-    await t.step('returns 404 for unknown routes', async () => {
-      const res = await fetch(baseUrl('/md/nonexistent'));
-      assertEquals(res.status, 404);
-      const md = await res.text();
-      assert(md.includes('Oops'), 'should contain custom 404 page content');
-    });
-
-    // --- Widgets in Markdown: SSR rendering ---
-
-    await t.step('widgets in .page.md are resolved to renderMarkdown() output', async () => {
-      const res = await fetch(baseUrl('/md/widgets'));
-      assertEquals(res.status, 200);
-      const md = await res.text();
-      assert(md.includes('Widgets in Markdown'), 'should contain page heading');
-      assert(md.includes('Hello, World!'), 'should resolve greeting widget (no params)');
-      assert(md.includes('Hello, Developer!'), 'should resolve greeting widget (with name)');
-      assert(
-        md.includes('[SSR] Widget Rendering'),
-        'should resolve info card with badge and title',
-      );
-      assert(
-        md.includes('Widget data fetch failed') || md.includes('Error'),
-        'should show error for failing widget',
-      );
-      assert(!md.includes('```widget:'), 'should have no unresolved widget blocks');
-    });
-
-    // --- File-backed widgets: SSR markdown rendering ---
-
-    await t.step('file-backed widget renders markdown from static file', async () => {
-      const res = await fetch(baseUrl('/md/widget-files-md'));
-      assertEquals(res.status, 200);
-      const md = await res.text();
-      assert(md.includes('Widget Files in Markdown'), 'should contain page heading');
-      assert(
-        md.includes('This markdown was loaded from a static file'),
-        'should render file widget from static MD file',
-      );
-      assert(md.includes('Hello, World!'), 'greeting widget without files still works');
-      assert(!md.includes('```widget:'), 'should have no unresolved widget blocks');
-    });
-
-    // --- Mixed widgets: auto-discovered + manual registry (markdown) ---
-
-    await t.step('mixed widgets render in markdown SSR', async () => {
-      const res = await fetch(baseUrl('/md/mixed-widgets'));
-      assertEquals(res.status, 200);
-      const md = await res.text();
-      assert(md.includes('Hello, World!'), 'auto-discovered greeting widget should render');
-      assert(
-        md.includes('External widget from manual-registry'),
-        'manually-registered external widget should render',
-      );
-    });
-
-    // --- Error: getData throws ---
-
-    await t.step('getData() throw returns 500 with root error handler', async () => {
-      const res = await fetch(baseUrl('/md/crash'));
-      assertEquals(res.status, 500);
-      const md = await res.text();
-      assert(md.includes('Something Went Wrong'), 'should render root error handler');
-    });
-
+  afterAll(() => {
     server.stop();
-  },
-);
+  });
+
+  // --- .page.md ---
+
+  test('.page.md returns raw markdown content', async () => {
+    const res = await fetch(baseUrl('/md/'));
+    expect(res.status).toEqual(200);
+    expect(res.headers.get('content-type')).toEqual(
+      'text/markdown; charset=utf-8; variant=CommonMark',
+    );
+    const md = await res.text();
+    expect(md).toContain('# emroute');
+    expect(md).toContain('[About](/html/about)');
+  });
+
+  // --- .page.html ---
+
+  test('.page.html + .page.md returns markdown content', async () => {
+    const res = await fetch(baseUrl('/md/about'));
+    expect(res.status).toEqual(200);
+    const md = await res.text();
+    expect(md).toContain('About (from markdown)');
+  });
+
+  // --- .page.ts ---
+
+  test('.page.ts component renders via renderMarkdown', async () => {
+    const res = await fetch(baseUrl('/md/projects/42'));
+    expect(res.status).toEqual(200);
+    const md = await res.text();
+    expect(md).toContain('# Project 42');
+  });
+
+  // --- .page.ts + .page.html (params) ---
+
+  test('.page.ts + .page.html uses renderMarkdown override', async () => {
+    const res = await fetch(baseUrl('/md/docs'));
+    expect(res.status).toEqual(200);
+    const md = await res.text();
+    expect(md).toContain('# Docs');
+  });
+
+  // --- .page.ts + .page.html (getData) ---
+
+  test('.page.ts + .page.html renders markdown from getData', async () => {
+    const res = await fetch(baseUrl('/md/profile'));
+    expect(res.status).toEqual(200);
+    const md = await res.text();
+    expect(md).toContain('# Alice');
+    expect(md).toContain('Engineer');
+  });
+
+  // --- .page.ts + .page.md ---
+
+  test('.page.ts + .page.md returns markdown from context', async () => {
+    const res = await fetch(baseUrl('/md/blog'));
+    expect(res.status).toEqual(200);
+    const md = await res.text();
+    expect(md).toContain('# Blog');
+  });
+
+  // --- Nested dynamic ---
+
+  test('nested dynamic route renders full hierarchy', async () => {
+    const res = await fetch(baseUrl('/md/projects/42/tasks'));
+    expect(res.status).toEqual(200);
+    const md = await res.text();
+    expect(md).toContain('# Project 42');
+    expect(md).toContain('# Tasks for 42');
+    expect(md).toContain('- Task A for 42');
+  });
+
+  // --- Flat file vs directory index ---
+
+  test('flat file renders exact match', async () => {
+    const res = await fetch(baseUrl('/md/projects'));
+    expect(res.status).toEqual(200);
+    const md = await res.text();
+    expect(md).toContain('All Projects');
+  });
+
+  test('directory index catches unmatched children', async () => {
+    const res = await fetch(baseUrl('/md/projects/unknown/extra'));
+    expect(res.status).toEqual(200);
+    const md = await res.text();
+    expect(md).toContain('Project Hub');
+  });
+
+  // --- Nesting: .html + .md (4 levels) ---
+
+  test('nesting (.html+.md) — root level markdown', async () => {
+    const res = await fetch(baseUrl('/md/nesting'));
+    expect(res.status).toEqual(200);
+    const md = await res.text();
+    expect(md).toContain('[nesting] .md BEFORE slot');
+    expect(md).toContain('[nesting] .md AFTER slot');
+  });
+
+  test('nesting (.html+.md) — level 1 markdown', async () => {
+    const res = await fetch(baseUrl('/md/nesting/lvl-one'));
+    expect(res.status).toEqual(200);
+    const md = await res.text();
+    expect(md).toContain('[nesting] .md BEFORE slot');
+    expect(md).toContain('[lvl-one] .md BEFORE slot');
+    expect(md).toContain('[lvl-one] .md AFTER slot');
+  });
+
+  test('nesting (.html+.md) — level 2 markdown', async () => {
+    const res = await fetch(baseUrl('/md/nesting/lvl-one/level-two'));
+    expect(res.status).toEqual(200);
+    const md = await res.text();
+    expect(md).toContain('[nesting] .md BEFORE slot');
+    expect(md).toContain('[lvl-one] .md BEFORE slot');
+    expect(md).toContain('[level-two] .md BEFORE slot');
+  });
+
+  test('nesting (.html+.md) — level 3 markdown (leaf)', async () => {
+    const res = await fetch(baseUrl('/md/nesting/lvl-one/level-two/level-three'));
+    expect(res.status).toEqual(200);
+    const md = await res.text();
+    expect(md).toContain('[nesting] .md BEFORE slot');
+    expect(md).toContain('[lvl-one] .md BEFORE slot');
+    expect(md).toContain('[level-two] .md BEFORE slot');
+    expect(md).toContain('[level-three] .md');
+  });
+
+  // --- Nesting: .ts + .html (no .md) — expected root-only behavior ---
+
+  test('nesting-ts-html (.ts+.html, no .md) — root only visible', async () => {
+    const res = await fetch(baseUrl('/md/nesting-ts-html'));
+    expect(res.status).toEqual(200);
+    const md = await res.text();
+    expect(md.includes('[nesting-ts-html] .md BEFORE slot')).toBe(false);
+  });
+
+  test('nesting-ts-html — level 1 (root-only expected)', async () => {
+    const res = await fetch(baseUrl('/md/nesting-ts-html/lvl-one'));
+    expect(res.status).toEqual(200);
+    const md = await res.text();
+    expect(md.includes('[lvl-one] .md BEFORE slot')).toBe(false);
+  });
+
+  // --- Nesting: .ts + .md (4 levels) ---
+
+  test('nesting-ts-md (.ts+.md) — root level markdown', async () => {
+    const res = await fetch(baseUrl('/md/nesting-ts-md'));
+    expect(res.status).toEqual(200);
+    const md = await res.text();
+    expect(md).toContain('[nesting-ts-md] .md BEFORE slot');
+  });
+
+  test('nesting-ts-md (.ts+.md) — level 1 markdown', async () => {
+    const res = await fetch(baseUrl('/md/nesting-ts-md/lvl-one'));
+    expect(res.status).toEqual(200);
+    const md = await res.text();
+    expect(md).toContain('[nesting-ts-md] .md BEFORE slot');
+    expect(md).toContain('[lvl-one-ts-md] .md BEFORE slot');
+  });
+
+  test('nesting-ts-md (.ts+.md) — level 2 markdown', async () => {
+    const res = await fetch(baseUrl('/md/nesting-ts-md/lvl-one/level-two'));
+    expect(res.status).toEqual(200);
+    const md = await res.text();
+    expect(md).toContain('[nesting-ts-md] .md BEFORE slot');
+    expect(md).toContain('[lvl-one-ts-md] .md BEFORE slot');
+    expect(md).toContain('[level-two-ts-md] .md BEFORE slot');
+  });
+
+  test('nesting-ts-md (.ts+.md) — level 3 markdown (leaf)', async () => {
+    const res = await fetch(baseUrl('/md/nesting-ts-md/lvl-one/level-two/level-three'));
+    expect(res.status).toEqual(200);
+    const md = await res.text();
+    expect(md).toContain('[nesting-ts-md] .md BEFORE slot');
+    expect(md).toContain('[lvl-one-ts-md] .md BEFORE slot');
+    expect(md).toContain('[level-two-ts-md] .md BEFORE slot');
+    expect(md).toContain('[level-three-ts-md] .md');
+  });
+
+  // --- Nesting: .ts only parents + mixed leaves ---
+
+  test('nesting-ts (ts-only parents) — typescript leaf markdown', async () => {
+    const res = await fetch(
+      baseUrl('/md/nesting-ts/lvl-one/level-two/level-three/typescript'),
+    );
+    expect(res.status).toEqual(200);
+    const md = await res.text();
+    expect(md).toContain('[typescript-leaf] rendered by .ts renderMarkdown');
+  });
+
+  test('nesting-ts (ts-only parents) — markdown leaf', async () => {
+    const res = await fetch(
+      baseUrl('/md/nesting-ts/lvl-one/level-two/level-three/markdown'),
+    );
+    expect(res.status).toEqual(200);
+    const md = await res.text();
+    expect(md).toContain('[markdown-leaf] rendered by .md file');
+  });
+
+  test('nesting-ts (ts-only parents) — html leaf (no .md, root-only)', async () => {
+    const res = await fetch(baseUrl('/md/nesting-ts/lvl-one/level-two/level-three/html'));
+    expect(res.status).toEqual(200);
+    const md = await res.text();
+    expect(md.includes('[html-leaf] .md')).toBe(false);
+  });
+
+  // --- Redirect ---
+
+  test('redirect returns plain text with target', async () => {
+    const res = await fetch(baseUrl('/md/old'), { redirect: 'manual' });
+    expect(res.status).toEqual(302);
+    const md = await res.text();
+    expect(md).toContain('/about');
+  });
+
+  // --- 404 ---
+
+  test('returns 404 for unknown routes', async () => {
+    const res = await fetch(baseUrl('/md/nonexistent'));
+    expect(res.status).toEqual(404);
+    const md = await res.text();
+    expect(md).toContain('Oops');
+  });
+
+  // --- Widgets in Markdown: SSR rendering ---
+
+  test('widgets in .page.md are resolved to renderMarkdown() output', async () => {
+    const res = await fetch(baseUrl('/md/widgets'));
+    expect(res.status).toEqual(200);
+    const md = await res.text();
+    expect(md).toContain('Widgets in Markdown');
+    expect(md).toContain('Hello, World!');
+    expect(md).toContain('Hello, Developer!');
+    expect(md).toContain('[SSR] Widget Rendering');
+    expect(md.includes('Widget data fetch failed') || md.includes('Error')).toBeTruthy();
+    expect(md.includes('```widget:')).toBe(false);
+  });
+
+  // --- File-backed widgets: SSR markdown rendering ---
+
+  test('file-backed widget renders markdown from static file', async () => {
+    const res = await fetch(baseUrl('/md/widget-files-md'));
+    expect(res.status).toEqual(200);
+    const md = await res.text();
+    expect(md).toContain('Widget Files in Markdown');
+    expect(md).toContain('This markdown was loaded from a static file');
+    expect(md).toContain('Hello, World!');
+    expect(md.includes('```widget:')).toBe(false);
+  });
+
+  // --- Mixed widgets: auto-discovered + manual registry (markdown) ---
+
+  test('mixed widgets render in markdown SSR', async () => {
+    const res = await fetch(baseUrl('/md/mixed-widgets'));
+    expect(res.status).toEqual(200);
+    const md = await res.text();
+    expect(md).toContain('Hello, World!');
+    expect(md).toContain('External widget from manual-registry');
+  });
+
+  // --- Error: getData throws ---
+
+  test('getData() throw returns 500 with root error handler', async () => {
+    const res = await fetch(baseUrl('/md/crash'));
+    expect(res.status).toEqual(500);
+    const md = await res.text();
+    expect(md).toContain('Something Went Wrong');
+  });
+});

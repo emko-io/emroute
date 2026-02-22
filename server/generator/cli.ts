@@ -1,11 +1,10 @@
-#!/usr/bin/env -S deno run --allow-read --allow-write
-/// <reference lib="deno.ns" />
+#!/usr/bin/env bun
 
 /**
- * Routes & Widgets Generator CLI (Deno)
+ * Routes & Widgets Generator CLI
  *
  * Usage:
- *   deno run --allow-read --allow-write server/generator/cli.ts [routesDir] [outputFile] [importPath]
+ *   bun server/generator/cli.ts [routesDir] [outputFile] [importPath]
  *       [--widgets widgetsDir widgetsOutput]
  *
  * Arguments:
@@ -22,14 +21,15 @@ import {
   generateRoutesManifest,
 } from './route.generator.ts';
 import { discoverWidgets, generateWidgetsManifestCode } from './widget.generator.ts';
-import { DenoFsRuntime } from '../../runtime/deno/fs/deno-fs.runtime.ts';
+import { BunFsRuntime } from '../../runtime/bun/fs/bun-fs.runtime.ts';
 import { EMROUTE_PACKAGE_SPECIFIER } from '../emroute.server.ts';
 
-const runtime = new DenoFsRuntime(Deno.cwd());
+const args = process.argv.slice(2);
+const runtime = new BunFsRuntime(process.cwd());
 
 async function main() {
-  const widgetsIdx = Deno.args.indexOf('--widgets');
-  const positionalArgs = widgetsIdx >= 0 ? Deno.args.slice(0, widgetsIdx) : [...Deno.args];
+  const widgetsIdx = args.indexOf('--widgets');
+  const positionalArgs = widgetsIdx >= 0 ? args.slice(0, widgetsIdx) : [...args];
 
   const routesDir = positionalArgs[0] ?? 'routes';
   const outputFile = positionalArgs[1] ?? 'routes.manifest.g.ts';
@@ -103,7 +103,7 @@ async function main() {
 
   // Widget manifest generation
   if (widgetsIdx >= 0) {
-    const widgetArgs = Deno.args.slice(widgetsIdx + 1);
+    const widgetArgs = args.slice(widgetsIdx + 1);
     const widgetsDir = widgetArgs[0] ?? 'widgets';
     const widgetsOutput = widgetArgs[1] ?? 'widgets.manifest.g.ts';
 
@@ -133,6 +133,4 @@ async function main() {
   }
 }
 
-if (import.meta.main) {
-  main();
-}
+main();

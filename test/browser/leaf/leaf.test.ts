@@ -6,7 +6,7 @@
  * embedded apps can use hash routing.
  */
 
-import { assert, assertEquals } from '@std/assert';
+import { test, expect, describe, beforeAll, afterAll } from 'bun:test';
 import { createTestServer, type TestServer } from '../shared/setup.ts';
 
 let server: TestServer;
@@ -15,45 +15,40 @@ function baseUrl(path = '/'): string {
   return server.baseUrl(path);
 }
 
-Deno.test(
-  { name: "SPA mode 'leaf'", sanitizeResources: false, sanitizeOps: false },
-  async (t) => {
+describe("SPA mode 'leaf'", () => {
+  beforeAll(async () => {
     server = await createTestServer({ mode: 'leaf', port: 4102 });
+  });
 
-    await t.step('GET / redirects to /html/', async () => {
-      const res = await fetch(baseUrl('/'), { redirect: 'manual' });
-      assertEquals(res.status, 302);
-      const location = res.headers.get('location');
-      assert(location?.endsWith('/html/'), `expected redirect to /html/, got ${location}`);
-    });
-
-    await t.step('GET /about redirects to /html/about', async () => {
-      const res = await fetch(baseUrl('/about'), { redirect: 'manual' });
-      assertEquals(res.status, 302);
-      const location = res.headers.get('location');
-      assert(
-        location?.endsWith('/html/about'),
-        `expected redirect to /html/about, got ${location}`,
-      );
-    });
-
-    await t.step('GET /html/about serves SSR HTML', async () => {
-      const res = await fetch(baseUrl('/html/about'));
-      assertEquals(res.status, 200);
-      const html = await res.text();
-      assert(html.includes('<h1'), 'SSR HTML should contain rendered content');
-    });
-
-    await t.step('GET /md/about serves SSR Markdown', async () => {
-      const res = await fetch(baseUrl('/md/about'));
-      assertEquals(res.status, 200);
-      assert(
-        res.headers.get('content-type')?.includes('text/markdown'),
-        'should have markdown content type',
-      );
-      await res.text(); // consume body
-    });
-
+  afterAll(() => {
     server.stop();
-  },
-);
+  });
+
+  test('GET / redirects to /html/', async () => {
+    const res = await fetch(baseUrl('/'), { redirect: 'manual' });
+    expect(res.status).toEqual(302);
+    const location = res.headers.get('location');
+    expect(location?.endsWith('/html/')).toBeTruthy();
+  });
+
+  test('GET /about redirects to /html/about', async () => {
+    const res = await fetch(baseUrl('/about'), { redirect: 'manual' });
+    expect(res.status).toEqual(302);
+    const location = res.headers.get('location');
+    expect(location?.endsWith('/html/about')).toBeTruthy();
+  });
+
+  test('GET /html/about serves SSR HTML', async () => {
+    const res = await fetch(baseUrl('/html/about'));
+    expect(res.status).toEqual(200);
+    const html = await res.text();
+    expect(html).toContain('<h1');
+  });
+
+  test('GET /md/about serves SSR Markdown', async () => {
+    const res = await fetch(baseUrl('/md/about'));
+    expect(res.status).toEqual(200);
+    expect(res.headers.get('content-type')?.includes('text/markdown')).toBeTruthy();
+    await res.text(); // consume body
+  });
+});

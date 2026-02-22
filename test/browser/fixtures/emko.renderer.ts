@@ -1,4 +1,5 @@
-import { createMarkdownRender } from 'jsr:@emkodev/emko-md@^0.3.0/render';
+// @ts-types="../../../server/vendor/emko-md.vendor.d.ts"
+import { createMarkdownRender } from '../../../server/vendor/emko-md.vendor.js';
 import { MarkdownElement } from '@emkodev/emroute/spa';
 import type { MarkdownRenderer } from '@emkodev/emroute';
 

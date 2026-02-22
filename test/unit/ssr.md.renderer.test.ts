@@ -13,7 +13,7 @@
  * - URL normalization (/md/ prefix stripping)
  */
 
-import { assertEquals, assertExists, assertStringIncludes } from '@std/assert';
+import { test, expect, describe } from 'bun:test';
 import { createSsrMdRouter, SsrMdRouter } from '../../src/renderer/ssr/md.renderer.ts';
 import type { RouteConfig, RoutesManifest } from '../../src/type/route.type.ts';
 import { prefixManifest } from '../../src/route/route.core.ts';
@@ -91,33 +91,33 @@ function createMockWidget(
 // Constructor Tests
 // ============================================================================
 
-Deno.test('SsrMdRouter - constructor initializes successfully', () => {
+test('SsrMdRouter - constructor initializes successfully', () => {
   const manifest = createTestManifest();
   const router = new SsrMdRouter(manifest);
 
-  assertExists(router);
+  expect(router).toBeDefined();
 });
 
-Deno.test('SsrMdRouter - createSsrMdRouter factory function creates instance', () => {
+test('SsrMdRouter - createSsrMdRouter factory function creates instance', () => {
   const manifest = createTestManifest();
   const router = createSsrMdRouter(manifest);
 
-  assertEquals(router instanceof SsrMdRouter, true);
+  expect(router instanceof SsrMdRouter).toEqual(true);
 });
 
-Deno.test('SsrMdRouter - constructor with options accepts widget registry', () => {
+test('SsrMdRouter - constructor with options accepts widget registry', () => {
   const manifest = createTestManifest();
   const widgets = new WidgetRegistry();
   const router = new SsrMdRouter(manifest, { widgets });
 
-  assertExists(router);
+  expect(router).toBeDefined();
 });
 
 // ============================================================================
 // Slot Injection Tests
 // ============================================================================
 
-Deno.test('SsrMdRouter - injectSlot replaces ```router-slot\\n``` block', async () => {
+test('SsrMdRouter - injectSlot replaces ```router-slot\\n``` block', async () => {
   const restore = mockFetch({
     '/parent.md': '# Parent\n\n```router-slot\n```\n\nFooter',
     '/parent/child.md': '## Child Content',
@@ -142,16 +142,16 @@ Deno.test('SsrMdRouter - injectSlot replaces ```router-slot\\n``` block', async 
 
     const result = await router.render('/parent/child');
 
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'Parent');
-    assertStringIncludes(result.content, 'Child Content');
-    assertStringIncludes(result.content, 'Footer');
+    expect(result.status).toEqual(200);
+    expect(result.content).toContain('Parent');
+    expect(result.content).toContain('Child Content');
+    expect(result.content).toContain('Footer');
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrMdRouter - slot block is exactly ```router-slot\\n```', async () => {
+test('SsrMdRouter - slot block is exactly ```router-slot\\n```', async () => {
   const restore = mockFetch({
     '/test.md': 'Content with ```router-slot\n``` marker',
   });
@@ -170,8 +170,8 @@ Deno.test('SsrMdRouter - slot block is exactly ```router-slot\\n```', async () =
 
     const result = await router.render('/test');
 
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'Content with');
+    expect(result.status).toEqual(200);
+    expect(result.content).toContain('Content with');
   } finally {
     restore();
   }
@@ -181,7 +181,7 @@ Deno.test('SsrMdRouter - slot block is exactly ```router-slot\\n```', async () =
 // Nested Slot Injection Tests
 // ============================================================================
 
-Deno.test('SsrMdRouter - nested slots inject at multiple levels', async () => {
+test('SsrMdRouter - nested slots inject at multiple levels', async () => {
   const restore = mockFetch({
     '/a.md': '# Level A\n\n```router-slot\n```',
     '/a/b.md': '## Level B\n\n```router-slot\n```',
@@ -212,16 +212,16 @@ Deno.test('SsrMdRouter - nested slots inject at multiple levels', async () => {
 
     const result = await router.render('/a/b/c');
 
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'Level A');
-    assertStringIncludes(result.content, 'Level B');
-    assertStringIncludes(result.content, 'Level C');
+    expect(result.status).toEqual(200);
+    expect(result.content).toContain('Level A');
+    expect(result.content).toContain('Level B');
+    expect(result.content).toContain('Level C');
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrMdRouter - deeply nested routes compose correctly', async () => {
+test('SsrMdRouter - deeply nested routes compose correctly', async () => {
   const restore = mockFetch({
     '/l1.md': 'L1\n\n```router-slot\n```',
     '/l1/l2.md': 'L2\n\n```router-slot\n```',
@@ -260,12 +260,12 @@ Deno.test('SsrMdRouter - deeply nested routes compose correctly', async () => {
 
     const result = await router.render('/l1/l2/l3/l4/l5');
 
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'L1');
-    assertStringIncludes(result.content, 'L2');
-    assertStringIncludes(result.content, 'L3');
-    assertStringIncludes(result.content, 'L4');
-    assertStringIncludes(result.content, 'L5');
+    expect(result.status).toEqual(200);
+    expect(result.content).toContain('L1');
+    expect(result.content).toContain('L2');
+    expect(result.content).toContain('L3');
+    expect(result.content).toContain('L4');
+    expect(result.content).toContain('L5');
   } finally {
     restore();
   }
@@ -275,7 +275,7 @@ Deno.test('SsrMdRouter - deeply nested routes compose correctly', async () => {
 // stripSlots Utility Tests
 // ============================================================================
 
-Deno.test('SsrMdRouter - stripSlots removes unconsumed router-slot blocks', async () => {
+test('SsrMdRouter - stripSlots removes unconsumed router-slot blocks', async () => {
   const restore = mockFetch({
     '/page.md': 'Content\n\n```router-slot\n```',
   });
@@ -294,15 +294,15 @@ Deno.test('SsrMdRouter - stripSlots removes unconsumed router-slot blocks', asyn
 
     const result = await router.render('/page');
 
-    assertEquals(result.status, 200);
-    assertEquals(result.content.includes('```router-slot\n```'), false);
-    assertStringIncludes(result.content, 'Content');
+    expect(result.status).toEqual(200);
+    expect(result.content.includes('```router-slot\n```')).toEqual(false);
+    expect(result.content).toContain('Content');
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrMdRouter - stripSlots trims whitespace after removal', async () => {
+test('SsrMdRouter - stripSlots trims whitespace after removal', async () => {
   const restore = mockFetch({
     '/page.md': 'Content\n\n```router-slot\n```\n\n',
   });
@@ -321,14 +321,14 @@ Deno.test('SsrMdRouter - stripSlots trims whitespace after removal', async () =>
 
     const result = await router.render('/page');
 
-    assertEquals(result.status, 200);
-    assertEquals(result.content, 'Content');
+    expect(result.status).toEqual(200);
+    expect(result.content).toEqual('Content');
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrMdRouter - stripSlots handles multiple slot blocks', async () => {
+test('SsrMdRouter - stripSlots handles multiple slot blocks', async () => {
   const restore = mockFetch({
     '/page.md': 'Start\n\n```router-slot\n```\n\nMiddle\n\n```router-slot\n```\n\nEnd',
   });
@@ -347,11 +347,11 @@ Deno.test('SsrMdRouter - stripSlots handles multiple slot blocks', async () => {
 
     const result = await router.render('/page');
 
-    assertEquals(result.status, 200);
+    expect(result.status).toEqual(200);
     // stripSlots removes all slot blocks and trims, but the extra newlines remain
-    assertStringIncludes(result.content, 'Start');
-    assertStringIncludes(result.content, 'Middle');
-    assertStringIncludes(result.content, 'End');
+    expect(result.content).toContain('Start');
+    expect(result.content).toContain('Middle');
+    expect(result.content).toContain('End');
   } finally {
     restore();
   }
@@ -361,7 +361,7 @@ Deno.test('SsrMdRouter - stripSlots handles multiple slot blocks', async () => {
 // Widget Resolution in Markdown Tests
 // ============================================================================
 
-Deno.test('SsrMdRouter - resolves and renders widgets in markdown content', async () => {
+test('SsrMdRouter - resolves and renders widgets in markdown content', async () => {
   const restore = mockFetch({
     '/page.md': 'Page content\n\n```widget:greeting\n{}\n```\n\nMore content',
   });
@@ -384,16 +384,16 @@ Deno.test('SsrMdRouter - resolves and renders widgets in markdown content', asyn
 
     const result = await router.render('/page');
 
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'Page content');
-    assertStringIncludes(result.content, 'Hello World');
-    assertStringIncludes(result.content, 'More content');
+    expect(result.status).toEqual(200);
+    expect(result.content).toContain('Page content');
+    expect(result.content).toContain('Hello World');
+    expect(result.content).toContain('More content');
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrMdRouter - passes widget params to renderMarkdown', async () => {
+test('SsrMdRouter - passes widget params to renderMarkdown', async () => {
   const restore = mockFetch({
     '/page.md': '```widget:counter\n{"start": 5}\n```',
   });
@@ -426,14 +426,14 @@ Deno.test('SsrMdRouter - passes widget params to renderMarkdown', async () => {
 
     const result = await router.render('/page');
 
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'Counter starts at: 5');
+    expect(result.status).toEqual(200);
+    expect(result.content).toContain('Counter starts at: 5');
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrMdRouter - handles widget with invalid JSON params', async () => {
+test('SsrMdRouter - handles widget with invalid JSON params', async () => {
   const restore = mockFetch({
     '/page.md': '```widget:bad-json\n{invalid json}\n```',
   });
@@ -455,14 +455,14 @@ Deno.test('SsrMdRouter - handles widget with invalid JSON params', async () => {
 
     const result = await router.render('/page');
 
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'Error');
+    expect(result.status).toEqual(200);
+    expect(result.content).toContain('Error');
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrMdRouter - handles unknown widget name', async () => {
+test('SsrMdRouter - handles unknown widget name', async () => {
   const restore = mockFetch({
     '/page.md': '```widget:nonexistent\n{}\n```',
   });
@@ -482,14 +482,14 @@ Deno.test('SsrMdRouter - handles unknown widget name', async () => {
 
     const result = await router.render('/page');
 
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'Unknown widget');
+    expect(result.status).toEqual(200);
+    expect(result.content).toContain('Unknown widget');
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrMdRouter - widget error is rendered as markdown quote', async () => {
+test('SsrMdRouter - widget error is rendered as markdown quote', async () => {
   const restore = mockFetch({
     '/page.md': '```widget:failing\n{}\n```',
   });
@@ -522,15 +522,15 @@ Deno.test('SsrMdRouter - widget error is rendered as markdown quote', async () =
 
     const result = await router.render('/page');
 
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'Widget Error');
-    assertStringIncludes(result.content, 'crashed');
+    expect(result.status).toEqual(200);
+    expect(result.content).toContain('Widget Error');
+    expect(result.content).toContain('crashed');
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrMdRouter - multiple widgets in same page are all resolved', async () => {
+test('SsrMdRouter - multiple widgets in same page are all resolved', async () => {
   const restore = mockFetch({
     '/page.md': 'Start\n\n```widget:w1\n{}\n```\n\nMiddle\n\n```widget:w2\n{}\n```\n\nEnd',
   });
@@ -553,9 +553,9 @@ Deno.test('SsrMdRouter - multiple widgets in same page are all resolved', async 
 
     const result = await router.render('/page');
 
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'Widget 1');
-    assertStringIncludes(result.content, 'Widget 2');
+    expect(result.status).toEqual(200);
+    expect(result.content).toContain('Widget 1');
+    expect(result.content).toContain('Widget 2');
   } finally {
     restore();
   }
@@ -565,28 +565,28 @@ Deno.test('SsrMdRouter - multiple widgets in same page are all resolved', async 
 // Status Page Rendering Tests
 // ============================================================================
 
-Deno.test('SsrMdRouter - 404 status page renders markdown format', async () => {
+test('SsrMdRouter - 404 status page renders markdown format', async () => {
   const manifest = createTestManifest();
   const router = new SsrMdRouter(manifest);
 
   const result = await router.render('/nonexistent');
 
-  assertEquals(result.status, 404);
-  assertStringIncludes(result.content, '# Not Found');
-  assertStringIncludes(result.content, '/nonexistent');
+  expect(result.status).toEqual(404);
+  expect(result.content).toContain('# Not Found');
+  expect(result.content).toContain('/nonexistent');
 });
 
-Deno.test('SsrMdRouter - 404 markdown includes path in code block', async () => {
+test('SsrMdRouter - 404 markdown includes path in code block', async () => {
   const manifest = createTestManifest();
   const router = new SsrMdRouter(manifest);
 
   const result = await router.render('/missing/route');
 
-  assertEquals(result.status, 404);
-  assertStringIncludes(result.content, '`/missing/route`');
+  expect(result.status).toEqual(404);
+  expect(result.content).toContain('`/missing/route`');
 });
 
-Deno.test('SsrMdRouter - 500 status page renders markdown format', async () => {
+test('SsrMdRouter - 500 status page renders markdown format', async () => {
   const routes = [
     createTestRoute({
       pattern: '/error',
@@ -600,11 +600,11 @@ Deno.test('SsrMdRouter - 500 status page renders markdown format', async () => {
 
   const result = await router.render('/error');
 
-  assertEquals(result.status, 500);
-  assertStringIncludes(result.content, 'Error');
+  expect(result.status).toEqual(500);
+  expect(result.content).toContain('Error');
 });
 
-Deno.test('SsrMdRouter - custom markdown status page is used when available', async () => {
+test('SsrMdRouter - custom markdown status page is used when available', async () => {
   const restore = mockFetch({
     '/custom-404.md': '# Oops!\n\nPage not found here.',
   });
@@ -629,15 +629,15 @@ Deno.test('SsrMdRouter - custom markdown status page is used when available', as
 
     const result = await router.render('/missing');
 
-    assertEquals(result.status, 404);
-    assertStringIncludes(result.content, 'Oops!');
-    assertStringIncludes(result.content, 'Page not found here.');
+    expect(result.status).toEqual(404);
+    expect(result.content).toContain('Oops!');
+    expect(result.content).toContain('Page not found here.');
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrMdRouter - status page markdown has router-slot stripped', async () => {
+test('SsrMdRouter - status page markdown has router-slot stripped', async () => {
   const restore = mockFetch({
     '/404.md': '# Not Found\n\n```router-slot\n```',
   });
@@ -657,8 +657,8 @@ Deno.test('SsrMdRouter - status page markdown has router-slot stripped', async (
 
     const result = await router.render('/missing');
 
-    assertEquals(result.status, 404);
-    assertEquals(result.content.includes('```router-slot\n```'), false);
+    expect(result.status).toEqual(404);
+    expect(result.content.includes('```router-slot\n```')).toEqual(false);
   } finally {
     restore();
   }
@@ -668,7 +668,7 @@ Deno.test('SsrMdRouter - status page markdown has router-slot stripped', async (
 // Redirect Handling Tests
 // ============================================================================
 
-Deno.test('SsrMdRouter - redirect renders plain text output', async () => {
+test('SsrMdRouter - redirect renders plain text output', async () => {
   const manifest: RoutesManifest = {
     routes: [
       {
@@ -690,11 +690,11 @@ Deno.test('SsrMdRouter - redirect renders plain text output', async () => {
   const router = new SsrMdRouter(manifest);
   const result = await router.render('/old');
 
-  assertEquals(result.status, 301);
-  assertStringIncludes(result.content, 'Redirect to: /new');
+  expect(result.status).toEqual(301);
+  expect(result.content).toContain('Redirect to: /new');
 });
 
-Deno.test('SsrMdRouter - redirect with 302 status', async () => {
+test('SsrMdRouter - redirect with 302 status', async () => {
   const manifest: RoutesManifest = {
     routes: [
       {
@@ -716,15 +716,15 @@ Deno.test('SsrMdRouter - redirect with 302 status', async () => {
   const router = new SsrMdRouter(manifest);
   const result = await router.render('/temp');
 
-  assertEquals(result.status, 302);
-  assertStringIncludes(result.content, 'Redirect to: /permanent');
+  expect(result.status).toEqual(302);
+  expect(result.content).toContain('Redirect to: /permanent');
 });
 
 // ============================================================================
 // Route Hierarchy Composition Tests
 // ============================================================================
 
-Deno.test('SsrMdRouter - composes full hierarchy for nested route', async () => {
+test('SsrMdRouter - composes full hierarchy for nested route', async () => {
   const restore = mockFetch({
     '/docs.md': '# Documentation\n\n```router-slot\n```',
     '/docs/guide.md': '## Getting Started\n\n```router-slot\n```',
@@ -755,16 +755,16 @@ Deno.test('SsrMdRouter - composes full hierarchy for nested route', async () => 
 
     const result = await router.render('/docs/guide/setup');
 
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'Documentation');
-    assertStringIncludes(result.content, 'Getting Started');
-    assertStringIncludes(result.content, 'Setup Steps');
+    expect(result.status).toEqual(200);
+    expect(result.content).toContain('Documentation');
+    expect(result.content).toContain('Getting Started');
+    expect(result.content).toContain('Setup Steps');
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrMdRouter - respects slot positions in hierarchy', async () => {
+test('SsrMdRouter - respects slot positions in hierarchy', async () => {
   const restore = mockFetch({
     '/a.md': 'A-before\n\n```router-slot\n```\n\nA-after',
     '/a/b.md': 'B-before\n\n```router-slot\n```\n\nB-after',
@@ -787,7 +787,7 @@ Deno.test('SsrMdRouter - respects slot positions in hierarchy', async () => {
 
     const result = await router.render('/a/b/c');
 
-    assertEquals(result.status, 200);
+    expect(result.status).toEqual(200);
     // Verify order: A-before, B-before, C, B-after, A-after
     const content = result.content;
     const aBeforeIdx = content.indexOf('A-before');
@@ -796,16 +796,16 @@ Deno.test('SsrMdRouter - respects slot positions in hierarchy', async () => {
     const bAfterIdx = content.indexOf('B-after');
     const aAfterIdx = content.indexOf('A-after');
 
-    assertEquals(aBeforeIdx < bBeforeIdx, true);
-    assertEquals(bBeforeIdx < cIdx, true);
-    assertEquals(cIdx < bAfterIdx, true);
-    assertEquals(bAfterIdx < aAfterIdx, true);
+    expect(aBeforeIdx < bBeforeIdx).toEqual(true);
+    expect(bBeforeIdx < cIdx).toEqual(true);
+    expect(cIdx < bAfterIdx).toEqual(true);
+    expect(bAfterIdx < aAfterIdx).toEqual(true);
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrMdRouter - skips routes without content in hierarchy', async () => {
+test('SsrMdRouter - skips routes without content in hierarchy', async () => {
   const restore = mockFetch({
     '/docs.md': '# Docs\n\n```router-slot\n```',
     '/docs/api.md': '## API',
@@ -830,9 +830,9 @@ Deno.test('SsrMdRouter - skips routes without content in hierarchy', async () =>
 
     const result = await router.render('/docs/api');
 
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'Docs');
-    assertStringIncludes(result.content, 'API');
+    expect(result.status).toEqual(200);
+    expect(result.content).toContain('Docs');
+    expect(result.content).toContain('API');
   } finally {
     restore();
   }
@@ -842,7 +842,7 @@ Deno.test('SsrMdRouter - skips routes without content in hierarchy', async () =>
 // URL Normalization Tests
 // ============================================================================
 
-Deno.test('SsrMdRouter - matches /md/ prefixed routes with basePath', async () => {
+test('SsrMdRouter - matches /md/ prefixed routes with basePath', async () => {
   const restore = mockFetch({
     '/page.md': 'Page content',
   });
@@ -862,14 +862,14 @@ Deno.test('SsrMdRouter - matches /md/ prefixed routes with basePath', async () =
 
     const result = await router.render('/md/page');
 
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'Page content');
+    expect(result.status).toEqual(200);
+    expect(result.content).toContain('Page content');
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrMdRouter - matches /md/ prefixed nested path', async () => {
+test('SsrMdRouter - matches /md/ prefixed nested path', async () => {
   const restore = mockFetch({
     '/docs/guide.md': 'Guide',
   });
@@ -889,32 +889,32 @@ Deno.test('SsrMdRouter - matches /md/ prefixed nested path', async () => {
 
     const result = await router.render('/md/docs/guide');
 
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'Guide');
+    expect(result.status).toEqual(200);
+    expect(result.content).toContain('Guide');
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrMdRouter - handles /md/ as root path with basePath', async () => {
+test('SsrMdRouter - handles /md/ as root path with basePath', async () => {
   const manifest = createTestManifest({ routes: [] });
   const router = new SsrMdRouter(manifest, { basePath: '/md' });
 
   // Trailing slash redirects to canonical form
   const redirect = await router.render('/md/');
-  assertEquals(redirect.status, 301);
-  assertEquals(redirect.redirect, '/md');
+  expect(redirect.status).toEqual(301);
+  expect(redirect.redirect).toEqual('/md');
 
   // Canonical form renders normally
   const result = await router.render('/md');
-  assertEquals(result.status, 200);
+  expect(result.status).toEqual(200);
 });
 
 // ============================================================================
 // Page Component Rendering Tests
 // ============================================================================
 
-Deno.test('SsrMdRouter - resolves widget blocks and calls renderMarkdown', async () => {
+test('SsrMdRouter - resolves widget blocks and calls renderMarkdown', async () => {
   // This test verifies widget resolution in markdown content
   const restore = mockFetch({
     '/page.md': 'Start\n\n```widget:demo\n{}\n```\n\nEnd',
@@ -947,10 +947,10 @@ Deno.test('SsrMdRouter - resolves widget blocks and calls renderMarkdown', async
 
     const result = await router.render('/page');
 
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'Start');
-    assertStringIncludes(result.content, 'Widget rendered in markdown');
-    assertStringIncludes(result.content, 'End');
+    expect(result.status).toEqual(200);
+    expect(result.content).toContain('Start');
+    expect(result.content).toContain('Widget rendered in markdown');
+    expect(result.content).toContain('End');
   } finally {
     restore();
   }
@@ -960,7 +960,7 @@ Deno.test('SsrMdRouter - resolves widget blocks and calls renderMarkdown', async
 // Default Root Route Tests
 // ============================================================================
 
-Deno.test('SsrMdRouter - default root route returns slot placeholder', async () => {
+test('SsrMdRouter - default root route returns slot placeholder', async () => {
   const routes = [
     {
       pattern: '/',
@@ -974,10 +974,10 @@ Deno.test('SsrMdRouter - default root route returns slot placeholder', async () 
 
   const result = await router.render('/');
 
-  assertEquals(result.status, 200);
+  expect(result.status).toEqual(200);
 });
 
-Deno.test('SsrMdRouter - default root route injects child content correctly', async () => {
+test('SsrMdRouter - default root route injects child content correctly', async () => {
   const restore = mockFetch({
     '/child.md': 'Child content',
   });
@@ -1001,8 +1001,8 @@ Deno.test('SsrMdRouter - default root route injects child content correctly', as
 
     const result = await router.render('/child');
 
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'Child content');
+    expect(result.status).toEqual(200);
+    expect(result.content).toContain('Child content');
   } finally {
     restore();
   }
@@ -1012,7 +1012,7 @@ Deno.test('SsrMdRouter - default root route injects child content correctly', as
 // Error Boundary Tests
 // ============================================================================
 
-Deno.test('SsrMdRouter - renders error boundary when available for errors', async () => {
+test('SsrMdRouter - renders error boundary when available for errors', async () => {
   // This test verifies the error boundary mechanism when a route error occurs.
   // The error boundary should render for pages under its pattern.
   const routes = [
@@ -1053,7 +1053,7 @@ Deno.test('SsrMdRouter - renders error boundary when available for errors', asyn
     const result = await router.render('/projects/123');
 
     // Error boundary patterns are recognized
-    assertEquals(result.status === 200 || result.status === 500, true);
+    expect(result.status === 200 || result.status === 500).toEqual(true);
   } finally {
     restore();
   }
@@ -1063,7 +1063,7 @@ Deno.test('SsrMdRouter - renders error boundary when available for errors', asyn
 // Title Extraction Tests
 // ============================================================================
 
-Deno.test('SsrMdRouter - render result has title property', async () => {
+test('SsrMdRouter - render result has title property', async () => {
   // The render() method returns an object with content, status, and optional title
   const restore = mockFetch({
     '/page.md': 'Page Content',
@@ -1083,11 +1083,11 @@ Deno.test('SsrMdRouter - render result has title property', async () => {
 
     const result = await router.render('/page');
 
-    assertEquals(result.status, 200);
+    expect(result.status).toEqual(200);
     // Result object has these properties
-    assertEquals(typeof result.content, 'string');
-    assertEquals(typeof result.status, 'number');
-    assertStringIncludes(result.content, 'Page Content');
+    expect(typeof result.content).toEqual('string');
+    expect(typeof result.status).toEqual('number');
+    expect(result.content).toContain('Page Content');
   } finally {
     restore();
   }
@@ -1097,7 +1097,7 @@ Deno.test('SsrMdRouter - render result has title property', async () => {
 // Edge Cases
 // ============================================================================
 
-Deno.test('SsrMdRouter - handles empty markdown file', async () => {
+test('SsrMdRouter - handles empty markdown file', async () => {
   const restore = mockFetch({
     '/empty.md': '',
   });
@@ -1116,14 +1116,14 @@ Deno.test('SsrMdRouter - handles empty markdown file', async () => {
 
     const result = await router.render('/empty');
 
-    assertEquals(result.status, 200);
-    assertEquals(result.content, '');
+    expect(result.status).toEqual(200);
+    expect(result.content).toEqual('');
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrMdRouter - handles markdown with no slots', async () => {
+test('SsrMdRouter - handles markdown with no slots', async () => {
   const restore = mockFetch({
     '/page.md': '# Page\n\nNo slots here',
   });
@@ -1142,14 +1142,14 @@ Deno.test('SsrMdRouter - handles markdown with no slots', async () => {
 
     const result = await router.render('/page');
 
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'No slots here');
+    expect(result.status).toEqual(200);
+    expect(result.content).toContain('No slots here');
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrMdRouter - handles route with query parameters', async () => {
+test('SsrMdRouter - handles route with query parameters', async () => {
   const restore = mockFetch({
     '/search.md': 'Search results',
   });
@@ -1168,14 +1168,14 @@ Deno.test('SsrMdRouter - handles route with query parameters', async () => {
 
     const result = await router.render('/search?q=test&limit=10');
 
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'Search results');
+    expect(result.status).toEqual(200);
+    expect(result.content).toContain('Search results');
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrMdRouter - handles route with fragment', async () => {
+test('SsrMdRouter - handles route with fragment', async () => {
   const restore = mockFetch({
     '/docs.md': 'Documentation',
   });
@@ -1194,14 +1194,14 @@ Deno.test('SsrMdRouter - handles route with fragment', async () => {
 
     const result = await router.render('/docs#section');
 
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'Documentation');
+    expect(result.status).toEqual(200);
+    expect(result.content).toContain('Documentation');
   } finally {
     restore();
   }
 });
 
-Deno.test('SsrMdRouter - handles route with dynamic parameters', async () => {
+test('SsrMdRouter - handles route with dynamic parameters', async () => {
   const restore = mockFetch({
     '/post.md': 'Post ID: :id',
   });
@@ -1220,7 +1220,7 @@ Deno.test('SsrMdRouter - handles route with dynamic parameters', async () => {
 
     const result = await router.render('/posts/123');
 
-    assertEquals(result.status, 200);
+    expect(result.status).toEqual(200);
   } finally {
     restore();
   }
@@ -1230,7 +1230,7 @@ Deno.test('SsrMdRouter - handles route with dynamic parameters', async () => {
 // Widget File Resolution Tests
 // ============================================================================
 
-Deno.test('SsrMdRouter - uses discovered widget files when available', async () => {
+test('SsrMdRouter - uses discovered widget files when available', async () => {
   const restore = mockFetch({
     '/page.md': '```widget:info\n{}\n```',
   });
@@ -1257,8 +1257,8 @@ Deno.test('SsrMdRouter - uses discovered widget files when available', async () 
 
     const result = await router.render('/page');
 
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'From discovered files');
+    expect(result.status).toEqual(200);
+    expect(result.content).toContain('From discovered files');
   } finally {
     restore();
   }
@@ -1268,7 +1268,7 @@ Deno.test('SsrMdRouter - uses discovered widget files when available', async () 
 // Context Provider Tests
 // ============================================================================
 
-Deno.test('SsrMdRouter - passes context to widget getData', async () => {
+test('SsrMdRouter - passes context to widget getData', async () => {
   const restore = mockFetch({
     '/page.md': '```widget:ctx-aware\n{}\n```',
   });
@@ -1307,9 +1307,9 @@ Deno.test('SsrMdRouter - passes context to widget getData', async () => {
 
     const result = await router.render('/page');
 
-    assertEquals(result.status, 200);
-    assertStringIncludes(result.content, 'Context passed');
-    assertEquals((capturedContext as ComponentContext & { custom?: boolean })?.custom, true);
+    expect(result.status).toEqual(200);
+    expect(result.content).toContain('Context passed');
+    expect((capturedContext as ComponentContext & { custom?: boolean })?.custom).toEqual(true);
   } finally {
     restore();
   }

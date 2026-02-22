@@ -16,7 +16,7 @@
  * - doc/nesting.md: Nested route patterns, slot rules, and hierarchy
  */
 
-import { assertEquals, assertExists } from '@std/assert';
+import { test, expect, describe } from 'bun:test';
 import type { ErrorBoundary, RouteConfig, RoutesManifest } from '../../src/type/route.type.ts';
 import {
   filePathToPattern,
@@ -61,34 +61,34 @@ function createRoutesManifest(
 // toUrl() Helper Function
 // ============================================================================
 
-Deno.test('toUrl - parses string URLs', () => {
+test('toUrl - parses string URLs', () => {
   const url = toUrl('http://example.com/about');
-  assertExists(url);
-  assertEquals(url.pathname, '/about');
+  expect(url).toBeDefined();
+  expect(url.pathname).toEqual('/about');
 });
 
-Deno.test('toUrl - passes through URL objects unchanged', () => {
+test('toUrl - passes through URL objects unchanged', () => {
   const original = new URL('http://example.com/projects/123');
   const url = toUrl(original);
-  assertEquals(url, original);
+  expect(url).toEqual(original);
 });
 
-Deno.test('toUrl - handles relative paths with parse context', () => {
+test('toUrl - handles relative paths with parse context', () => {
   const url = toUrl('http://localhost/test');
-  assertEquals(url.pathname, '/test');
+  expect(url.pathname).toEqual('/test');
 });
 
 // ============================================================================
 // RouteMatcher Constructor and Compilation
 // ============================================================================
 
-Deno.test('RouteMatcher - initializes with empty manifest', () => {
+test('RouteMatcher - initializes with empty manifest', () => {
   const manifest = createRoutesManifest();
   const matcher = new RouteMatcher(manifest);
-  assertExists(matcher);
+  expect(matcher).toBeDefined();
 });
 
-Deno.test('RouteMatcher - compiles valid routes', () => {
+test('RouteMatcher - compiles valid routes', () => {
   const routes = [
     createRouteConfig('/'),
     createRouteConfig('/about'),
@@ -96,10 +96,10 @@ Deno.test('RouteMatcher - compiles valid routes', () => {
   ];
   const manifest = createRoutesManifest(routes);
   const matcher = new RouteMatcher(manifest);
-  assertExists(matcher);
+  expect(matcher).toBeDefined();
 });
 
-Deno.test('RouteMatcher - handles invalid patterns gracefully', () => {
+test('RouteMatcher - handles invalid patterns gracefully', () => {
   const routes = [
     createRouteConfig('/valid'),
     createRouteConfig('/invalid[pattern'),
@@ -107,10 +107,10 @@ Deno.test('RouteMatcher - handles invalid patterns gracefully', () => {
   const manifest = createRoutesManifest(routes);
   // Should not throw, invalid patterns are logged
   const matcher = new RouteMatcher(manifest);
-  assertExists(matcher);
+  expect(matcher).toBeDefined();
 });
 
-Deno.test('RouteMatcher - stores error boundaries', () => {
+test('RouteMatcher - stores error boundaries', () => {
   const errorBoundaries: ErrorBoundary[] = [
     {
       pattern: '/admin',
@@ -119,10 +119,10 @@ Deno.test('RouteMatcher - stores error boundaries', () => {
   ];
   const manifest = createRoutesManifest([], errorBoundaries);
   const matcher = new RouteMatcher(manifest);
-  assertExists(matcher);
+  expect(matcher).toBeDefined();
 });
 
-Deno.test('RouteMatcher - stores and sorts error boundaries by specificity', () => {
+test('RouteMatcher - stores and sorts error boundaries by specificity', () => {
   const errorBoundaries: ErrorBoundary[] = [
     {
       pattern: '/admin',
@@ -137,50 +137,50 @@ Deno.test('RouteMatcher - stores and sorts error boundaries by specificity', () 
   const matcher = new RouteMatcher(manifest);
   // Should sort by length descending (longer = more specific first)
   const adminUsers = matcher.findErrorBoundary('/admin/users/123');
-  assertEquals(adminUsers?.pattern, '/admin/users');
+  expect(adminUsers?.pattern).toEqual('/admin/users');
 });
 
-Deno.test('RouteMatcher - stores status pages', () => {
+test('RouteMatcher - stores status pages', () => {
   const statusPages = new Map<number, RouteConfig>();
   statusPages.set(404, createRouteConfig('/404'));
   statusPages.set(401, createRouteConfig('/401'));
   const manifest = createRoutesManifest([], [], statusPages);
   const matcher = new RouteMatcher(manifest);
-  assertExists(matcher);
+  expect(matcher).toBeDefined();
 });
 
-Deno.test('RouteMatcher - stores error handler', () => {
+test('RouteMatcher - stores error handler', () => {
   const errorHandler = createRouteConfig('/error');
   const manifest = createRoutesManifest([], [], new Map(), errorHandler);
   const matcher = new RouteMatcher(manifest);
-  assertExists(matcher);
+  expect(matcher).toBeDefined();
 });
 
 // ============================================================================
 // match() Method - Basic Static Routes
 // ============================================================================
 
-Deno.test('match - matches root path /', () => {
+test('match - matches root path /', () => {
   const routes = [createRouteConfig('/')];
   const manifest = createRoutesManifest(routes);
   const matcher = new RouteMatcher(manifest);
 
   const result = matcher.match(new URL('http://localhost/'));
-  assertExists(result);
-  assertEquals(result?.route.pattern, '/');
+  expect(result).toBeDefined();
+  expect(result?.route.pattern).toEqual('/');
 });
 
-Deno.test('match - matches simple static routes', () => {
+test('match - matches simple static routes', () => {
   const routes = [createRouteConfig('/about')];
   const manifest = createRoutesManifest(routes);
   const matcher = new RouteMatcher(manifest);
 
   const result = matcher.match(new URL('http://localhost/about'));
-  assertExists(result);
-  assertEquals(result?.route.pattern, '/about');
+  expect(result).toBeDefined();
+  expect(result?.route.pattern).toEqual('/about');
 });
 
-Deno.test('match - matches multiple distinct static routes', () => {
+test('match - matches multiple distinct static routes', () => {
   const routes = [
     createRouteConfig('/'),
     createRouteConfig('/about'),
@@ -191,75 +191,75 @@ Deno.test('match - matches multiple distinct static routes', () => {
   const matcher = new RouteMatcher(manifest);
 
   const about = matcher.match(new URL('http://localhost/about'));
-  assertExists(about);
-  assertEquals(about?.route.pattern, '/about');
+  expect(about).toBeDefined();
+  expect(about?.route.pattern).toEqual('/about');
 
   const contact = matcher.match(new URL('http://localhost/contact'));
-  assertExists(contact);
-  assertEquals(contact?.route.pattern, '/contact');
+  expect(contact).toBeDefined();
+  expect(contact?.route.pattern).toEqual('/contact');
 
   const services = matcher.match(new URL('http://localhost/services'));
-  assertExists(services);
-  assertEquals(services?.route.pattern, '/services');
+  expect(services).toBeDefined();
+  expect(services?.route.pattern).toEqual('/services');
 });
 
-Deno.test('match - returns undefined for non-matching routes', () => {
+test('match - returns undefined for non-matching routes', () => {
   const routes = [createRouteConfig('/about')];
   const manifest = createRoutesManifest(routes);
   const matcher = new RouteMatcher(manifest);
 
   const result = matcher.match(new URL('http://localhost/nonexistent'));
-  assertEquals(result, undefined);
+  expect(result).toEqual(undefined);
 });
 
-Deno.test('match - does not match similar but different paths', () => {
+test('match - does not match similar but different paths', () => {
   const routes = [createRouteConfig('/admin')];
   const manifest = createRoutesManifest(routes);
   const matcher = new RouteMatcher(manifest);
 
-  assertEquals(matcher.match(new URL('http://localhost/admin-panel')), undefined);
-  assertEquals(matcher.match(new URL('http://localhost/admin/users')), undefined);
+  expect(matcher.match(new URL('http://localhost/admin-panel'))).toEqual(undefined);
+  expect(matcher.match(new URL('http://localhost/admin/users'))).toEqual(undefined);
 });
 
 // ============================================================================
 // match() Method - Dynamic Segment Routes
 // ============================================================================
 
-Deno.test('match - matches dynamic segment routes', () => {
+test('match - matches dynamic segment routes', () => {
   const routes = [createRouteConfig('/projects/:id')];
   const manifest = createRoutesManifest(routes);
   const matcher = new RouteMatcher(manifest);
 
   const result = matcher.match(new URL('http://localhost/projects/123'));
-  assertExists(result);
-  assertEquals(result?.route.pattern, '/projects/:id');
+  expect(result).toBeDefined();
+  expect(result?.route.pattern).toEqual('/projects/:id');
 });
 
-Deno.test('match - extracts params from dynamic routes', () => {
+test('match - extracts params from dynamic routes', () => {
   const routes = [createRouteConfig('/projects/:id')];
   const manifest = createRoutesManifest(routes);
   const matcher = new RouteMatcher(manifest);
 
   const result = matcher.match(new URL('http://localhost/projects/abc123'));
-  assertExists(result);
-  assertEquals(result?.params.id, 'abc123');
+  expect(result).toBeDefined();
+  expect(result?.params.id).toEqual('abc123');
 });
 
-Deno.test('match - handles various param values (letters, numbers, hyphens)', () => {
+test('match - handles various param values (letters, numbers, hyphens)', () => {
   const routes = [createRouteConfig('/user/:username')];
   const manifest = createRoutesManifest(routes);
   const matcher = new RouteMatcher(manifest);
 
   const result1 = matcher.match(new URL('http://localhost/user/john-doe'));
-  assertExists(result1);
-  assertEquals(result1?.params.username, 'john-doe');
+  expect(result1).toBeDefined();
+  expect(result1?.params.username).toEqual('john-doe');
 
   const result2 = matcher.match(new URL('http://localhost/user/user_123'));
-  assertExists(result2);
-  assertEquals(result2?.params.username, 'user_123');
+  expect(result2).toBeDefined();
+  expect(result2?.params.username).toEqual('user_123');
 });
 
-Deno.test('match - matches multiple dynamic segments', () => {
+test('match - matches multiple dynamic segments', () => {
   const routes = [createRouteConfig('/projects/:projectId/tasks/:taskId')];
   const manifest = createRoutesManifest(routes);
   const matcher = new RouteMatcher(manifest);
@@ -267,12 +267,12 @@ Deno.test('match - matches multiple dynamic segments', () => {
   const result = matcher.match(
     new URL('http://localhost/projects/proj1/tasks/task2'),
   );
-  assertExists(result);
-  assertEquals(result?.params.projectId, 'proj1');
-  assertEquals(result?.params.taskId, 'task2');
+  expect(result).toBeDefined();
+  expect(result?.params.projectId).toEqual('proj1');
+  expect(result?.params.taskId).toEqual('task2');
 });
 
-Deno.test('match - matches deeply nested dynamic segments', () => {
+test('match - matches deeply nested dynamic segments', () => {
   const routes = [
     createRouteConfig('/api/:version/users/:id/posts/:postId/comments/:commentId'),
   ];
@@ -282,48 +282,48 @@ Deno.test('match - matches deeply nested dynamic segments', () => {
   const result = matcher.match(
     new URL('http://localhost/api/v2/users/42/posts/100/comments/50'),
   );
-  assertExists(result);
-  assertEquals(result?.params.version, 'v2');
-  assertEquals(result?.params.id, '42');
-  assertEquals(result?.params.postId, '100');
-  assertEquals(result?.params.commentId, '50');
+  expect(result).toBeDefined();
+  expect(result?.params.version).toEqual('v2');
+  expect(result?.params.id).toEqual('42');
+  expect(result?.params.postId).toEqual('100');
+  expect(result?.params.commentId).toEqual('50');
 });
 
 // ============================================================================
 // match() Method - Wildcard/Catch-all Routes
 // ============================================================================
 
-Deno.test('match - matches wildcard catch-all routes', () => {
+test('match - matches wildcard catch-all routes', () => {
   const routes = [createRouteConfig('/docs/:rest*')];
   const manifest = createRoutesManifest(routes);
   const matcher = new RouteMatcher(manifest);
 
   const result = matcher.match(new URL('http://localhost/docs/api/getting-started'));
-  assertExists(result);
-  assertEquals(result?.route.pattern, '/docs/:rest*');
+  expect(result).toBeDefined();
+  expect(result?.route.pattern).toEqual('/docs/:rest*');
 });
 
-Deno.test('match - extracts rest param from wildcard routes', () => {
+test('match - extracts rest param from wildcard routes', () => {
   const routes = [createRouteConfig('/docs/:rest*')];
   const manifest = createRoutesManifest(routes);
   const matcher = new RouteMatcher(manifest);
 
   const result = matcher.match(new URL('http://localhost/docs/guides/deploy/docker'));
-  assertExists(result);
-  assertEquals(result?.params.rest, 'guides/deploy/docker');
+  expect(result).toBeDefined();
+  expect(result?.params.rest).toEqual('guides/deploy/docker');
 });
 
-Deno.test('match - wildcard matches single segment', () => {
+test('match - wildcard matches single segment', () => {
   const routes = [createRouteConfig('/docs/:rest*')];
   const manifest = createRoutesManifest(routes);
   const matcher = new RouteMatcher(manifest);
 
   const result = matcher.match(new URL('http://localhost/docs/intro'));
-  assertExists(result);
-  assertEquals(result?.params.rest, 'intro');
+  expect(result).toBeDefined();
+  expect(result?.params.rest).toEqual('intro');
 });
 
-Deno.test('match - wildcard with dynamic parent segment', () => {
+test('match - wildcard with dynamic parent segment', () => {
   const routes = [createRouteConfig('/projects/:id/:rest*')];
   const manifest = createRoutesManifest(routes);
   const matcher = new RouteMatcher(manifest);
@@ -331,16 +331,16 @@ Deno.test('match - wildcard with dynamic parent segment', () => {
   const result = matcher.match(
     new URL('http://localhost/projects/123/boards/kanban/tasks'),
   );
-  assertExists(result);
-  assertEquals(result?.params.id, '123');
-  assertEquals(result?.params.rest, 'boards/kanban/tasks');
+  expect(result).toBeDefined();
+  expect(result?.params.id).toEqual('123');
+  expect(result?.params.rest).toEqual('boards/kanban/tasks');
 });
 
 // ============================================================================
 // match() Method - Route Priority and Specificity
 // ============================================================================
 
-Deno.test('match - static routes win over dynamic routes (guide.md rule)', () => {
+test('match - static routes win over dynamic routes (guide.md rule)', () => {
   const routes = [
     createRouteConfig('/crypto/:coin'),
     createRouteConfig('/crypto/eth'),
@@ -351,11 +351,11 @@ Deno.test('match - static routes win over dynamic routes (guide.md rule)', () =>
   // Routes are in original order, so /crypto/:coin matches first
   // This test verifies that route ordering matters for priority
   const result = matcher.match(new URL('http://localhost/crypto/eth'));
-  assertExists(result);
-  assertEquals(result?.route.pattern, '/crypto/:coin');
+  expect(result).toBeDefined();
+  expect(result?.route.pattern).toEqual('/crypto/:coin');
 });
 
-Deno.test('match - specific routes win when ordered correctly (guide.md rule)', () => {
+test('match - specific routes win when ordered correctly (guide.md rule)', () => {
   // Routes should be sorted by specificity before use
   const routes = [
     createRouteConfig('/crypto/eth'),
@@ -365,11 +365,11 @@ Deno.test('match - specific routes win when ordered correctly (guide.md rule)', 
   const matcher = new RouteMatcher(manifest);
 
   const result = matcher.match(new URL('http://localhost/crypto/eth'));
-  assertExists(result);
-  assertEquals(result?.route.pattern, '/crypto/eth');
+  expect(result).toBeDefined();
+  expect(result?.route.pattern).toEqual('/crypto/eth');
 });
 
-Deno.test('match - returns first matching route in order', () => {
+test('match - returns first matching route in order', () => {
   const routes = [
     createRouteConfig('/projects/:id'),
     createRouteConfig('/projects/special'),
@@ -378,12 +378,12 @@ Deno.test('match - returns first matching route in order', () => {
   const matcher = new RouteMatcher(manifest);
 
   const result = matcher.match(new URL('http://localhost/projects/special'));
-  assertExists(result);
+  expect(result).toBeDefined();
   // Returns first match, which is /projects/:id
-  assertEquals(result?.route.pattern, '/projects/:id');
+  expect(result?.route.pattern).toEqual('/projects/:id');
 });
 
-Deno.test('match - catch-all has lower priority than specific routes', () => {
+test('match - catch-all has lower priority than specific routes', () => {
   // When routes are pre-sorted correctly, specific routes come first
   const routes = [
     createRouteConfig('/projects/:id'),
@@ -393,91 +393,91 @@ Deno.test('match - catch-all has lower priority than specific routes', () => {
   const matcher = new RouteMatcher(manifest);
 
   const result = matcher.match(new URL('http://localhost/projects/123'));
-  assertExists(result);
+  expect(result).toBeDefined();
   // Dynamic param without wildcard should match first
-  assertEquals(result?.route.pattern, '/projects/:id');
+  expect(result?.route.pattern).toEqual('/projects/:id');
 });
 
 // ============================================================================
 // match() Method - Query Parameters
 // ============================================================================
 
-Deno.test('match - preserves search params in result', () => {
+test('match - preserves search params in result', () => {
   const routes = [createRouteConfig('/search')];
   const manifest = createRoutesManifest(routes);
   const matcher = new RouteMatcher(manifest);
 
   const result = matcher.match('http://localhost/search?q=test&page=2');
-  assertExists(result);
-  assertExists(result.searchParams);
-  assertEquals(result.searchParams.get('q'), 'test');
-  assertEquals(result.searchParams.get('page'), '2');
+  expect(result).toBeDefined();
+  expect(result.searchParams).toBeDefined();
+  expect(result.searchParams.get('q')).toEqual('test');
+  expect(result.searchParams.get('page')).toEqual('2');
 });
 
-Deno.test('match - handles multiple search param values', () => {
+test('match - handles multiple search param values', () => {
   const routes = [createRouteConfig('/filter')];
   const manifest = createRoutesManifest(routes);
   const matcher = new RouteMatcher(manifest);
 
   const result = matcher.match('http://localhost/filter?category=books&category=electronics');
-  assertExists(result);
-  assertExists(result.searchParams);
+  expect(result).toBeDefined();
+  expect(result.searchParams).toBeDefined();
   const categories = result.searchParams.getAll('category');
-  assertEquals(categories.length, 2);
+  expect(categories.length).toEqual(2);
 });
 
-Deno.test('match - ignores search params for pattern matching', () => {
+test('match - ignores search params for pattern matching', () => {
   const routes = [createRouteConfig('/products/:id')];
   const manifest = createRoutesManifest(routes);
   const matcher = new RouteMatcher(manifest);
 
   const result = matcher.match('http://localhost/products/42?color=red&size=large');
-  assertExists(result);
-  assertEquals(result.params.id, '42');
-  assertExists(result.searchParams);
-  assertEquals(result.searchParams.get('color'), 'red');
-  assertEquals(result.searchParams.get('size'), 'large');
+  expect(result).toBeDefined();
+  expect(result.params.id).toEqual('42');
+  expect(result.searchParams).toBeDefined();
+  expect(result.searchParams.get('color')).toEqual('red');
+  expect(result.searchParams.get('size')).toEqual('large');
 });
 
 // ============================================================================
 // match() Method - String vs URL Input
 // ============================================================================
 
-Deno.test('match - accepts string URLs', () => {
+test('match - accepts string URLs', () => {
   const routes = [createRouteConfig('/about')];
   const manifest = createRoutesManifest(routes);
   const matcher = new RouteMatcher(manifest);
 
   const result = matcher.match('http://localhost/about');
-  assertExists(result);
-  assertEquals(result?.route.pattern, '/about');
+  expect(result).toBeDefined();
+  expect(result?.route.pattern).toEqual('/about');
 });
 
-Deno.test('match - accepts URL objects', () => {
+test('match - accepts URL objects', () => {
   const routes = [createRouteConfig('/about')];
   const manifest = createRoutesManifest(routes);
   const matcher = new RouteMatcher(manifest);
 
   const result = matcher.match(new URL('http://localhost/about'));
-  assertExists(result);
-  assertEquals(result?.route.pattern, '/about');
+  expect(result).toBeDefined();
+  expect(result?.route.pattern).toEqual('/about');
 });
 
-Deno.test('match - handles string URLs with query params', () => {
+test('match - handles string URLs with query params', () => {
   const routes = [createRouteConfig('/search')];
   const manifest = createRoutesManifest(routes);
   const matcher = new RouteMatcher(manifest);
 
   const result = matcher.match('http://localhost/search?q=test');
-  assertExists(result);
-  assertEquals(result?.route.pattern, '/search');
+  expect(result).toBeDefined();
+  expect(result?.route.pattern).toEqual('/search');
 });
 
 // ============================================================================
 // findRoute() Method
 // ============================================================================
 
-Deno.test('findRoute - finds by exact pattern match', () => {
+test('findRoute - finds by exact pattern match', () => {
   const routes = [
     createRouteConfig('/'),
     createRouteConfig('/about'),
@@ -487,30 +487,30 @@ Deno.test('findRoute - finds by exact pattern match', () => {
   const matcher = new RouteMatcher(manifest);
 
   const result = matcher.findRoute('/about');
-  assertExists(result);
-  assertEquals(result?.pattern, '/about');
+  expect(result).toBeDefined();
+  expect(result?.pattern).toEqual('/about');
 });
 
-Deno.test('findRoute - finds by pathname match when no exact pattern', () => {
+test('findRoute - finds by pathname match when no exact pattern', () => {
   const routes = [createRouteConfig('/projects/:id')];
   const manifest = createRoutesManifest(routes);
   const matcher = new RouteMatcher(manifest);
 
   const result = matcher.findRoute('/projects/123');
-  assertExists(result);
-  assertEquals(result?.pattern, '/projects/:id');
+  expect(result).toBeDefined();
+  expect(result?.pattern).toEqual('/projects/:id');
 });
 
-Deno.test('findRoute - returns undefined for non-matching', () => {
+test('findRoute - returns undefined for non-matching', () => {
   const routes = [createRouteConfig('/about')];
   const manifest = createRoutesManifest(routes);
   const matcher = new RouteMatcher(manifest);
 
   const result = matcher.findRoute('/nonexistent');
-  assertEquals(result, undefined);
+  expect(result).toEqual(undefined);
 });
 
-Deno.test('findRoute - prefers exact pattern match over pathname match', () => {
+test('findRoute - prefers exact pattern match over pathname match', () => {
   const routes = [
     createRouteConfig('/'),
     createRouteConfig('/projects/:id'),
@@ -519,11 +519,11 @@ Deno.test('findRoute - prefers exact pattern match over pathname match', () => {
   const matcher = new RouteMatcher(manifest);
 
   const result = matcher.findRoute('/');
-  assertExists(result);
-  assertEquals(result?.pattern, '/');
+  expect(result).toBeDefined();
+  expect(result?.pattern).toEqual('/');
 });
 
-Deno.test('findRoute - handles dynamic routes with multiple segments', () => {
+test('findRoute - handles dynamic routes with multiple segments', () => {
   const routes = [
     createRouteConfig('/projects/:projectId/tasks/:taskId'),
   ];
@@ -531,15 +531,15 @@ Deno.test('findRoute - handles dynamic routes with multiple segments', () => {
   const matcher = new RouteMatcher(manifest);
 
   const result = matcher.findRoute('/projects/123/tasks/456');
-  assertExists(result);
-  assertEquals(result?.pattern, '/projects/:projectId/tasks/:taskId');
+  expect(result).toBeDefined();
+  expect(result?.pattern).toEqual('/projects/:projectId/tasks/:taskId');
 });
 
 // ============================================================================
 // findErrorBoundary() Method
 // ============================================================================
 
-Deno.test('findErrorBoundary - finds exact pattern match', () => {
+test('findErrorBoundary - finds exact pattern match', () => {
   const errorBoundaries: ErrorBoundary[] = [
     {
       pattern: '/admin',
@@ -550,11 +550,11 @@ Deno.test('findErrorBoundary - finds exact pattern match', () => {
   const matcher = new RouteMatcher(manifest);
 
   const result = matcher.findErrorBoundary('/admin');
-  assertExists(result);
-  assertEquals(result?.pattern, '/admin');
+  expect(result).toBeDefined();
+  expect(result?.pattern).toEqual('/admin');
 });
 
-Deno.test('findErrorBoundary - finds by prefix match', () => {
+test('findErrorBoundary - finds by prefix match', () => {
   const errorBoundaries: ErrorBoundary[] = [
     {
       pattern: '/admin',
@@ -565,11 +565,11 @@ Deno.test('findErrorBoundary - finds by prefix match', () => {
   const matcher = new RouteMatcher(manifest);
 
   const result = matcher.findErrorBoundary('/admin/users');
-  assertExists(result);
-  assertEquals(result?.pattern, '/admin');
+  expect(result).toBeDefined();
+  expect(result?.pattern).toEqual('/admin');
 });
 
-Deno.test('findErrorBoundary - finds most specific boundary (guide.md rule)', () => {
+test('findErrorBoundary - finds most specific boundary (guide.md rule)', () => {
   const errorBoundaries: ErrorBoundary[] = [
     {
       pattern: '/admin',
@@ -584,11 +584,11 @@ Deno.test('findErrorBoundary - finds most specific boundary (guide.md rule)', ()
   const matcher = new RouteMatcher(manifest);
 
   const result = matcher.findErrorBoundary('/admin/users/123');
-  assertExists(result);
-  assertEquals(result?.pattern, '/admin/users');
+  expect(result).toBeDefined();
+  expect(result?.pattern).toEqual('/admin/users');
 });
 
-Deno.test('findErrorBoundary - returns undefined for non-matching', () => {
+test('findErrorBoundary - returns undefined for non-matching', () => {
   const errorBoundaries: ErrorBoundary[] = [
     {
       pattern: '/admin',
@@ -599,10 +599,10 @@ Deno.test('findErrorBoundary - returns undefined for non-matching', () => {
   const matcher = new RouteMatcher(manifest);
 
   const result = matcher.findErrorBoundary('/user');
-  assertEquals(result, undefined);
+  expect(result).toEqual(undefined);
 });
 
-Deno.test('findErrorBoundary - handles root boundary', () => {
+test('findErrorBoundary - handles root boundary', () => {
   const errorBoundaries: ErrorBoundary[] = [
     {
       pattern: '/',
@@ -613,11 +613,11 @@ Deno.test('findErrorBoundary - handles root boundary', () => {
   const matcher = new RouteMatcher(manifest);
 
   const result = matcher.findErrorBoundary('/any/path');
-  assertExists(result);
-  assertEquals(result?.pattern, '/');
+  expect(result).toBeDefined();
+  expect(result?.pattern).toEqual('/');
 });
 
-Deno.test('findErrorBoundary - does not match similar names without prefix', () => {
+test('findErrorBoundary - does not match similar names without prefix', () => {
   const errorBoundaries: ErrorBoundary[] = [
     {
       pattern: '/admin',
@@ -629,10 +629,10 @@ Deno.test('findErrorBoundary - does not match similar names without prefix', () 
 
   // /admin-users starts with /admin but is not a path segment prefix
   const result = matcher.findErrorBoundary('/admin-users');
-  assertEquals(result, undefined);
+  expect(result).toEqual(undefined);
 });
 
-Deno.test('findErrorBoundary - deep nesting with multiple boundaries', () => {
+test('findErrorBoundary - deep nesting with multiple boundaries', () => {
   const errorBoundaries: ErrorBoundary[] = [
     {
       pattern: '/',
@@ -651,11 +651,11 @@ Deno.test('findErrorBoundary - deep nesting with multiple boundaries', () => {
   const matcher = new RouteMatcher(manifest);
 
   const result = matcher.findErrorBoundary('/admin/users/edit/5');
-  assertExists(result);
-  assertEquals(result?.pattern, '/admin/users');
+  expect(result).toBeDefined();
+  expect(result?.pattern).toEqual('/admin/users');
 });
 
-Deno.test('findErrorBoundary - finds between multiple sibling boundaries', () => {
+test('findErrorBoundary - finds between multiple sibling boundaries', () => {
   const errorBoundaries: ErrorBoundary[] = [
     {
       pattern: '/api',
@@ -670,28 +670,28 @@ Deno.test('findErrorBoundary - finds between multiple sibling boundaries', () =>
   const matcher = new RouteMatcher(manifest);
 
   const apiResult = matcher.findErrorBoundary('/api/v1/users');
-  assertEquals(apiResult?.pattern, '/api');
+  expect(apiResult?.pattern).toEqual('/api');
 
   const adminResult = matcher.findErrorBoundary('/admin/settings');
-  assertEquals(adminResult?.pattern, '/admin');
+  expect(adminResult?.pattern).toEqual('/admin');
 });
 
 // ============================================================================
 // getStatusPage() Method
 // ============================================================================
 
-Deno.test('getStatusPage - returns status page for 404', () => {
+test('getStatusPage - returns status page for 404', () => {
   const statusPages = new Map<number, RouteConfig>();
   statusPages.set(404, createRouteConfig('/404'));
   const manifest = createRoutesManifest([], [], statusPages);
   const matcher = new RouteMatcher(manifest);
 
   const result = matcher.getStatusPage(404);
-  assertExists(result);
-  assertEquals(result?.pattern, '/404');
+  expect(result).toBeDefined();
+  expect(result?.pattern).toEqual('/404');
 });
 
-Deno.test('getStatusPage - returns status page for various error codes', () => {
+test('getStatusPage - returns status page for various error codes', () => {
   const statusPages = new Map<number, RouteConfig>();
   statusPages.set(401, createRouteConfig('/401'));
   statusPages.set(403, createRouteConfig('/403'));
@@ -699,299 +699,299 @@ Deno.test('getStatusPage - returns status page for various error codes', () => {
   const manifest = createRoutesManifest([], [], statusPages);
   const matcher = new RouteMatcher(manifest);
 
-  assertEquals(matcher.getStatusPage(401)?.pattern, '/401');
-  assertEquals(matcher.getStatusPage(403)?.pattern, '/403');
-  assertEquals(matcher.getStatusPage(500)?.pattern, '/500');
+  expect(matcher.getStatusPage(401)?.pattern).toEqual('/401');
+  expect(matcher.getStatusPage(403)?.pattern).toEqual('/403');
+  expect(matcher.getStatusPage(500)?.pattern).toEqual('/500');
 });
 
-Deno.test('getStatusPage - returns undefined for non-existent status', () => {
+test('getStatusPage - returns undefined for non-existent status', () => {
   const statusPages = new Map<number, RouteConfig>();
   statusPages.set(404, createRouteConfig('/404'));
   const manifest = createRoutesManifest([], [], statusPages);
   const matcher = new RouteMatcher(manifest);
 
   const result = matcher.getStatusPage(500);
-  assertEquals(result, undefined);
+  expect(result).toEqual(undefined);
 });
 
-Deno.test('getStatusPage - returns undefined when no status pages', () => {
+test('getStatusPage - returns undefined when no status pages', () => {
   const manifest = createRoutesManifest();
   const matcher = new RouteMatcher(manifest);
 
   const result = matcher.getStatusPage(404);
-  assertEquals(result, undefined);
+  expect(result).toEqual(undefined);
 });
 
 // ============================================================================
 // getErrorHandler() Method
 // ============================================================================
 
-Deno.test('getErrorHandler - returns error handler when set', () => {
+test('getErrorHandler - returns error handler when set', () => {
   const errorHandler = createRouteConfig('/error');
   const manifest = createRoutesManifest([], [], new Map(), errorHandler);
   const matcher = new RouteMatcher(manifest);
 
   const result = matcher.getErrorHandler();
-  assertExists(result);
-  assertEquals(result?.pattern, '/error');
+  expect(result).toBeDefined();
+  expect(result?.pattern).toEqual('/error');
 });
 
-Deno.test('getErrorHandler - returns undefined when not set', () => {
+test('getErrorHandler - returns undefined when not set', () => {
   const manifest = createRoutesManifest();
   const matcher = new RouteMatcher(manifest);
 
   const result = matcher.getErrorHandler();
-  assertEquals(result, undefined);
+  expect(result).toEqual(undefined);
 });
 
 // ============================================================================
 // filePathToPattern() Function - Basic Conversions
 // ============================================================================
 
-Deno.test('filePathToPattern - converts root index file', () => {
+test('filePathToPattern - converts root index file', () => {
   const pattern = filePathToPattern('routes/index.page.ts');
-  assertEquals(pattern, '/');
+  expect(pattern).toEqual('/');
 });
 
-Deno.test('filePathToPattern - root index does NOT become wildcard (guide.md rule)', () => {
+test('filePathToPattern - root index does NOT become wildcard (guide.md rule)', () => {
   const pattern = filePathToPattern('routes/index.page.ts');
-  assertEquals(pattern, '/');
-  assertEquals(pattern.includes(':rest*'), false);
+  expect(pattern).toEqual('/');
+  expect(pattern.includes(':rest*')).toEqual(false);
 });
 
-Deno.test('filePathToPattern - converts simple page file', () => {
+test('filePathToPattern - converts simple page file', () => {
   const pattern = filePathToPattern('routes/about.page.ts');
-  assertEquals(pattern, '/about');
+  expect(pattern).toEqual('/about');
 });
 
-Deno.test('filePathToPattern - converts flat file (no wildcard)', () => {
+test('filePathToPattern - converts flat file (no wildcard)', () => {
   const pattern = filePathToPattern('routes/crypto.page.ts');
-  assertEquals(pattern, '/crypto');
-  assertEquals(pattern.includes(':rest*'), false);
+  expect(pattern).toEqual('/crypto');
+  expect(pattern.includes(':rest*')).toEqual(false);
 });
 
 // ============================================================================
 // filePathToPattern() Function - Dynamic Segments
 // ============================================================================
 
-Deno.test('filePathToPattern - converts [param] to :param', () => {
+test('filePathToPattern - converts [param] to :param', () => {
   const pattern = filePathToPattern('routes/projects/[id].page.ts');
-  assertEquals(pattern, '/projects/:id');
+  expect(pattern).toEqual('/projects/:id');
 });
 
-Deno.test('filePathToPattern - converts multiple dynamic segments', () => {
+test('filePathToPattern - converts multiple dynamic segments', () => {
   const pattern = filePathToPattern(
     'routes/projects/[projectId]/tasks/[taskId].page.ts',
   );
-  assertEquals(pattern, '/projects/:projectId/tasks/:taskId');
+  expect(pattern).toEqual('/projects/:projectId/tasks/:taskId');
 });
 
-Deno.test('filePathToPattern - converts mixed static and dynamic segments', () => {
+test('filePathToPattern - converts mixed static and dynamic segments', () => {
   const pattern = filePathToPattern('routes/users/[id]/profile.page.ts');
-  assertEquals(pattern, '/users/:id/profile');
+  expect(pattern).toEqual('/users/:id/profile');
 });
 
-Deno.test('filePathToPattern - deeply nested with dynamic segments', () => {
+test('filePathToPattern - deeply nested with dynamic segments', () => {
   const pattern = filePathToPattern('routes/a/b/c/d/[param]/e.page.ts');
-  assertEquals(pattern, '/a/b/c/d/:param/e');
+  expect(pattern).toEqual('/a/b/c/d/:param/e');
 });
 
 // ============================================================================
 // filePathToPattern() Function - Directory Index / Catch-all Routes
 // ============================================================================
 
-Deno.test('filePathToPattern - non-root directory index becomes wildcard (guide.md rule)', () => {
+test('filePathToPattern - non-root directory index becomes wildcard (guide.md rule)', () => {
   const pattern = filePathToPattern('routes/projects/index.page.ts');
-  assertEquals(pattern, '/projects/:rest*');
+  expect(pattern).toEqual('/projects/:rest*');
 });
 
-Deno.test('filePathToPattern - directory index becomes wildcard for .html', () => {
+test('filePathToPattern - directory index becomes wildcard for .html', () => {
   const pattern = filePathToPattern('routes/dashboard/index.page.html');
-  assertEquals(pattern, '/dashboard/:rest*');
+  expect(pattern).toEqual('/dashboard/:rest*');
 });
 
-Deno.test('filePathToPattern - directory index becomes wildcard for .md', () => {
+test('filePathToPattern - directory index becomes wildcard for .md', () => {
   const pattern = filePathToPattern('routes/crypto/index.page.md');
-  assertEquals(pattern, '/crypto/:rest*');
+  expect(pattern).toEqual('/crypto/:rest*');
 });
 
-Deno.test('filePathToPattern - deeply nested directory index becomes wildcard', () => {
+test('filePathToPattern - deeply nested directory index becomes wildcard', () => {
   const pattern = filePathToPattern('routes/docs/api/index.page.ts');
-  assertEquals(pattern, '/docs/api/:rest*');
+  expect(pattern).toEqual('/docs/api/:rest*');
 });
 
-Deno.test('filePathToPattern - directory index with dynamic parent', () => {
+test('filePathToPattern - directory index with dynamic parent', () => {
   const pattern = filePathToPattern('routes/projects/[id]/index.page.ts');
-  assertEquals(pattern, '/projects/:id/:rest*');
+  expect(pattern).toEqual('/projects/:id/:rest*');
 });
 
-Deno.test('filePathToPattern - nested directory indices chain', () => {
+test('filePathToPattern - nested directory indices chain', () => {
   const root = filePathToPattern('routes/blog/index.page.ts');
-  assertEquals(root, '/blog/:rest*');
+  expect(root).toEqual('/blog/:rest*');
 
   const nested = filePathToPattern('routes/blog/posts/index.page.ts');
-  assertEquals(nested, '/blog/posts/:rest*');
+  expect(nested).toEqual('/blog/posts/:rest*');
 });
 
 // ============================================================================
 // filePathToPattern() Function - File Extension Handling
 // ============================================================================
 
-Deno.test('filePathToPattern - handles .page.html files', () => {
+test('filePathToPattern - handles .page.html files', () => {
   const pattern = filePathToPattern('routes/about.page.html');
-  assertEquals(pattern, '/about');
+  expect(pattern).toEqual('/about');
 });
 
-Deno.test('filePathToPattern - handles .page.md files', () => {
+test('filePathToPattern - handles .page.md files', () => {
   const pattern = filePathToPattern('routes/about.page.md');
-  assertEquals(pattern, '/about');
+  expect(pattern).toEqual('/about');
 });
 
-Deno.test('filePathToPattern - handles .page.css files', () => {
+test('filePathToPattern - handles .page.css files', () => {
   const pattern = filePathToPattern('routes/about.page.css');
-  assertEquals(pattern, '/about');
+  expect(pattern).toEqual('/about');
 });
 
-Deno.test('filePathToPattern - handles .error.ts files', () => {
+test('filePathToPattern - handles .error.ts files', () => {
   const pattern = filePathToPattern('routes/admin.error.ts');
-  assertEquals(pattern, '/admin');
+  expect(pattern).toEqual('/admin');
 });
 
-Deno.test('filePathToPattern - handles .redirect.ts files', () => {
+test('filePathToPattern - handles .redirect.ts files', () => {
   const pattern = filePathToPattern('routes/old-path.redirect.ts');
-  assertEquals(pattern, '/old-path');
+  expect(pattern).toEqual('/old-path');
 });
 
-Deno.test('filePathToPattern - ensures leading slash', () => {
+test('filePathToPattern - ensures leading slash', () => {
   const pattern = filePathToPattern('routes/test.page.ts');
-  assertEquals(pattern.charAt(0), '/');
+  expect(pattern.charAt(0)).toEqual('/');
 });
 
 // ============================================================================
 // filePathToPattern() Function - Edge Cases
 // ============================================================================
 
-Deno.test('filePathToPattern - handles multiple consecutive slashes', () => {
+test('filePathToPattern - handles multiple consecutive slashes', () => {
   const pattern = filePathToPattern('routes/docs/api/index.page.ts');
-  assertEquals(pattern, '/docs/api/:rest*');
+  expect(pattern).toEqual('/docs/api/:rest*');
 });
 
-Deno.test('filePathToPattern - handles hyphens in filenames', () => {
+test('filePathToPattern - handles hyphens in filenames', () => {
   const pattern = filePathToPattern('routes/my-component.page.ts');
-  assertEquals(pattern, '/my-component');
+  expect(pattern).toEqual('/my-component');
 });
 
-Deno.test('filePathToPattern - handles underscores in filenames', () => {
+test('filePathToPattern - handles underscores in filenames', () => {
   const pattern = filePathToPattern('routes/my_component/[id].page.ts');
-  assertEquals(pattern, '/my_component/:id');
+  expect(pattern).toEqual('/my_component/:id');
 });
 
-Deno.test('filePathToPattern - converts bracket params with hyphens', () => {
+test('filePathToPattern - converts bracket params with hyphens', () => {
   const pattern = filePathToPattern('routes/items/[item-id].page.ts');
-  assertEquals(pattern, '/items/:item-id');
+  expect(pattern).toEqual('/items/:item-id');
 });
 
 // ============================================================================
 // getRouteType() Function
 // ============================================================================
 
-Deno.test('getRouteType - identifies .page.ts files as page', () => {
+test('getRouteType - identifies .page.ts files as page', () => {
   const type = getRouteType('about.page.ts');
-  assertEquals(type, 'page');
+  expect(type).toEqual('page');
 });
 
-Deno.test('getRouteType - identifies .page.html files as page', () => {
+test('getRouteType - identifies .page.html files as page', () => {
   const type = getRouteType('about.page.html');
-  assertEquals(type, 'page');
+  expect(type).toEqual('page');
 });
 
-Deno.test('getRouteType - identifies .page.md files as page', () => {
+test('getRouteType - identifies .page.md files as page', () => {
   const type = getRouteType('about.page.md');
-  assertEquals(type, 'page');
+  expect(type).toEqual('page');
 });
 
-Deno.test('getRouteType - identifies .error.ts files as error', () => {
+test('getRouteType - identifies .error.ts files as error', () => {
   const type = getRouteType('admin.error.ts');
-  assertEquals(type, 'error');
+  expect(type).toEqual('error');
 });
 
-Deno.test('getRouteType - identifies .redirect.ts files as redirect', () => {
+test('getRouteType - identifies .redirect.ts files as redirect', () => {
   const type = getRouteType('old-path.redirect.ts');
-  assertEquals(type, 'redirect');
+  expect(type).toEqual('redirect');
 });
 
-Deno.test('getRouteType - returns null for unknown types', () => {
+test('getRouteType - returns null for unknown types', () => {
   const type = getRouteType('file.ts');
-  assertEquals(type, null);
+  expect(type).toEqual(null);
 });
 
-Deno.test('getRouteType - returns null for .html without .page', () => {
+test('getRouteType - returns null for .html without .page', () => {
   const type = getRouteType('about.html');
-  assertEquals(type, null);
+  expect(type).toEqual(null);
 });
 
-Deno.test('getRouteType - returns null for empty strings', () => {
+test('getRouteType - returns null for empty strings', () => {
   const type = getRouteType('');
-  assertEquals(type, null);
+  expect(type).toEqual(null);
 });
 
-Deno.test('getRouteType - handles files with multiple dots', () => {
+test('getRouteType - handles files with multiple dots', () => {
   const type1 = getRouteType('my.component.page.ts');
-  assertEquals(type1, 'page');
+  expect(type1).toEqual('page');
 
   const type2 = getRouteType('my.error.handler.error.ts');
-  assertEquals(type2, 'error');
+  expect(type2).toEqual('error');
 });
 
 // ============================================================================
 // getPageFileType() Function
 // ============================================================================
 
-Deno.test('getPageFileType - identifies .page.ts files', () => {
+test('getPageFileType - identifies .page.ts files', () => {
   const type = getPageFileType('about.page.ts');
-  assertEquals(type, 'ts');
+  expect(type).toEqual('ts');
 });
 
-Deno.test('getPageFileType - identifies .page.html files', () => {
+test('getPageFileType - identifies .page.html files', () => {
   const type = getPageFileType('about.page.html');
-  assertEquals(type, 'html');
+  expect(type).toEqual('html');
 });
 
-Deno.test('getPageFileType - identifies .page.md files', () => {
+test('getPageFileType - identifies .page.md files', () => {
   const type = getPageFileType('about.page.md');
-  assertEquals(type, 'md');
+  expect(type).toEqual('md');
 });
 
-Deno.test('getPageFileType - identifies .page.css files', () => {
+test('getPageFileType - identifies .page.css files', () => {
   const type = getPageFileType('about.page.css');
-  assertEquals(type, 'css');
+  expect(type).toEqual('css');
 });
 
-Deno.test('getPageFileType - returns null for non-page files', () => {
+test('getPageFileType - returns null for non-page files', () => {
   const type = getPageFileType('about.ts');
-  assertEquals(type, null);
+  expect(type).toEqual(null);
 });
 
-Deno.test('getPageFileType - returns null for error files', () => {
+test('getPageFileType - returns null for error files', () => {
   const type = getPageFileType('admin.error.ts');
-  assertEquals(type, null);
+  expect(type).toEqual(null);
 });
 
-Deno.test('getPageFileType - returns null for redirect files', () => {
+test('getPageFileType - returns null for redirect files', () => {
   const type = getPageFileType('old-path.redirect.ts');
-  assertEquals(type, null);
+  expect(type).toEqual(null);
 });
 
-Deno.test('getPageFileType - returns null for unknown extensions', () => {
+test('getPageFileType - returns null for unknown extensions', () => {
   const type = getPageFileType('about.page.jsx');
-  assertEquals(type, null);
+  expect(type).toEqual(null);
 });
 
 // ============================================================================
 // sortRoutesBySpecificity() Function - Basic Sorting
 // ============================================================================
 
-Deno.test('sortRoutesBySpecificity - sorts by segment count (longer first)', () => {
+test('sortRoutesBySpecificity - sorts by segment count (longer first)', () => {
   const routes = [
     createRouteConfig('/'),
     createRouteConfig('/projects/:id'),
@@ -999,23 +999,23 @@ Deno.test('sortRoutesBySpecificity - sorts by segment count (longer first)', () 
   ];
   const sorted = sortRoutesBySpecificity(routes);
 
-  assertEquals(sorted[0].pattern, '/projects/:id');
-  assertEquals(sorted[1].pattern, '/projects');
-  assertEquals(sorted[2].pattern, '/');
+  expect(sorted[0].pattern).toEqual('/projects/:id');
+  expect(sorted[1].pattern).toEqual('/projects');
+  expect(sorted[2].pattern).toEqual('/');
 });
 
-Deno.test('sortRoutesBySpecificity - prefers static over dynamic (guide.md rule)', () => {
+test('sortRoutesBySpecificity - prefers static over dynamic (guide.md rule)', () => {
   const routes = [
     createRouteConfig('/projects/:id'),
     createRouteConfig('/projects/special'),
   ];
   const sorted = sortRoutesBySpecificity(routes);
 
-  assertEquals(sorted[0].pattern, '/projects/special');
-  assertEquals(sorted[1].pattern, '/projects/:id');
+  expect(sorted[0].pattern).toEqual('/projects/special');
+  expect(sorted[1].pattern).toEqual('/projects/:id');
 });
 
-Deno.test('sortRoutesBySpecificity - handles multiple dynamic segments', () => {
+test('sortRoutesBySpecificity - handles multiple dynamic segments', () => {
   const routes = [
     createRouteConfig('/projects/:projectId/tasks/:taskId'),
     createRouteConfig('/projects/:id'),
@@ -1023,12 +1023,12 @@ Deno.test('sortRoutesBySpecificity - handles multiple dynamic segments', () => {
   ];
   const sorted = sortRoutesBySpecificity(routes);
 
-  assertEquals(sorted[0].pattern, '/projects/:projectId/tasks/:taskId');
-  assertEquals(sorted[1].pattern, '/projects/:id');
-  assertEquals(sorted[2].pattern, '/projects');
+  expect(sorted[0].pattern).toEqual('/projects/:projectId/tasks/:taskId');
+  expect(sorted[1].pattern).toEqual('/projects/:id');
+  expect(sorted[2].pattern).toEqual('/projects');
 });
 
-Deno.test('sortRoutesBySpecificity - handles mixed patterns', () => {
+test('sortRoutesBySpecificity - handles mixed patterns', () => {
   const routes = [
     createRouteConfig('/users/:id'),
     createRouteConfig('/users/profile'),
@@ -1036,27 +1036,27 @@ Deno.test('sortRoutesBySpecificity - handles mixed patterns', () => {
   ];
   const sorted = sortRoutesBySpecificity(routes);
 
-  assertEquals(sorted[0].pattern, '/users/profile/edit');
-  assertEquals(sorted[1].pattern, '/users/profile');
-  assertEquals(sorted[2].pattern, '/users/:id');
+  expect(sorted[0].pattern).toEqual('/users/profile/edit');
+  expect(sorted[1].pattern).toEqual('/users/profile');
+  expect(sorted[2].pattern).toEqual('/users/:id');
 });
 
 // ============================================================================
 // sortRoutesBySpecificity() Function - Wildcard Handling
 // ============================================================================
 
-Deno.test('sortRoutesBySpecificity - wildcard sorts last (guide.md rule)', () => {
+test('sortRoutesBySpecificity - wildcard sorts last (guide.md rule)', () => {
   const routes = [
     createRouteConfig('/crypto/:rest*'),
     createRouteConfig('/crypto/eth'),
   ];
   const sorted = sortRoutesBySpecificity(routes);
 
-  assertEquals(sorted[0].pattern, '/crypto/eth');
-  assertEquals(sorted[1].pattern, '/crypto/:rest*');
+  expect(sorted[0].pattern).toEqual('/crypto/eth');
+  expect(sorted[1].pattern).toEqual('/crypto/:rest*');
 });
 
-Deno.test('sortRoutesBySpecificity - wildcard sorts after all non-wildcards', () => {
+test('sortRoutesBySpecificity - wildcard sorts after all non-wildcards', () => {
   const routes = [
     createRouteConfig('/crypto/:rest*'),
     createRouteConfig('/crypto/eth'),
@@ -1066,14 +1066,14 @@ Deno.test('sortRoutesBySpecificity - wildcard sorts after all non-wildcards', ()
   const sorted = sortRoutesBySpecificity(routes);
 
   // Non-wildcards first (by their own rules), wildcard last
-  assertEquals(sorted[sorted.length - 1].pattern, '/crypto/:rest*');
+  expect(sorted[sorted.length - 1].pattern).toEqual('/crypto/:rest*');
   // Root is least specific non-wildcard but still before wildcard
   const wildcardIndex = sorted.findIndex((r) => r.pattern === '/crypto/:rest*');
   const rootIndex = sorted.findIndex((r) => r.pattern === '/');
-  assertEquals(rootIndex < wildcardIndex, true);
+  expect(rootIndex < wildcardIndex).toEqual(true);
 });
 
-Deno.test('sortRoutesBySpecificity - multiple wildcards sort by segment count', () => {
+test('sortRoutesBySpecificity - multiple wildcards sort by segment count', () => {
   const routes = [
     createRouteConfig('/docs/:rest*'),
     createRouteConfig('/docs/api/:rest*'),
@@ -1081,11 +1081,11 @@ Deno.test('sortRoutesBySpecificity - multiple wildcards sort by segment count', 
   const sorted = sortRoutesBySpecificity(routes);
 
   // More segments = more specific, even among wildcards
-  assertEquals(sorted[0].pattern, '/docs/api/:rest*');
-  assertEquals(sorted[1].pattern, '/docs/:rest*');
+  expect(sorted[0].pattern).toEqual('/docs/api/:rest*');
+  expect(sorted[1].pattern).toEqual('/docs/:rest*');
 });
 
-Deno.test('sortRoutesBySpecificity - wildcard with plus quantifier', () => {
+test('sortRoutesBySpecificity - wildcard with plus quantifier', () => {
   const routes = [
     createRouteConfig('/files/:path+'),
     createRouteConfig('/files/special'),
@@ -1093,28 +1093,28 @@ Deno.test('sortRoutesBySpecificity - wildcard with plus quantifier', () => {
   const sorted = sortRoutesBySpecificity(routes);
 
   // Plus quantifier should also sort as wildcard
-  assertEquals(sorted[0].pattern, '/files/special');
-  assertEquals(sorted[1].pattern, '/files/:path+');
+  expect(sorted[0].pattern).toEqual('/files/special');
+  expect(sorted[1].pattern).toEqual('/files/:path+');
 });
 
 // ============================================================================
 // sortRoutesBySpecificity() Function - Edge Cases
 // ============================================================================
 
-Deno.test('sortRoutesBySpecificity - maintains order for equal specificity', () => {
+test('sortRoutesBySpecificity - maintains order for equal specificity', () => {
   const routes = [
     createRouteConfig('/about'),
     createRouteConfig('/contact'),
   ];
   const sorted = sortRoutesBySpecificity(routes);
 
-  assertEquals(sorted.length, 2);
+  expect(sorted.length).toEqual(2);
   const patterns = sorted.map((r) => r.pattern);
-  assertEquals(patterns.includes('/about'), true);
-  assertEquals(patterns.includes('/contact'), true);
+  expect(patterns.includes('/about')).toEqual(true);
+  expect(patterns.includes('/contact')).toEqual(true);
 });
 
-Deno.test('sortRoutesBySpecificity - does not mutate original array', () => {
+test('sortRoutesBySpecificity - does not mutate original array', () => {
   const routes = [
     createRouteConfig('/projects/:id'),
     createRouteConfig('/projects/special'),
@@ -1122,26 +1122,26 @@ Deno.test('sortRoutesBySpecificity - does not mutate original array', () => {
   const original = [...routes];
   const sorted = sortRoutesBySpecificity(routes);
 
-  assertEquals(routes[0].pattern, original[0].pattern);
-  assertEquals(sorted[0].pattern, '/projects/special');
+  expect(routes[0].pattern).toEqual(original[0].pattern);
+  expect(sorted[0].pattern).toEqual('/projects/special');
 });
 
-Deno.test('sortRoutesBySpecificity - handles single route', () => {
+test('sortRoutesBySpecificity - handles single route', () => {
   const routes = [createRouteConfig('/about')];
   const sorted = sortRoutesBySpecificity(routes);
 
-  assertEquals(sorted.length, 1);
-  assertEquals(sorted[0].pattern, '/about');
+  expect(sorted.length).toEqual(1);
+  expect(sorted[0].pattern).toEqual('/about');
 });
 
-Deno.test('sortRoutesBySpecificity - handles empty array', () => {
+test('sortRoutesBySpecificity - handles empty array', () => {
   const routes: RouteConfig[] = [];
   const sorted = sortRoutesBySpecificity(routes);
 
-  assertEquals(sorted.length, 0);
+  expect(sorted.length).toEqual(0);
 });
 
-Deno.test('sortRoutesBySpecificity - complex real-world scenario', () => {
+test('sortRoutesBySpecificity - complex real-world scenario', () => {
   const routes = [
     createRouteConfig('/'),
     createRouteConfig('/projects'),
@@ -1157,19 +1157,19 @@ Deno.test('sortRoutesBySpecificity - complex real-world scenario', () => {
 
   // 4-segment routes come first (most specific)
   const firstRoute = sorted[0].pattern;
-  assertEquals(firstRoute, '/projects/:id/tasks/:taskId');
+  expect(firstRoute).toEqual('/projects/:id/tasks/:taskId');
 
   // Verify that longer routes come before shorter ones
   const segmentCounts = sorted.map((r) => r.pattern.split('/').filter(Boolean).length);
   for (let i = 0; i < segmentCounts.length - 1; i++) {
-    assertEquals(segmentCounts[i] >= segmentCounts[i + 1], true);
+    expect(segmentCounts[i] >= segmentCounts[i + 1]).toEqual(true);
   }
 
   // Root path comes last (least specific)
-  assertEquals(sorted[sorted.length - 1].pattern, '/');
+  expect(sorted[sorted.length - 1].pattern).toEqual('/');
 });
 
-Deno.test('sortRoutesBySpecificity - correctly evaluates dynamic vs static at same level', () => {
+test('sortRoutesBySpecificity - correctly evaluates dynamic vs static at same level', () => {
   const routes = [
     createRouteConfig('/api/:version/users/:id'),
     createRouteConfig('/api/v1/users/profile'),
@@ -1180,15 +1180,15 @@ Deno.test('sortRoutesBySpecificity - correctly evaluates dynamic vs static at sa
 
   // All 4-segment routes should come before 3-segment
   const segments = sorted.map((r) => r.pattern.split('/').filter(Boolean).length);
-  assertEquals(segments[0] >= segments[1], true);
-  assertEquals(segments[1] >= segments[2], true);
+  expect(segments[0] >= segments[1]).toEqual(true);
+  expect(segments[1] >= segments[2]).toEqual(true);
 });
 
 // ============================================================================
 // Integration Tests - Complete Routing Scenarios
 // ============================================================================
 
-Deno.test('integration - full routing scenario from guide.md', () => {
+test('integration - full routing scenario from guide.md', () => {
   const routes = [
     createRouteConfig('/'),
     createRouteConfig('/about'),
@@ -1209,32 +1209,32 @@ Deno.test('integration - full routing scenario from guide.md', () => {
   const matcher = new RouteMatcher(manifest);
 
   const home = matcher.match(new URL('http://localhost/'));
-  assertExists(home);
-  assertEquals(home?.route.pattern, '/');
+  expect(home).toBeDefined();
+  expect(home?.route.pattern).toEqual('/');
 
   const about = matcher.match(new URL('http://localhost/about'));
-  assertExists(about);
-  assertEquals(about?.route.pattern, '/about');
+  expect(about).toBeDefined();
+  expect(about?.route.pattern).toEqual('/about');
 
   const projectId = matcher.match(new URL('http://localhost/projects/123'));
-  assertExists(projectId);
-  assertEquals(projectId?.route.pattern, '/projects/:id');
-  assertEquals(projectId?.params.id, '123');
+  expect(projectId).toBeDefined();
+  expect(projectId?.route.pattern).toEqual('/projects/:id');
+  expect(projectId?.params.id).toEqual('123');
 
   const boundary = matcher.findErrorBoundary('/projects/123');
-  assertExists(boundary);
-  assertEquals(boundary?.pattern, '/projects');
+  expect(boundary).toBeDefined();
+  expect(boundary?.pattern).toEqual('/projects');
 
   const statusPage = matcher.getStatusPage(404);
-  assertExists(statusPage);
-  assertEquals(statusPage?.pattern, '/404');
+  expect(statusPage).toBeDefined();
+  expect(statusPage?.pattern).toEqual('/404');
 });
 
-Deno.test('integration - complex nested routes with catch-all (nesting.md example)', () => {
+test('integration - complex nested routes with catch-all (nesting.md example)', () => {
   // Simulating routes from nesting.md example:
-  // docs.page.ts → /docs (exact)
-  // docs/index.page.ts → /docs/* (catch-all)
-  // docs/getting-started.page.md → /docs/getting-started (specific)
+  // docs.page.ts -> /docs (exact)
+  // docs/index.page.ts -> /docs/* (catch-all)
+  // docs/getting-started.page.md -> /docs/getting-started (specific)
 
   const routes = [
     createRouteConfig('/docs'),
@@ -1246,21 +1246,21 @@ Deno.test('integration - complex nested routes with catch-all (nesting.md exampl
   const matcher = new RouteMatcher(manifest);
 
   const docs = matcher.match(new URL('http://localhost/docs'));
-  assertExists(docs);
-  assertEquals(docs?.route.pattern, '/docs');
+  expect(docs).toBeDefined();
+  expect(docs?.route.pattern).toEqual('/docs');
 
   const getting = matcher.match(new URL('http://localhost/docs/getting-started'));
-  assertExists(getting);
+  expect(getting).toBeDefined();
   // Should match /docs/getting-started if it comes before /docs/:rest*
-  assertEquals(getting?.route.pattern, '/docs/getting-started');
+  expect(getting?.route.pattern).toEqual('/docs/getting-started');
 
   const nested = matcher.match(new URL('http://localhost/docs/api/components'));
-  assertExists(nested);
-  assertEquals(nested?.route.pattern, '/docs/:rest*');
-  assertEquals(nested?.params.rest, 'api/components');
+  expect(nested).toBeDefined();
+  expect(nested?.route.pattern).toEqual('/docs/:rest*');
+  expect(nested?.params.rest).toEqual('api/components');
 });
 
-Deno.test('integration - crypto example from guide.md', () => {
+test('integration - crypto example from guide.md', () => {
   // From guide.md: crypto/eth.page.ts wins over [coin].page.ts
   const routes = [
     createRouteConfig('/crypto/eth'),
@@ -1271,16 +1271,16 @@ Deno.test('integration - crypto example from guide.md', () => {
   const matcher = new RouteMatcher(manifest);
 
   const eth = matcher.match(new URL('http://localhost/crypto/eth'));
-  assertExists(eth);
-  assertEquals(eth?.route.pattern, '/crypto/eth');
+  expect(eth).toBeDefined();
+  expect(eth?.route.pattern).toEqual('/crypto/eth');
 
   const bitcoin = matcher.match(new URL('http://localhost/crypto/bitcoin'));
-  assertExists(bitcoin);
-  assertEquals(bitcoin?.route.pattern, '/crypto/:coin');
-  assertEquals(bitcoin?.params.coin, 'bitcoin');
+  expect(bitcoin).toBeDefined();
+  expect(bitcoin?.route.pattern).toEqual('/crypto/:coin');
+  expect(bitcoin?.params.coin).toEqual('bitcoin');
 });
 
-Deno.test('integration - file-based routing from routes directory', () => {
+test('integration - file-based routing from routes directory', () => {
   // Convert file paths to patterns and verify ordering
   const filePaths = [
     'routes/index.page.md',
@@ -1292,12 +1292,12 @@ Deno.test('integration - file-based routing from routes directory', () => {
   ];
 
   const patterns = filePaths.map(filePathToPattern);
-  assertEquals(patterns[0], '/');
-  assertEquals(patterns[1], '/about');
-  assertEquals(patterns[2], '/projects');
-  assertEquals(patterns[3], '/projects/:rest*');
-  assertEquals(patterns[4], '/projects/:id');
-  assertEquals(patterns[5], '/projects/:id/tasks');
+  expect(patterns[0]).toEqual('/');
+  expect(patterns[1]).toEqual('/about');
+  expect(patterns[2]).toEqual('/projects');
+  expect(patterns[3]).toEqual('/projects/:rest*');
+  expect(patterns[4]).toEqual('/projects/:id');
+  expect(patterns[5]).toEqual('/projects/:id/tasks');
 
   // Create routes with these patterns
   const routes = patterns.map((p) => createRouteConfig(p));
@@ -1306,10 +1306,10 @@ Deno.test('integration - file-based routing from routes directory', () => {
   // Verify that specific routes come before catch-all
   const projectsIndex = sorted.findIndex((r) => r.pattern === '/projects/:rest*');
   const projectsId = sorted.findIndex((r) => r.pattern === '/projects/:id');
-  assertEquals(projectsId < projectsIndex, true);
+  expect(projectsId < projectsIndex).toEqual(true);
 });
 
-Deno.test('integration - nested route hierarchy (nesting.md)', () => {
+test('integration - nested route hierarchy (nesting.md)', () => {
   // Simulating nested hierarchy from nesting.md:
   // / (root layout)
   // /dashboard (parent)
@@ -1333,17 +1333,17 @@ Deno.test('integration - nested route hierarchy (nesting.md)', () => {
 
   // Test that specific routes match
   const dashboard = matcher.match(new URL('http://localhost/dashboard'));
-  assertEquals(dashboard?.route.pattern, '/dashboard');
+  expect(dashboard?.route.pattern).toEqual('/dashboard');
 
   const settings = matcher.match(new URL('http://localhost/dashboard/settings'));
-  assertEquals(settings?.route.pattern, '/dashboard/settings');
+  expect(settings?.route.pattern).toEqual('/dashboard/settings');
 
   // Test error boundaries
   const dashboardBoundary = matcher.findErrorBoundary('/dashboard/settings');
-  assertEquals(dashboardBoundary?.pattern, '/dashboard');
+  expect(dashboardBoundary?.pattern).toEqual('/dashboard');
 });
 
-Deno.test('integration - admin section with multiple levels', () => {
+test('integration - admin section with multiple levels', () => {
   const routes = [
     createRouteConfig('/admin'),
     createRouteConfig('/admin/users'),
@@ -1365,13 +1365,13 @@ Deno.test('integration - admin section with multiple levels', () => {
 
   // Admin routes use admin boundary
   const adminBoundary = matcher.findErrorBoundary('/admin/users/5');
-  assertEquals(adminBoundary?.pattern, '/admin');
+  expect(adminBoundary?.pattern).toEqual('/admin');
 
   // Public routes use public boundary
   const publicBoundary = matcher.findErrorBoundary('/public/posts/hello');
-  assertEquals(publicBoundary?.pattern, '/public');
+  expect(publicBoundary?.pattern).toEqual('/public');
 
   // Unknown routes use root boundary
   const rootBoundary = matcher.findErrorBoundary('/unknown/path');
-  assertEquals(rootBoundary?.pattern, '/');
+  expect(rootBoundary?.pattern).toEqual('/');
 });

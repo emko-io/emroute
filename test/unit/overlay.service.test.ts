@@ -12,7 +12,7 @@
 
 // deno-lint-ignore-file no-explicit-any no-unused-vars
 
-import { assert, assertEquals, assertExists } from '@std/assert';
+import { test, expect, describe } from 'bun:test';
 import { createOverlayService } from '../../src/overlay/overlay.service.ts';
 import type { OverlayService } from '../../src/overlay/overlay.type.ts';
 
@@ -265,27 +265,27 @@ function teardownMocks(): void {
   }
 }
 
-Deno.test('OverlayService - create service', () => {
+test('OverlayService - create service', () => {
   const service = createOverlayService();
-  assertExists(service.modal);
-  assertExists(service.closeModal);
-  assertExists(service.toast);
-  assertExists(service.popover);
-  assertExists(service.closePopover);
-  assertExists(service.dismissAll);
+  expect(service.modal).toBeDefined();
+  expect(service.closeModal).toBeDefined();
+  expect(service.toast).toBeDefined();
+  expect(service.popover).toBeDefined();
+  expect(service.closePopover).toBeDefined();
+  expect(service.dismissAll).toBeDefined();
 });
 
-Deno.test('OverlayService - service provides all methods', () => {
+test('OverlayService - service provides all methods', () => {
   const service = createOverlayService() as OverlayService;
-  assertEquals(typeof service.modal, 'function');
-  assertEquals(typeof service.closeModal, 'function');
-  assertEquals(typeof service.toast, 'function');
-  assertEquals(typeof service.popover, 'function');
-  assertEquals(typeof service.closePopover, 'function');
-  assertEquals(typeof service.dismissAll, 'function');
+  expect(typeof service.modal).toEqual('function');
+  expect(typeof service.closeModal).toEqual('function');
+  expect(typeof service.toast).toEqual('function');
+  expect(typeof service.popover).toEqual('function');
+  expect(typeof service.closePopover).toEqual('function');
+  expect(typeof service.dismissAll).toEqual('function');
 });
 
-Deno.test('OverlayService - CSS injection on first modal', () => {
+test('OverlayService - CSS injection on first modal', () => {
   setupMocks();
 
   const service = createOverlayService();
@@ -298,12 +298,12 @@ Deno.test('OverlayService - CSS injection on first modal', () => {
   });
 
   const newStyleCount = mockDoc.head.children.length;
-  assertEquals(newStyleCount, initialStyleCount + 1, 'CSS should be injected');
+  expect(newStyleCount).toEqual(initialStyleCount + 1);
 
   teardownMocks();
 });
 
-Deno.test('OverlayService - CSS injection on first toast', () => {
+test('OverlayService - CSS injection on first toast', () => {
   setupMocks();
   const service = createOverlayService();
   const initialStyleCount = mockDoc.head.children.length;
@@ -316,12 +316,12 @@ Deno.test('OverlayService - CSS injection on first toast', () => {
   });
 
   const newStyleCount = mockDoc.head.children.length;
-  assertEquals(newStyleCount, initialStyleCount + 1, 'CSS should be injected');
+  expect(newStyleCount).toEqual(initialStyleCount + 1);
 
   teardownMocks();
 });
 
-Deno.test('OverlayService - CSS injected only once across multiple overlays', () => {
+test('OverlayService - CSS injected only once across multiple overlays', () => {
   setupMocks();
   const service = createOverlayService();
 
@@ -342,16 +342,12 @@ Deno.test('OverlayService - CSS injected only once across multiple overlays', ()
   });
 
   const finalStyleCount = mockDoc.head.children.length;
-  assertEquals(
-    finalStyleCount,
-    initialStyleCount + 1,
-    'CSS should be injected only once',
-  );
+  expect(finalStyleCount).toEqual(initialStyleCount + 1);
 
   teardownMocks();
 });
 
-Deno.test('OverlayService - modal creates dialog element', () => {
+test('OverlayService - modal creates dialog element', () => {
   setupMocks();
   const service = createOverlayService();
 
@@ -362,13 +358,13 @@ Deno.test('OverlayService - modal creates dialog element', () => {
   });
 
   const dialog = mockDoc.querySelector('dialog[data-overlay-modal]');
-  assertExists(dialog);
-  assertEquals(dialog!.textContent, 'Test Content');
+  expect(dialog).toBeDefined();
+  expect(dialog!.textContent).toEqual('Test Content');
 
   teardownMocks();
 });
 
-Deno.test('OverlayService - modal appends to body', () => {
+test('OverlayService - modal appends to body', () => {
   setupMocks();
   const service = createOverlayService();
 
@@ -380,16 +376,12 @@ Deno.test('OverlayService - modal appends to body', () => {
     },
   });
 
-  assertEquals(
-    mockDoc.body.children.length,
-    initialChildCount + 1,
-    'Dialog should be appended to body',
-  );
+  expect(mockDoc.body.children.length).toEqual(initialChildCount + 1);
 
   teardownMocks();
 });
 
-Deno.test('OverlayService - modal with return value resolves correctly', async () => {
+test('OverlayService - modal with return value resolves correctly', async () => {
   setupMocks();
   const service = createOverlayService();
 
@@ -413,12 +405,12 @@ Deno.test('OverlayService - modal with return value resolves correctly', async (
   await new Promise((resolve) => setTimeout(resolve, 350));
 
   const result = await modalPromise;
-  assertEquals(result, 'test-value');
+  expect(result).toEqual('test-value');
 
   teardownMocks();
 });
 
-Deno.test('OverlayService - modal with undefined return resolves correctly', async () => {
+test('OverlayService - modal with undefined return resolves correctly', async () => {
   setupMocks();
   const service = createOverlayService();
 
@@ -434,12 +426,12 @@ Deno.test('OverlayService - modal with undefined return resolves correctly', asy
   await new Promise((resolve) => setTimeout(resolve, 350));
 
   const result = await modalPromise;
-  assertEquals(result, undefined);
+  expect(result).toEqual(undefined);
 
   teardownMocks();
 });
 
-Deno.test('OverlayService - modal close calls onClose callback', async () => {
+test('OverlayService - modal close calls onClose callback', async () => {
   setupMocks();
   const service = createOverlayService();
 
@@ -467,12 +459,12 @@ Deno.test('OverlayService - modal close calls onClose callback', async () => {
 
   await new Promise((resolve) => setTimeout(resolve, 350));
 
-  assert(onCloseCalled, 'onClose callback should be called');
+  expect(onCloseCalled).toBeTruthy();
 
   teardownMocks();
 });
 
-Deno.test('OverlayService - modal sets data-dismissing attribute on close', async () => {
+test('OverlayService - modal sets data-dismissing attribute on close', async () => {
   setupMocks();
   const service = createOverlayService();
 
@@ -483,20 +475,17 @@ Deno.test('OverlayService - modal sets data-dismissing attribute on close', asyn
   });
 
   const dialog = mockDoc.querySelector('dialog[data-overlay-modal]')!;
-  assert(!dialog.hasAttribute('data-dismissing'), 'Should not have data-dismissing initially');
+  expect(!dialog.hasAttribute('data-dismissing')).toBeTruthy();
 
   service.closeModal();
-  assert(
-    dialog.hasAttribute('data-dismissing'),
-    'Should have data-dismissing after close',
-  );
+  expect(dialog.hasAttribute('data-dismissing')).toBeTruthy();
 
   await new Promise((resolve) => setTimeout(resolve, 350));
 
   teardownMocks();
 });
 
-Deno.test('OverlayService - modal background click closes modal', async () => {
+test('OverlayService - modal background click closes modal', async () => {
   setupMocks();
   const service = createOverlayService();
 
@@ -513,14 +502,14 @@ Deno.test('OverlayService - modal background click closes modal', async () => {
   Object.defineProperty(clickEvent, 'target', { value: dialog });
   dialog.dispatchEvent(clickEvent);
 
-  assert(dialog.hasAttribute('data-dismissing'), 'Modal should be dismissed on background click');
+  expect(dialog.hasAttribute('data-dismissing')).toBeTruthy();
 
   await new Promise((resolve) => setTimeout(resolve, 350));
 
   teardownMocks();
 });
 
-Deno.test('OverlayService - new modal replaces existing modal', () => {
+test('OverlayService - new modal replaces existing modal', () => {
   setupMocks();
   const service = createOverlayService();
 
@@ -536,7 +525,7 @@ Deno.test('OverlayService - new modal replaces existing modal', () => {
   });
 
   const dialog = mockDoc.querySelector('dialog[data-overlay-modal]')!;
-  assertEquals(dialog.textContent, 'Modal 1');
+  expect(dialog.textContent).toEqual('Modal 1');
 
   service.modal({
     render: (dialog) => {
@@ -544,13 +533,13 @@ Deno.test('OverlayService - new modal replaces existing modal', () => {
     },
   });
 
-  assertEquals(dialog.textContent, 'Modal 2');
-  assert(firstOnCloseCalled, 'First modal onClose should be called');
+  expect(dialog.textContent).toEqual('Modal 2');
+  expect(firstOnCloseCalled).toBeTruthy();
 
   teardownMocks();
 });
 
-Deno.test('OverlayService - closeModal does nothing if no modal open', () => {
+test('OverlayService - closeModal does nothing if no modal open', () => {
   setupMocks();
   const service = createOverlayService();
 
@@ -560,7 +549,7 @@ Deno.test('OverlayService - closeModal does nothing if no modal open', () => {
   teardownMocks();
 });
 
-Deno.test('OverlayService - toast creates toast element', () => {
+test('OverlayService - toast creates toast element', () => {
   setupMocks();
   const service = createOverlayService();
 
@@ -572,13 +561,13 @@ Deno.test('OverlayService - toast creates toast element', () => {
   });
 
   const toast = mockDoc.querySelector('[data-overlay-toast]');
-  assertExists(toast);
-  assertEquals(toast!.textContent, 'Test Toast');
+  expect(toast).toBeDefined();
+  expect(toast!.textContent).toEqual('Test Toast');
 
   teardownMocks();
 });
 
-Deno.test('OverlayService - toast appended to container', () => {
+test('OverlayService - toast appended to container', () => {
   setupMocks();
   const service = createOverlayService();
 
@@ -590,14 +579,14 @@ Deno.test('OverlayService - toast appended to container', () => {
   });
 
   const container = mockDoc.querySelector('[data-overlay-toast-container]');
-  assertExists(container);
-  assertEquals(container!.children.length, 1);
-  assertEquals(container!.children[0].textContent, 'Toast 1');
+  expect(container).toBeDefined();
+  expect(container!.children.length).toEqual(1);
+  expect(container!.children[0].textContent).toEqual('Toast 1');
 
   teardownMocks();
 });
 
-Deno.test('OverlayService - multiple toasts stack correctly', () => {
+test('OverlayService - multiple toasts stack correctly', () => {
   setupMocks();
   const service = createOverlayService();
 
@@ -616,14 +605,14 @@ Deno.test('OverlayService - multiple toasts stack correctly', () => {
   });
 
   const container = mockDoc.querySelector('[data-overlay-toast-container]');
-  assertEquals(container!.children.length, 2);
-  assertEquals(container!.children[0].textContent, 'Toast 1');
-  assertEquals(container!.children[1].textContent, 'Toast 2');
+  expect(container!.children.length).toEqual(2);
+  expect(container!.children[0].textContent).toEqual('Toast 1');
+  expect(container!.children[1].textContent).toEqual('Toast 2');
 
   teardownMocks();
 });
 
-Deno.test('OverlayService - toast dismiss sets data-dismissing', () => {
+test('OverlayService - toast dismiss sets data-dismissing', () => {
   setupMocks();
   const service = createOverlayService();
 
@@ -635,21 +624,21 @@ Deno.test('OverlayService - toast dismiss sets data-dismissing', () => {
   });
 
   const container = mockDoc.querySelector('[data-overlay-toast-container]');
-  assertEquals(container!.children.length, 1);
+  expect(container!.children.length).toEqual(1);
 
   const toast = container!.children[0];
-  assert(!toast.hasAttribute('data-dismissing'), 'Should not be dismissing initially');
+  expect(!toast.hasAttribute('data-dismissing')).toBeTruthy();
 
   dismiss();
 
-  assert(toast.hasAttribute('data-dismissing'), 'Should have data-dismissing after dismiss');
-  // Element stays in DOM — CSS handles exit animation, cleared on next toast()
-  assertEquals(container!.children.length, 1);
+  expect(toast.hasAttribute('data-dismissing')).toBeTruthy();
+  // Element stays in DOM -- CSS handles exit animation, cleared on next toast()
+  expect(container!.children.length).toEqual(1);
 
   teardownMocks();
 });
 
-Deno.test('OverlayService - toast with timeout 0 does not auto-dismiss', async () => {
+test('OverlayService - toast with timeout 0 does not auto-dismiss', async () => {
   setupMocks();
   const service = createOverlayService();
 
@@ -665,16 +654,12 @@ Deno.test('OverlayService - toast with timeout 0 does not auto-dismiss', async (
 
   await new Promise((resolve) => setTimeout(resolve, 100));
 
-  assertEquals(
-    container!.children.length,
-    initialCount,
-    'Toast should not auto-dismiss with timeout 0',
-  );
+  expect(container!.children.length).toEqual(initialCount);
 
   teardownMocks();
 });
 
-Deno.test('OverlayService - toast dismiss called multiple times is safe', async () => {
+test('OverlayService - toast dismiss called multiple times is safe', async () => {
   setupMocks();
   const service = createOverlayService();
 
@@ -695,7 +680,7 @@ Deno.test('OverlayService - toast dismiss called multiple times is safe', async 
   teardownMocks();
 });
 
-Deno.test('OverlayService - popover creates popover element', () => {
+test('OverlayService - popover creates popover element', () => {
   setupMocks();
   const service = createOverlayService();
 
@@ -710,14 +695,14 @@ Deno.test('OverlayService - popover creates popover element', () => {
   });
 
   const popover = mockDoc.querySelector('[data-overlay-popover]');
-  assertExists(popover);
-  assertEquals(popover!.textContent, 'Test Popover');
-  assertEquals(popover!.getAttribute('popover'), '');
+  expect(popover).toBeDefined();
+  expect(popover!.textContent).toEqual('Test Popover');
+  expect(popover!.getAttribute('popover')).toEqual('');
 
   teardownMocks();
 });
 
-Deno.test('OverlayService - popover appended to body', () => {
+test('OverlayService - popover appended to body', () => {
   setupMocks();
   const service = createOverlayService();
 
@@ -733,16 +718,12 @@ Deno.test('OverlayService - popover appended to body', () => {
     },
   });
 
-  assertEquals(
-    mockDoc.body.children.length,
-    initialChildCount + 1,
-    'Popover should be appended to body',
-  );
+  expect(mockDoc.body.children.length).toEqual(initialChildCount + 1);
 
   teardownMocks();
 });
 
-Deno.test('OverlayService - closePopover with no popover open', () => {
+test('OverlayService - closePopover with no popover open', () => {
   setupMocks();
   const service = createOverlayService();
 
@@ -752,7 +733,7 @@ Deno.test('OverlayService - closePopover with no popover open', () => {
   teardownMocks();
 });
 
-Deno.test('OverlayService - closePopover with popover showing', async () => {
+test('OverlayService - closePopover with popover showing', async () => {
   setupMocks();
   const service = createOverlayService();
 
@@ -767,20 +748,17 @@ Deno.test('OverlayService - closePopover with popover showing', async () => {
   });
 
   const popover = mockDoc.querySelector('[data-overlay-popover]')!;
-  assert(!popover.hasAttribute('data-dismissing'), 'Should not have data-dismissing initially');
+  expect(!popover.hasAttribute('data-dismissing')).toBeTruthy();
 
   service.closePopover();
-  assert(
-    popover.hasAttribute('data-dismissing'),
-    'Should have data-dismissing after close',
-  );
+  expect(popover.hasAttribute('data-dismissing')).toBeTruthy();
 
   await new Promise((resolve) => setTimeout(resolve, 350));
 
   teardownMocks();
 });
 
-Deno.test('OverlayService - new popover replaces existing popover', () => {
+test('OverlayService - new popover replaces existing popover', () => {
   setupMocks();
   const service = createOverlayService();
 
@@ -797,7 +775,7 @@ Deno.test('OverlayService - new popover replaces existing popover', () => {
   });
 
   const popover = mockDoc.querySelector('[data-overlay-popover]')!;
-  assertEquals(popover.textContent, 'Popover 1');
+  expect(popover.textContent).toEqual('Popover 1');
 
   service.popover({
     anchor: anchor2 as any,
@@ -806,12 +784,12 @@ Deno.test('OverlayService - new popover replaces existing popover', () => {
     },
   });
 
-  assertEquals(popover.textContent, 'Popover 2');
+  expect(popover.textContent).toEqual('Popover 2');
 
   teardownMocks();
 });
 
-Deno.test('OverlayService - dismissAll closes modal', async () => {
+test('OverlayService - dismissAll closes modal', async () => {
   setupMocks();
   const service = createOverlayService();
 
@@ -822,23 +800,23 @@ Deno.test('OverlayService - dismissAll closes modal', async () => {
   });
 
   const dialog = mockDoc.querySelector('dialog[data-overlay-modal]')! as any;
-  assert(dialog.open, 'Modal should be open');
+  expect(dialog.open).toBeTruthy();
 
   service.dismissAll();
 
   // Modal should be closed immediately by dismissAll
-  assert(!dialog.open, 'Modal should be closed after dismissAll');
+  expect(!dialog.open).toBeTruthy();
 
   // Allow promise to resolve
   await new Promise((resolve) => setTimeout(resolve, 10));
 
   const result = await modalPromise;
-  assertEquals(result, undefined);
+  expect(result).toEqual(undefined);
 
   teardownMocks();
 });
 
-Deno.test('OverlayService - dismissAll marks all toasts as dismissing', () => {
+test('OverlayService - dismissAll marks all toasts as dismissing', () => {
   setupMocks();
   const service = createOverlayService();
 
@@ -857,19 +835,19 @@ Deno.test('OverlayService - dismissAll marks all toasts as dismissing', () => {
   });
 
   const container = mockDoc.querySelector('[data-overlay-toast-container]');
-  assertEquals(container!.children.length, 2);
+  expect(container!.children.length).toEqual(2);
 
   service.dismissAll();
 
-  // Toasts stay in DOM with data-dismissing — CSS handles exit
+  // Toasts stay in DOM with data-dismissing -- CSS handles exit
   for (const child of container!.children) {
-    assert(child.hasAttribute('data-dismissing'), 'Toast should have data-dismissing');
+    expect(child.hasAttribute('data-dismissing')).toBeTruthy();
   }
 
   teardownMocks();
 });
 
-Deno.test('OverlayService - dismissAll hides popover', async () => {
+test('OverlayService - dismissAll hides popover', async () => {
   setupMocks();
   const service = createOverlayService();
 
@@ -887,14 +865,14 @@ Deno.test('OverlayService - dismissAll hides popover', async () => {
 
   service.dismissAll();
 
-  assert(!popover.hasAttribute('data-dismissing'), 'Popover should be hidden immediately');
+  expect(!popover.hasAttribute('data-dismissing')).toBeTruthy();
 
   await new Promise((resolve) => setTimeout(resolve, 10));
 
   teardownMocks();
 });
 
-Deno.test('OverlayService - dismissAll with nothing open is safe', () => {
+test('OverlayService - dismissAll with nothing open is safe', () => {
   setupMocks();
   const service = createOverlayService();
 
@@ -904,7 +882,7 @@ Deno.test('OverlayService - dismissAll with nothing open is safe', () => {
   teardownMocks();
 });
 
-Deno.test('OverlayService - modal hides popover when opened', async () => {
+test('OverlayService - modal hides popover when opened', async () => {
   setupMocks();
   const service = createOverlayService();
 
@@ -926,17 +904,14 @@ Deno.test('OverlayService - modal hides popover when opened', async () => {
     },
   });
 
-  assert(
-    !popover.hasAttribute('data-dismissing'),
-    'Popover should be hidden immediately when modal opens',
-  );
+  expect(!popover.hasAttribute('data-dismissing')).toBeTruthy();
 
   await new Promise((resolve) => setTimeout(resolve, 10));
 
   teardownMocks();
 });
 
-Deno.test('OverlayService - modal calls onClose when replaced', () => {
+test('OverlayService - modal calls onClose when replaced', () => {
   setupMocks();
   const service = createOverlayService();
 
@@ -957,12 +932,12 @@ Deno.test('OverlayService - modal calls onClose when replaced', () => {
     },
   });
 
-  assert(onCloseCalled, 'onClose should be called when modal is replaced');
+  expect(onCloseCalled).toBeTruthy();
 
   teardownMocks();
 });
 
-Deno.test('OverlayService - modal data-dismissing removed on new modal', async () => {
+test('OverlayService - modal data-dismissing removed on new modal', async () => {
   setupMocks();
   const service = createOverlayService();
 
@@ -975,7 +950,7 @@ Deno.test('OverlayService - modal data-dismissing removed on new modal', async (
   const dialog = mockDoc.querySelector('dialog[data-overlay-modal]')!;
 
   service.closeModal();
-  assert(dialog.hasAttribute('data-dismissing'), 'Modal should have data-dismissing');
+  expect(dialog.hasAttribute('data-dismissing')).toBeTruthy();
 
   service.modal({
     render: (dialog) => {
@@ -983,17 +958,14 @@ Deno.test('OverlayService - modal data-dismissing removed on new modal', async (
     },
   });
 
-  assert(
-    !dialog.hasAttribute('data-dismissing'),
-    'data-dismissing should be removed on new modal',
-  );
+  expect(!dialog.hasAttribute('data-dismissing')).toBeTruthy();
 
   await new Promise((resolve) => setTimeout(resolve, 350));
 
   teardownMocks();
 });
 
-Deno.test('OverlayService - toast render receives correct element', () => {
+test('OverlayService - toast render receives correct element', () => {
   setupMocks();
   const service = createOverlayService();
 
@@ -1007,14 +979,14 @@ Deno.test('OverlayService - toast render receives correct element', () => {
     timeout: 0,
   });
 
-  assertExists(receivedEl);
-  assertEquals(receivedEl.getAttribute('data-overlay-toast'), '');
-  assertEquals(receivedEl.textContent, 'Toast');
+  expect(receivedEl).toBeDefined();
+  expect(receivedEl.getAttribute('data-overlay-toast')).toEqual('');
+  expect(receivedEl.textContent).toEqual('Toast');
 
   teardownMocks();
 });
 
-Deno.test('OverlayService - popover render receives correct element', async () => {
+test('OverlayService - popover render receives correct element', async () => {
   setupMocks();
   const service = createOverlayService();
 
@@ -1031,16 +1003,16 @@ Deno.test('OverlayService - popover render receives correct element', async () =
     },
   });
 
-  assertExists(receivedEl);
-  assertEquals(receivedEl.getAttribute('data-overlay-popover'), '');
-  assertEquals(receivedEl.textContent, 'Popover');
+  expect(receivedEl).toBeDefined();
+  expect(receivedEl.getAttribute('data-overlay-popover')).toEqual('');
+  expect(receivedEl.textContent).toEqual('Popover');
 
   await new Promise((resolve) => setTimeout(resolve, 10));
 
   teardownMocks();
 });
 
-Deno.test('OverlayService - modal render receives correct element', () => {
+test('OverlayService - modal render receives correct element', () => {
   setupMocks();
   const service = createOverlayService();
 
@@ -1053,14 +1025,14 @@ Deno.test('OverlayService - modal render receives correct element', () => {
     },
   });
 
-  assertExists(receivedEl);
-  assertEquals(receivedEl.getAttribute('data-overlay-modal'), '');
-  assertEquals(receivedEl.textContent, 'Modal');
+  expect(receivedEl).toBeDefined();
+  expect(receivedEl.getAttribute('data-overlay-modal')).toEqual('');
+  expect(receivedEl.textContent).toEqual('Modal');
 
   teardownMocks();
 });
 
-Deno.test('OverlayService - multiple toasts can be dismissed independently', () => {
+test('OverlayService - multiple toasts can be dismissed independently', () => {
   setupMocks();
   const service = createOverlayService();
 
@@ -1079,25 +1051,19 @@ Deno.test('OverlayService - multiple toasts can be dismissed independently', () 
   });
 
   const container = mockDoc.querySelector('[data-overlay-toast-container]')!;
-  assertEquals(container.children.length, 2);
+  expect(container.children.length).toEqual(2);
 
   dismiss1();
-  assert(container.children[0].hasAttribute('data-dismissing'), 'First toast should be dismissing');
-  assert(
-    !container.children[1].hasAttribute('data-dismissing'),
-    'Second toast should not be dismissing',
-  );
+  expect(container.children[0].hasAttribute('data-dismissing')).toBeTruthy();
+  expect(!container.children[1].hasAttribute('data-dismissing')).toBeTruthy();
 
   dismiss2();
-  assert(
-    container.children[1].hasAttribute('data-dismissing'),
-    'Second toast should be dismissing',
-  );
+  expect(container.children[1].hasAttribute('data-dismissing')).toBeTruthy();
 
   teardownMocks();
 });
 
-Deno.test('OverlayService - closeModal does nothing if called after new modal', async () => {
+test('OverlayService - closeModal does nothing if called after new modal', async () => {
   setupMocks();
   const service = createOverlayService();
 
@@ -1114,12 +1080,12 @@ Deno.test('OverlayService - closeModal does nothing if called after new modal', 
   });
 
   const dialog = mockDoc.querySelector('dialog[data-overlay-modal]')!;
-  assertEquals(dialog.textContent, 'Modal 2');
+  expect(dialog.textContent).toEqual('Modal 2');
 
   // This should not affect Modal 2
   service.closeModal('should-be-ignored');
 
-  assertEquals(dialog.textContent, 'Modal 2', 'Modal 2 should not be affected');
+  expect(dialog.textContent).toEqual('Modal 2');
 
   await new Promise((resolve) => setTimeout(resolve, 350));
 

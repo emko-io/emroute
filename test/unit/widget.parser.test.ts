@@ -1,314 +1,313 @@
-import { assertEquals, assertExists, assertObjectMatch, assertStringIncludes } from '@std/assert';
+import { test, expect } from 'bun:test';
 import { parseWidgetBlocks, replaceWidgetBlocks } from '../../src/widget/widget.parser.ts';
 import type { ParsedWidgetBlock } from '../../src/type/widget.type.ts';
 
-Deno.test('parseWidgetBlocks - single widget block', () => {
+test('parseWidgetBlocks - single widget block', () => {
   const markdown = `Some text\n\`\`\`widget:test-widget\n{"key": "value"}\n\`\`\`\nMore text`;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks.length, 1);
-  assertEquals(blocks[0].widgetName, 'test-widget');
-  assertExists(blocks[0].params);
-  assertObjectMatch(blocks[0].params!, { key: 'value' });
-  assertEquals(blocks[0].parseError, undefined);
+  expect(blocks.length).toEqual(1);
+  expect(blocks[0].widgetName).toEqual('test-widget');
+  expect(blocks[0].params).toBeDefined();
+  expect(blocks[0].params!).toMatchObject({ key: 'value' });
+  expect(blocks[0].parseError).toEqual(undefined);
 });
 
-Deno.test('parseWidgetBlocks - multiple widget blocks', () => {
+test('parseWidgetBlocks - multiple widget blocks', () => {
   const markdown =
     `\`\`\`widget:first-widget\n{"a": 1}\n\`\`\`\nText between\n\`\`\`widget:second-widget\n{"b": 2}\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks.length, 2);
-  assertEquals(blocks[0].widgetName, 'first-widget');
-  assertEquals(blocks[1].widgetName, 'second-widget');
-  assertExists(blocks[0].params);
-  assertExists(blocks[1].params);
-  assertObjectMatch(blocks[0].params!, { a: 1 });
-  assertObjectMatch(blocks[1].params!, { b: 2 });
+  expect(blocks.length).toEqual(2);
+  expect(blocks[0].widgetName).toEqual('first-widget');
+  expect(blocks[1].widgetName).toEqual('second-widget');
+  expect(blocks[0].params).toBeDefined();
+  expect(blocks[1].params).toBeDefined();
+  expect(blocks[0].params!).toMatchObject({ a: 1 });
+  expect(blocks[1].params!).toMatchObject({ b: 2 });
 });
 
-Deno.test('parseWidgetBlocks - widget with valid JSON params', () => {
+test('parseWidgetBlocks - widget with valid JSON params', () => {
   const markdown =
     `\`\`\`widget:data-widget\n{"name": "test", "count": 42, "active": true}\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks.length, 1);
-  assertExists(blocks[0].params);
-  assertObjectMatch(blocks[0].params!, {
+  expect(blocks.length).toEqual(1);
+  expect(blocks[0].params).toBeDefined();
+  expect(blocks[0].params!).toMatchObject({
     name: 'test',
     count: 42,
     active: true,
   });
-  assertEquals(blocks[0].parseError, undefined);
+  expect(blocks[0].parseError).toEqual(undefined);
 });
 
-Deno.test('parseWidgetBlocks - widget with empty params', () => {
+test('parseWidgetBlocks - widget with empty params', () => {
   const markdown = `\`\`\`widget:empty-widget\n\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks.length, 1);
-  assertEquals(blocks[0].widgetName, 'empty-widget');
-  assertExists(blocks[0].params);
-  assertObjectMatch(blocks[0].params!, {});
-  assertEquals(blocks[0].parseError, undefined);
+  expect(blocks.length).toEqual(1);
+  expect(blocks[0].widgetName).toEqual('empty-widget');
+  expect(blocks[0].params).toBeDefined();
+  expect(blocks[0].params!).toMatchObject({});
+  expect(blocks[0].parseError).toEqual(undefined);
 });
 
-Deno.test('parseWidgetBlocks - widget with whitespace only params', () => {
+test('parseWidgetBlocks - widget with whitespace only params', () => {
   const markdown = `\`\`\`widget:ws-widget\n   \n\t\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks.length, 1);
-  assertExists(blocks[0].params);
-  assertObjectMatch(blocks[0].params!, {});
-  assertEquals(blocks[0].parseError, undefined);
+  expect(blocks.length).toEqual(1);
+  expect(blocks[0].params).toBeDefined();
+  expect(blocks[0].params!).toMatchObject({});
+  expect(blocks[0].parseError).toEqual(undefined);
 });
 
-Deno.test('parseWidgetBlocks - widget with invalid JSON params', () => {
+test('parseWidgetBlocks - widget with invalid JSON params', () => {
   const markdown = `\`\`\`widget:bad-widget\n{invalid json}\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks.length, 1);
-  assertEquals(blocks[0].widgetName, 'bad-widget');
-  assertEquals(blocks[0].params, null);
-  assertExists(blocks[0].parseError);
-  assertStringIncludes(blocks[0].parseError!, 'Invalid JSON');
+  expect(blocks.length).toEqual(1);
+  expect(blocks[0].widgetName).toEqual('bad-widget');
+  expect(blocks[0].params).toEqual(null);
+  expect(blocks[0].parseError).toBeDefined();
+  expect(blocks[0].parseError!).toContain('Invalid JSON');
 });
 
-Deno.test('parseWidgetBlocks - widget with malformed JSON (missing closing brace)', () => {
+test('parseWidgetBlocks - widget with malformed JSON (missing closing brace)', () => {
   const markdown = `\`\`\`widget:bad-widget\n{"key": "value"\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks.length, 1);
-  assertEquals(blocks[0].params, null);
-  assertExists(blocks[0].parseError);
-  assertStringIncludes(blocks[0].parseError!, 'Invalid JSON');
+  expect(blocks.length).toEqual(1);
+  expect(blocks[0].params).toEqual(null);
+  expect(blocks[0].parseError).toBeDefined();
+  expect(blocks[0].parseError!).toContain('Invalid JSON');
 });
 
-Deno.test('parseWidgetBlocks - widget with array instead of object params', () => {
+test('parseWidgetBlocks - widget with array instead of object params', () => {
   const markdown = `\`\`\`widget:array-widget\n[1, 2, 3]\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks.length, 1);
-  assertEquals(blocks[0].params, null);
-  assertExists(blocks[0].parseError);
-  assertEquals(blocks[0].parseError, 'Params must be a JSON object');
+  expect(blocks.length).toEqual(1);
+  expect(blocks[0].params).toEqual(null);
+  expect(blocks[0].parseError).toBeDefined();
+  expect(blocks[0].parseError).toEqual('Params must be a JSON object');
 });
 
-Deno.test('parseWidgetBlocks - widget with null params', () => {
+test('parseWidgetBlocks - widget with null params', () => {
   const markdown = `\`\`\`widget:null-widget\nnull\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks.length, 1);
-  assertEquals(blocks[0].params, null);
-  assertExists(blocks[0].parseError);
-  assertEquals(blocks[0].parseError, 'Params must be a JSON object');
+  expect(blocks.length).toEqual(1);
+  expect(blocks[0].params).toEqual(null);
+  expect(blocks[0].parseError).toBeDefined();
+  expect(blocks[0].parseError).toEqual('Params must be a JSON object');
 });
 
-Deno.test('parseWidgetBlocks - widget with string params', () => {
+test('parseWidgetBlocks - widget with string params', () => {
   const markdown = `\`\`\`widget:string-widget\n"just a string"\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks.length, 1);
-  assertEquals(blocks[0].params, null);
-  assertExists(blocks[0].parseError);
-  assertEquals(blocks[0].parseError, 'Params must be a JSON object');
+  expect(blocks.length).toEqual(1);
+  expect(blocks[0].params).toEqual(null);
+  expect(blocks[0].parseError).toBeDefined();
+  expect(blocks[0].parseError).toEqual('Params must be a JSON object');
 });
 
-Deno.test('parseWidgetBlocks - widget with number params', () => {
+test('parseWidgetBlocks - widget with number params', () => {
   const markdown = `\`\`\`widget:number-widget\n42\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks.length, 1);
-  assertEquals(blocks[0].params, null);
-  assertExists(blocks[0].parseError);
-  assertEquals(blocks[0].parseError, 'Params must be a JSON object');
+  expect(blocks.length).toEqual(1);
+  expect(blocks[0].params).toEqual(null);
+  expect(blocks[0].parseError).toBeDefined();
+  expect(blocks[0].parseError).toEqual('Params must be a JSON object');
 });
 
-Deno.test('parseWidgetBlocks - widget with nested objects', () => {
+test('parseWidgetBlocks - widget with nested objects', () => {
   const markdown =
     `\`\`\`widget:nested-widget\n{"user": {"name": "John", "age": 30}, "tags": ["a", "b"]}\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks.length, 1);
-  assertExists(blocks[0].params);
-  assertObjectMatch(blocks[0].params!, {
+  expect(blocks.length).toEqual(1);
+  expect(blocks[0].params).toBeDefined();
+  expect(blocks[0].params!).toMatchObject({
     user: { name: 'John', age: 30 },
     tags: ['a', 'b'],
   });
-  assertEquals(blocks[0].parseError, undefined);
+  expect(blocks[0].parseError).toEqual(undefined);
 });
 
-Deno.test('parseWidgetBlocks - widget with deeply nested objects', () => {
+test('parseWidgetBlocks - widget with deeply nested objects', () => {
   const markdown = `\`\`\`widget:deep-widget\n{"a": {"b": {"c": {"d": "deep"}}}}\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks.length, 1);
-  assertEquals((blocks[0].params as Record<string, unknown>)?.a, {
+  expect(blocks.length).toEqual(1);
+  expect((blocks[0].params as Record<string, unknown>)?.a).toEqual({
     b: { c: { d: 'deep' } },
   });
 });
 
-Deno.test('parseWidgetBlocks - widget with special characters in strings', () => {
+test('parseWidgetBlocks - widget with special characters in strings', () => {
   const markdown =
     `\`\`\`widget:special-widget\n{"text": "Hello\\nWorld", "emoji": "🎉", "quote": "\\"quoted\\""}\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks.length, 1);
-  assertEquals((blocks[0].params as Record<string, unknown>)?.text, 'Hello\nWorld');
-  assertEquals((blocks[0].params as Record<string, unknown>)?.emoji, '🎉');
-  assertEquals((blocks[0].params as Record<string, unknown>)?.quote, '"quoted"');
+  expect(blocks.length).toEqual(1);
+  expect((blocks[0].params as Record<string, unknown>)?.text).toEqual('Hello\nWorld');
+  expect((blocks[0].params as Record<string, unknown>)?.emoji).toEqual('🎉');
+  expect((blocks[0].params as Record<string, unknown>)?.quote).toEqual('"quoted"');
 });
 
-Deno.test('parseWidgetBlocks - no widget blocks', () => {
+test('parseWidgetBlocks - no widget blocks', () => {
   const markdown = `# Header\n\nThis is just regular markdown with no widgets.`;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks.length, 0);
+  expect(blocks.length).toEqual(0);
 });
 
-Deno.test('parseWidgetBlocks - malformed widget missing backticks', () => {
+test('parseWidgetBlocks - malformed widget missing backticks', () => {
   const markdown = `widget:test-widget\n{"key": "value"}\n`;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks.length, 0);
+  expect(blocks.length).toEqual(0);
 });
 
-Deno.test('parseWidgetBlocks - malformed widget with wrong delimiter', () => {
+test('parseWidgetBlocks - malformed widget with wrong delimiter', () => {
   const markdown = `~~~widget:test-widget\n{"key": "value"}\n~~~`;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks.length, 0);
+  expect(blocks.length).toEqual(0);
 });
 
-Deno.test('parseWidgetBlocks - malformed widget missing closing fence', () => {
+test('parseWidgetBlocks - malformed widget missing closing fence', () => {
   const markdown = `\`\`\`widget:test-widget\n{"key": "value"}`;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks.length, 0);
+  expect(blocks.length).toEqual(0);
 });
 
-Deno.test('parseWidgetBlocks - widget with uppercase letters in name', () => {
+test('parseWidgetBlocks - widget with uppercase letters in name', () => {
   const markdown = `\`\`\`widget:TestWidget\n{"key": "value"}\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks.length, 0);
+  expect(blocks.length).toEqual(0);
 });
 
-Deno.test('parseWidgetBlocks - widget with underscore in name', () => {
+test('parseWidgetBlocks - widget with underscore in name', () => {
   const markdown = `\`\`\`widget:test_widget\n{"key": "value"}\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks.length, 0);
+  expect(blocks.length).toEqual(0);
 });
 
-Deno.test('parseWidgetBlocks - widget with valid hyphenated name', () => {
+test('parseWidgetBlocks - widget with valid hyphenated name', () => {
   const markdown = `\`\`\`widget:my-cool-widget\n{"key": "value"}\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks.length, 1);
-  assertEquals(blocks[0].widgetName, 'my-cool-widget');
+  expect(blocks.length).toEqual(1);
+  expect(blocks[0].widgetName).toEqual('my-cool-widget');
 });
 
-Deno.test('parseWidgetBlocks - widget with numbers in name', () => {
+test('parseWidgetBlocks - widget with numbers in name', () => {
   const markdown = `\`\`\`widget:widget-v2-test\n{"key": "value"}\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks.length, 1);
-  assertEquals(blocks[0].widgetName, 'widget-v2-test');
+  expect(blocks.length).toEqual(1);
+  expect(blocks[0].widgetName).toEqual('widget-v2-test');
 });
 
-Deno.test('parseWidgetBlocks - widget starting with number', () => {
+test('parseWidgetBlocks - widget starting with number', () => {
   const markdown = `\`\`\`widget:2fast\n{"key": "value"}\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks.length, 0);
+  expect(blocks.length).toEqual(0);
 });
 
-Deno.test('parseWidgetBlocks - block positions and indices', () => {
+test('parseWidgetBlocks - block positions and indices', () => {
   const markdown = `before\`\`\`widget:first\n{}\n\`\`\`after`;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks.length, 1);
-  assertEquals(blocks[0].startIndex, 6);
-  assertEquals(blocks[0].endIndex, 28);
-  assertEquals(markdown.substring(blocks[0].startIndex, blocks[0].endIndex), blocks[0].fullMatch);
+  expect(blocks.length).toEqual(1);
+  expect(blocks[0].startIndex).toEqual(6);
+  expect(blocks[0].endIndex).toEqual(28);
+  expect(markdown.substring(blocks[0].startIndex, blocks[0].endIndex)).toEqual(blocks[0].fullMatch);
 });
 
-Deno.test('parseWidgetBlocks - multiple blocks with correct indices', () => {
+test('parseWidgetBlocks - multiple blocks with correct indices', () => {
   const markdown = `\`\`\`widget:first\n{}\n\`\`\`XXX\`\`\`widget:second\n{}\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks.length, 2);
-  assertEquals(markdown.substring(blocks[0].startIndex, blocks[0].endIndex), blocks[0].fullMatch);
-  assertEquals(markdown.substring(blocks[1].startIndex, blocks[1].endIndex), blocks[1].fullMatch);
+  expect(blocks.length).toEqual(2);
+  expect(markdown.substring(blocks[0].startIndex, blocks[0].endIndex)).toEqual(blocks[0].fullMatch);
+  expect(markdown.substring(blocks[1].startIndex, blocks[1].endIndex)).toEqual(blocks[1].fullMatch);
 });
 
-Deno.test('parseWidgetBlocks - fullMatch property is correct', () => {
+test('parseWidgetBlocks - fullMatch property is correct', () => {
   const markdown = `\`\`\`widget:test\n{"key": "value"}\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks[0].fullMatch, markdown);
+  expect(blocks[0].fullMatch).toEqual(markdown);
 });
 
-Deno.test('parseWidgetBlocks - complex JSON with escaped quotes', () => {
+test('parseWidgetBlocks - complex JSON with escaped quotes', () => {
   const markdown = `\`\`\`widget:quote-widget\n{"text": "He said \\"hello\\""}\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks.length, 1);
-  assertEquals(blocks[0].params?.text, 'He said "hello"');
-  assertEquals(blocks[0].parseError, undefined);
+  expect(blocks.length).toEqual(1);
+  expect(blocks[0].params?.text).toEqual('He said "hello"');
+  expect(blocks[0].parseError).toEqual(undefined);
 });
 
-Deno.test('parseWidgetBlocks - JSON with multiline newlines', () => {
+test('parseWidgetBlocks - JSON with multiline newlines', () => {
   const markdown =
     `\`\`\`widget:multi-widget\n{\n  "key": "value",\n  "nested": {\n    "deep": true\n  }\n}\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks.length, 1);
-  assertEquals((blocks[0].params as Record<string, unknown>)?.key, 'value');
-  assertEquals(
+  expect(blocks.length).toEqual(1);
+  expect((blocks[0].params as Record<string, unknown>)?.key).toEqual('value');
+  expect(
     ((blocks[0].params as Record<string, unknown>)?.nested as Record<string, unknown>)?.deep,
-    true,
-  );
+  ).toEqual(true);
 });
 
-Deno.test('parseWidgetBlocks - params with unicode characters', () => {
+test('parseWidgetBlocks - params with unicode characters', () => {
   const markdown = `\`\`\`widget:unicode-widget\n{"greeting": "你好", "emoji": "🚀🌟"}\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks.length, 1);
-  assertEquals((blocks[0].params as Record<string, unknown>)?.greeting, '你好');
-  assertEquals((blocks[0].params as Record<string, unknown>)?.emoji, '🚀🌟');
+  expect(blocks.length).toEqual(1);
+  expect((blocks[0].params as Record<string, unknown>)?.greeting).toEqual('你好');
+  expect((blocks[0].params as Record<string, unknown>)?.emoji).toEqual('🚀🌟');
 });
 
-Deno.test('parseWidgetBlocks - empty markdown string', () => {
+test('parseWidgetBlocks - empty markdown string', () => {
   const markdown = '';
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks.length, 0);
+  expect(blocks.length).toEqual(0);
 });
 
-Deno.test('parseWidgetBlocks - three widget blocks in sequence', () => {
+test('parseWidgetBlocks - three widget blocks in sequence', () => {
   const markdown = `\`\`\`widget:a\n{}\n\`\`\`\`\`\`widget:b\n{}\n\`\`\`\`\`\`widget:c\n{}\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks.length, 3);
-  assertEquals(blocks[0].widgetName, 'a');
-  assertEquals(blocks[1].widgetName, 'b');
-  assertEquals(blocks[2].widgetName, 'c');
+  expect(blocks.length).toEqual(3);
+  expect(blocks[0].widgetName).toEqual('a');
+  expect(blocks[1].widgetName).toEqual('b');
+  expect(blocks[2].widgetName).toEqual('c');
 });
 
-Deno.test('replaceWidgetBlocks - replace single block', () => {
+test('replaceWidgetBlocks - replace single block', () => {
   const markdown = `prefix\`\`\`widget:test\n{}\n\`\`\`suffix`;
   const blocks = parseWidgetBlocks(markdown);
   const replacements = new Map([[blocks[0], 'REPLACEMENT']]);
 
   const result = replaceWidgetBlocks(markdown, replacements);
 
-  assertEquals(result, 'prefixREPLACEMENTsuffix');
+  expect(result).toEqual('prefixREPLACEMENTsuffix');
 });
 
-Deno.test('replaceWidgetBlocks - replace multiple blocks', () => {
+test('replaceWidgetBlocks - replace multiple blocks', () => {
   const markdown = `\`\`\`widget:first\n{}\n\`\`\`TEXT\`\`\`widget:second\n{}\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
   const replacements = new Map([
@@ -318,10 +317,10 @@ Deno.test('replaceWidgetBlocks - replace multiple blocks', () => {
 
   const result = replaceWidgetBlocks(markdown, replacements);
 
-  assertEquals(result, 'FIRSTTEXTSECOND');
+  expect(result).toEqual('FIRSTTEXTSECOND');
 });
 
-Deno.test('replaceWidgetBlocks - order of replacement (descending indices)', () => {
+test('replaceWidgetBlocks - order of replacement (descending indices)', () => {
   const markdown = `START\`\`\`widget:first\n{}\n\`\`\`MID\`\`\`widget:second\n{}\n\`\`\`END`;
   const blocks = parseWidgetBlocks(markdown);
 
@@ -332,53 +331,53 @@ Deno.test('replaceWidgetBlocks - order of replacement (descending indices)', () 
 
   const result = replaceWidgetBlocks(markdown, replacements);
 
-  assertEquals(result, 'STARTFIRST_REPLACEDMIDSECOND_REPLACEDEND');
+  expect(result).toEqual('STARTFIRST_REPLACEDMIDSECOND_REPLACEDEND');
 });
 
-Deno.test('replaceWidgetBlocks - preserve surrounding content', () => {
+test('replaceWidgetBlocks - preserve surrounding content', () => {
   const markdown = `# Header\n\nSome paragraph\n\`\`\`widget:widget\n{}\n\`\`\`\n\nMore text`;
   const blocks = parseWidgetBlocks(markdown);
   const replacements = new Map([[blocks[0], '[RENDERED]']]);
 
   const result = replaceWidgetBlocks(markdown, replacements);
 
-  assertEquals(result.includes('# Header'), true);
-  assertEquals(result.includes('Some paragraph'), true);
-  assertEquals(result.includes('More text'), true);
-  assertEquals(result.includes('[RENDERED]'), true);
+  expect(result.includes('# Header')).toEqual(true);
+  expect(result.includes('Some paragraph')).toEqual(true);
+  expect(result.includes('More text')).toEqual(true);
+  expect(result.includes('[RENDERED]')).toEqual(true);
 });
 
-Deno.test('replaceWidgetBlocks - empty replacement string', () => {
+test('replaceWidgetBlocks - empty replacement string', () => {
   const markdown = `before\`\`\`widget:test\n{}\n\`\`\`after`;
   const blocks = parseWidgetBlocks(markdown);
   const replacements = new Map([[blocks[0], '']]);
 
   const result = replaceWidgetBlocks(markdown, replacements);
 
-  assertEquals(result, 'beforeafter');
+  expect(result).toEqual('beforeafter');
 });
 
-Deno.test('replaceWidgetBlocks - replacement with special characters', () => {
+test('replaceWidgetBlocks - replacement with special characters', () => {
   const markdown = `\`\`\`widget:test\n{}\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
   const replacements = new Map([[blocks[0], '<div class="special">Content</div>']]);
 
   const result = replaceWidgetBlocks(markdown, replacements);
 
-  assertEquals(result, '<div class="special">Content</div>');
+  expect(result).toEqual('<div class="special">Content</div>');
 });
 
-Deno.test('replaceWidgetBlocks - replacement with newlines', () => {
+test('replaceWidgetBlocks - replacement with newlines', () => {
   const markdown = `start\`\`\`widget:test\n{}\n\`\`\`end`;
   const blocks = parseWidgetBlocks(markdown);
   const replacements = new Map([[blocks[0], 'line1\nline2\nline3']]);
 
   const result = replaceWidgetBlocks(markdown, replacements);
 
-  assertEquals(result, 'startline1\nline2\nline3end');
+  expect(result).toEqual('startline1\nline2\nline3end');
 });
 
-Deno.test('replaceWidgetBlocks - replacement preserves other content in order', () => {
+test('replaceWidgetBlocks - replacement preserves other content in order', () => {
   const markdown = `A\`\`\`widget:first\n{}\n\`\`\`B\`\`\`widget:second\n{}\n\`\`\`C`;
   const blocks = parseWidgetBlocks(markdown);
   const replacements = new Map([
@@ -388,31 +387,31 @@ Deno.test('replaceWidgetBlocks - replacement preserves other content in order', 
 
   const result = replaceWidgetBlocks(markdown, replacements);
 
-  assertEquals(result, 'A1B2C');
+  expect(result).toEqual('A1B2C');
 });
 
-Deno.test('replaceWidgetBlocks - empty replacements map', () => {
+test('replaceWidgetBlocks - empty replacements map', () => {
   const markdown = `\`\`\`widget:test\n{}\n\`\`\``;
   const replacements = new Map<ParsedWidgetBlock, string>();
 
   const result = replaceWidgetBlocks(markdown, replacements);
 
-  assertEquals(result, markdown);
+  expect(result).toEqual(markdown);
 });
 
-Deno.test('replaceWidgetBlocks - single block in middle', () => {
+test('replaceWidgetBlocks - single block in middle', () => {
   const markdown = `Chapter 1\n\nContent\n\`\`\`widget:sidebar\n{}\n\`\`\`\n\nMore content`;
   const blocks = parseWidgetBlocks(markdown);
   const replacements = new Map([[blocks[0], '<aside>Sidebar</aside>']]);
 
   const result = replaceWidgetBlocks(markdown, replacements);
 
-  assertEquals(result.includes('Chapter 1'), true);
-  assertEquals(result.includes('<aside>Sidebar</aside>'), true);
-  assertEquals(result.includes('More content'), true);
+  expect(result.includes('Chapter 1')).toEqual(true);
+  expect(result.includes('<aside>Sidebar</aside>')).toEqual(true);
+  expect(result.includes('More content')).toEqual(true);
 });
 
-Deno.test('replaceWidgetBlocks - three consecutive blocks', () => {
+test('replaceWidgetBlocks - three consecutive blocks', () => {
   const markdown = `\`\`\`widget:a\n{}\n\`\`\`\`\`\`widget:b\n{}\n\`\`\`\`\`\`widget:c\n{}\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
   const replacements = new Map([
@@ -423,21 +422,21 @@ Deno.test('replaceWidgetBlocks - three consecutive blocks', () => {
 
   const result = replaceWidgetBlocks(markdown, replacements);
 
-  assertEquals(result, 'ABC');
+  expect(result).toEqual('ABC');
 });
 
-Deno.test('replaceWidgetBlocks - partial replacement (not all blocks)', () => {
+test('replaceWidgetBlocks - partial replacement (not all blocks)', () => {
   const markdown = `\`\`\`widget:first\n{}\n\`\`\`XXX\`\`\`widget:second\n{}\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
   const replacements = new Map([[blocks[0], 'REPLACED']]);
 
   const result = replaceWidgetBlocks(markdown, replacements);
 
-  assertEquals(result.includes('REPLACED'), true);
-  assertEquals(result.includes('```widget:second'), true);
+  expect(result.includes('REPLACED')).toEqual(true);
+  expect(result.includes('```widget:second')).toEqual(true);
 });
 
-Deno.test('replaceWidgetBlocks - replacement longer than original', () => {
+test('replaceWidgetBlocks - replacement longer than original', () => {
   const markdown = `\`\`\`widget:test\n{}\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
   const longReplacement =
@@ -446,10 +445,10 @@ Deno.test('replaceWidgetBlocks - replacement longer than original', () => {
 
   const result = replaceWidgetBlocks(markdown, replacements);
 
-  assertEquals(result, longReplacement);
+  expect(result).toEqual(longReplacement);
 });
 
-Deno.test('replaceWidgetBlocks - replacement shorter than original', () => {
+test('replaceWidgetBlocks - replacement shorter than original', () => {
   const markdown = `\`\`\`widget:test\n{}\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
   const shortReplacement = 'X';
@@ -457,10 +456,10 @@ Deno.test('replaceWidgetBlocks - replacement shorter than original', () => {
 
   const result = replaceWidgetBlocks(markdown, replacements);
 
-  assertEquals(result, 'X');
+  expect(result).toEqual('X');
 });
 
-Deno.test('replaceWidgetBlocks - indices remain accurate after sort', () => {
+test('replaceWidgetBlocks - indices remain accurate after sort', () => {
   const markdown =
     `\`\`\`widget:a\n{}\n\`\`\`X\`\`\`widget:b\n{}\n\`\`\`Y\`\`\`widget:c\n{}\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
@@ -473,113 +472,113 @@ Deno.test('replaceWidgetBlocks - indices remain accurate after sort', () => {
 
   const result = replaceWidgetBlocks(markdown, replacements);
 
-  assertEquals(result, 'AXBYC');
+  expect(result).toEqual('AXBYC');
 });
 
-Deno.test('parseWidgetBlocks + replaceWidgetBlocks - integration test', () => {
+test('parseWidgetBlocks + replaceWidgetBlocks - integration test', () => {
   const markdown =
     `## Config\n\n\`\`\`widget:settings\n{"theme": "dark", "lang": "en"}\n\`\`\`\n\nContent`;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks.length, 1);
-  assertEquals(blocks[0].widgetName, 'settings');
-  assertEquals((blocks[0].params as Record<string, unknown>)?.theme, 'dark');
+  expect(blocks.length).toEqual(1);
+  expect(blocks[0].widgetName).toEqual('settings');
+  expect((blocks[0].params as Record<string, unknown>)?.theme).toEqual('dark');
 
   const replacements = new Map([[blocks[0], '<div>Settings Rendered</div>']]);
   const result = replaceWidgetBlocks(markdown, replacements);
 
-  assertEquals(result.includes('## Config'), true);
-  assertEquals(result.includes('<div>Settings Rendered</div>'), true);
-  assertEquals(result.includes('Content'), true);
+  expect(result.includes('## Config')).toEqual(true);
+  expect(result.includes('<div>Settings Rendered</div>')).toEqual(true);
+  expect(result.includes('Content')).toEqual(true);
 });
 
-Deno.test('parseWidgetBlocks - widget name with single character', () => {
+test('parseWidgetBlocks - widget name with single character', () => {
   const markdown = `\`\`\`widget:a\n{}\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks.length, 1);
-  assertEquals(blocks[0].widgetName, 'a');
+  expect(blocks.length).toEqual(1);
+  expect(blocks[0].widgetName).toEqual('a');
 });
 
-Deno.test('parseWidgetBlocks - widget name with hyphen at end', () => {
+test('parseWidgetBlocks - widget name with hyphen at end', () => {
   const markdown = `\`\`\`widget:widget-\n{}\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks.length, 1);
-  assertEquals(blocks[0].widgetName, 'widget-');
+  expect(blocks.length).toEqual(1);
+  expect(blocks[0].widgetName).toEqual('widget-');
 });
 
-Deno.test('parseWidgetBlocks - widget name starting with hyphen', () => {
+test('parseWidgetBlocks - widget name starting with hyphen', () => {
   const markdown = `\`\`\`widget:-widget\n{}\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks.length, 0);
+  expect(blocks.length).toEqual(0);
 });
 
-Deno.test('parseWidgetBlocks - JSON with boolean values', () => {
+test('parseWidgetBlocks - JSON with boolean values', () => {
   const markdown = `\`\`\`widget:bool-widget\n{"enabled": true, "disabled": false}\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals((blocks[0].params as Record<string, unknown>)?.enabled, true);
-  assertEquals((blocks[0].params as Record<string, unknown>)?.disabled, false);
+  expect((blocks[0].params as Record<string, unknown>)?.enabled).toEqual(true);
+  expect((blocks[0].params as Record<string, unknown>)?.disabled).toEqual(false);
 });
 
-Deno.test('parseWidgetBlocks - JSON with null values', () => {
+test('parseWidgetBlocks - JSON with null values', () => {
   const markdown = `\`\`\`widget:null-field\n{"value": null}\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks.length, 1);
-  assertEquals((blocks[0].params as Record<string, unknown>)?.value, null);
-  assertEquals(blocks[0].parseError, undefined);
+  expect(blocks.length).toEqual(1);
+  expect((blocks[0].params as Record<string, unknown>)?.value).toEqual(null);
+  expect(blocks[0].parseError).toEqual(undefined);
 });
 
-Deno.test('parseWidgetBlocks - JSON with numeric values (float)', () => {
+test('parseWidgetBlocks - JSON with numeric values (float)', () => {
   const markdown = `\`\`\`widget:float-widget\n{"pi": 3.14159}\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals((blocks[0].params as Record<string, unknown>)?.pi, 3.14159);
+  expect((blocks[0].params as Record<string, unknown>)?.pi).toEqual(3.14159);
 });
 
-Deno.test('parseWidgetBlocks - JSON with numeric values (negative)', () => {
+test('parseWidgetBlocks - JSON with numeric values (negative)', () => {
   const markdown = `\`\`\`widget:neg-widget\n{"temp": -5, "debt": -1000}\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals((blocks[0].params as Record<string, unknown>)?.temp, -5);
-  assertEquals((blocks[0].params as Record<string, unknown>)?.debt, -1000);
+  expect((blocks[0].params as Record<string, unknown>)?.temp).toEqual(-5);
+  expect((blocks[0].params as Record<string, unknown>)?.debt).toEqual(-1000);
 });
 
-Deno.test('parseWidgetBlocks - very long widget name', () => {
+test('parseWidgetBlocks - very long widget name', () => {
   const longName = 'very-long-widget-name-with-many-hyphens-and-characters-123';
   const markdown = `\`\`\`widget:${longName}\n{}\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks.length, 1);
-  assertEquals(blocks[0].widgetName, longName);
+  expect(blocks.length).toEqual(1);
+  expect(blocks[0].widgetName).toEqual(longName);
 });
 
-Deno.test('parseWidgetBlocks - params with empty nested object', () => {
+test('parseWidgetBlocks - params with empty nested object', () => {
   const markdown = `\`\`\`widget:nested\n{"empty": {}}\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals((blocks[0].params as Record<string, unknown>)?.empty, {});
+  expect((blocks[0].params as Record<string, unknown>)?.empty).toEqual({});
 });
 
-Deno.test('parseWidgetBlocks - params with empty array inside object', () => {
+test('parseWidgetBlocks - params with empty array inside object', () => {
   const markdown = `\`\`\`widget:array\n{"items": []}\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals((blocks[0].params as Record<string, unknown>)?.items, []);
+  expect((blocks[0].params as Record<string, unknown>)?.items).toEqual([]);
 });
 
-Deno.test('parseWidgetBlocks - whitespace before and after widget content', () => {
+test('parseWidgetBlocks - whitespace before and after widget content', () => {
   const markdown = `\`\`\`widget:spaces\n  \n  {"key": "value"}  \n  \n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks.length, 1);
-  assertEquals((blocks[0].params as Record<string, unknown>)?.key, 'value');
+  expect(blocks.length).toEqual(1);
+  expect((blocks[0].params as Record<string, unknown>)?.key).toEqual('value');
 });
 
-Deno.test('replaceWidgetBlocks - HTML content replacement', () => {
+test('replaceWidgetBlocks - HTML content replacement', () => {
   const markdown = `<header></header>\n\`\`\`widget:content\n{}\n\`\`\`\n<footer></footer>`;
   const blocks = parseWidgetBlocks(markdown);
   const replacements = new Map([
@@ -588,62 +587,61 @@ Deno.test('replaceWidgetBlocks - HTML content replacement', () => {
 
   const result = replaceWidgetBlocks(markdown, replacements);
 
-  assertEquals(result.includes('<header></header>'), true);
-  assertEquals(result.includes('<main><article>Content goes here</article></main>'), true);
-  assertEquals(result.includes('<footer></footer>'), true);
+  expect(result.includes('<header></header>')).toEqual(true);
+  expect(result.includes('<main><article>Content goes here</article></main>')).toEqual(true);
+  expect(result.includes('<footer></footer>')).toEqual(true);
 });
 
-Deno.test('parseWidgetBlocks - tabs in params content', () => {
+test('parseWidgetBlocks - tabs in params content', () => {
   const markdown = `\`\`\`widget:tabs\n{\t"key":\t"value"}\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks.length, 1);
-  assertEquals(blocks[0].params?.key, 'value');
+  expect(blocks.length).toEqual(1);
+  expect(blocks[0].params?.key).toEqual('value');
 });
 
-Deno.test('parseWidgetBlocks - carriage returns in params', () => {
+test('parseWidgetBlocks - carriage returns in params', () => {
   const markdown = `\`\`\`widget:crlf\n{"key": "value"}\r\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks.length, 1);
-  assertEquals(blocks[0].params?.key, 'value');
+  expect(blocks.length).toEqual(1);
+  expect(blocks[0].params?.key).toEqual('value');
 });
 
-Deno.test('parseWidgetBlocks - adjacent widget blocks with no content between', () => {
+test('parseWidgetBlocks - adjacent widget blocks with no content between', () => {
   const markdown = `\`\`\`widget:first\n{}\n\`\`\`\`\`\`widget:second\n{}\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks.length, 2);
-  assertEquals(blocks[0].endIndex, blocks[1].startIndex);
+  expect(blocks.length).toEqual(2);
+  expect(blocks[0].endIndex).toEqual(blocks[1].startIndex);
 });
 
-Deno.test('replaceWidgetBlocks - result indices match after replacement', () => {
+test('replaceWidgetBlocks - result indices match after replacement', () => {
   const markdown = `start\`\`\`widget:test\n{}\n\`\`\`end`;
   const blocks = parseWidgetBlocks(markdown);
   const replacements = new Map([[blocks[0], 'MID']]);
   const result = replaceWidgetBlocks(markdown, replacements);
 
-  assertEquals(result, 'startMIDend');
-  assertEquals(result.length, 11);
+  expect(result).toEqual('startMIDend');
+  expect(result.length).toEqual(11);
 });
 
-Deno.test('parseWidgetBlocks - mixed case widget error message', () => {
+test('parseWidgetBlocks - mixed case widget error message', () => {
   const markdown = `\`\`\`widget:mixed-widget\nnot json\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks[0].params, null);
-  assertExists(blocks[0].parseError);
-  assertStringIncludes(blocks[0].parseError!, 'Invalid JSON');
+  expect(blocks[0].params).toEqual(null);
+  expect(blocks[0].parseError).toBeDefined();
+  expect(blocks[0].parseError!).toContain('Invalid JSON');
 });
 
-Deno.test('parseWidgetBlocks - JSON with very long string', () => {
+test('parseWidgetBlocks - JSON with very long string', () => {
   const longString = 'a'.repeat(10000);
   const markdown = `\`\`\`widget:longstring\n{"text": "${longString}"}\n\`\`\``;
   const blocks = parseWidgetBlocks(markdown);
 
-  assertEquals(blocks.length, 1);
-  assertEquals(
+  expect(blocks.length).toEqual(1);
+  expect(
     ((blocks[0].params as Record<string, unknown>)?.text as string)?.length,
-    10000,
-  );
+  ).toEqual(10000);
 });

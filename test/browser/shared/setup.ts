@@ -6,7 +6,7 @@
  */
 
 import { createEmrouteServer, generateMainTs } from '../../../server/emroute.server.ts';
-import { DenoFsRuntime } from '../../../runtime/deno/fs/deno-fs.runtime.ts';
+import { BunFsRuntime } from '../../../runtime/bun/fs/bun-fs.runtime.ts';
 import {
   generateManifestCode,
   generateRoutesManifest,
@@ -14,16 +14,17 @@ import {
 import { DEFAULT_BASE_PATH } from '../../../src/route/route.core.ts';
 import { WidgetRegistry } from '../../../src/widget/widget.registry.ts';
 import type { MarkdownRenderer } from '../../../src/type/markdown.type.ts';
-import { AstRenderer, initParser, MarkdownParser } from 'jsr:@emkodev/emko-md@0.1.0-beta.4/parser';
+// @ts-types="../../../server/vendor/emko-md.vendor.d.ts"
+import { createMarkdownRender } from '../../../server/vendor/emko-md.vendor.js';
 import { externalWidget } from '../fixtures/assets/external.widget.ts';
 import type { SpaMode } from '../../../src/type/widget.type.ts';
 
-import { type Browser, chromium, type Page } from 'npm:playwright@1.58.2';
+import { type Browser, chromium, type Page } from 'playwright';
 
 const FIXTURES_DIR = 'test/browser/fixtures';
 
 export interface TestServer {
-  server: Deno.HttpServer;
+  server: { stop(): void };
   stop(): void;
   baseUrl(path?: string): string;
 }
@@ -35,7 +36,7 @@ export async function createTestServer(options: {
 }): Promise<TestServer> {
   const { mode, port, entryPoint: customEntry } = options;
 
-  const runtime = new DenoFsRuntime(FIXTURES_DIR);
+  const runtime = new BunFsRuntime(FIXTURES_DIR);
 
   // Generate manifest from fixture route files (paths are Runtime-relative)
   const result = await generateRoutesManifest('/routes', runtime);
@@ -45,7 +46,7 @@ export async function createTestServer(options: {
   await runtime.command('/routes.manifest.g.ts', { body: code });
 
   // Create server-side module loaders for SSR (direct file:// imports, no transpile)
-  const rootUrl = new URL(FIXTURES_DIR + '/', `file://${Deno.cwd()}/`);
+  const rootUrl = new URL(FIXTURES_DIR + '/', `file://${process.cwd()}/`);
   const moduleLoaders: Record<string, () => Promise<unknown>> = {};
 
   for (const route of result.routes) {
@@ -76,20 +77,7 @@ export async function createTestServer(options: {
   result.moduleLoaders = moduleLoaders;
 
   // Create server-side emko-md renderer
-  const wasmUrl = new URL(
-    '../fixtures/assets/emko_md_parser_bg.wasm',
-    import.meta.url,
-  );
-  await initParser({ module_or_path: wasmUrl });
-  const mdParser = new MarkdownParser();
-  const astRenderer = new AstRenderer();
-  const markdownRenderer: MarkdownRenderer = {
-    render(markdown: string): string {
-      mdParser.set_text(markdown);
-      const ast = JSON.parse(mdParser.parse_to_json());
-      return astRenderer.render(ast);
-    },
-  };
+  const markdownRenderer: MarkdownRenderer = { render: createMarkdownRender() };
 
   // Manual widget registry for widgets outside widgetsDir (e.g. external/vendor)
   const manualWidgets = new WidgetRegistry();
@@ -121,17 +109,18 @@ export async function createTestServer(options: {
     entryPoint: entryPointName,
     markdownRenderer,
     spa: mode,
+    moduleLoader: (path: string) => import(new URL(path.slice(1), rootUrl).href),
   }, runtime);
 
   // Serve — server transpiles .ts on-the-fly, no bundling needed
-  const server = Deno.serve({ port, onListen() {} }, async (req) => {
+  const server = Bun.serve({ port, fetch: async (req) => {
     return await emroute.handleRequest(req) ?? new Response('Not Found', { status: 404 });
-  });
+  }});
 
   return {
     server,
     stop() {
-      server.shutdown();
+      server.stop();
     },
     baseUrl(path = '/') {
       return `http://localhost:${port}${path}`;

@@ -6,24 +6,16 @@
  * bundling → SSR rendering → handleRequest.
  */
 
-import { assertEquals, assertStringIncludes } from '@std/assert';
+import { test, expect, describe, beforeAll } from 'bun:test';
 import { createEmrouteServer } from '../../server/emroute.server.ts';
-import { DenoFsRuntime } from '../../runtime/deno/fs/deno-fs.runtime.ts';
+import { BunFsRuntime } from '../../runtime/bun/fs/bun-fs.runtime.ts';
 import { WidgetRegistry } from '../../src/widget/widget.registry.ts';
 import { externalWidget } from '../browser/fixtures/assets/external.widget.ts';
 import type { EmrouteServer } from '../../server/server-api.type.ts';
 
 const FIXTURES_DIR = 'test/browser/fixtures';
-const runtime = new DenoFsRuntime(FIXTURES_DIR);
-const APP_ROOT = `${Deno.cwd()}/${FIXTURES_DIR}`;
-
-const TEST_PERMISSIONS: Deno.TestDefinition['permissions'] = {
-  read: true,
-  write: true,
-  env: true,
-  net: true,
-  run: true,
-};
+const runtime = new BunFsRuntime(FIXTURES_DIR);
+const APP_ROOT = `${process.cwd()}/${FIXTURES_DIR}`;
 
 /** Create a request to the server. */
 function req(path: string): Request {
@@ -58,348 +50,251 @@ async function getServer(mode: 'none' | 'leaf' | 'root' | 'only' = 'root'): Prom
 
 // ── Setup ─────────────────────────────────────────────────────────────
 
-Deno.test({
-  name: 'setup - create servers for all modes',
-  permissions: TEST_PERMISSIONS,
-  fn: async () => {
+describe('prod server', () => {
+  beforeAll(async () => {
     ready = (async () => {
       for (const mode of ['none', 'leaf', 'root', 'only'] as const) {
         serverCache[mode] = await createTestEmrouteServer(mode);
       }
     })();
     await ready;
+  });
 
-    const server = serverCache['root']!;
-    assertEquals(server.manifest.routes.length > 0, true);
-    assertEquals(server.htmlRouter !== null, true);
-    assertEquals(server.mdRouter !== null, true);
-  },
-});
+  test('setup - create servers for all modes', async () => {
+    const server = await getServer('root');
+    expect(server.manifest.routes.length > 0).toBeTruthy();
+    expect(server.htmlRouter !== null).toBeTruthy();
+    expect(server.mdRouter !== null).toBeTruthy();
+  });
 
-Deno.test({
-  name: 'createEmrouteServer - only mode has null routers',
-  permissions: TEST_PERMISSIONS,
-  fn: async () => {
+  test('createEmrouteServer - only mode has null routers', async () => {
     const server = await getServer('only');
-    assertEquals(server.htmlRouter, null);
-    assertEquals(server.mdRouter, null);
-  },
-});
+    expect(server.htmlRouter).toEqual(null);
+    expect(server.mdRouter).toEqual(null);
+  });
 
-// ── Manifest writing ──────────────────────────────────────────────────
+  // ── Manifest writing ──────────────────────────────────────────────────
 
-Deno.test({
-  name: 'createEmrouteServer - writes routes manifest file',
-  permissions: TEST_PERMISSIONS,
-  fn: async () => {
+  test('createEmrouteServer - writes routes manifest file', async () => {
     await getServer('root');
-    const content = await Deno.readTextFile(`${FIXTURES_DIR}/routes.manifest.g.ts`);
-    assertStringIncludes(content, 'routesManifest');
-    assertStringIncludes(content, 'pattern:');
-  },
-});
+    const content = await Bun.file(`${FIXTURES_DIR}/routes.manifest.g.ts`).text();
+    expect(content).toContain('routesManifest');
+    expect(content).toContain('pattern:');
+  });
 
-Deno.test({
-  name: 'createEmrouteServer - writes widgets manifest file',
-  permissions: TEST_PERMISSIONS,
-  fn: async () => {
+  test('createEmrouteServer - writes widgets manifest file', async () => {
     await getServer('root');
-    const content = await Deno.readTextFile(`${FIXTURES_DIR}/widgets.manifest.g.ts`);
-    assertStringIncludes(content, 'widgetsManifest');
-  },
-});
+    const content = await Bun.file(`${FIXTURES_DIR}/widgets.manifest.g.ts`).text();
+    expect(content).toContain('widgetsManifest');
+  });
 
-Deno.test({
-  name: 'createEmrouteServer - exposes widgetEntries',
-  permissions: TEST_PERMISSIONS,
-  fn: async () => {
+  test('createEmrouteServer - exposes widgetEntries', async () => {
     const server = await getServer('root');
-    assertEquals(server.widgetEntries.length > 0, true);
-    assertEquals(typeof server.widgetEntries[0].name, 'string');
-    assertEquals(typeof server.widgetEntries[0].tagName, 'string');
-  },
-});
+    expect(server.widgetEntries.length > 0).toBeTruthy();
+    expect(typeof server.widgetEntries[0].name).toEqual('string');
+    expect(typeof server.widgetEntries[0].tagName).toEqual('string');
+  });
 
-Deno.test({
-  name: 'createEmrouteServer - exposes shell with import map and script tag',
-  permissions: TEST_PERMISSIONS,
-  fn: async () => {
+  test('createEmrouteServer - exposes shell with import map and script tag', async () => {
     const server = await getServer('root');
-    assertStringIncludes(server.shell, '<!DOCTYPE html>');
-    assertStringIncludes(server.shell, '<router-slot>');
-    assertStringIncludes(server.shell, '<script type="importmap">');
-    assertStringIncludes(server.shell, '@emkodev/emroute/spa');
-    assertStringIncludes(server.shell, '<script type="module" src="/app.js">');
-  },
-});
+    expect(server.shell).toContain('<!DOCTYPE html>');
+    expect(server.shell).toContain('<router-slot>');
+    expect(server.shell).toContain('<script type="importmap">');
+    expect(server.shell).toContain('@emkodev/emroute/spa');
+    expect(server.shell).toContain('<script type="module" src="/app.js">');
+  });
 
-// ── SSR HTML ───────────────────────────────────────────────────────────
+  // ── SSR HTML ───────────────────────────────────────────────────────────
 
-Deno.test({
-  name: 'handleRequest - SSR HTML renders /html',
-  permissions: TEST_PERMISSIONS,
-  fn: async () => {
+  test('handleRequest - SSR HTML renders /html', async () => {
     const server = await getServer('root');
     const response = await server.handleRequest(req('/html'));
 
-    assertEquals(response !== null, true);
-    assertEquals(response!.status, 200);
+    expect(response !== null).toBeTruthy();
+    expect(response!.status).toEqual(200);
 
     const html = await response!.text();
-    assertStringIncludes(html, '<!DOCTYPE html>');
-    assertStringIncludes(html, '<router-slot');
-    assertStringIncludes(html, 'data-ssr-route="/html"');
-  },
-});
+    expect(html).toContain('<!DOCTYPE html>');
+    expect(html).toContain('<router-slot');
+    expect(html).toContain('data-ssr-route="/html"');
+  });
 
-Deno.test({
-  name: 'handleRequest - SSR HTML renders /html/about',
-  permissions: TEST_PERMISSIONS,
-  fn: async () => {
+  test('handleRequest - SSR HTML renders /html/about', async () => {
     const server = await getServer('root');
     const response = await server.handleRequest(req('/html/about'));
 
-    assertEquals(response !== null, true);
-    assertEquals(response!.status, 200);
+    expect(response !== null).toBeTruthy();
+    expect(response!.status).toEqual(200);
 
     const html = await response!.text();
-    assertStringIncludes(html, '<!DOCTYPE html>');
-  },
-});
+    expect(html).toContain('<!DOCTYPE html>');
+  });
 
-Deno.test({
-  name: 'handleRequest - SSR HTML returns correct content-type',
-  permissions: TEST_PERMISSIONS,
-  fn: async () => {
+  test('handleRequest - SSR HTML returns correct content-type', async () => {
     const server = await getServer('root');
     const response = await server.handleRequest(req('/html'));
 
-    assertEquals(response!.headers.get('Content-Type'), 'text/html; charset=utf-8');
-  },
-});
+    expect(response!.headers.get('Content-Type')).toEqual('text/html; charset=utf-8');
+  });
 
-Deno.test({
-  name: 'handleRequest - SSR HTML 404 for unknown route',
-  permissions: TEST_PERMISSIONS,
-  fn: async () => {
+  test('handleRequest - SSR HTML 404 for unknown route', async () => {
     const server = await getServer('root');
     const response = await server.handleRequest(req('/html/nonexistent'));
 
-    assertEquals(response !== null, true);
-    assertEquals(response!.status, 404);
-  },
-});
+    expect(response !== null).toBeTruthy();
+    expect(response!.status).toEqual(404);
+  });
 
-Deno.test({
-  name: 'handleRequest - SSR HTML trailing slash redirects',
-  permissions: TEST_PERMISSIONS,
-  fn: async () => {
+  test('handleRequest - SSR HTML trailing slash redirects', async () => {
     const server = await getServer('root');
     const response = await server.handleRequest(req('/html/about/'));
 
-    assertEquals(response !== null, true);
-    assertEquals(response!.status, 301);
-  },
-});
+    expect(response !== null).toBeTruthy();
+    expect(response!.status).toEqual(301);
+  });
 
-// ── SSR Markdown ───────────────────────────────────────────────────────
+  // ── SSR Markdown ───────────────────────────────────────────────────────
 
-Deno.test({
-  name: 'handleRequest - SSR Markdown renders /md',
-  permissions: TEST_PERMISSIONS,
-  fn: async () => {
+  test('handleRequest - SSR Markdown renders /md', async () => {
     const server = await getServer('root');
     const response = await server.handleRequest(req('/md'));
 
-    assertEquals(response !== null, true);
-    assertEquals(response!.status, 200);
-    assertEquals(
+    expect(response !== null).toBeTruthy();
+    expect(response!.status).toEqual(200);
+    expect(
       response!.headers.get('Content-Type'),
-      'text/markdown; charset=utf-8; variant=CommonMark',
-    );
-  },
-});
+    ).toEqual('text/markdown; charset=utf-8; variant=CommonMark');
+  });
 
-Deno.test({
-  name: 'handleRequest - SSR Markdown 404',
-  permissions: TEST_PERMISSIONS,
-  fn: async () => {
+  test('handleRequest - SSR Markdown 404', async () => {
     const server = await getServer('root');
     const response = await server.handleRequest(req('/md/nonexistent'));
 
-    assertEquals(response !== null, true);
-    assertEquals(response!.status, 404);
-  },
-});
+    expect(response !== null).toBeTruthy();
+    expect(response!.status).toEqual(404);
+  });
 
-// ── Bare paths ─────────────────────────────────────────────────────────
+  // ── Bare paths ─────────────────────────────────────────────────────────
 
-Deno.test({
-  name: 'handleRequest - bare / redirects to /html/ in none mode',
-  permissions: TEST_PERMISSIONS,
-  fn: async () => {
+  test('handleRequest - bare / redirects to /html/ in none mode', async () => {
     const server = await getServer('none');
     const response = await server.handleRequest(req('/'));
 
-    assertEquals(response !== null, true);
-    assertEquals(response!.status, 302);
-    assertStringIncludes(response!.headers.get('Location') ?? '', '/html/');
-  },
-});
+    expect(response !== null).toBeTruthy();
+    expect(response!.status).toEqual(302);
+    expect(response!.headers.get('Location') ?? '').toContain('/html/');
+  });
 
-Deno.test({
-  name: 'handleRequest - bare /about redirects to /html/about in none mode',
-  permissions: TEST_PERMISSIONS,
-  fn: async () => {
+  test('handleRequest - bare /about redirects to /html/about in none mode', async () => {
     const server = await getServer('none');
     const response = await server.handleRequest(req('/about'));
 
-    assertEquals(response !== null, true);
-    assertEquals(response!.status, 302);
-    assertStringIncludes(response!.headers.get('Location') ?? '', '/html/about');
-  },
-});
+    expect(response !== null).toBeTruthy();
+    expect(response!.status).toEqual(302);
+    expect(response!.headers.get('Location') ?? '').toContain('/html/about');
+  });
 
-Deno.test({
-  name: 'handleRequest - bare / serves SPA shell in root mode',
-  permissions: TEST_PERMISSIONS,
-  fn: async () => {
+  test('handleRequest - bare / serves SPA shell in root mode', async () => {
     const server = await getServer('root');
     const response = await server.handleRequest(req('/'));
 
-    assertEquals(response !== null, true);
-    assertEquals(response!.status, 200);
-    assertStringIncludes(await response!.text(), '<!DOCTYPE html>');
-  },
-});
+    expect(response !== null).toBeTruthy();
+    expect(response!.status).toEqual(200);
+    expect(await response!.text()).toContain('<!DOCTYPE html>');
+  });
 
-Deno.test({
-  name: 'handleRequest - bare / serves SPA shell in only mode',
-  permissions: TEST_PERMISSIONS,
-  fn: async () => {
+  test('handleRequest - bare / serves SPA shell in only mode', async () => {
     const server = await getServer('only');
     const response = await server.handleRequest(req('/'));
 
-    assertEquals(response !== null, true);
-    assertEquals(response!.status, 200);
-    assertStringIncludes(await response!.text(), '<!DOCTYPE html>');
-  },
-});
+    expect(response !== null).toBeTruthy();
+    expect(response!.status).toEqual(200);
+    expect(await response!.text()).toContain('<!DOCTYPE html>');
+  });
 
-Deno.test({
-  name: 'handleRequest - bare /about serves SPA shell in root mode',
-  permissions: TEST_PERMISSIONS,
-  fn: async () => {
+  test('handleRequest - bare /about serves SPA shell in root mode', async () => {
     const server = await getServer('root');
     const response = await server.handleRequest(req('/about'));
 
-    assertEquals(response !== null, true);
-    assertEquals(response!.status, 200);
-    assertStringIncludes(await response!.text(), '<!DOCTYPE html>');
-  },
-});
+    expect(response !== null).toBeTruthy();
+    expect(response!.status).toEqual(200);
+    expect(await response!.text()).toContain('<!DOCTYPE html>');
+  });
 
-// ── File requests ──────────────────────────────────────────────────────
+  // ── File requests ──────────────────────────────────────────────────────
 
-Deno.test({
-  name: 'handleRequest - serves bundled emroute.js',
-  permissions: TEST_PERMISSIONS,
-  fn: async () => {
+  test('handleRequest - serves bundled emroute.js', async () => {
     const server = await getServer('root');
     const response = await server.handleRequest(req('/emroute.js'));
 
-    assertEquals(response !== null, true);
-    assertEquals(response!.status, 200);
-    assertEquals(response!.headers.get('Content-Type'), 'application/javascript; charset=utf-8');
-  },
-});
+    expect(response !== null).toBeTruthy();
+    expect(response!.status).toEqual(200);
+    expect(response!.headers.get('Content-Type')).toEqual('application/javascript; charset=utf-8');
+  });
 
-Deno.test({
-  name: 'handleRequest - serves bundled app.js',
-  permissions: TEST_PERMISSIONS,
-  fn: async () => {
+  test('handleRequest - serves bundled app.js', async () => {
     const server = await getServer('root');
     const response = await server.handleRequest(req('/app.js'));
 
-    assertEquals(response !== null, true);
-    assertEquals(response!.status, 200);
-    assertEquals(response!.headers.get('Content-Type'), 'application/javascript; charset=utf-8');
-  },
-});
+    expect(response !== null).toBeTruthy();
+    expect(response!.status).toEqual(200);
+    expect(response!.headers.get('Content-Type')).toEqual('application/javascript; charset=utf-8');
+  });
 
-Deno.test({
-  name: 'handleRequest - returns null for nonexistent files',
-  permissions: TEST_PERMISSIONS,
-  fn: async () => {
+  test('handleRequest - returns null for nonexistent files', async () => {
     const server = await getServer('root');
     const response = await server.handleRequest(req('/nonexistent.js'));
 
-    assertEquals(response, null);
-  },
-});
+    expect(response).toEqual(null);
+  });
 
-// ── Only mode ──────────────────────────────────────────────────────────
+  // ── Only mode ──────────────────────────────────────────────────────────
 
-Deno.test({
-  name: 'handleRequest - only mode serves shell for /html/*',
-  permissions: TEST_PERMISSIONS,
-  fn: async () => {
+  test('handleRequest - only mode serves shell for /html/*', async () => {
     const server = await getServer('only');
     const response = await server.handleRequest(req('/html/about'));
 
-    assertEquals(response !== null, true);
-    assertEquals(response!.status, 200);
+    expect(response !== null).toBeTruthy();
+    expect(response!.status).toEqual(200);
 
     const html = await response!.text();
-    assertStringIncludes(html, '<router-slot>');
+    expect(html).toContain('<router-slot>');
     // Only mode has no SSR content — slot is empty
-    assertStringIncludes(html, '<script type="importmap">');
-  },
-});
+    expect(html).toContain('<script type="importmap">');
+  });
 
-// ── Leaf mode ──────────────────────────────────────────────────────────
+  // ── Leaf mode ──────────────────────────────────────────────────────────
 
-Deno.test({
-  name: 'handleRequest - leaf mode redirects / to /html/',
-  permissions: TEST_PERMISSIONS,
-  fn: async () => {
+  test('handleRequest - leaf mode redirects / to /html/', async () => {
     const server = await getServer('leaf');
     const response = await server.handleRequest(req('/'));
 
-    assertEquals(response !== null, true);
-    assertEquals(response!.status, 302);
-    assertStringIncludes(response!.headers.get('Location') ?? '', '/html/');
-  },
-});
+    expect(response !== null).toBeTruthy();
+    expect(response!.status).toEqual(302);
+    expect(response!.headers.get('Location') ?? '').toContain('/html/');
+  });
 
-Deno.test({
-  name: 'handleRequest - leaf mode redirects /about to /html/about',
-  permissions: TEST_PERMISSIONS,
-  fn: async () => {
+  test('handleRequest - leaf mode redirects /about to /html/about', async () => {
     const server = await getServer('leaf');
     const response = await server.handleRequest(req('/about'));
 
-    assertEquals(response !== null, true);
-    assertEquals(response!.status, 302);
-    assertStringIncludes(response!.headers.get('Location') ?? '', '/html/about');
-  },
-});
+    expect(response !== null).toBeTruthy();
+    expect(response!.status).toEqual(302);
+    expect(response!.headers.get('Location') ?? '').toContain('/html/about');
+  });
 
-// ── Rebuild ────────────────────────────────────────────────────────────
+  // ── Rebuild ────────────────────────────────────────────────────────────
 
-Deno.test({
-  name: 'rebuild - re-discovers routes and rewrites manifests',
-  permissions: TEST_PERMISSIONS,
-  fn: async () => {
+  test('rebuild - re-discovers routes and rewrites manifests', async () => {
     const server = await getServer('root');
     const routeCountBefore = server.manifest.routes.length;
 
     await server.rebuild();
 
-    assertEquals(server.manifest.routes.length, routeCountBefore);
+    expect(server.manifest.routes.length).toEqual(routeCountBefore);
 
     // Verify manifest files still exist after rebuild
-    const routesContent = await Deno.readTextFile(`${FIXTURES_DIR}/routes.manifest.g.ts`);
-    assertStringIncludes(routesContent, 'routesManifest');
-  },
+    const routesContent = await Bun.file(`${FIXTURES_DIR}/routes.manifest.g.ts`).text();
+    expect(routesContent).toContain('routesManifest');
+  });
 });

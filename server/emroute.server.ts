@@ -2,30 +2,29 @@
  * Emroute Server
  *
  * Runtime-agnostic server that handles SSR rendering, manifest generation,
- * static file serving, and route matching. Works with any Runtime implementation
- * (Deno, Node, Bun).
+ * static file serving, and route matching. Works with any Runtime implementation.
  *
  * Usage (standalone):
  * ```ts
  * import { createEmrouteServer } from '@emkodev/emroute/server';
- * import { DenoFsRuntime } from '@emkodev/emroute/runtime/deno/fs';
+ * import { BunFsRuntime } from '@emkodev/emroute/runtime/bun/fs';
  *
- * const runtime = new DenoFsRuntime('.');
+ * const runtime = new BunFsRuntime('.');
  * const emroute = await createEmrouteServer({ spa: 'root' }, runtime);
  *
- * Deno.serve((req) => emroute.handleRequest(req) ?? new Response('Not Found', { status: 404 }));
+ * Bun.serve({ fetch: (req) => emroute.handleRequest(req) ?? new Response('Not Found', { status: 404 }) });
  * ```
  *
  * Usage (composable):
  * ```ts
  * const emroute = await createEmrouteServer(config, runtime);
  *
- * Deno.serve(async (req) => {
+ * Bun.serve({ async fetch(req) {
  *   if (isApiRoute(req)) return handleApi(req);
  *   const response = await emroute.handleRequest(req);
  *   if (response) return response;
  *   return new Response('Not Found', { status: 404 });
- * });
+ * }});
  * ```
  */
 
@@ -197,7 +196,7 @@ function injectSsrContent(
  */
 /**
  * The bare specifier consumers use to import emroute.
- * This is the import map key — maps to the actual JSR package in deno.json
+ * This is the import map key — maps to the npm package name
  * and in client-side `<script type="importmap">`.
  */
 export const EMROUTE_PACKAGE_SPECIFIER = '@emkodev/emroute';
@@ -413,11 +412,10 @@ export async function createEmrouteServer(
     }
 
     // Core bundle (emroute framework)
-    // import.meta.resolve returns file:// URL; convert to filesystem path for esbuild
-    const coreEntry = new URL(import.meta.resolve(CORE_IMPORT_SPECIFIER)).pathname;
+    const coreEntry = `${EMROUTE_PACKAGE_SPECIFIER}/spa`;
     const coreJs = await RuntimeCtor.bundle(
       coreEntry,
-      (path) => Deno.readTextFile(path).catch(() => null),
+      () => Promise.resolve(null),
     );
     await runtime.command(BUNDLE_PATHS.emroute, { body: coreJs });
 
@@ -767,12 +765,11 @@ export async function build(
     coreUrl = coreBundleCdn;
     console.log(`Core bundle: CDN → ${coreUrl}`);
   } else {
-    // Build core — import.meta.resolve returns file:// URL; convert to path for esbuild
-    const coreEntry = new URL(import.meta.resolve(CORE_IMPORT_SPECIFIER)).pathname;
+    const coreEntry = `${EMROUTE_PACKAGE_SPECIFIER}/spa`;
     coreBundlePath = `${outDir}/emroute${minSuffix}.js`;
     const coreJs = await RuntimeCtor.bundle(
       coreEntry,
-      (path) => Deno.readTextFile(path).catch(() => null),
+      () => Promise.resolve(null),
       { minify: config.minify },
     );
     await runtime.command(coreBundlePath, { body: coreJs });

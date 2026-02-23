@@ -395,12 +395,21 @@ export async function createEmrouteServer(
   if (spa !== 'none') {
     const RuntimeCtor = runtime.constructor as typeof Runtime;
 
-    // Generate entry point
+    // Generate entry point (or use consumer's if it exists)
     const entryPoint = config.entryPoint
       ? `/${config.entryPoint}`
       : `/${GENERATED_MAIN}`;
 
-    if (!config.entryPoint) {
+    const entryExists = config.entryPoint
+      ? (await runtime.query(entryPoint)).status !== 404
+      : false;
+
+    if (!entryExists) {
+      if (config.entryPoint) {
+        console.warn(
+          `[emroute] entryPoint "${config.entryPoint}" not found, generating default`,
+        );
+      }
       const mainCode = generateMainTs(
         spa,
         !!routesDir || !!config.routesManifest,
@@ -558,16 +567,15 @@ export async function createEmrouteServer(
         ? `/${config.entryPoint}`
         : `/${GENERATED_MAIN}`;
 
-      if (!config.entryPoint) {
-        const mainCode = generateMainTs(
-          spa,
-          !!routesDir || !!config.routesManifest,
-          !!widgetsDir,
-          EMROUTE_PACKAGE_SPECIFIER,
-          config.basePath,
-        );
-        await runtime.command(entryPoint, { body: mainCode });
-      }
+      // Always regenerate — consumer entry might not exist, or manifests changed
+      const mainCode = generateMainTs(
+        spa,
+        !!routesDir || !!config.routesManifest,
+        !!widgetsDir,
+        EMROUTE_PACKAGE_SPECIFIER,
+        config.basePath,
+      );
+      await runtime.command(entryPoint, { body: mainCode });
 
       const appJs = await RuntimeCtor.bundle(
         entryPoint,
@@ -709,11 +717,16 @@ export async function build(
     manifestsResult.widgets = '/widgets.manifest.g.ts';
   }
 
-  // Generate entry point (or use consumer's)
-  let entryPoint: string;
-  if (config.entryPoint) {
-    entryPoint = `/${config.entryPoint}`;
-  } else {
+  // Generate entry point (or use consumer's if it exists on disk)
+  const entryPoint = config.entryPoint
+    ? `/${config.entryPoint}`
+    : `/${GENERATED_MAIN}`;
+
+  const buildEntryExists = config.entryPoint
+    ? (await runtime.query(entryPoint)).status !== 404
+    : false;
+
+  if (!buildEntryExists) {
     const hasRoutes = true;
     const hasWidgets = widgetsDir !== undefined;
     const mainCode = generateMainTs(
@@ -723,7 +736,6 @@ export async function build(
       EMROUTE_PACKAGE_SPECIFIER,
       basePath,
     );
-    entryPoint = `/${GENERATED_MAIN}`;
     await runtime.command(entryPoint, { body: mainCode });
   }
 

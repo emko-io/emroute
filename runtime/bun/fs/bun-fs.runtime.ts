@@ -191,13 +191,26 @@ export class BunFsRuntime extends Runtime {
           );
 
           build.onLoad({ filter: /.*/, namespace: 'runtime' }, async (args: { path: string }) => {
+            // Try virtual resolve first (runtime filesystem)
             const contents = await resolve(args.path);
-            if (contents === null) return undefined;
-            return {
-              contents,
-              loader: args.path.endsWith('.ts') ? 'ts' as const : 'js' as const,
-              resolveDir,
-            };
+            if (contents !== null) {
+              return {
+                contents,
+                loader: args.path.endsWith('.ts') ? 'ts' as const : 'js' as const,
+                resolveDir,
+              };
+            }
+            // Fall back to disk (consumer files at resolveDir + path)
+            try {
+              const diskContents = await Bun.file(resolveDir + args.path).text();
+              return {
+                contents: diskContents,
+                loader: args.path.endsWith('.ts') ? 'ts' as const : 'js' as const,
+                resolveDir,
+              };
+            } catch {
+              return undefined;
+            }
           });
         },
       }],

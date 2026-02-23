@@ -27,7 +27,8 @@
     "./server": "./server/emroute.server.ts",
     "./server/cli": "./server/cli.bun.ts",
     "./runtime": "./runtime/abstract.runtime.ts",
-    "./runtime/bun/fs": "./runtime/bun/fs/bun-fs.runtime.ts"
+    "./runtime/bun/fs": "./runtime/bun/fs/bun-fs.runtime.ts",
+    "./runtime/bun/sqlite": "./runtime/bun/sqlite/bun-sqlite.runtime.ts"
   },
   "devDependencies": {
     "@types/bun": "^1.3.9",

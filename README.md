@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="doc/logo-full.png" alt="emroute" width="197" height="40">
+  <img src="https://raw.githubusercontent.com/emko-io/emroute/main/doc/logo-full.png" alt="emroute" width="197" height="40">
 </p>
 
 <p align="center">
@@ -35,15 +35,15 @@ for emroute) or bring your own — [marked](doc/08a-setup-marked.md) and
 ## How It Works
 
 <p align="center">
-  <img src="doc/diagram-full.png" alt="emroute architecture" width="480" height="480">
+  <img src="https://raw.githubusercontent.com/emko-io/emroute/main/doc/diagram-full.png" alt="emroute architecture" width="480" height="480">
 </p>
 
 One component, three rendering paths:
 
 <p align="center">
-  <img src="doc/diagram-flow-spa.png" alt="SPA flow" width="320" height="320">
-  <img src="doc/diagram-flow-ssr-html.png" alt="SSR HTML flow" width="320" height="320">
-  <img src="doc/diagram-flow-ssr-md.png" alt="SSR Markdown flow" width="320" height="320">
+  <img src="https://raw.githubusercontent.com/emko-io/emroute/main/doc/diagram-flow-spa.png" alt="SPA flow" width="320" height="320">
+  <img src="https://raw.githubusercontent.com/emko-io/emroute/main/doc/diagram-flow-ssr-html.png" alt="SSR HTML flow" width="320" height="320">
+  <img src="https://raw.githubusercontent.com/emko-io/emroute/main/doc/diagram-flow-ssr-md.png" alt="SSR Markdown flow" width="320" height="320">
 </p>
 
 The SPA and SSR HTML flows both call `renderHTML()` — same output, different
@@ -154,4 +154,4 @@ See [Setup](doc/01-setup.md) and [First Route](doc/02-first-route.md).
 
 - [Architectural decisions](doc/architecture/) — ADR-0001 through ADR-0017
 
-<img src="doc/logo-full.png" alt="emroute" width="197" height="40">
+<img src="https://raw.githubusercontent.com/emko-io/emroute/main/doc/logo-full.png" alt="emroute" width="197" height="40">

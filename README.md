@@ -14,8 +14,7 @@ separate API layer needed — prefix any route with `/md/` and get text that LLM
 scripts, and `curl` can consume directly.
 
 ```
-GET /projects/42          → SPA (hydrated in browser)
-GET /html/projects/42     → pre-rendered HTML
+GET /html/projects/42     → SSR HTML (SPA hydrates on top)
 GET /md/projects/42       → plain Markdown
 ```
 

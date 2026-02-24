@@ -86,8 +86,8 @@ bun run server.ts
 
 | Endpoint         | Response                             |
 |------------------|--------------------------------------|
-| `GET /`          | SPA shell with `<router-slot>`       |
-| `GET /html`      | SSR HTML — markdown rendered to HTML |
+| `GET /`          | 302 → `/html`                        |
+| `GET /html`      | SSR HTML (SPA hydrates on top)       |
 | `GET /md`        | SSR Markdown — raw markdown text     |
 | `GET /api/hello` | `{"hello":"world"}` (Hono route)     |
 

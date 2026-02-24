@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-02-25
+
+### Added
+
+- **`spa` on `RuntimeConfig`** — the server passes the SPA mode to the runtime
+  so `bundle()` can skip entirely when `spa: 'none'`. Custom runtime
+  implementations can use `this.config.spa` for their own bundling decisions.
+
+- **Hono integration guide** — `doc/13-hono.md` with complete setup example.
+
+### Changed
+
+- **Bare paths redirect in all modes** — previously `root` and `only` modes
+  served the SPA shell at bare paths (`/`, `/about`). Now all modes redirect
+  bare paths to the configured HTML base path (e.g. `/html/about`). The SPA
+  router lives at `/html/*`, same as SSR. This fixes empty pages in `only` mode
+  and "Not Found" on initial load in `root` mode.
+
+- **Static file misses return `null`** — requests for nonexistent files with
+  extensions (e.g. `/nonexistent.js`) now return `null` instead of falling
+  through to a redirect. Consumers handle their own 404 logic.
+
 ## [1.6.0-beta.1] - 2026-02-24
 
 ### Added

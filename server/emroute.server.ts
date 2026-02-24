@@ -215,6 +215,9 @@ export async function createEmrouteServer(
     spa = 'root',
   } = config;
 
+  // Let the runtime know the SPA mode so bundle() can skip when 'none'.
+  runtime.config.spa = spa;
+
   const { html: htmlBase, md: mdBase } = config.basePath ?? DEFAULT_BASE_PATH;
 
   // ── Routes manifest (read from runtime) ─────────────────────────────
@@ -364,16 +367,10 @@ export async function createEmrouteServer(
     if (lastSegment.includes('.')) {
       const fileResponse = await runtime.handle(pathname);
       if (fileResponse.status === 200) return fileResponse;
+      return null;
     }
 
-    // Bare paths — in root/only mode, serve SPA shell directly (router handles
-    // client-side nav). In none/leaf mode, redirect to /html/* for SSR.
-    if (spa === 'root' || spa === 'only') {
-      return new Response(shell, {
-        status: 200,
-        headers: { 'Content-Type': 'text/html; charset=utf-8' },
-      });
-    }
+    // Bare paths — redirect to /html/* in all modes.
     const bare = pathname === '/' ? '' : pathname.slice(1).replace(/\/$/, '');
     return Response.redirect(new URL(`${htmlBase}/${bare}`, url.origin), 302);
   }

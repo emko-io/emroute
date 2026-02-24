@@ -117,21 +117,22 @@ generated files on disk.
 
 The `spa` option controls how the server handles requests:
 
-| Mode     | `GET /`              | `GET /about`         | `/html/*` | `/md/*`   |
-|----------|----------------------|----------------------|-----------|-----------|
-| `'none'` | 302 → `/html`        | 302 → `/html/about`  | SSR HTML  | SSR MD    |
-| `'root'` | SPA shell            | SPA shell            | SSR HTML  | SSR MD    |
-| `'leaf'` | 302 → `/html`        | SPA shell            | SSR HTML  | SSR MD    |
-| `'only'` | SPA shell            | SPA shell            | SPA shell | SPA shell |
+| Mode     | `GET /`              | `GET /about`         | `/html/*`  | `/md/*`   |
+|----------|----------------------|----------------------|------------|-----------|
+| `'none'` | 302 → `/html`        | 302 → `/html/about`  | SSR HTML   | SSR MD    |
+| `'leaf'` | 302 → `/html`        | 302 → `/html/about`  | SSR HTML + JS | SSR MD |
+| `'root'` | 302 → `/html`        | 302 → `/html/about`  | SSR HTML + JS + SPA router | SSR MD |
+| `'only'` | 302 → `/html`        | 302 → `/html/about`  | SPA shell  | SPA shell |
 
-- **`'none'`** — Pure SSR. No client-side JavaScript. Bare paths redirect to
-  `/html/*`. Best for content-heavy sites that don't need interactivity.
-- **`'root'`** (default) — Full SPA with SSR endpoints. Bare paths serve the
-  SPA shell. The browser handles navigation client-side.
-- **`'leaf'`** — SSR landing page at `/`, SPA for deeper routes. Good when you
-  want fast first-paint on the homepage.
-- **`'only'`** — Pure SPA. No SSR endpoints at all. Everything goes through the
+All modes redirect bare paths to the configured HTML base path (`/html` by
+default). The mode controls what the server bundles and serves there:
+
+- **`'none'`** — SSR HTML only. No client-side JavaScript.
+- **`'leaf'`** — SSR HTML with JS bundles. Widgets hydrate, but no emroute
   client-side router.
+- **`'root'`** (default) — SSR HTML with JS bundles and emroute SPA router.
+  After initial load, link clicks are handled client-side.
+- **`'only'`** — SPA shell with JS bundles and router. No SSR content.
 
 ## Extending context
 

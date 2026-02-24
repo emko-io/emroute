@@ -78,6 +78,39 @@ describe('prod server', () => {
     expect(server.mdRouter).toEqual(null);
   });
 
+  // ── None mode ────────────────────────────────────────────────────────
+
+  test('none mode - has SSR routers', async () => {
+    const server = await getServer('none');
+    expect(server.htmlRouter).not.toEqual(null);
+    expect(server.mdRouter).not.toEqual(null);
+  });
+
+  test('none mode - SSR HTML renders content', async () => {
+    const server = await getServer('none');
+    const response = await server.handleRequest(req('/html'));
+    const html = await response!.text();
+    expect(html).toContain('<!DOCTYPE html>');
+    expect(html).toContain('<router-slot');
+    expect(html).toContain('data-ssr-route');
+  });
+
+  // ── Only mode — no SSR ──────────────────────────────────────────────
+
+  test('only mode - /html/* serves shell, not SSR content', async () => {
+    const server = await getServer('only');
+    const response = await server.handleRequest(req('/html/about'));
+    const html = await response!.text();
+    expect(html).not.toContain('data-ssr-route');
+  });
+
+  test('only mode - /md/* serves shell, not markdown', async () => {
+    const server = await getServer('only');
+    const response = await server.handleRequest(req('/md'));
+    expect(response!.status).toEqual(200);
+    expect(response!.headers.get('Content-Type')).toEqual('text/html; charset=utf-8');
+  });
+
   // ── Manifest resolution ─────────────────────────────────────────────
 
   test('createEmrouteServer - exposes widgetEntries', async () => {
@@ -183,31 +216,31 @@ describe('prod server', () => {
     expect(response!.headers.get('Location') ?? '').toContain('/html/about');
   });
 
-  test('handleRequest - bare / serves SPA shell in root mode', async () => {
+  test('handleRequest - bare / redirects to /html/ in root mode', async () => {
     const server = await getServer('root');
     const response = await server.handleRequest(req('/'));
 
     expect(response !== null).toBeTruthy();
-    expect(response!.status).toEqual(200);
-    expect(await response!.text()).toContain('<!DOCTYPE html>');
+    expect(response!.status).toEqual(302);
+    expect(response!.headers.get('Location') ?? '').toContain('/html/');
   });
 
-  test('handleRequest - bare / serves SPA shell in only mode', async () => {
+  test('handleRequest - bare / redirects to /html/ in only mode', async () => {
     const server = await getServer('only');
     const response = await server.handleRequest(req('/'));
 
     expect(response !== null).toBeTruthy();
-    expect(response!.status).toEqual(200);
-    expect(await response!.text()).toContain('<!DOCTYPE html>');
+    expect(response!.status).toEqual(302);
+    expect(response!.headers.get('Location') ?? '').toContain('/html/');
   });
 
-  test('handleRequest - bare /about serves SPA shell in root mode', async () => {
+  test('handleRequest - bare /about redirects to /html/about in root mode', async () => {
     const server = await getServer('root');
     const response = await server.handleRequest(req('/about'));
 
     expect(response !== null).toBeTruthy();
-    expect(response!.status).toEqual(200);
-    expect(await response!.text()).toContain('<!DOCTYPE html>');
+    expect(response!.status).toEqual(302);
+    expect(response!.headers.get('Location') ?? '').toContain('/html/about');
   });
 
   // ── File requests ──────────────────────────────────────────────────────
@@ -230,13 +263,11 @@ describe('prod server', () => {
     expect(response!.headers.get('Content-Type')).toEqual('application/javascript; charset=utf-8');
   });
 
-  test('handleRequest - nonexistent file falls through to SPA shell in root mode', async () => {
+  test('handleRequest - nonexistent file returns null', async () => {
     const server = await getServer('root');
     const response = await server.handleRequest(req('/nonexistent.js'));
 
-    expect(response !== null).toBeTruthy();
-    expect(response!.status).toEqual(200);
-    expect(await response!.text()).toContain('<!DOCTYPE html>');
+    expect(response).toEqual(null);
   });
 
   // ── Only mode ──────────────────────────────────────────────────────────

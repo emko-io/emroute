@@ -103,11 +103,13 @@ In `root` and `only` modes, the SPA router intercepts link clicks. It uses the
 browser's Navigation API for client-side transitions. Browsers without the
 Navigation API gracefully fall back to full page loads.
 
-Links use the `/html/` base path (configurable). This means:
+Links use the HTML base path (`/html` by default, configurable via `basePath`).
+Bare paths (e.g. `/`, `/about`) redirect to their base path equivalent in all
+modes. This means:
 - Without JS: `/html/about` is a real server endpoint that returns rendered HTML
 - With JS: the router intercepts the click, fetches data, and renders client-side
 
-This is progressive enhancement — the same links work in both scenarios.
+This is progressive enhancement — the same links and URLs work in every mode.
 
 ## Configuration
 

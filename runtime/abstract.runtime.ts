@@ -53,6 +53,8 @@ export const EMROUTE_EXTERNALS = [
 export interface RuntimeConfig {
   routesDir?: string;
   widgetsDir?: string;
+  /** SPA mode. When 'none', bundling is skipped entirely. */
+  spa?: 'none' | 'leaf' | 'root' | 'only';
   /** Consumer's SPA entry point (e.g. '/main.ts'). Skips app bundle when absent. */
   entryPoint?: string;
   bundlePaths?: {

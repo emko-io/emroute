@@ -28,6 +28,10 @@ bun add @emkodev/emroute
 > emroute ships TypeScript source. Your toolchain must handle `.ts` imports
 > (Bun, tsx, esbuild, etc.).
 
+For markdown rendering, add [@emkodev/emkoma](doc/08c-setup-emkoma.md) (built
+for emroute) or bring your own — [marked](doc/08a-setup-marked.md) and
+[markdown-it](doc/08b-setup-markdown-it.md) both work.
+
 ## How It Works
 
 <p align="center">
@@ -144,6 +148,7 @@ See [Setup](doc/01-setup.md) and [First Route](doc/02-first-route.md).
 - [SPA modes](doc/10-spa-mode.md) — none, leaf, root, only
 - [Error handling](doc/11-error-handling.md) — widget errors, boundaries, status pages
 - [Shadow DOM](doc/12-shadow-dom.md) — unified architecture, SSR hydration
+- [Hono integration](doc/13-hono.md) — using emroute with Hono
 
 ### For contributors and architects
 

@@ -145,6 +145,7 @@ export class BunFsRuntime extends Runtime {
   // ── Bundling ─────────────────────────────────────────────────────────
 
   override async bundle(): Promise<void> {
+    if (this.config.spa === 'none') return;
     const paths = this.config.bundlePaths;
     if (!paths) return;
 

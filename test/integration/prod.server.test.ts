@@ -41,7 +41,6 @@ async function createTestEmrouteServer(
     widgets: manualWidgets,
     spa,
     title: 'Test App',
-    moduleLoader: (path: string) => import(APP_ROOT + path),
   }, runtime);
 }
 

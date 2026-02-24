@@ -11,10 +11,9 @@
  */
 
 import { test, expect, describe } from 'bun:test';
-import type { WidgetManifestEntry } from '../../src/type/widget.type.ts';
+
 import { Runtime } from '../../runtime/abstract.runtime.ts';
 import { discoverWidgets } from '../../server/scanner.util.ts';
-import { generateWidgetsManifestCode } from '../../server/codegen.util.ts';
 
 /**
  * Mock Runtime for testing widget discovery
@@ -218,173 +217,6 @@ test('discoverWidgets - kebab-case widget names generate correct tag names', asy
   expect(entries[3].tagName).toEqual('widget-user-profile');
 });
 
-// ============================================================================
-// generateWidgetsManifestCode Tests
-// ============================================================================
-
-test('generateWidgetsManifestCode - empty entries array', () => {
-  const entries: WidgetManifestEntry[] = [];
-  const code = generateWidgetsManifestCode(entries);
-
-  expect(code).toContain('export const widgetsManifest');
-  expect(code).toContain('WidgetsManifest');
-  expect(code).toContain('widgets: [');
-  expect(code).toContain('moduleLoaders: {');
-});
-
-test('generateWidgetsManifestCode - single widget entry', () => {
-  const entries: WidgetManifestEntry[] = [
-    {
-      name: 'greeting',
-      modulePath: 'widgets/greeting/greeting.widget.ts',
-      tagName: 'widget-greeting',
-    },
-  ];
-  const code = generateWidgetsManifestCode(entries);
-
-  expect(code).toContain("name: 'greeting'");
-  expect(code).toContain("modulePath: 'widgets/greeting/greeting.widget.ts'");
-  expect(code).toContain("tagName: 'widget-greeting'");
-});
-
-test('generateWidgetsManifestCode - widget with companion files', () => {
-  const entries: WidgetManifestEntry[] = [
-    {
-      name: 'card',
-      modulePath: 'widgets/card/card.widget.ts',
-      tagName: 'widget-card',
-      files: {
-        html: 'widgets/card/card.widget.html',
-        md: 'widgets/card/card.widget.md',
-        css: 'widgets/card/card.widget.css',
-      },
-    },
-  ];
-  const code = generateWidgetsManifestCode(entries);
-
-  expect(code).toContain("'card'");
-  expect(code).toContain('files: {');
-  expect(code).toContain("html: 'widgets/card/card.widget.html'");
-  expect(code).toContain("md: 'widgets/card/card.widget.md'");
-  expect(code).toContain("css: 'widgets/card/card.widget.css'");
-});
-
-test('generateWidgetsManifestCode - multiple widgets with various file combinations', () => {
-  const entries: WidgetManifestEntry[] = [
-    {
-      name: 'alpha',
-      modulePath: 'widgets/alpha/alpha.widget.ts',
-      tagName: 'widget-alpha',
-      files: { html: 'widgets/alpha/alpha.widget.html' },
-    },
-    {
-      name: 'beta',
-      modulePath: 'widgets/beta/beta.widget.ts',
-      tagName: 'widget-beta',
-      files: {
-        html: 'widgets/beta/beta.widget.html',
-        css: 'widgets/beta/beta.widget.css',
-      },
-    },
-    {
-      name: 'gamma',
-      modulePath: 'widgets/gamma/gamma.widget.ts',
-      tagName: 'widget-gamma',
-    },
-  ];
-  const code = generateWidgetsManifestCode(entries);
-
-  expect(code).toContain("'alpha'");
-  expect(code).toContain("'beta'");
-  expect(code).toContain("'gamma'");
-  expect(code).toContain("() => import('./");
-});
-
-test('generateWidgetsManifestCode - includes module loaders for all entries', () => {
-  const entries: WidgetManifestEntry[] = [
-    {
-      name: 'greeting',
-      modulePath: 'widgets/greeting/greeting.widget.ts',
-      tagName: 'widget-greeting',
-    },
-    {
-      name: 'counter',
-      modulePath: 'widgets/counter/counter.widget.ts',
-      tagName: 'widget-counter',
-    },
-  ];
-  const code = generateWidgetsManifestCode(entries);
-
-  expect(code).toContain('moduleLoaders: {');
-  expect(code).toContain("'widgets/greeting/greeting.widget.ts'");
-  expect(code).toContain("'widgets/counter/counter.widget.ts'");
-  expect(code).toContain("() => import('./widgets/greeting/greeting.widget.ts')");
-  expect(code).toContain("() => import('./widgets/counter/counter.widget.ts')");
-});
-
-test('generateWidgetsManifestCode - custom import path', () => {
-  const entries: WidgetManifestEntry[] = [
-    {
-      name: 'test',
-      modulePath: 'widgets/test/test.widget.ts',
-      tagName: 'widget-test',
-    },
-  ];
-  const code = generateWidgetsManifestCode(entries, 'my-package/emroute');
-
-  expect(code).toContain("import type { WidgetsManifest } from 'my-package/emroute'");
-});
-
-test('generateWidgetsManifestCode - escapes special characters in names and paths', () => {
-  const entries: WidgetManifestEntry[] = [
-    {
-      name: "test'widget",
-      modulePath: "widgets/test'widget/test'widget.widget.ts",
-      tagName: "widget-test'widget",
-    },
-  ];
-  const code = generateWidgetsManifestCode(entries);
-
-  expect(code).toContain("test\\'widget");
-});
-
-test('generateWidgetsManifestCode - valid TypeScript output structure', () => {
-  const entries: WidgetManifestEntry[] = [
-    {
-      name: 'demo',
-      modulePath: 'widgets/demo/demo.widget.ts',
-      tagName: 'widget-demo',
-      files: {
-        html: 'widgets/demo/demo.widget.html',
-      },
-    },
-  ];
-  const code = generateWidgetsManifestCode(entries);
-
-  expect(typeof code).toEqual('string');
-  expect(code).toContain('import type');
-  expect(code).toContain('export const widgetsManifest');
-  expect(code).toContain('WidgetsManifest');
-});
-
-test('generateWidgetsManifestCode - outputs all widgets from entries', () => {
-  const entries: WidgetManifestEntry[] = [
-    {
-      name: 'zeta',
-      modulePath: 'widgets/zeta/zeta.widget.ts',
-      tagName: 'widget-zeta',
-    },
-    {
-      name: 'alpha',
-      modulePath: 'widgets/alpha/alpha.widget.ts',
-      tagName: 'widget-alpha',
-    },
-  ];
-  const code = generateWidgetsManifestCode(entries);
-
-  expect(code).toContain("name: 'zeta'");
-  expect(code).toContain("name: 'alpha'");
-});
 
 // ============================================================================
 // Integration Tests
@@ -416,13 +248,6 @@ test('widget file discovery - end-to-end discovery and manifest generation', asy
   expect(entries[0].name).toEqual('badge');
   expect(entries[1].name).toEqual('counter');
   expect(entries[2].name).toEqual('greeting');
-
-  const code = generateWidgetsManifestCode(entries);
-
-  expect(code).toContain("'badge'");
-  expect(code).toContain("'counter'");
-  expect(code).toContain("'greeting'");
-  expect(code).toContain('export const widgetsManifest');
 });
 
 test('widget file discovery - discovers nested widgets correctly', async () => {

@@ -70,7 +70,6 @@ await runtime.command('/routes/blog.page.ts', {
 
 const emroute = await createEmrouteServer({
   spa: 'none',
-  moduleLoader: runtime.createModuleLoader(),
 }, runtime);
 
 Bun.serve({

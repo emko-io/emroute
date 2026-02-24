@@ -5,6 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0-beta.1] - 2026-02-24
+
+### Changed
+
+- **Virtual manifest plugin** — `.g.ts` manifest files eliminated. An esbuild
+  virtual plugin (`emroute:routes`, `emroute:widgets`) reads JSON manifests from
+  the runtime at bundle time and generates `import()` calls in-memory. JSON is
+  the single source of truth — no stale intermediaries.
+
+- **`Runtime.loadModule()`** — replaces `moduleLoader` callback on server config.
+  Each runtime implements dynamic module loading for SSR. `BunFsRuntime` uses
+  native `import()`, `BunSqliteRuntime` transpiles via esbuild and imports from
+  blob URLs.
+
+- **Auto-generated `main.ts`** — when `config.entryPoint` is set but the file
+  doesn't exist, `bundle()` generates a default entry point that imports from
+  `emroute:routes`/`emroute:widgets`, registers widgets, and creates the SPA
+  router. Consumer's existing `main.ts` is never overwritten.
+
+- **Parallel bundling** — SPA, app, and widgets esbuild builds run concurrently
+  via `Promise.all` instead of sequentially.
+
+- **Import map derived from `EMROUTE_EXTERNALS`** — the generated `index.html`
+  import map keys are derived from the `EMROUTE_EXTERNALS` constant instead of
+  hardcoded strings.
+
+### Removed
+
+- **`moduleLoader` on `EmrouteServerConfig`** — server uses
+  `runtime.loadModule()` automatically. No callback needed.
+
+- **`createModuleLoader()` on `BunSqliteRuntime`** — replaced by `loadModule()`
+  override.
+
+- **`generateManifestCode()` / `generateWidgetsManifestCode()`** — codegen
+  functions removed from public API. The esbuild virtual plugin is the sole
+  consumer of this logic now.
+
+- **`.g.ts` manifest files** — no longer generated during builds or tests.
+
 ## [1.5.3-beta.4] - 2026-02-21
 
 > Versions 1.5.1 and 1.5.2 were yanked. This release includes all changes since 1.5.0.

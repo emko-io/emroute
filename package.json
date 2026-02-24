@@ -25,7 +25,6 @@
     "./spa": "./src/renderer/spa/mod.ts",
     "./overlay": "./src/overlay/mod.ts",
     "./server": "./server/emroute.server.ts",
-    "./server/cli": "./server/cli.bun.ts",
     "./runtime": "./runtime/abstract.runtime.ts",
     "./runtime/bun/fs": "./runtime/bun/fs/bun-fs.runtime.ts",
     "./runtime/bun/sqlite": "./runtime/bun/sqlite/bun-sqlite.runtime.ts"
@@ -44,6 +43,6 @@
     "test:browser:leaf": "bun test test/browser/leaf",
     "test:browser:root": "bun test test/browser/root",
     "test:browser:only": "bun test test/browser/only",
-    "dev": "bun run server/cli.bun.ts"
+    "dev": "echo 'Use a custom server.ts — see doc/quick-start.md'"
   }
 }

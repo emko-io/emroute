@@ -18,7 +18,6 @@
 
 import { test, expect, describe } from 'bun:test';
 import { generateRoutesManifest } from '../../server/scanner.util.ts';
-import { generateManifestCode } from '../../server/codegen.util.ts';
 import { Runtime } from '../../runtime/abstract.runtime.ts';
 import type { FetchParams, FetchReturn } from '../../runtime/abstract.runtime.ts';
 
@@ -618,172 +617,6 @@ test('generator - deeply nested routes have correct parent', async () => {
   expect(editRoute?.parent).toEqual('/admin/users/:id');
 });
 
-// ============================================================================
-// Module Loader Generation
-// ============================================================================
-
-test('generator - collects all .ts module paths for loaders', async () => {
-  const runtime = createMockRuntime([
-    'routes/index.page.ts',
-    'routes/dashboard.page.ts',
-    'routes/projects/[id].page.ts',
-    'routes/index.error.ts',
-  ]);
-  const result = await generateRoutesManifest('routes', runtime);
-  const code = generateManifestCode(result);
-
-  expect(code).toContain('routes/index.page.ts');
-  expect(code).toContain('routes/dashboard.page.ts');
-  expect(code).toContain('routes/projects/[id].page.ts');
-  expect(code).toContain('routes/index.error.ts');
-});
-
-test('generator - module loaders use dynamic import', async () => {
-  const runtime = createMockRuntime(['routes/index.page.ts']);
-  const result = await generateRoutesManifest('routes', runtime);
-  const code = generateManifestCode(result);
-
-  expect(code).toContain('import(');
-});
-
-test('generator - module loaders keyed by full path', async () => {
-  const runtime = createMockRuntime(['routes/dashboard.page.ts']);
-  const result = await generateRoutesManifest('routes', runtime);
-  const code = generateManifestCode(result);
-
-  expect(code).toContain("'routes/dashboard.page.ts'");
-});
-
-test('generator - ignores non-.ts files in module loaders', async () => {
-  const runtime = createMockRuntime([
-    'routes/about.page.html',
-    'routes/guide.page.md',
-  ]);
-  const result = await generateRoutesManifest('routes', runtime);
-  const code = generateManifestCode(result);
-
-  // Module loaders should be empty or not include these files
-  const hasImportModule = code.includes("': () => import(");
-  expect(hasImportModule).toEqual(false);
-});
-
-test('generator - status page .ts modules in loaders', async () => {
-  const runtime = createMockRuntime(['routes/404.page.ts']);
-  const result = await generateRoutesManifest('routes', runtime);
-  const code = generateManifestCode(result);
-
-  expect(code).toContain("'routes/404.page.ts'");
-});
-
-test('generator - error boundary modules in loaders', async () => {
-  const runtime = createMockRuntime([
-    'routes/projects/[id].page.ts',
-    'routes/projects/[id].error.ts',
-  ]);
-  const result = await generateRoutesManifest('routes', runtime);
-  const code = generateManifestCode(result);
-
-  expect(code).toContain("'routes/projects/[id].error.ts'");
-});
-
-// ============================================================================
-// Manifest Code Generation
-// ============================================================================
-
-test('generator - produces valid TypeScript code', async () => {
-  const runtime = createMockRuntime(['routes/about.page.md']);
-  const result = await generateRoutesManifest('routes', runtime);
-  const code = generateManifestCode(result);
-
-  expect(code).toContain('import type { RoutesManifest }');
-  expect(code).toContain('export const routesManifest: RoutesManifest');
-});
-
-test('generator - includes routes array', async () => {
-  const runtime = createMockRuntime([
-    'routes/about.page.md',
-    'routes/contact.page.md',
-  ]);
-  const result = await generateRoutesManifest('routes', runtime);
-  const code = generateManifestCode(result);
-
-  expect(code).toContain('routes: [');
-  expect(code).toContain("pattern: '/about'");
-  expect(code).toContain("pattern: '/contact'");
-});
-
-test('generator - includes errorBoundaries array', async () => {
-  const runtime = createMockRuntime([
-    'routes/projects/[id].page.ts',
-    'routes/projects/[id].error.ts',
-  ]);
-  const result = await generateRoutesManifest('routes', runtime);
-  const code = generateManifestCode(result);
-
-  expect(code).toContain('errorBoundaries: [');
-  expect(code).toContain("pattern: '/projects'");
-});
-
-test('generator - includes statusPages map', async () => {
-  const runtime = createMockRuntime(['routes/404.page.html']);
-  const result = await generateRoutesManifest('routes', runtime);
-  const code = generateManifestCode(result);
-
-  expect(code).toContain('statusPages: new Map([');
-  expect(code).toContain('[404, {');
-});
-
-test('generator - includes errorHandler if present', async () => {
-  const runtime = createMockRuntime(['routes/index.error.ts']);
-  const result = await generateRoutesManifest('routes', runtime);
-  const code = generateManifestCode(result);
-
-  expect(code).toContain('errorHandler: {');
-  expect(code).toContain("pattern: '/'");
-});
-
-test('generator - errorHandler is undefined if absent', async () => {
-  const runtime = createMockRuntime(['routes/index.page.md']);
-  const result = await generateRoutesManifest('routes', runtime);
-  const code = generateManifestCode(result);
-
-  expect(code).toContain('errorHandler: undefined');
-});
-
-test('generator - includes moduleLoaders object', async () => {
-  const runtime = createMockRuntime(['routes/index.page.ts']);
-  const result = await generateRoutesManifest('routes', runtime);
-  const code = generateManifestCode(result);
-
-  expect(code).toContain('moduleLoaders: {');
-  expect(code).toContain('() => import(');
-});
-
-test('generator - includes custom import path in generated code', async () => {
-  const runtime = createMockRuntime(['routes/about.page.md']);
-  const result = await generateRoutesManifest('routes', runtime);
-  const customPath = '@mycompany/routing-lib';
-  const code = generateManifestCode(result, customPath);
-
-  expect(code).toContain(customPath);
-});
-
-test('generator - escapes quotes in file paths', async () => {
-  const runtime = createMockRuntime(["routes/page-with-'quotes'.page.ts"]);
-  const result = await generateRoutesManifest('routes', runtime);
-  const code = generateManifestCode(result);
-
-  expect(code).toContain("\\'");
-});
-
-test('generator - escapes backslashes in file paths', async () => {
-  const runtime = createMockRuntime(['routes/page.page.ts']);
-  const result = await generateRoutesManifest('routes', runtime);
-  const code = generateManifestCode(result);
-
-  // Code should be valid TypeScript (no unescaped backslashes)
-  expect(code).toBeDefined();
-});
 
 // ============================================================================
 // Collision Detection
@@ -875,7 +708,6 @@ test('generator - real-world with all file types', async () => {
     'routes/docs/[slug].error.ts',
   ]);
   const result = await generateRoutesManifest('routes', runtime);
-  const code = generateManifestCode(result);
 
   // /docs (flat), /docs/:rest* (directory index), /docs/:slug (dynamic)
   expect(result.routes.length).toEqual(3);
@@ -883,7 +715,6 @@ test('generator - real-world with all file types', async () => {
   const docsRoute = result.routes.find((r) => r.pattern === '/docs');
   expect(docsRoute?.files?.html).toEqual('routes/docs.page.html');
   expect(docsRoute?.files?.css).toEqual('routes/docs.page.css');
-  expect(code).toContain('moduleLoaders');
 });
 
 test('generator - deeply nested structure', async () => {

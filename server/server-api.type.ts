@@ -50,9 +50,6 @@ export interface EmrouteServerConfig {
   /** Base paths for SSR endpoints (default: { html: '/html', md: '/md' }) */
   basePath?: BasePath;
 
-  /** Module loader for `.page.ts` and `.widget.ts` files during SSR. */
-  moduleLoader?: (path: string) => Promise<unknown>;
-
   /** Page title (fallback when no route provides one) */
   title?: string;
 

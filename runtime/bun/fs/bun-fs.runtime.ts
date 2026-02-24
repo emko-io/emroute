@@ -3,6 +3,8 @@ import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
 import {
   CONTENT_TYPES,
+  DEFAULT_ROUTES_DIR,
+  DEFAULT_WIDGETS_DIR,
   EMROUTE_EXTERNALS,
   type FetchParams,
   type FetchReturn,
@@ -11,6 +13,9 @@ import {
   type RuntimeConfig,
   WIDGETS_MANIFEST_PATH,
 } from '../../abstract.runtime.ts';
+import { createManifestPlugin } from '../../../server/esbuild-manifest.plugin.ts';
+import { createRuntimeLoaderPlugin } from '../esbuild-runtime-loader.plugin.ts';
+import { generateMainTs } from '../../../server/codegen.util.ts';
 
 export class BunFsRuntime extends Runtime {
   private readonly root: string;
@@ -133,6 +138,10 @@ export class BunFsRuntime extends Runtime {
     }
   }
 
+  override loadModule(path: string): Promise<unknown> {
+    return import(this.root + path);
+  }
+
   // ── Bundling ─────────────────────────────────────────────────────────
 
   override async bundle(): Promise<void> {
@@ -140,95 +149,71 @@ export class BunFsRuntime extends Runtime {
     if (!paths) return;
 
     const esbuild = await BunFsRuntime.esbuild();
+    const builds: Promise<{ outputFiles: { path: string; contents: Uint8Array }[] }>[] = [];
+    const shared = { bundle: true, write: false, format: 'esm' as const, platform: 'browser' as const };
+    const runtimeLoader = createRuntimeLoaderPlugin({ runtime: this, root: this.root });
 
-    // Emroute SPA bundle — resolve from consumer's node_modules
+    // Emroute SPA bundle — resolve from consumer's node_modules (no runtime loader needed)
     const consumerRequire = createRequire(this.root + '/');
     const spaEntry = consumerRequire.resolve('@emkodev/emroute/spa');
-    await esbuild.build({
+    builds.push(esbuild.build({
+      ...shared,
       entryPoints: [spaEntry],
-      bundle: true,
-      write: true,
       outfile: `${this.root}${paths.emroute}`,
-      format: 'esm',
-      platform: 'browser',
-    });
+    }));
 
-    // App bundle
+    // App bundle — generate main.ts if absent, virtual plugin resolves manifests
     if (this.config.entryPoint) {
-      await esbuild.build({
-        entryPoints: [`${this.root}${this.config.entryPoint}`],
-        bundle: true,
-        write: true,
-        outfile: `${this.root}${paths.app}`,
-        format: 'esm',
-        platform: 'browser',
-        external: EMROUTE_EXTERNALS,
-        loader: { '.ts': 'ts' },
+      if ((await this.query(this.config.entryPoint)).status === 404) {
+        const hasRoutes = (await this.query((this.config.routesDir ?? DEFAULT_ROUTES_DIR) + '/')).status !== 404;
+        const hasWidgets = (await this.query((this.config.widgetsDir ?? DEFAULT_WIDGETS_DIR) + '/')).status !== 404;
+        const code = generateMainTs('root', hasRoutes, hasWidgets, '@emkodev/emroute');
+        await this.command(this.config.entryPoint, { body: code });
+      }
+      const manifestPlugin = createManifestPlugin({
+        runtime: this,
+        basePath: '/html',
+        resolveDir: this.root,
       });
+      builds.push(esbuild.build({
+        ...shared,
+        entryPoints: [`${this.root}${this.config.entryPoint}`],
+        outfile: `${this.root}${paths.app}`,
+        external: [...EMROUTE_EXTERNALS],
+        plugins: [manifestPlugin, runtimeLoader],
+      }));
     }
 
     // Widgets bundle
     if (paths.widgets) {
-      const widgetsEntry = `${this.root}${paths.widgets.replace('.js', '.ts')}`;
-      try {
-        await stat(widgetsEntry);
-        await esbuild.build({
-          entryPoints: [widgetsEntry],
-          bundle: true,
-          write: true,
+      const widgetsTsPath = paths.widgets.replace('.js', '.ts');
+      if ((await this.query(widgetsTsPath)).status !== 404) {
+        builds.push(esbuild.build({
+          ...shared,
+          entryPoints: [`${this.root}${widgetsTsPath}`],
           outfile: `${this.root}${paths.widgets}`,
-          format: 'esm',
-          platform: 'browser',
-          external: EMROUTE_EXTERNALS,
-          loader: { '.ts': 'ts' },
-        });
-      } catch { /* no widgets entry, skip */ }
+          external: [...EMROUTE_EXTERNALS],
+          plugins: [runtimeLoader],
+        }));
+      }
+    }
+
+    const results = await Promise.all(builds);
+
+    // Write all output files through the runtime
+    for (const result of results) {
+      for (const file of result.outputFiles) {
+        const runtimePath = file.path.startsWith(this.root)
+          ? file.path.slice(this.root.length)
+          : '/' + file.path;
+        await this.command(runtimePath, { body: file.contents });
+      }
     }
 
     await this.writeShell(paths);
 
     await esbuild.stop();
     BunFsRuntime._esbuild = null;
-  }
-
-  private async writeShell(
-    paths: { emroute: string; app: string; widgets?: string },
-  ): Promise<void> {
-    const shellPath = `${this.root}/index.html`;
-    try {
-      await stat(shellPath);
-      return; // Don't overwrite existing
-    } catch { /* not found, generate */ }
-
-    const imports: Record<string, string> = {
-      '@emkodev/emroute/spa': paths.emroute,
-      '@emkodev/emroute/overlay': paths.emroute,
-      '@emkodev/emroute': paths.emroute,
-    };
-    const importMap = JSON.stringify({ imports }, null, 2);
-
-    const scripts = [
-      `<script type="importmap">\n${importMap}\n  </script>`,
-    ];
-    if (this.config.entryPoint) {
-      scripts.push(`<script type="module" src="${paths.app}"></script>`);
-    }
-
-    const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>emroute</title>
-  <style>@view-transition { navigation: auto; } router-slot { display: contents; }</style>
-</head>
-<body>
-  <router-slot></router-slot>
-  ${scripts.join('\n  ')}
-</body>
-</html>`;
-
-    await Bun.write(shellPath, html);
   }
 
   // ── Transpile / esbuild ───────────────────────────────────────────────
@@ -244,14 +229,9 @@ export class BunFsRuntime extends Runtime {
     return BunFsRuntime._esbuild;
   }
 
-  static override async transpile(source: string): Promise<string> {
-    const esbuild = await BunFsRuntime.esbuild();
-    const result = await esbuild.transform(source, {
-      loader: 'ts',
-      format: 'esm',
-      target: 'esnext',
-    });
-    return result.code;
+  static override transpile(source: string): Promise<string> {
+    const transpiler = new Bun.Transpiler({ loader: 'ts' });
+    return Promise.resolve(transpiler.transformSync(source));
   }
 
   static override async stopBundler(): Promise<void> {

@@ -100,13 +100,13 @@ describe('BunSqliteRuntime', () => {
     });
   });
 
-  describe('createModuleLoader', () => {
+  describe('loadModule', () => {
     test('loads TypeScript module from storage', async () => {
       const runtime = new BunSqliteRuntime();
       await runtime.command('/test.page.ts', {
         body: 'export default { getData() { return { title: "from sqlite" }; } }',
       });
-      const loader = runtime.createModuleLoader();
+      const loader = runtime.loadModule.bind(runtime);
       const mod = await loader('/test.page.ts') as { default: { getData(): { title: string } } };
       expect(mod.default.getData().title).toEqual('from sqlite');
       runtime.close();
@@ -117,9 +117,109 @@ describe('BunSqliteRuntime', () => {
       await runtime.command('/test.page.js', {
         body: 'export default { getData() { return { value: 42 }; } }',
       });
-      const loader = runtime.createModuleLoader();
+      const loader = runtime.loadModule.bind(runtime);
       const mod = await loader('/test.page.js') as { default: { getData(): { value: number } } };
       expect(mod.default.getData().value).toEqual(42);
+      runtime.close();
+    });
+  });
+
+  describe('manifest resolution', () => {
+    test('resolves routes manifest from scanned files', async () => {
+      const runtime = new BunSqliteRuntime();
+      await runtime.command('/routes/index.page.md', { body: '# Home' });
+      await runtime.command('/routes/about.page.md', { body: '# About' });
+
+      const response = await runtime.query('/routes.manifest.json');
+      expect(response.status).toEqual(200);
+      const manifest = await response.json();
+      expect(manifest.routes.length).toBeGreaterThanOrEqual(2);
+      const patterns = manifest.routes.map((r: { pattern: string }) => r.pattern);
+      expect(patterns).toContain('/');
+      expect(patterns).toContain('/about');
+      runtime.close();
+    });
+
+    test('resolves widgets manifest from scanned files', async () => {
+      const runtime = new BunSqliteRuntime();
+      await runtime.command('/widgets/counter/counter.widget.ts', {
+        body: 'export default class Counter {}',
+      });
+
+      const response = await runtime.query('/widgets.manifest.json');
+      expect(response.status).toEqual(200);
+      const entries = await response.json();
+      expect(entries.length).toEqual(1);
+      expect(entries[0].name).toEqual('counter');
+      expect(entries[0].tagName).toEqual('widget-counter');
+      runtime.close();
+    });
+  });
+
+  describe('bundle', () => {
+    test('bundle writes output files through runtime', async () => {
+      const runtime = new BunSqliteRuntime(':memory:', {
+        entryPoint: '/main.ts',
+        routesDir: '/routes',
+      });
+      await runtime.command('/routes/index.page.md', { body: '# Home' });
+
+      await runtime.bundle();
+
+      // Verify bundle output files exist in runtime storage
+      const emrouteJs = await runtime.query('/emroute.js');
+      expect(emrouteJs.status).toEqual(200);
+      expect(emrouteJs.headers.get('Content-Type')).toEqual('application/javascript; charset=utf-8');
+
+      const appJs = await runtime.query('/app.js');
+      expect(appJs.status).toEqual(200);
+
+      // Verify auto-generated main.ts exists
+      const mainTs = await runtime.query('/main.ts');
+      expect(mainTs.status).toEqual(200);
+
+      // Verify index.html shell was generated
+      const shell = await runtime.query('/index.html');
+      expect(shell.status).toEqual(200);
+      const html = await shell.text();
+      expect(html).toContain('importmap');
+      expect(html).toContain('/app.js');
+
+      await BunSqliteRuntime.stopBundler();
+      runtime.close();
+    });
+
+    test('bundle does not overwrite existing main.ts', async () => {
+      const runtime = new BunSqliteRuntime(':memory:', {
+        entryPoint: '/main.ts',
+        routesDir: '/routes',
+      });
+      await runtime.command('/routes/index.page.md', { body: '# Home' });
+      await runtime.command('/main.ts', { body: 'console.log("custom");' });
+
+      await runtime.bundle();
+
+      const mainTs = await runtime.query('/main.ts', { as: 'text' });
+      expect(mainTs).toEqual('console.log("custom");');
+
+      await BunSqliteRuntime.stopBundler();
+      runtime.close();
+    });
+
+    test('bundle does not overwrite existing index.html', async () => {
+      const runtime = new BunSqliteRuntime(':memory:', {
+        entryPoint: '/main.ts',
+        routesDir: '/routes',
+      });
+      await runtime.command('/routes/index.page.md', { body: '# Home' });
+      await runtime.command('/index.html', { body: '<html>custom</html>' });
+
+      await runtime.bundle();
+
+      const html = await runtime.query('/index.html', { as: 'text' });
+      expect(html).toEqual('<html>custom</html>');
+
+      await BunSqliteRuntime.stopBundler();
       runtime.close();
     });
   });
@@ -131,7 +231,6 @@ describe('BunSqliteRuntime', () => {
 
       const emroute = await createEmrouteServer({
         spa: 'none',
-        moduleLoader: runtime.createModuleLoader(),
       }, runtime);
 
       const req = new Request('http://localhost/html');
@@ -156,7 +255,6 @@ describe('BunSqliteRuntime', () => {
 
       const emroute = await createEmrouteServer({
         spa: 'none',
-        moduleLoader: runtime.createModuleLoader(),
       }, runtime);
 
       const req = new Request('http://localhost/html/hello');
@@ -175,7 +273,6 @@ describe('BunSqliteRuntime', () => {
 
       const emroute = await createEmrouteServer({
         spa: 'none',
-        moduleLoader: runtime.createModuleLoader(),
       }, runtime);
 
       const aboutReq = new Request('http://localhost/html/about');

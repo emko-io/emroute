@@ -48,7 +48,7 @@ export const EMROUTE_EXTERNALS = [
   '@emkodev/emroute/spa',
   '@emkodev/emroute/overlay',
   '@emkodev/emroute',
-];
+] as const;
 
 export interface RuntimeConfig {
   routesDir?: string;
@@ -100,6 +100,14 @@ export abstract class Runtime {
     return this.handle(resource, { method: 'PUT', ...options });
   }
 
+  /**
+   * Dynamically import a module from this runtime's storage.
+   * Used by the server for SSR imports of `.page.ts` and `.widget.ts` files.
+   */
+  loadModule(_path: string): Promise<unknown> {
+    throw new Error(`loadModule not implemented for ${this.constructor.name}`);
+  }
+
   static transpile(_ts: string): Promise<string> {
     throw new Error('Not implemented');
   }
@@ -110,6 +118,44 @@ export abstract class Runtime {
    */
   bundle(): Promise<void> {
     return Promise.resolve();
+  }
+
+  /**
+   * Generate an HTML shell (`index.html`) if one doesn't already exist.
+   * Writes through `this.command()` so it works for any runtime.
+   */
+  protected async writeShell(
+    paths: { emroute: string; app: string; widgets?: string },
+  ): Promise<void> {
+    if ((await this.query('/index.html')).status !== 404) return;
+
+    const imports: Record<(typeof EMROUTE_EXTERNALS)[number], string> = Object.fromEntries(
+      EMROUTE_EXTERNALS.map((pkg) => [pkg, paths.emroute]),
+    ) as Record<(typeof EMROUTE_EXTERNALS)[number], string>;
+    const importMap = JSON.stringify({ imports }, null, 2);
+
+    const scripts = [
+      `<script type="importmap">\n${importMap}\n  </script>`,
+    ];
+    if (this.config.entryPoint) {
+      scripts.push(`<script type="module" src="${paths.app}"></script>`);
+    }
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>emroute</title>
+  <style>@view-transition { navigation: auto; } router-slot { display: contents; }</style>
+</head>
+<body>
+  <router-slot></router-slot>
+  ${scripts.join('\n  ')}
+</body>
+</html>`;
+
+    await this.command('/index.html', { body: html });
   }
 
   static compress(

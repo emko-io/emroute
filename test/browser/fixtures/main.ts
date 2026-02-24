@@ -1,7 +1,7 @@
 import { ComponentElement, createSpaHtmlRouter } from '@emkodev/emroute/spa';
 import { createOverlayService } from '@emkodev/emroute/overlay';
-import { routesManifest } from './routes.manifest.g.ts';
-import { widgetsManifest } from './widgets.manifest.g.ts';
+import { routesManifest } from 'emroute:routes';
+import { widgetsManifest } from 'emroute:widgets';
 
 // Set up emko-md markdown renderer (side-effect import)
 import './emko.renderer.ts';

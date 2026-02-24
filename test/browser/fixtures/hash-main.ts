@@ -1,6 +1,6 @@
 import { ComponentElement, createHashRouter } from '@emkodev/emroute/spa';
 import { PageComponent } from '@emkodev/emroute';
-import { widgetsManifest } from './widgets.manifest.g.ts';
+import { widgetsManifest } from 'emroute:widgets';
 
 // Register discovered widgets (same as auto-generated entry)
 for (const entry of widgetsManifest.widgets) {

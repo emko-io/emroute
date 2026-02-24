@@ -47,13 +47,12 @@ import type { EmrouteServer, EmrouteServerConfig } from './server-api.type.ts';
 
 /**
  * Create module loaders for server-side SSR imports.
- *
- * Requires the consumer-provided `moduleLoader` callback.
- * Example: `moduleLoader: (path) => import(appRoot + path)`
+ * Uses `runtime.loadModule()` — each runtime decides how to load modules
+ * (filesystem import, SQLite transpile + blob URL, etc.).
  */
 function createModuleLoaders(
   manifest: RoutesManifest,
-  moduleLoader: (path: string) => Promise<unknown>,
+  runtime: Runtime,
 ): Record<string, () => Promise<unknown>> {
   const loaders: Record<string, () => Promise<unknown>> = {};
 
@@ -76,7 +75,7 @@ function createModuleLoaders(
   }
 
   for (const path of modulePaths) {
-    loaders[path] = () => moduleLoader(path);
+    loaders[path] = () => runtime.loadModule(path);
   }
 
   return loaders;
@@ -100,17 +99,16 @@ function extractWidgetExport(
   return null;
 }
 
-/** Import widget modules for SSR via moduleLoader. */
+/** Import widget modules for SSR via runtime.loadModule(). */
 async function importWidgets(
   entries: WidgetManifestEntry[],
-  moduleLoader: (path: string) => Promise<unknown>,
+  runtime: Runtime,
   manual?: WidgetRegistry,
 ): Promise<{
   registry: WidgetRegistry;
   widgetFiles: Record<string, { html?: string; md?: string; css?: string }>;
 }> {
   const registry = new WidgetRegistry();
-  const load = moduleLoader;
 
   for (const entry of entries) {
     try {
@@ -118,7 +116,7 @@ async function importWidgets(
         ? entry.modulePath
         : `/${entry.modulePath}`;
 
-      const mod = await load(runtimePath) as Record<string, unknown>;
+      const mod = await runtime.loadModule(runtimePath) as Record<string, unknown>;
       const instance = extractWidgetExport(mod);
       if (!instance) continue;
       registry.add(instance);
@@ -218,7 +216,6 @@ export async function createEmrouteServer(
   } = config;
 
   const { html: htmlBase, md: mdBase } = config.basePath ?? DEFAULT_BASE_PATH;
-  const moduleLoader = config.moduleLoader;
 
   // ── Routes manifest (read from runtime) ─────────────────────────────
 
@@ -238,9 +235,7 @@ export async function createEmrouteServer(
     routesManifest = deserializeManifest(raw);
   }
 
-  if (moduleLoader) {
-    routesManifest.moduleLoaders = createModuleLoaders(routesManifest, moduleLoader);
-  }
+  routesManifest.moduleLoaders = createModuleLoaders(routesManifest, runtime);
 
   // ── Widgets (read from runtime) ────────────────────────────────────
 
@@ -251,9 +246,7 @@ export async function createEmrouteServer(
   const widgetsResponse = await runtime.query(WIDGETS_MANIFEST_PATH);
   if (widgetsResponse.status !== 404) {
     discoveredWidgetEntries = await widgetsResponse.json();
-    const imported = moduleLoader
-      ? await importWidgets(discoveredWidgetEntries, moduleLoader, config.widgets)
-      : { registry: config.widgets ?? new WidgetRegistry(), widgetFiles: {} as typeof widgetFiles };
+    const imported = await importWidgets(discoveredWidgetEntries, runtime, config.widgets);
     widgets = imported.registry;
     widgetFiles = imported.widgetFiles;
   }

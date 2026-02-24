@@ -12,7 +12,7 @@
  * - Manifest code generation
  *
  * Based on documentation:
- * - doc/guide.md: Core routing concepts and file-based routing rules
+ * - doc/04-routing.md: Routing concepts and file-based routing rules
  * - server/generator/route.generator.ts: Route manifest generation implementation
  */
 

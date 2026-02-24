@@ -23,7 +23,7 @@ interface RuntimeLoaderOptions {
   root: string;
 }
 
-// deno-lint-ignore no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type EsbuildPlugin = any;
 
 export function createRuntimeLoaderPlugin(options: RuntimeLoaderOptions): EsbuildPlugin {
@@ -32,13 +32,13 @@ export function createRuntimeLoaderPlugin(options: RuntimeLoaderOptions): Esbuil
   return {
     name: 'emroute-runtime-loader',
 
-    // deno-lint-ignore no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     setup(build: any) {
       // Intercept .ts and .js file resolution — redirect to 'runtime' namespace
       // Only intercepts files that resolve under the runtime root.
       build.onResolve(
         { filter: /\.[tj]s$/ },
-        // deno-lint-ignore no-explicit-any
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (args: any) => {
           // Skip bare specifiers (node_modules, packages)
           if (!args.path.startsWith('.') && !args.path.startsWith('/')) return undefined;
@@ -74,7 +74,7 @@ export function createRuntimeLoaderPlugin(options: RuntimeLoaderOptions): Esbuil
       // Load file contents from the runtime
       build.onLoad(
         { filter: /.*/, namespace: 'runtime' },
-        // deno-lint-ignore no-explicit-any
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         async (args: any) => {
           // Strip root prefix to get runtime path (e.g. /app/root/routes/x.ts → /routes/x.ts)
           const runtimePath = root && args.path.startsWith(root)

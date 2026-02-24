@@ -161,7 +161,7 @@ export class BunSqliteRuntime extends Runtime {
       for (const file of result.outputFiles) {
         // outfile paths are relative — ensure leading /
         const runtimePath = file.path.startsWith('/') ? file.path : '/' + file.path;
-        await this.command(runtimePath, { body: file.contents });
+        await this.command(runtimePath, { body: file.contents as unknown as BodyInit });
       }
     }
 
@@ -233,7 +233,7 @@ export class BunSqliteRuntime extends Runtime {
 
   // ── Transpile / esbuild ───────────────────────────────────────────────
 
-  // deno-lint-ignore no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private static _esbuild: any = null;
 
   private static async esbuild() {

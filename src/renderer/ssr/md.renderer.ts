@@ -54,7 +54,8 @@ export class SsrMdRouter extends SsrRenderer {
       return { content: routerSlotBlock(route.pattern) };
     }
 
-    let { content, title } = await this.loadRouteContent(routeInfo, route, isLeaf);
+    const { content: rawContent, title } = await this.loadRouteContent(routeInfo, route, isLeaf);
+    let content = rawContent;
 
     // Attribute bare router-slot blocks with this route's pattern
     // (before widget resolution so widget-internal blocks are not affected)

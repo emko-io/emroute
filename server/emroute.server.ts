@@ -190,7 +190,7 @@ async function resolveShell(
 // ── More path helpers ─────────────────────────────────────────────────
 
 /** Deserialize a routes manifest from JSON (statusPages array → Map). */
-// deno-lint-ignore no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function deserializeManifest(raw: any): RoutesManifest {
   return {
     routes: raw.routes,

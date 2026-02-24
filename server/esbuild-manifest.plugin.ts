@@ -30,7 +30,7 @@ interface ManifestPluginOptions {
   resolveDir: string;
 }
 
-// deno-lint-ignore no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type EsbuildPlugin = any;
 
 export function createManifestPlugin(options: ManifestPluginOptions): EsbuildPlugin {
@@ -45,19 +45,19 @@ export function createManifestPlugin(options: ManifestPluginOptions): EsbuildPlu
   return {
     name: 'emroute-manifest',
 
-    // deno-lint-ignore no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     setup(build: any) {
       // ── Resolve virtual specifiers ──────────────────────────────────
       build.onResolve(
         { filter: /^emroute:/ },
-        // deno-lint-ignore no-explicit-any
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (args: any) => ({ path: args.path, namespace: 'emroute' }),
       );
 
       // ── Load virtual modules ────────────────────────────────────────
       build.onLoad(
         { filter: /.*/, namespace: 'emroute' },
-        // deno-lint-ignore no-explicit-any
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         async (args: any) => {
           if (args.path === 'emroute:routes') {
             return { contents: await generateRoutesModule(), loader: 'ts' as const, resolveDir };
@@ -82,7 +82,7 @@ export function createManifestPlugin(options: ManifestPluginOptions): EsbuildPlu
 
     // Routes array
     const routesArray = (raw.routes ?? [])
-      // deno-lint-ignore no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .map((r: any) => {
         const filesStr = r.files
           ? `\n    files: { ${
@@ -105,7 +105,7 @@ export function createManifestPlugin(options: ManifestPluginOptions): EsbuildPlu
 
     // Error boundaries
     const errorBoundariesArray = (raw.errorBoundaries ?? [])
-      // deno-lint-ignore no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .map((e: any) => `  {
     pattern: '${esc(prefixPattern(e.pattern))}',
     modulePath: '${esc(strip(e.modulePath))}',
@@ -114,7 +114,7 @@ export function createManifestPlugin(options: ManifestPluginOptions): EsbuildPlu
 
     // Status pages
     const statusPagesEntries = (raw.statusPages ?? [])
-      // deno-lint-ignore no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .map(([status, route]: [number, any]) => {
         const filesStr = route.files
           ? `, files: { ${
@@ -142,19 +142,19 @@ export function createManifestPlugin(options: ManifestPluginOptions): EsbuildPlu
 
     // Module loaders — collect all .ts module paths
     const tsModulePaths = new Set<string>();
-    // deno-lint-ignore no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     for (const route of (raw.routes ?? []) as any[]) {
       if (route.files?.ts) tsModulePaths.add(route.files.ts);
       if (route.modulePath.endsWith('.ts')) tsModulePaths.add(route.modulePath);
     }
-    // deno-lint-ignore no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     for (const boundary of (raw.errorBoundaries ?? []) as any[]) {
       tsModulePaths.add(boundary.modulePath);
     }
     if (raw.errorHandler) {
       tsModulePaths.add(raw.errorHandler.modulePath);
     }
-    // deno-lint-ignore no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     for (const [_, statusRoute] of (raw.statusPages ?? []) as [number, any][]) {
       if (statusRoute.modulePath.endsWith('.ts')) {
         tsModulePaths.add(statusRoute.modulePath);
@@ -202,7 +202,7 @@ ${moduleLoadersCode}
     }
     const entries = await response.json();
 
-    // deno-lint-ignore no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const widgetEntries = (entries as any[]).map((e) => {
       const filesStr = e.files
         ? `\n      files: { ${
@@ -220,7 +220,7 @@ ${moduleLoadersCode}
     }`;
     }).join(',\n');
 
-    // deno-lint-ignore no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const loaderEntries = (entries as any[]).map((e) => {
       const key = strip(e.modulePath);
       const rel = key.replace(/^\.?\//, '');

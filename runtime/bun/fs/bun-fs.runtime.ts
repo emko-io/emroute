@@ -206,7 +206,7 @@ export class BunFsRuntime extends Runtime {
         const runtimePath = file.path.startsWith(this.root)
           ? file.path.slice(this.root.length)
           : '/' + file.path;
-        await this.command(runtimePath, { body: file.contents });
+        await this.command(runtimePath, { body: file.contents as unknown as BodyInit });
       }
     }
 
@@ -218,6 +218,7 @@ export class BunFsRuntime extends Runtime {
 
   // ── Transpile / esbuild ───────────────────────────────────────────────
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private static _esbuild: any = null;
 
   private static async esbuild() {

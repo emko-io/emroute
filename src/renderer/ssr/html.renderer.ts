@@ -61,7 +61,8 @@ export class SsrHtmlRouter extends SsrRenderer {
       return { content: `<router-slot pattern="${route.pattern}"></router-slot>` };
     }
 
-    let { content, title } = await this.loadRouteContent(routeInfo, route, isLeaf);
+    const { content: rawContent, title } = await this.loadRouteContent(routeInfo, route, isLeaf);
+    let content = rawContent;
 
     // Expand <mark-down> tags server-side
     content = await this.expandMarkdown(content);

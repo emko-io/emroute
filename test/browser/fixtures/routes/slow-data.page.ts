@@ -1,6 +1,6 @@
 import { PageComponent } from '@emkodev/emroute';
 
-declare const globalThis: {
+declare const globalThis: { // eslint-disable-line no-shadow-restricted-names
   __slow_data_entered?: (signal?: AbortSignal) => void;
   __slow_data_resolved?: boolean;
 } & typeof window;

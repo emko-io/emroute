@@ -13,8 +13,7 @@ import {
 
 import { WidgetRegistry } from '../../../src/widget/widget.registry.ts';
 import type { MarkdownRenderer } from '../../../src/type/markdown.type.ts';
-// @ts-types="../../../server/vendor/emko-md.vendor.d.ts"
-import { createMarkdownRender } from '../../../server/vendor/emko-md.vendor.js';
+import { renderMarkdown } from '@emkodev/emkoma/render';
 import { externalWidget } from '../fixtures/assets/external.widget.ts';
 import type { SpaMode } from '../../../src/type/widget.type.ts';
 
@@ -51,8 +50,8 @@ export async function createTestServer(options: {
   // Create runtime with config (auto-discovers routes + widgets manifests)
   const runtime = new BunFsRuntime(FIXTURES_DIR, runtimeConfig);
 
-  // Create server-side emko-md renderer
-  const markdownRenderer: MarkdownRenderer = { render: createMarkdownRender() };
+  // Server-side markdown renderer via emkoma
+  const markdownRenderer: MarkdownRenderer = { render: renderMarkdown };
 
   // Manual widget registry for widgets outside widgetsDir (e.g. external/vendor)
   const manualWidgets = new WidgetRegistry();

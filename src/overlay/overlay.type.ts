@@ -21,7 +21,7 @@ export interface OverlayService {
   dismissAll(): void;
 }
 
-export interface ModalOptions<T = undefined> {
+export interface ModalOptions<T = undefined> { // eslint-disable-line @typescript-eslint/no-unused-vars
   render(dialog: HTMLDialogElement): void;
   onClose?(): void;
 }

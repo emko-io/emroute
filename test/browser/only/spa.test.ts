@@ -117,7 +117,6 @@ describe('SPA renderer', () => {
       page.on('load', () => {
         fullLoadFired = true;
       });
-      fullLoadFired = false;
 
       // Click a same-origin link (fixtures use /html/ prefix for progressive enhancement)
       await page.click('a[href="/html/about"]');
@@ -407,7 +406,6 @@ describe('SPA renderer', () => {
       page.on('load', () => {
         fullLoadFired = true;
       });
-      fullLoadFired = false;
 
       // Inject an /html/ link — in 'only' mode, SPA intercepts everything
       await page.evaluate(() => {
@@ -1102,7 +1100,6 @@ describe('SPA renderer', () => {
     page.on('load', () => {
       fullLoadFired = true;
     });
-    fullLoadFired = false;
 
     // Click "About" link rendered from markdown [About](/html/about)
     await page.click('a[href="/html/about"]');

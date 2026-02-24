@@ -20,21 +20,35 @@
     "type": "git",
     "url": "https://github.com/vedokme/emroute.git"
   },
+  "files": [
+    "src/",
+    "server/*.ts",
+    "runtime/",
+    "LICENSE",
+    "README.md"
+  ],
   "exports": {
     ".": "./src/index.ts",
     "./spa": "./src/renderer/spa/mod.ts",
     "./overlay": "./src/overlay/mod.ts",
+    "./ssr/html": "./src/renderer/ssr/html.renderer.ts",
+    "./ssr/md": "./src/renderer/ssr/md.renderer.ts",
     "./server": "./server/emroute.server.ts",
     "./runtime": "./runtime/abstract.runtime.ts",
+    "./runtime/sitemap": "./runtime/sitemap.generator.ts",
     "./runtime/bun/fs": "./runtime/bun/fs/bun-fs.runtime.ts",
     "./runtime/bun/sqlite": "./runtime/bun/sqlite/bun-sqlite.runtime.ts"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/bun": "^1.3.9",
     "esbuild": "^0.27.3",
-    "playwright": "^1.58.2"
+    "eslint": "^10.0.2",
+    "playwright": "^1.58.2",
+    "typescript-eslint": "^8.56.1"
   },
   "scripts": {
+    "check": "bun x tsc --noEmit",
     "test": "bun test test/unit",
     "test:unit": "bun test test/unit",
     "test:integration": "bun test test/integration",
@@ -43,6 +57,7 @@
     "test:browser:leaf": "bun test test/browser/leaf",
     "test:browser:root": "bun test test/browser/root",
     "test:browser:only": "bun test test/browser/only",
-    "dev": "echo 'Use a custom server.ts — see doc/quick-start.md'"
+    "lint": "eslint .",
+    "dev": "echo 'Use a custom server.ts — see doc/01-setup.md'"
   }
 }

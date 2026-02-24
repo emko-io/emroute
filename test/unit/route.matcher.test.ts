@@ -12,8 +12,8 @@
  * - Query parameters and search params handling
  *
  * Based on documentation:
- * - doc/guide.md: Core routing concepts and file-based routing rules
- * - doc/nesting.md: Nested route patterns, slot rules, and hierarchy
+ * - doc/04-routing.md: Routing concepts and file-based routing rules
+ * - doc/05-nesting.md: Nested route patterns, slot rules, and hierarchy
  */
 
 import { test, expect, describe } from 'bun:test';

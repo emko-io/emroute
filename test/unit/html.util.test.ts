@@ -277,7 +277,7 @@ test('STATUS_MESSAGES - only contains expected keys', () => {
 });
 
 test('STATUS_MESSAGES - all values are non-empty strings', () => {
-  for (const [code, message] of Object.entries(STATUS_MESSAGES)) {
+  for (const [_code, message] of Object.entries(STATUS_MESSAGES)) {
     expect(typeof message).toBe('string');
     expect(message.length > 0).toEqual(true);
   }

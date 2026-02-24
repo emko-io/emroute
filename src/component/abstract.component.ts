@@ -62,8 +62,7 @@ export type ContextProvider = (base: ComponentContext) => ComponentContext;
 /**
  * Render context determines how components are rendered.
  */
-const RENDER_CONTEXT = ['markdown', 'html', 'spa'] as const;
-export type RenderContext = (typeof RENDER_CONTEXT)[number];
+export type RenderContext = 'markdown' | 'html' | 'spa';
 
 /**
  * Abstract base class for all components.

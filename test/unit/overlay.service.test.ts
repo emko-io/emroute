@@ -1067,7 +1067,7 @@ test('OverlayService - closeModal does nothing if called after new modal', async
   setupMocks();
   const service = createOverlayService();
 
-  const modalPromise1 = service.modal<string>({
+  void service.modal<string>({
     render: (dialog) => {
       dialog.textContent = 'Modal 1';
     },

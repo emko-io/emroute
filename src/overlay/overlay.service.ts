@@ -45,7 +45,7 @@ export function createOverlayService(): OverlayService {
   // so the resolver function signature changes (accepts T | PromiseLike<T | undefined>).
   // Type safety is maintained by closeModal<T>(value?: T) which ensures only valid
   // types are passed to the resolver.
-  // deno-lint-ignore no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let modalResolve: ((value: any) => void) | null = null;
   let modalOnClose: (() => void) | undefined;
 
@@ -276,7 +276,7 @@ export function createOverlayService(): OverlayService {
     if (!popoverEl) return;
 
     // Check if popover is showing via matches(':popover-open')
-    let isOpen = false;
+    let isOpen: boolean;
     try {
       isOpen = popoverEl.matches(':popover-open');
     } catch {

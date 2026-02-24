@@ -16,8 +16,7 @@ import type {
 } from '../component/abstract.component.ts';
 import { HTMLElementBase, LAZY_ATTR, SSR_ATTR } from '../util/html.util.ts';
 
-const COMPONENT_STATES = ['idle', 'loading', 'ready', 'error'] as const;
-type ComponentState = (typeof COMPONENT_STATES)[number];
+type ComponentState = 'idle' | 'loading' | 'ready' | 'error';
 
 type WidgetFiles = { html?: string; md?: string; css?: string };
 

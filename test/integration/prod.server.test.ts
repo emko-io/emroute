@@ -15,7 +15,7 @@ import type { EmrouteServer } from '../../server/server-api.type.ts';
 import type { RuntimeConfig } from '../../runtime/abstract.runtime.ts';
 
 const FIXTURES_DIR = 'test/browser/fixtures';
-const APP_ROOT = `${process.cwd()}/${FIXTURES_DIR}`;
+const _APP_ROOT = `${process.cwd()}/${FIXTURES_DIR}`;
 
 /** Create a request to the server. */
 function req(path: string): Request {

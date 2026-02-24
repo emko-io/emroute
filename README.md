@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="doc/logo-full.png" alt="emroute" width="394" height="80">
+  <img src="doc/logo-full.png" alt="emroute" width="197" height="40">
 </p>
 
 <p align="center">
@@ -18,6 +18,15 @@ GET /projects/42          → SPA (hydrated in browser)
 GET /html/projects/42     → pre-rendered HTML
 GET /md/projects/42       → plain Markdown
 ```
+
+## Install
+
+```bash
+bun add @emkodev/emroute
+```
+
+> emroute ships TypeScript source. Your toolchain must handle `.ts` imports
+> (Bun, tsx, esbuild, etc.).
 
 ## How It Works
 
@@ -69,7 +78,7 @@ class ProjectPage extends PageComponent<{ id: string }, ProjectData> {
 
   override renderHTML({ data, params, context }: this['RenderArgs']) {
     // context.files.html has the companion .page.html template if it exists
-    const template = context.files?.html ?? `<h1>\${data.name}</h1>`;
+    const template = context.files?.html ?? `<h1>${data.name}</h1>`;
     return template.replaceAll('{{id}}', params.id) + '<router-slot></router-slot>';
   }
 
@@ -89,7 +98,7 @@ export default new ProjectPage();
 - **Companion files** — `.page.html`, `.page.md`, `.page.css` loaded automatically and passed through context
 - **Widgets** — interactive islands with their own data lifecycle, error handling, and optional file companions (`.html`, `.md`, `.css`). Auto-discovered from a `widgets/` directory or registered manually. `this.element` gives opt-in DOM access in the browser. `<widget-foo lazy>` defers loading until visible via `IntersectionObserver`
 - **View Transitions** — SPA route changes animate via `document.startViewTransition()`. Progressive enhancement with CSS-only customization
-- **Scoped CSS** — companion `.widget.css` files auto-wrapped in `@scope (widget-{name}) { ... }`. All widget elements get `content-visibility: auto` for off-screen rendering optimization
+- **Scoped CSS** — companion `.widget.css` files auto-wrapped in `@scope (widget-{name}) { ... }`
 - **Shadow DOM** — unified Declarative Shadow DOM architecture for SSR and SPA. Widgets render into shadow roots for true CSS encapsulation and Web Components spec compliance
 - **SSR hydration** — server-rendered HTML adopted by the SPA without re-rendering. Widgets can implement `hydrate(args)` to attach event listeners after SSR adoption, receiving `{ data, params, context }`
 - **Error boundaries** — scoped error handlers per route prefix, plus status pages (`404.page.html`) and a root fallback
@@ -119,25 +128,25 @@ Full analysis with documentation and issue references:
 
 ## Getting Started
 
-See the [Quick Start](doc/quick-start.md) — one file, one command.
-
-```bash
-bun dev                   # start dev server
-bun test                  # run tests
-```
+See [Setup](doc/01-setup.md) and [First Route](doc/02-first-route.md).
 
 ## Documentation
 
-- [Quick start](doc/quick-start.md) — three files, one command
-- [Consumer guide](doc/guide.md) — routing, components, widgets, error handling, SSR, dev server
-- [Nested routes](doc/nesting.md) — slot syntax, fallback chains, passthrough pages, catch-all patterns, tips and tricks
-- [Markdown renderers](doc/markdown-renderer.md) — pluggable parser interface and setup examples
-- [Setting up emko-md](doc/setup-emko-md.md) — WASM markdown renderer with client + server config
+- [Setup](doc/01-setup.md) — install and create a server
+- [First route](doc/02-first-route.md) — create your first page
+- [Pages](doc/03-pages.md) — page components, companion files, data fetching
+- [Routing](doc/04-routing.md) — dynamic segments, catch-all, redirects
+- [Nesting](doc/05-nesting.md) — layouts, slots, passthrough pages, tips and tricks
+- [Widgets](doc/06-widgets.md) — interactive islands with data lifecycle
+- [Server](doc/07-server.md) — `createEmrouteServer`, composition, static files
+- [Markdown renderers](doc/08-markdown-renderer.md) — pluggable parser interface and setup
+- [Runtime](doc/09-runtime.md) — abstract runtime, BunFsRuntime, BunSqliteRuntime
+- [SPA modes](doc/10-spa-mode.md) — none, leaf, root, only
+- [Error handling](doc/11-error-handling.md) — widget errors, boundaries, status pages
+- [Shadow DOM](doc/12-shadow-dom.md) — unified architecture, SSR hydration
 
 ### For contributors and architects
 
-- [Architecture overview](doc/architecture.md) — design philosophy, component model, rendering pipeline
 - [Architectural decisions](doc/architecture/) — ADR-0001 through ADR-0017
-- [Migration guide for 1.5.0](doc/MIGRATION-1.5.0.md) — Shadow DOM, Navigation API, breaking changes
 
 <img src="doc/logo-full.png" alt="emroute" width="197" height="40">

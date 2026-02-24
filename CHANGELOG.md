@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.6.0-beta.1] - 2026-02-24
 
+### Added
+
+- **ESLint** — `typescript-eslint` with recommended config, `prefer-const`,
+  `eqeqeq`, `no-useless-assignment`. Lint script: `bun run lint`.
+
+- **Missing package exports** — `@emkodev/emroute/ssr/html`,
+  `@emkodev/emroute/ssr/md`, `@emkodev/emroute/runtime/sitemap` now exposed
+  in `package.json` exports map.
+
+- **`files` field in `package.json`** — only `src/`, `server/`, `runtime/`,
+  `LICENSE`, and `README.md` ship to npm. Tests, docs, and build artifacts
+  excluded.
+
+- **New documentation** — error handling guide (`doc/11-error-handling.md`),
+  Shadow DOM architecture (`doc/12-shadow-dom.md`), comprehensive nesting
+  guide (`doc/05-nesting.md`).
+
+### Changed
+
+- **Documentation reorganized** — Deno-era docs removed, 1.6.0 numbered guides
+  promoted to `doc/` root. README documentation section updated with all 12
+  guides.
+
+- **Test markdown renderer** — replaced vendored `emko-md` with
+  `@emkodev/emkoma` for browser test server and client-side rendering.
+
+### Removed
+
+- **`server/vendor/`** — vendored `emko-md` files removed. Use `@emkodev/emkoma`
+  or any markdown renderer that implements the `MarkdownRenderer` interface.
+
 ### Changed
 
 - **Virtual manifest plugin** — `.g.ts` manifest files eliminated. An esbuild

@@ -7,8 +7,9 @@
  *   @emkodev/emroute/spa        — Browser: SPA router + custom elements
  *   @emkodev/emroute/ssr/html   — Server: SSR HTML renderer
  *   @emkodev/emroute/ssr/md     — Server: SSR Markdown renderer
- *   @emkodev/emroute/server     — Dev server
- *   @emkodev/emroute/generator  — Build-time route generator
+ *   @emkodev/emroute/server     — Production server
+ *   @emkodev/emroute/runtime    — Abstract runtime + constants
+ *   @emkodev/emroute/runtime/sitemap — Sitemap generation
  */
 
 // Types

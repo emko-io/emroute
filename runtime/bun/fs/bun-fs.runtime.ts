@@ -1,17 +1,27 @@
 import { stat, readdir, mkdir } from 'node:fs/promises';
+import { createRequire } from 'node:module';
+import { resolve } from 'node:path';
 import {
   CONTENT_TYPES,
+  EMROUTE_EXTERNALS,
   type FetchParams,
   type FetchReturn,
+  ROUTES_MANIFEST_PATH,
   Runtime,
+  type RuntimeConfig,
+  WIDGETS_MANIFEST_PATH,
 } from '../../abstract.runtime.ts';
 
 export class BunFsRuntime extends Runtime {
   private readonly root: string;
 
-  constructor(root: string) {
-    super();
-    this.root = root.endsWith('/') ? root.slice(0, -1) : root;
+  constructor(root: string, config: RuntimeConfig = {}) {
+    if (config.entryPoint && !config.bundlePaths) {
+      config.bundlePaths = { emroute: '/emroute.js', app: '/app.js' };
+    }
+    super(config);
+    const abs = resolve(root);
+    this.root = abs.endsWith('/') ? abs.slice(0, -1) : abs;
   }
 
   handle(
@@ -91,6 +101,9 @@ export class BunFsRuntime extends Runtime {
       return new Response(content, { status: 200, headers });
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        const pathname = path.slice(this.root.length);
+        if (pathname === ROUTES_MANIFEST_PATH) return this.resolveRoutesManifest();
+        if (pathname === WIDGETS_MANIFEST_PATH) return this.resolveWidgetsManifest();
         return new Response('Not Found', { status: 404 });
       }
       return new Response(`Internal Error: ${error}`, { status: 500 });
@@ -120,12 +133,113 @@ export class BunFsRuntime extends Runtime {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // ── Bundling ─────────────────────────────────────────────────────────
+
+  override async bundle(): Promise<void> {
+    const paths = this.config.bundlePaths;
+    if (!paths) return;
+
+    const esbuild = await BunFsRuntime.esbuild();
+
+    // Emroute SPA bundle — resolve from consumer's node_modules
+    const consumerRequire = createRequire(this.root + '/');
+    const spaEntry = consumerRequire.resolve('@emkodev/emroute/spa');
+    await esbuild.build({
+      entryPoints: [spaEntry],
+      bundle: true,
+      write: true,
+      outfile: `${this.root}${paths.emroute}`,
+      format: 'esm',
+      platform: 'browser',
+    });
+
+    // App bundle
+    if (this.config.entryPoint) {
+      await esbuild.build({
+        entryPoints: [`${this.root}${this.config.entryPoint}`],
+        bundle: true,
+        write: true,
+        outfile: `${this.root}${paths.app}`,
+        format: 'esm',
+        platform: 'browser',
+        external: EMROUTE_EXTERNALS,
+        loader: { '.ts': 'ts' },
+      });
+    }
+
+    // Widgets bundle
+    if (paths.widgets) {
+      const widgetsEntry = `${this.root}${paths.widgets.replace('.js', '.ts')}`;
+      try {
+        await stat(widgetsEntry);
+        await esbuild.build({
+          entryPoints: [widgetsEntry],
+          bundle: true,
+          write: true,
+          outfile: `${this.root}${paths.widgets}`,
+          format: 'esm',
+          platform: 'browser',
+          external: EMROUTE_EXTERNALS,
+          loader: { '.ts': 'ts' },
+        });
+      } catch { /* no widgets entry, skip */ }
+    }
+
+    await this.writeShell(paths);
+
+    await esbuild.stop();
+    BunFsRuntime._esbuild = null;
+  }
+
+  private async writeShell(
+    paths: { emroute: string; app: string; widgets?: string },
+  ): Promise<void> {
+    const shellPath = `${this.root}/index.html`;
+    try {
+      await stat(shellPath);
+      return; // Don't overwrite existing
+    } catch { /* not found, generate */ }
+
+    const imports: Record<string, string> = {
+      '@emkodev/emroute/spa': paths.emroute,
+      '@emkodev/emroute/overlay': paths.emroute,
+      '@emkodev/emroute': paths.emroute,
+    };
+    const importMap = JSON.stringify({ imports }, null, 2);
+
+    const scripts = [
+      `<script type="importmap">\n${importMap}\n  </script>`,
+    ];
+    if (this.config.entryPoint) {
+      scripts.push(`<script type="module" src="${paths.app}"></script>`);
+    }
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>emroute</title>
+  <style>@view-transition { navigation: auto; } router-slot { display: contents; }</style>
+</head>
+<body>
+  <router-slot></router-slot>
+  ${scripts.join('\n  ')}
+</body>
+</html>`;
+
+    await Bun.write(shellPath, html);
+  }
+
+  // ── Transpile / esbuild ───────────────────────────────────────────────
+
   private static _esbuild: any = null;
 
   private static async esbuild() {
     if (!BunFsRuntime._esbuild) {
-      BunFsRuntime._esbuild = await import('esbuild');
+      // Resolve esbuild from the consumer's node_modules, not the package's
+      const consumerRequire = createRequire(process.cwd() + '/');
+      BunFsRuntime._esbuild = consumerRequire('esbuild');
     }
     return BunFsRuntime._esbuild;
   }
@@ -140,85 +254,6 @@ export class BunFsRuntime extends Runtime {
     return result.code;
   }
 
-  static override async bundle(
-    entryPoint: string,
-    resolve: (path: string) => Promise<string | null>,
-    options?: { external?: string[]; minify?: boolean; resolveDir?: string },
-  ): Promise<string> {
-    const esbuild = await BunFsRuntime.esbuild();
-    const resolveDir = options?.resolveDir ?? process.cwd();
-    const result = await esbuild.build({
-      entryPoints: [entryPoint],
-      bundle: true,
-      write: false,
-      format: 'esm',
-      platform: 'browser',
-      absWorkingDir: resolveDir,
-      external: options?.external,
-      minify: options?.minify,
-      loader: { '.ts': 'ts' },
-      plugins: [{
-        name: 'runtime-fs',
-        setup(build: { onResolve: Function; onLoad: Function }) {
-          build.onResolve(
-            { filter: /.*/ },
-            (args: {
-              path: string;
-              importer: string;
-              namespace: string;
-              resolveDir: string;
-            }) => {
-              // Let external imports pass through
-              if (
-                options?.external?.some((ext) =>
-                  args.path === ext || args.path.startsWith(ext + '/')
-                )
-              ) {
-                return { path: args.path, external: true };
-              }
-              // Resolve relative imports against importer's directory
-              if (args.path.startsWith('.') && args.namespace === 'runtime') {
-                const dir = args.importer.replace(/[^/]*$/, '');
-                return { path: dir + args.path.replace(/^\.\//, ''), namespace: 'runtime' };
-              }
-              // Entry point — load via virtual runtime namespace (only for virtual paths)
-              if (args.path === entryPoint && entryPoint.startsWith('/')) {
-                return { path: args.path, namespace: 'runtime' };
-              }
-              // Bare specifiers — let esbuild resolve from node_modules
-              return undefined;
-            },
-          );
-
-          build.onLoad({ filter: /.*/, namespace: 'runtime' }, async (args: { path: string }) => {
-            // Try virtual resolve first (runtime filesystem)
-            const contents = await resolve(args.path);
-            if (contents !== null) {
-              return {
-                contents,
-                loader: args.path.endsWith('.ts') ? 'ts' as const : 'js' as const,
-                resolveDir,
-              };
-            }
-            // Fall back to disk (consumer files at resolveDir + path)
-            try {
-              const diskContents = await Bun.file(resolveDir + args.path).text();
-              return {
-                contents: diskContents,
-                loader: args.path.endsWith('.ts') ? 'ts' as const : 'js' as const,
-                resolveDir,
-              };
-            } catch {
-              return undefined;
-            }
-          });
-        },
-      }],
-    });
-    return result.outputFiles[0].text;
-  }
-
-  /** Stop the esbuild child process. Call after bundling is complete. */
   static override async stopBundler(): Promise<void> {
     if (BunFsRuntime._esbuild) {
       await BunFsRuntime._esbuild.stop();

@@ -27,22 +27,28 @@
  *   --minify          Enable minification (build only)
  */
 
-import { stat, readdir } from 'node:fs/promises';
+import { stat, readdir, mkdir } from 'node:fs/promises';
 import { watch } from 'node:fs';
-import { build, createEmrouteServer, EMROUTE_PACKAGE_SPECIFIER, generateMainTs } from './emroute.server.ts';
+import { createEmrouteServer } from './emroute.server.ts';
 import { BunFsRuntime } from '../runtime/bun/fs/bun-fs.runtime.ts';
+import {
+  ROUTES_MANIFEST_PATH,
+  WIDGETS_MANIFEST_PATH,
+  type RuntimeConfig,
+} from '../runtime/abstract.runtime.ts';
 import type { SpaMode } from '../src/type/widget.type.ts';
 import type { BasePath } from '../src/route/route.core.ts';
 import type { MarkdownRenderer } from '../src/type/markdown.type.ts';
-import { generateManifestCode, generateRoutesManifest } from './generator/route.generator.ts';
-import { discoverWidgets, generateWidgetsManifestCode } from './generator/widget.generator.ts';
+import {
+  generateManifestCode,
+  generateMainTs,
+  generateWidgetsManifestCode,
+} from './codegen.util.ts';
 // @ts-types="./vendor/emko-md.vendor.d.ts"
 import { createMarkdownRender } from './vendor/emko-md.vendor.js';
 
+const EMROUTE_PACKAGE_SPECIFIER = '@emkodev/emroute';
 const markdownRenderer: MarkdownRenderer = { render: createMarkdownRender() };
-
-/** Runtime rooted at cwd — used by emroute server and generators. */
-const runtime = new BunFsRuntime(process.cwd());
 
 // -- Arg parsing --
 
@@ -181,7 +187,6 @@ async function scanForPageTs(dir: string): Promise<boolean> {
 
 // -- Commands --
 
-const BUNDLE_DIR = '.build';
 const GENERATED_MAIN = '_main.g.ts';
 const WATCH_DEBOUNCE_MS = 100;
 
@@ -202,40 +207,34 @@ async function commandStart(flags: CliFlags): Promise<void> {
   const consumerEntry = flags.entry ?? project.entryPoint;
   let entryPoint: string | undefined;
   if (consumerEntry && await isFile(consumerEntry)) {
-    entryPoint = consumerEntry;
+    entryPoint = `/${consumerEntry}`;
   } else if (spa !== 'none') {
     const hasRoutes = project.routesDir !== undefined;
     const hasWidgets = project.widgetsDir !== undefined;
     const mainCode = generateMainTs(spa, hasRoutes, hasWidgets, EMROUTE_PACKAGE_SPECIFIER, basePath);
-    entryPoint = GENERATED_MAIN;
-    await runtime.command(`/${entryPoint}`, { body: mainCode });
+    entryPoint = `/${GENERATED_MAIN}`;
+    // Write generated entry to disk so runtime can bundle it
+    const runtime = new BunFsRuntime(process.cwd());
+    await runtime.command(entryPoint, { body: mainCode });
   }
 
-  // -- Create server --
+  // -- Build RuntimeConfig --
 
-  const emroute = await createEmrouteServer({
-    routesDir: project.routesDir,
-    widgetsDir: project.widgetsDir,
+  const runtimeConfig: RuntimeConfig = {
+    routesDir: `/${project.routesDir}`,
+    widgetsDir: project.widgetsDir ? `/${project.widgetsDir}` : undefined,
     entryPoint,
+  };
+
+  // -- Create runtime + server --
+
+  let runtime = new BunFsRuntime(process.cwd(), runtimeConfig);
+
+  let emroute = await createEmrouteServer({
     spa,
     basePath,
     markdownRenderer,
   }, runtime);
-
-  // -- Bundle --
-
-  if (spa !== 'none' && entryPoint) {
-    const { mkdir: mkdirFs } = await import('node:fs/promises');
-    await mkdirFs(BUNDLE_DIR, { recursive: true });
-    const bundleOutput = `${BUNDLE_DIR}/${entryPoint.replace(/\.ts$/, '.js')}`;
-
-    Bun.spawn(['bun', 'build', '--target', 'browser', '--watch', entryPoint, '--outfile', bundleOutput], {
-      stdout: 'inherit',
-      stderr: 'inherit',
-    });
-
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-  }
 
   // -- Serve --
 
@@ -244,15 +243,7 @@ async function commandStart(flags: CliFlags): Promise<void> {
     async fetch(req) {
       const response = await emroute.handleRequest(req);
       if (response) return response;
-
-      // Try .build/ for bundled JS, then cwd for static files
-      const url = new URL(req.url);
-      const pathname = url.pathname;
-
-      const buildResponse = await runtime.query(`/${BUNDLE_DIR}${pathname}`);
-      if (buildResponse.status === 200) return buildResponse;
-
-      return await runtime.handle(pathname);
+      return new Response('Not Found', { status: 404 });
     },
   });
 
@@ -276,7 +267,13 @@ async function commandStart(flags: CliFlags): Promise<void> {
       if (debounceTimer) clearTimeout(debounceTimer);
       debounceTimer = setTimeout(async () => {
         try {
-          await emroute.rebuild();
+          // Re-create runtime (clears manifest cache) and server
+          runtime = new BunFsRuntime(process.cwd(), runtimeConfig);
+          emroute = await createEmrouteServer({
+            spa,
+            basePath,
+            markdownRenderer,
+          }, runtime);
           console.log('[emroute] Rebuilt routes and widgets');
         } catch (e) {
           console.error('[emroute] Failed to rebuild:', e);
@@ -294,37 +291,53 @@ async function commandStart(flags: CliFlags): Promise<void> {
 async function commandBuild(flags: CliFlags): Promise<void> {
   const project = await detectProject(flags.spa);
   const basePath = buildBasePath(flags);
-  const outDir = flags.out ?? '.';
+  const spa = project.spaMode;
 
   console.log(`[emroute] Building...`);
   console.log(`[emroute]   routes:  ${project.routesDir}/`);
   if (project.widgetsDir) console.log(`[emroute]   widgets: ${project.widgetsDir}/`);
   if (project.entryPoint) console.log(`[emroute]   entry:   ${project.entryPoint}`);
-  console.log(`[emroute]   spa:     ${project.spaMode}`);
-  console.log(`[emroute]   out:     ${outDir}/`);
+  console.log(`[emroute]   spa:     ${spa}`);
   if (flags.minify) console.log(`[emroute]   minify:  true`);
 
-  const result = await build(
-    {
-      routesDir: project.routesDir,
-      widgetsDir: project.widgetsDir,
-      outDir,
-      spa: project.spaMode,
-      basePath,
-      entryPoint: flags.entry ?? project.entryPoint,
-      minify: flags.minify,
-    },
-    runtime,
-  );
-
-  console.log(`[emroute] Build complete:`);
-  console.log(`[emroute]   shell:     ${result.shell}`);
-  if (result.coreBundle) console.log(`[emroute]   core:      ${result.coreBundle}`);
-  if (result.appBundle) console.log(`[emroute]   app:       ${result.appBundle}`);
-  console.log(`[emroute]   manifests: ${result.manifests.routes}`);
-  if (result.manifests.widgets) {
-    console.log(`[emroute]              ${result.manifests.widgets}`);
+  // Entry point
+  const consumerEntry = flags.entry ?? project.entryPoint;
+  let entryPoint: string | undefined;
+  if (consumerEntry && await isFile(consumerEntry)) {
+    entryPoint = `/${consumerEntry}`;
+  } else if (spa !== 'none') {
+    const hasRoutes = project.routesDir !== undefined;
+    const hasWidgets = project.widgetsDir !== undefined;
+    const mainCode = generateMainTs(spa, hasRoutes, hasWidgets, EMROUTE_PACKAGE_SPECIFIER, basePath);
+    entryPoint = `/${GENERATED_MAIN}`;
+    const tempRuntime = new BunFsRuntime(process.cwd());
+    await tempRuntime.command(entryPoint, { body: mainCode });
   }
+
+  const runtimeConfig: RuntimeConfig = {
+    routesDir: `/${project.routesDir}`,
+    widgetsDir: project.widgetsDir ? `/${project.widgetsDir}` : undefined,
+    entryPoint,
+  };
+
+  const runtime = new BunFsRuntime(process.cwd(), runtimeConfig);
+
+  // createEmrouteServer reads manifests from runtime and calls runtime.bundle()
+  const emroute = await createEmrouteServer({
+    spa,
+    basePath,
+  }, runtime);
+
+  // Write shell to output directory
+  const outDir = flags.out ?? '.';
+  await mkdir(outDir, { recursive: true });
+  await Bun.write(`${outDir}/index.html`, emroute.shell);
+
+  console.log(`[emroute] Build complete`);
+  console.log(`[emroute]   routes: ${emroute.manifest.routes.length}`);
+  console.log(`[emroute]   shell:  ${outDir}/index.html`);
+
+  await BunFsRuntime.stopBundler();
 }
 
 async function commandGenerate(_flags: CliFlags): Promise<void> {
@@ -335,20 +348,39 @@ async function commandGenerate(_flags: CliFlags): Promise<void> {
 
   console.log(`[emroute] Generating manifests...`);
 
-  const manifest = await generateRoutesManifest('/routes', runtime);
+  const runtimeConfig: RuntimeConfig = {
+    routesDir: '/routes',
+    widgetsDir: await isDirectory('widgets') ? '/widgets' : undefined,
+  };
+  const runtime = new BunFsRuntime(process.cwd(), runtimeConfig);
+
+  // Read routes manifest from runtime (triggers scanning)
+  const routesResponse = await runtime.query(ROUTES_MANIFEST_PATH);
+  if (routesResponse.status === 404) {
+    console.error('[emroute] No routes found.');
+    process.exit(1);
+  }
+  const rawManifest = await routesResponse.json();
+  const manifest = {
+    routes: rawManifest.routes,
+    errorBoundaries: rawManifest.errorBoundaries,
+    statusPages: new Map(rawManifest.statusPages ?? []),
+    errorHandler: rawManifest.errorHandler,
+  };
+
   const routesCode = generateManifestCode(manifest, EMROUTE_PACKAGE_SPECIFIER);
   await runtime.command('/routes.manifest.g.ts', { body: routesCode });
   console.log(`[emroute]   routes.manifest.g.ts (${manifest.routes.length} routes)`);
 
-  for (const warning of manifest.warnings) {
-    console.log(`[emroute]   ${warning}`);
-  }
-
-  if (await isDirectory('widgets')) {
-    const entries = await discoverWidgets('/widgets', runtime, 'widgets');
-    const widgetsCode = generateWidgetsManifestCode(entries, EMROUTE_PACKAGE_SPECIFIER);
-    await runtime.command('/widgets.manifest.g.ts', { body: widgetsCode });
-    console.log(`[emroute]   widgets.manifest.g.ts (${entries.length} widgets)`);
+  // Widgets
+  if (runtimeConfig.widgetsDir) {
+    const widgetsResponse = await runtime.query(WIDGETS_MANIFEST_PATH);
+    if (widgetsResponse.status !== 404) {
+      const entries = await widgetsResponse.json();
+      const widgetsCode = generateWidgetsManifestCode(entries, EMROUTE_PACKAGE_SPECIFIER);
+      await runtime.command('/widgets.manifest.g.ts', { body: widgetsCode });
+      console.log(`[emroute]   widgets.manifest.g.ts (${entries.length} widgets)`);
+    }
   }
 }
 

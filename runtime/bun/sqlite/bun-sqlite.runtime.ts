@@ -3,7 +3,10 @@ import {
   CONTENT_TYPES,
   type FetchParams,
   type FetchReturn,
+  ROUTES_MANIFEST_PATH,
   Runtime,
+  type RuntimeConfig,
+  WIDGETS_MANIFEST_PATH,
 } from '../../abstract.runtime.ts';
 
 export class BunSqliteRuntime extends Runtime {
@@ -13,8 +16,8 @@ export class BunSqliteRuntime extends Runtime {
   private readonly stmtList: ReturnType<Database['prepare']>;
   private readonly stmtHas: ReturnType<Database['prepare']>;
 
-  constructor(path: string = ':memory:') {
-    super();
+  constructor(path: string = ':memory:', config?: RuntimeConfig) {
+    super(config);
     this.db = new Database(path);
     this.db.run(`
       CREATE TABLE IF NOT EXISTS files (
@@ -118,6 +121,8 @@ export class BunSqliteRuntime extends Runtime {
 
     const row = this.stmtGet.get(path) as { data: Uint8Array; mtime: string } | null;
     if (!row) {
+      if (path === ROUTES_MANIFEST_PATH) return this.resolveRoutesManifest();
+      if (path === WIDGETS_MANIFEST_PATH) return this.resolveWidgetsManifest();
       return new Response('Not Found', { status: 404 });
     }
 

@@ -13,10 +13,8 @@
 import { test, expect, describe } from 'bun:test';
 import type { WidgetManifestEntry } from '../../src/type/widget.type.ts';
 import { Runtime } from '../../runtime/abstract.runtime.ts';
-import {
-  discoverWidgets,
-  generateWidgetsManifestCode,
-} from '../../server/generator/widget.generator.ts';
+import { discoverWidgets } from '../../server/scanner.util.ts';
+import { generateWidgetsManifestCode } from '../../server/codegen.util.ts';
 
 /**
  * Mock Runtime for testing widget discovery

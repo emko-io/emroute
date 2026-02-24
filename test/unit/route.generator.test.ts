@@ -17,10 +17,8 @@
  */
 
 import { test, expect, describe } from 'bun:test';
-import {
-  generateManifestCode,
-  generateRoutesManifest,
-} from '../../server/generator/route.generator.ts';
+import { generateRoutesManifest } from '../../server/scanner.util.ts';
+import { generateManifestCode } from '../../server/codegen.util.ts';
 import { Runtime } from '../../runtime/abstract.runtime.ts';
 import type { FetchParams, FetchReturn } from '../../runtime/abstract.runtime.ts';
 

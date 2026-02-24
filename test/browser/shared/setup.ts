@@ -5,12 +5,14 @@
  * Each test file creates its own server instance with a specific SPA mode and port.
  */
 
-import { createEmrouteServer, generateMainTs } from '../../../server/emroute.server.ts';
+import { createEmrouteServer } from '../../../server/emroute.server.ts';
 import { BunFsRuntime } from '../../../runtime/bun/fs/bun-fs.runtime.ts';
 import {
-  generateManifestCode,
-  generateRoutesManifest,
-} from '../../../server/generator/route.generator.ts';
+  ROUTES_MANIFEST_PATH,
+  WIDGETS_MANIFEST_PATH,
+  type RuntimeConfig,
+} from '../../../runtime/abstract.runtime.ts';
+import { generateManifestCode, generateMainTs } from '../../../server/codegen.util.ts';
 import { DEFAULT_BASE_PATH } from '../../../src/route/route.core.ts';
 import { WidgetRegistry } from '../../../src/widget/widget.registry.ts';
 import type { MarkdownRenderer } from '../../../src/type/markdown.type.ts';
@@ -36,45 +38,50 @@ export async function createTestServer(options: {
 }): Promise<TestServer> {
   const { mode, port, entryPoint: customEntry } = options;
 
-  const runtime = new BunFsRuntime(FIXTURES_DIR);
+  // Consumer main.ts creates the SPA router — only use it for modes that need routing.
+  const defaultEntry = (mode === 'root' || mode === 'only') ? 'main.ts' : undefined;
+  const consumerEntry = customEntry ?? defaultEntry;
 
-  // Generate manifest from fixture route files (paths are Runtime-relative)
-  const result = await generateRoutesManifest('/routes', runtime);
+  // Determine entry point
+  let entryPoint: string | undefined;
+  const runtimeConfig: RuntimeConfig = {
+    routesDir: '/routes',
+    widgetsDir: '/widgets',
+  };
 
-  // Write manifest for the bundler to pick up (with /html basePath for SPA patterns)
-  const code = generateManifestCode(result, '@emkodev/emroute', DEFAULT_BASE_PATH.html);
+  // Pre-create runtime to write generated files if needed
+  let preRuntime = new BunFsRuntime(FIXTURES_DIR);
+
+  if (consumerEntry) {
+    entryPoint = `/${consumerEntry}`;
+  } else if (mode !== 'none') {
+    const hasRoutes = true;
+    const hasWidgets = true;
+    const mainCode = generateMainTs(mode, hasRoutes, hasWidgets, '@emkodev/emroute');
+    entryPoint = '/_main.g.ts';
+    await preRuntime.command(entryPoint, { body: mainCode });
+  }
+
+  if (entryPoint) {
+    runtimeConfig.entryPoint = entryPoint;
+  }
+
+  // Create runtime with config (auto-discovers routes + widgets manifests)
+  const runtime = new BunFsRuntime(FIXTURES_DIR, runtimeConfig);
+
+  // Read routes manifest from runtime (triggers scanning)
+  const manifestResponse = await runtime.query(ROUTES_MANIFEST_PATH);
+  const rawManifest = await manifestResponse.json();
+  const routesManifest = {
+    routes: rawManifest.routes,
+    errorBoundaries: rawManifest.errorBoundaries,
+    statusPages: new Map(rawManifest.statusPages ?? []),
+    errorHandler: rawManifest.errorHandler,
+  };
+
+  // Write .g.ts manifest for the SPA bundler entry point to import
+  const code = generateManifestCode(routesManifest, '@emkodev/emroute', DEFAULT_BASE_PATH.html);
   await runtime.command('/routes.manifest.g.ts', { body: code });
-
-  // Create server-side module loaders for SSR (direct file:// imports, no transpile)
-  const rootUrl = new URL(FIXTURES_DIR + '/', `file://${process.cwd()}/`);
-  const moduleLoaders: Record<string, () => Promise<unknown>> = {};
-
-  for (const route of result.routes) {
-    if (route.files?.ts) {
-      const fileUrl = new URL(route.files.ts.slice(1), rootUrl).href;
-      moduleLoaders[route.files.ts] = () => import(fileUrl);
-    }
-    if (route.modulePath.endsWith('.ts')) {
-      const fileUrl = new URL(route.modulePath.slice(1), rootUrl).href;
-      moduleLoaders[route.modulePath] = () => import(fileUrl);
-    }
-  }
-  for (const boundary of result.errorBoundaries) {
-    const fileUrl = new URL(boundary.modulePath.slice(1), rootUrl).href;
-    moduleLoaders[boundary.modulePath] = () => import(fileUrl);
-  }
-  if (result.errorHandler) {
-    const fileUrl = new URL(result.errorHandler.modulePath.slice(1), rootUrl).href;
-    moduleLoaders[result.errorHandler.modulePath] = () => import(fileUrl);
-  }
-  for (const [_, statusRoute] of result.statusPages) {
-    if (statusRoute.modulePath.endsWith('.ts')) {
-      const fileUrl = new URL(statusRoute.modulePath.slice(1), rootUrl).href;
-      moduleLoaders[statusRoute.modulePath] = () => import(fileUrl);
-    }
-  }
-
-  result.moduleLoaders = moduleLoaders;
 
   // Create server-side emko-md renderer
   const markdownRenderer: MarkdownRenderer = { render: createMarkdownRender() };
@@ -83,36 +90,19 @@ export async function createTestServer(options: {
   const manualWidgets = new WidgetRegistry();
   manualWidgets.add(externalWidget);
 
-  // Consumer main.ts creates the SPA router — only use it for modes that need routing.
-  // For 'none'/'leaf', let the server generate a mode-appropriate entry point.
-  // A custom entryPoint overrides this logic (e.g. hash routing tests).
-  const defaultEntry = (mode === 'root' || mode === 'only') ? 'main.ts' : undefined;
-  const consumerEntry = customEntry ?? defaultEntry;
+  // Module loader for SSR — direct file:// imports
+  const rootUrl = new URL(FIXTURES_DIR + '/', `file://${process.cwd()}/`);
 
-  // Generate entry point if needed
-  let entryPointName: string | undefined;
-  if (consumerEntry) {
-    entryPointName = consumerEntry;
-  } else if (mode !== 'none') {
-    const hasRoutes = true;
-    const hasWidgets = true;
-    const mainCode = generateMainTs(mode, hasRoutes, hasWidgets, '@emkodev/emroute');
-    entryPointName = '_main.g.ts';
-    await runtime.command(`/${entryPointName}`, { body: mainCode });
-  }
-
-  // Create emroute server
+  // Create emroute server (reads manifests from runtime)
   const emroute = await createEmrouteServer({
-    routesManifest: result,
-    widgetsDir: 'widgets',
+    routesManifest,
     widgets: manualWidgets,
-    entryPoint: entryPointName,
     markdownRenderer,
     spa: mode,
     moduleLoader: (path: string) => import(new URL(path.slice(1), rootUrl).href),
   }, runtime);
 
-  // Serve — server transpiles .ts on-the-fly, no bundling needed
+  // Serve
   const server = Bun.serve({ port, fetch: async (req) => {
     return await emroute.handleRequest(req) ?? new Response('Not Found', { status: 404 });
   }});

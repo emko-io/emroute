@@ -141,9 +141,6 @@ describe('BunSqliteRuntime', () => {
       const html = await response!.text();
       expect(html).toContain('SQLite Works');
 
-      // Manifest was written back to sqlite
-      const manifest = await runtime.query('/routes.manifest.g.ts', { as: 'text' });
-      expect(manifest).toContain('routesManifest');
       runtime.close();
     });
 

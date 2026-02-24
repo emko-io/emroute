@@ -2,7 +2,7 @@
  * Emroute Server Tests
  *
  * Smoke tests for createEmrouteServer using the browser test fixtures.
- * Verifies the full pipeline: route discovery → manifest writing →
+ * Verifies the full pipeline: route discovery → manifest resolution →
  * bundling → SSR rendering → handleRequest.
  */
 
@@ -12,9 +12,9 @@ import { BunFsRuntime } from '../../runtime/bun/fs/bun-fs.runtime.ts';
 import { WidgetRegistry } from '../../src/widget/widget.registry.ts';
 import { externalWidget } from '../browser/fixtures/assets/external.widget.ts';
 import type { EmrouteServer } from '../../server/server-api.type.ts';
+import type { RuntimeConfig } from '../../runtime/abstract.runtime.ts';
 
 const FIXTURES_DIR = 'test/browser/fixtures';
-const runtime = new BunFsRuntime(FIXTURES_DIR);
 const APP_ROOT = `${process.cwd()}/${FIXTURES_DIR}`;
 
 /** Create a request to the server. */
@@ -29,9 +29,15 @@ async function createTestEmrouteServer(
   const manualWidgets = new WidgetRegistry();
   manualWidgets.add(externalWidget);
 
+  const runtimeConfig: RuntimeConfig = {
+    routesDir: '/routes',
+    widgetsDir: '/widgets',
+    entryPoint: '/main.ts',
+  };
+
+  const runtime = new BunFsRuntime(FIXTURES_DIR, runtimeConfig);
+
   return await createEmrouteServer({
-    routesDir: 'routes',
-    widgetsDir: 'widgets',
     widgets: manualWidgets,
     spa,
     title: 'Test App',
@@ -73,20 +79,7 @@ describe('prod server', () => {
     expect(server.mdRouter).toEqual(null);
   });
 
-  // ── Manifest writing ──────────────────────────────────────────────────
-
-  test('createEmrouteServer - writes routes manifest file', async () => {
-    await getServer('root');
-    const content = await Bun.file(`${FIXTURES_DIR}/routes.manifest.g.ts`).text();
-    expect(content).toContain('routesManifest');
-    expect(content).toContain('pattern:');
-  });
-
-  test('createEmrouteServer - writes widgets manifest file', async () => {
-    await getServer('root');
-    const content = await Bun.file(`${FIXTURES_DIR}/widgets.manifest.g.ts`).text();
-    expect(content).toContain('widgetsManifest');
-  });
+  // ── Manifest resolution ─────────────────────────────────────────────
 
   test('createEmrouteServer - exposes widgetEntries', async () => {
     const server = await getServer('root');
@@ -95,13 +88,10 @@ describe('prod server', () => {
     expect(typeof server.widgetEntries[0].tagName).toEqual('string');
   });
 
-  test('createEmrouteServer - exposes shell with import map and script tag', async () => {
+  test('createEmrouteServer - exposes shell', async () => {
     const server = await getServer('root');
     expect(server.shell).toContain('<!DOCTYPE html>');
     expect(server.shell).toContain('<router-slot>');
-    expect(server.shell).toContain('<script type="importmap">');
-    expect(server.shell).toContain('@emkodev/emroute/spa');
-    expect(server.shell).toContain('<script type="module" src="/app.js">');
   });
 
   // ── SSR HTML ───────────────────────────────────────────────────────────
@@ -241,11 +231,13 @@ describe('prod server', () => {
     expect(response!.headers.get('Content-Type')).toEqual('application/javascript; charset=utf-8');
   });
 
-  test('handleRequest - returns null for nonexistent files', async () => {
+  test('handleRequest - nonexistent file falls through to SPA shell in root mode', async () => {
     const server = await getServer('root');
     const response = await server.handleRequest(req('/nonexistent.js'));
 
-    expect(response).toEqual(null);
+    expect(response !== null).toBeTruthy();
+    expect(response!.status).toEqual(200);
+    expect(await response!.text()).toContain('<!DOCTYPE html>');
   });
 
   // ── Only mode ──────────────────────────────────────────────────────────
@@ -259,8 +251,6 @@ describe('prod server', () => {
 
     const html = await response!.text();
     expect(html).toContain('<router-slot>');
-    // Only mode has no SSR content — slot is empty
-    expect(html).toContain('<script type="importmap">');
   });
 
   // ── Leaf mode ──────────────────────────────────────────────────────────
@@ -281,20 +271,5 @@ describe('prod server', () => {
     expect(response !== null).toBeTruthy();
     expect(response!.status).toEqual(302);
     expect(response!.headers.get('Location') ?? '').toContain('/html/about');
-  });
-
-  // ── Rebuild ────────────────────────────────────────────────────────────
-
-  test('rebuild - re-discovers routes and rewrites manifests', async () => {
-    const server = await getServer('root');
-    const routeCountBefore = server.manifest.routes.length;
-
-    await server.rebuild();
-
-    expect(server.manifest.routes.length).toEqual(routeCountBefore);
-
-    // Verify manifest files still exist after rebuild
-    const routesContent = await Bun.file(`${FIXTURES_DIR}/routes.manifest.g.ts`).text();
-    expect(routesContent).toContain('routesManifest');
   });
 });

@@ -103,13 +103,27 @@ export default new ProjectPage();
 - **Sitemap generation** — opt-in `sitemap.xml` from the routes manifest with support for dynamic route enumerators
 - **Dev server** — zero-config: auto-generates `main.ts`, `index.html`, and route/widget manifests. File watcher with hot reload and bundle serving
 
+## Why Bun?
+
+emroute 1.5.x shipped on JSR (Deno's registry). Starting with 1.6.0, emroute
+publishes to npm and targets Bun as the primary runtime.
+
+**TL;DR:** JSR's design freezes the entire module graph at publish time. This
+breaks dynamic `import()` of consumer dependencies, peer dependency
+deduplication, and runtime resolution of package entry points for bundling — all
+things a framework with plugin architecture needs. The npm/`node_modules` model
+handles them with zero friction.
+
+Full analysis with documentation and issue references:
+[ADR-0017 — Move to Bun ecosystem](doc/architecture/ADR-0017-move-to-bun-ecosystem.md).
+
 ## Getting Started
 
 See the [Quick Start](doc/quick-start.md) — one file, one command.
 
 ```bash
-deno task dev             # start dev server
-deno task test            # run tests
+bun dev                   # start dev server
+bun test                  # run tests
 ```
 
 ## Documentation
@@ -123,7 +137,7 @@ deno task test            # run tests
 ### For contributors and architects
 
 - [Architecture overview](doc/architecture.md) — design philosophy, component model, rendering pipeline
-- [Architectural decisions](doc/architecture/) — ADR-0001 through ADR-0016
+- [Architectural decisions](doc/architecture/) — ADR-0001 through ADR-0017
 - [Migration guide for 1.5.0](doc/MIGRATION-1.5.0.md) — Shadow DOM, Navigation API, breaking changes
 
 <img src="doc/logo-full.png" alt="emroute" width="197" height="40">

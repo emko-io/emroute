@@ -1,5 +1,5 @@
 import { test, expect, describe } from 'bun:test';
-import { generateSitemap } from '../../server/generator/sitemap.generator.ts';
+import { generateSitemap } from '../../runtime/sitemap.generator.ts';
 import type { RoutesManifest } from '../../src/type/route.type.ts';
 
 /** Minimal manifest factory for testing. */

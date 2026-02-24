@@ -11,7 +11,7 @@ import { createEmrouteServer } from '../../../server/emroute.server.ts';
 
 const port = Number(process.env.TEST_PORT ?? 4102);
 
-const runtime = new BunSqliteRuntime();
+const runtime = new BunSqliteRuntime(':memory:', { routesDir: '/routes' });
 
 // Seed routes
 await runtime.command('/routes/index.page.ts', {

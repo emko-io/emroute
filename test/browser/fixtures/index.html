@@ -86,5 +86,15 @@
   </head>
   <body>
     <router-slot></router-slot>
+    <script type="importmap">
+{
+  "imports": {
+    "@emkodev/emroute/spa": "/emroute.js",
+    "@emkodev/emroute/overlay": "/emroute.js",
+    "@emkodev/emroute": "/emroute.js"
+  }
+}
+    </script>
+    <script type="module" src="/app.js"></script>
   </body>
 </html>

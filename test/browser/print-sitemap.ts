@@ -5,8 +5,8 @@
  * Usage: bun test/browser/print-sitemap.ts
  */
 
-import { generateRoutesManifest } from '../../server/generator/route.generator.ts';
-import { generateSitemap } from '../../server/generator/sitemap.generator.ts';
+import { generateRoutesManifest } from '../../server/scanner.util.ts';
+import { generateSitemap } from '../../runtime/sitemap.generator.ts';
 import { BunFsRuntime } from '../../runtime/bun/fs/bun-fs.runtime.ts';
 
 const runtime = new BunFsRuntime('test/browser/fixtures');

@@ -63,12 +63,11 @@ first load and SEO, SPA for fast navigation after hydration.
 
 ### `only` — SPA shell, no SSR content
 
-The server serves a minimal HTML shell at `/html/*` with JavaScript bundles.
-No server-side content rendering. The SPA router handles everything client-side.
+The server serves a minimal HTML shell with JavaScript bundles. No server-side
+content rendering. The SPA router handles everything client-side.
 
 The shell contains `<router-slot></router-slot>` and the script tags. The
-router fetches page data and renders in the browser. Bare paths redirect to
-`/html/*` like all other modes.
+router fetches page data and renders in the browser.
 
 **Use when:** dashboard-style apps behind authentication where SEO doesn't
 matter, rapid prototyping, apps where you want full client-side control.

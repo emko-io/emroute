@@ -8,7 +8,7 @@
 
 import { test, expect, describe, beforeAll } from 'bun:test';
 import { createEmrouteServer } from '../../server/emroute.server.ts';
-import { BunFsRuntime } from '../../runtime/bun/fs/bun-fs.runtime.ts';
+import { UniversalFsRuntime } from '../../runtime/universal/fs/universal-fs.runtime.ts';
 import { WidgetRegistry } from '../../src/widget/widget.registry.ts';
 import { externalWidget } from '../browser/fixtures/assets/external.widget.ts';
 import type { EmrouteServer } from '../../server/server-api.type.ts';
@@ -35,7 +35,7 @@ async function createTestEmrouteServer(
     entryPoint: '/main.ts',
   };
 
-  const runtime = new BunFsRuntime(FIXTURES_DIR, runtimeConfig);
+  const runtime = new UniversalFsRuntime(FIXTURES_DIR, runtimeConfig);
 
   return await createEmrouteServer({
     widgets: manualWidgets,

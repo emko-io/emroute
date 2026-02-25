@@ -13,7 +13,7 @@ import {
   WIDGETS_MANIFEST_PATH,
 } from '../../abstract.runtime.ts';
 import { createManifestPlugin } from '../../../server/esbuild-manifest.plugin.ts';
-import { createRuntimeLoaderPlugin } from '../esbuild-runtime-loader.plugin.ts';
+import { createRuntimeLoaderPlugin, VIRTUAL_ROOT } from '../esbuild-runtime-loader.plugin.ts';
 import { generateMainTs } from '../../../server/codegen.util.ts';
 
 export class BunSqliteRuntime extends Runtime {
@@ -108,7 +108,7 @@ export class BunSqliteRuntime extends Runtime {
     const esbuild = await BunSqliteRuntime.esbuild();
     const builds: Promise<{ outputFiles: { path: string; contents: Uint8Array }[] }>[] = [];
     const shared = { bundle: true, write: false, format: 'esm' as const, platform: 'browser' as const };
-    const runtimeLoader = createRuntimeLoaderPlugin({ runtime: this, root: '' });
+    const runtimeLoader = createRuntimeLoaderPlugin({ runtime: this, root: VIRTUAL_ROOT });
 
     // Emroute SPA bundle — resolve from consumer's node_modules (no runtime loader needed)
     const consumerRequire = createRequire(process.cwd() + '/');
@@ -134,7 +134,7 @@ export class BunSqliteRuntime extends Runtime {
       });
       builds.push(esbuild.build({
         ...shared,
-        entryPoints: [this.config.entryPoint],
+        entryPoints: [VIRTUAL_ROOT + this.config.entryPoint],
         outfile: paths.app,
         external: [...EMROUTE_EXTERNALS],
         plugins: [manifestPlugin, runtimeLoader],
@@ -147,7 +147,7 @@ export class BunSqliteRuntime extends Runtime {
       if ((await this.query(widgetsTsPath)).status !== 404) {
         builds.push(esbuild.build({
           ...shared,
-          entryPoints: [widgetsTsPath],
+          entryPoints: [VIRTUAL_ROOT + widgetsTsPath],
           outfile: paths.widgets,
           external: [...EMROUTE_EXTERNALS],
           plugins: [runtimeLoader],

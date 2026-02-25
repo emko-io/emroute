@@ -12,13 +12,18 @@
 
 import type { Runtime } from '../../runtime/abstract.runtime.ts';
 
+/** Synthetic prefix for runtimes without a filesystem root (e.g. SQLite). */
+export const VIRTUAL_ROOT = '/@emroute-virtual';
+
 interface RuntimeLoaderOptions {
   runtime: Runtime;
   /**
    * The filesystem root that esbuild would normally resolve paths against.
    * Paths starting with this prefix are stripped to produce runtime paths
    * (e.g. `/app/root/routes/index.page.ts` → `/routes/index.page.ts`).
-   * For runtimes without a filesystem root, pass an empty string.
+   *
+   * For runtimes without a filesystem root, use {@link VIRTUAL_ROOT} and
+   * prefix entry points accordingly.
    */
   root: string;
 }
@@ -34,6 +39,17 @@ export function createRuntimeLoaderPlugin(options: RuntimeLoaderOptions): Esbuil
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     setup(build: any) {
+      // Bare imports from the runtime namespace (e.g. '@emkodev/emkoma/render')
+      // need a real resolveDir so esbuild can find node_modules on disk.
+      build.onResolve(
+        { filter: /.*/, namespace: 'runtime' },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        async (args: any) => {
+          if (args.path.startsWith('.') || args.path.startsWith('/')) return undefined;
+          return build.resolve(args.path, { resolveDir: process.cwd(), kind: args.kind });
+        },
+      );
+
       // Intercept .ts and .js file resolution — redirect to 'runtime' namespace
       // Only intercepts files that resolve under the runtime root.
       build.onResolve(
@@ -65,7 +81,7 @@ export function createRuntimeLoaderPlugin(options: RuntimeLoaderOptions): Esbuil
           absPath = '/' + normalized.join('/');
 
           // Only intercept files under the runtime root
-          if (root && !absPath.startsWith(root + '/')) return undefined;
+          if (!absPath.startsWith(root + '/')) return undefined;
 
           return { path: absPath, namespace: 'runtime' };
         },
@@ -84,7 +100,7 @@ export function createRuntimeLoaderPlugin(options: RuntimeLoaderOptions): Esbuil
           const contents = await runtime.query(runtimePath, { as: 'text' });
           const ext = args.path.slice(args.path.lastIndexOf('.') + 1);
           const loader = ext === 'ts' ? 'ts' : 'js';
-          const resolveDir = args.path.slice(0, args.path.lastIndexOf('/'));
+          const resolveDir = args.path.slice(0, args.path.lastIndexOf('/')) || root;
 
           return { contents, loader, resolveDir };
         },

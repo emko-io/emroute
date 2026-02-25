@@ -1,6 +1,6 @@
 {
   "name": "@emkodev/emroute",
-  "version": "1.6.3",
+  "version": "1.6.4",
   "description": "File-based (but storage-agnostic) router with triple rendering (SPA, SSR HTML, SSR Markdown). Zero dependencies.",
   "license": "BSD-3-Clause",
   "author": "emko.dev",
@@ -33,49 +33,41 @@
   "exports": {
     ".": {
       "bun": "./src/index.ts",
-      "deno": "./src/index.ts",
       "types": "./dist/src/index.d.ts",
       "default": "./dist/src/index.js"
     },
     "./spa": {
       "bun": "./src/renderer/spa/mod.ts",
-      "deno": "./src/renderer/spa/mod.ts",
       "types": "./dist/src/renderer/spa/mod.d.ts",
       "default": "./dist/src/renderer/spa/mod.js"
     },
     "./overlay": {
       "bun": "./src/overlay/mod.ts",
-      "deno": "./src/overlay/mod.ts",
       "types": "./dist/src/overlay/mod.d.ts",
       "default": "./dist/src/overlay/mod.js"
     },
     "./ssr/html": {
       "bun": "./src/renderer/ssr/html.renderer.ts",
-      "deno": "./src/renderer/ssr/html.renderer.ts",
       "types": "./dist/src/renderer/ssr/html.renderer.d.ts",
       "default": "./dist/src/renderer/ssr/html.renderer.js"
     },
     "./ssr/md": {
       "bun": "./src/renderer/ssr/md.renderer.ts",
-      "deno": "./src/renderer/ssr/md.renderer.ts",
       "types": "./dist/src/renderer/ssr/md.renderer.d.ts",
       "default": "./dist/src/renderer/ssr/md.renderer.js"
     },
     "./server": {
       "bun": "./server/emroute.server.ts",
-      "deno": "./server/emroute.server.ts",
       "types": "./dist/server/emroute.server.d.ts",
       "default": "./dist/server/emroute.server.js"
     },
     "./runtime": {
       "bun": "./runtime/abstract.runtime.ts",
-      "deno": "./runtime/abstract.runtime.ts",
       "types": "./dist/runtime/abstract.runtime.d.ts",
       "default": "./dist/runtime/abstract.runtime.js"
     },
     "./runtime/sitemap": {
       "bun": "./runtime/sitemap.generator.ts",
-      "deno": "./runtime/sitemap.generator.ts",
       "types": "./dist/runtime/sitemap.generator.d.ts",
       "default": "./dist/runtime/sitemap.generator.js"
     },
@@ -91,7 +83,6 @@
     },
     "./runtime/universal/fs": {
       "bun": "./runtime/universal/fs/universal-fs.runtime.ts",
-      "deno": "./runtime/universal/fs/universal-fs.runtime.ts",
       "types": "./dist/runtime/universal/fs/universal-fs.runtime.d.ts",
       "default": "./dist/runtime/universal/fs/universal-fs.runtime.js"
     }

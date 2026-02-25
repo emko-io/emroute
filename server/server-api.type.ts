@@ -6,7 +6,7 @@
  * SSR rendering, static file serving, and route matching.
  */
 
-import type { RoutesManifest } from '../src/type/route.type.ts';
+import type { RouteNode } from '../src/type/route-tree.type.ts';
 import type { MarkdownRenderer } from '../src/type/markdown.type.ts';
 import type { SpaMode, WidgetManifestEntry } from '../src/type/widget.type.ts';
 import type { ContextProvider } from '../src/component/abstract.component.ts';
@@ -38,8 +38,8 @@ export interface SsrRenderResult {
  * static file serving, and route matching.
  */
 export interface EmrouteServerConfig {
-  /** Pre-built manifest (alternative to reading from runtime) */
-  routesManifest?: RoutesManifest;
+  /** Pre-built route tree (alternative to reading from runtime) */
+  routeTree?: RouteNode;
 
   /** Pre-built widget registry (alternative to reading from runtime) */
   widgets?: WidgetRegistry;
@@ -79,8 +79,8 @@ export interface EmrouteServer {
   /** The SSR Markdown router (null in 'only' mode). */
   readonly mdRouter: SsrMdRouter | null;
 
-  /** The resolved routes manifest. */
-  readonly manifest: RoutesManifest;
+  /** The resolved route tree. */
+  readonly routeTree: RouteNode;
 
   /** Discovered widget entries. */
   readonly widgetEntries: WidgetManifestEntry[];

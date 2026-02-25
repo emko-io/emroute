@@ -12,7 +12,7 @@ import type { SpaMode } from '../src/type/widget.type.ts';
 /**
  * Generate a main.ts entry point for SPA bootstrapping.
  *
- * Imports route and widget manifests from virtual `emroute:` specifiers
+ * Imports route tree and widget manifests from virtual `emroute:` specifiers
  * that the esbuild manifest plugin resolves at bundle time.
  */
 export function generateMainTs(
@@ -28,7 +28,7 @@ export function generateMainTs(
   const spaImport = `${importPath}/spa`;
 
   if (hasRoutes) {
-    imports.push(`import { routesManifest } from 'emroute:routes';`);
+    imports.push(`import { routeTree, moduleLoaders } from 'emroute:routes';`);
   }
 
   if (hasWidgets) {
@@ -54,10 +54,14 @@ export function generateMainTs(
   }
 
   if ((spa === 'root' || spa === 'only') && hasRoutes) {
+    imports.push(`import { RouteTrie } from '${importPath}';`);
     imports.push(`import { createSpaHtmlRouter } from '${spaImport}';`);
+
+    body.push('const resolver = new RouteTrie(routeTree);');
+
     const bpOpt = basePath ? `basePath: { html: '${basePath.html}', md: '${basePath.md}' }` : '';
-    const opts = bpOpt ? `{ ${bpOpt} }` : '';
-    body.push(`await createSpaHtmlRouter(routesManifest${opts ? `, ${opts}` : ''});`);
+    const optsInner = [bpOpt, 'moduleLoaders'].filter(Boolean).join(', ');
+    body.push(`await createSpaHtmlRouter(resolver, { ${optsInner} });`);
   }
 
   return `/** Auto-generated entry point — do not edit. */\n${imports.join('\n')}\n\n${

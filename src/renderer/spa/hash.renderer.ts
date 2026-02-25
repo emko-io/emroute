@@ -8,9 +8,11 @@
  * Coexists with SpaHtmlRouter in root mode (SPA router skips hash changes).
  */
 
-import type { RoutesManifest } from '../../type/route.type.ts';
+import type { RouteNode } from '../../type/route-tree.type.ts';
 import type { ContextProvider } from '../../component/abstract.component.ts';
+import type { RouteResolver } from '../../route/route.resolver.ts';
 import { RouteCore } from '../../route/route.core.ts';
+import { RouteTrie } from '../../route/route.trie.ts';
 import { escapeHtml } from '../../util/html.util.ts';
 import { logger } from '../../util/logger.util.ts';
 import { BaseRenderer } from './base.renderer.ts';
@@ -40,23 +42,42 @@ export interface HashRouterOptions {
 }
 
 /**
- * Build an internal RoutesManifest from inline hash route definitions.
+ * Build a RouteNode tree and module loaders from inline hash route definitions.
  * Each route's pattern is used as the moduleLoaders key so RouteCore.loadModule works.
  */
-function buildManifest(routes: HashRouteConfig[]): RoutesManifest {
-  return {
-    routes: routes.map((r) => ({
-      pattern: r.pattern,
-      type: 'page' as const,
-      modulePath: r.pattern,
-      files: { ts: r.pattern },
-    })),
-    errorBoundaries: [],
-    statusPages: new Map(),
-    moduleLoaders: Object.fromEntries(
-      routes.map((r) => [r.pattern, r.loader]),
-    ),
-  };
+function buildRouteTree(routes: HashRouteConfig[]): {
+  resolver: RouteResolver;
+  moduleLoaders: Record<string, () => Promise<unknown>>;
+} {
+  const root: RouteNode = {};
+  const moduleLoaders: Record<string, () => Promise<unknown>> = {};
+
+  for (const r of routes) {
+    const segments = r.pattern.split('/').filter(Boolean);
+    let node = root;
+
+    for (const segment of segments) {
+      if (segment.startsWith(':')) {
+        const param = segment.endsWith('*') ? segment.slice(1, -1) : segment.slice(1);
+        if (segment.endsWith('*')) {
+          node.wildcard ??= { param, child: {} };
+          node = node.wildcard.child;
+        } else {
+          node.dynamic ??= { param, child: {} };
+          node = node.dynamic.child;
+        }
+      } else {
+        node.children ??= {};
+        node.children[segment] ??= {};
+        node = node.children[segment];
+      }
+    }
+
+    node.files = { ts: r.pattern };
+    moduleLoaders[r.pattern] = r.loader;
+  }
+
+  return { resolver: new RouteTrie(root), moduleLoaders };
 }
 
 /**
@@ -70,9 +91,10 @@ function buildManifest(routes: HashRouteConfig[]): RoutesManifest {
 export class HashRouter extends BaseRenderer {
   private boundHandler: (() => void) | null = null;
 
-  constructor(manifest: RoutesManifest, options?: { extendContext?: ContextProvider }) {
-    const core = new RouteCore(manifest, {
+  constructor(resolver: RouteResolver, options?: { extendContext?: ContextProvider; moduleLoaders?: Record<string, () => Promise<unknown>> }) {
+    const core = new RouteCore(resolver, {
       extendContext: options?.extendContext,
+      moduleLoaders: options?.moduleLoaders,
     });
     super(core);
   }
@@ -205,9 +227,10 @@ export async function createHashRouter(
     return g.__emroute_hash_router as HashRouter;
   }
 
-  const manifest = buildManifest(options.routes);
-  const router = new HashRouter(manifest, {
+  const { resolver, moduleLoaders } = buildRouteTree(options.routes);
+  const router = new HashRouter(resolver, {
     extendContext: options.extendContext,
+    moduleLoaders,
   });
   await router.initialize(options.slot ?? 'hash-slot');
   g.__emroute_hash_router = router;

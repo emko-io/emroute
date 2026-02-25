@@ -6,7 +6,8 @@
  * Expands <mark-down> tags server-side when a markdown renderer is provided.
  */
 
-import type { RouteConfig, RouteInfo, RoutesManifest } from '../../type/route.type.ts';
+import type { RouteConfig, RouteInfo } from '../../type/route.type.ts';
+import type { RouteResolver } from '../../route/route.resolver.ts';
 import type { MarkdownRenderer } from '../../type/markdown.type.ts';
 import type { PageComponent } from '../../component/page.component.ts';
 import { DEFAULT_ROOT_ROUTE } from '../../route/route.core.ts';
@@ -28,8 +29,8 @@ export class SsrHtmlRouter extends SsrRenderer {
   private markdownRenderer: MarkdownRenderer | null;
   private markdownReady: Promise<void> | null = null;
 
-  constructor(manifest: RoutesManifest, options: SsrHtmlRouterOptions = {}) {
-    super(manifest, options);
+  constructor(resolver: RouteResolver, options: SsrHtmlRouterOptions = {}) {
+    super(resolver, options);
     this.markdownRenderer = options.markdownRenderer ?? null;
 
     if (this.markdownRenderer?.init) {
@@ -152,8 +153,8 @@ export class SsrHtmlRouter extends SsrRenderer {
  * Create SSR HTML router.
  */
 export function createSsrHtmlRouter(
-  manifest: RoutesManifest,
+  resolver: RouteResolver,
   options?: SsrHtmlRouterOptions,
 ): SsrHtmlRouter {
-  return new SsrHtmlRouter(manifest, options);
+  return new SsrHtmlRouter(resolver, options);
 }

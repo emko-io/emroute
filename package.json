@@ -1,6 +1,6 @@
 {
   "name": "@emkodev/emroute",
-  "version": "1.6.5",
+  "version": "1.6.6-beta.3",
   "description": "File-based (but storage-agnostic) router with triple rendering (SPA, SSR HTML, SSR Markdown). Zero dependencies.",
   "license": "BSD-3-Clause",
   "author": "emko.dev",

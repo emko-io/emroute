@@ -1,6 +1,7 @@
 import { ComponentElement, createSpaHtmlRouter } from '@emkodev/emroute/spa';
+import { RouteTrie } from '@emkodev/emroute';
 import { createOverlayService } from '@emkodev/emroute/overlay';
-import { routesManifest } from 'emroute:routes';
+import { routeTree, moduleLoaders } from 'emroute:routes';
 import { widgetsManifest } from 'emroute:widgets';
 
 // Set up emko-md markdown renderer (side-effect import)
@@ -21,9 +22,11 @@ for (const entry of widgetsManifest.widgets) {
 }
 
 const overlay = createOverlayService();
+const resolver = new RouteTrie(routeTree);
 
-const router = await createSpaHtmlRouter(routesManifest, {
+const router = await createSpaHtmlRouter(resolver, {
   extendContext: (base) => ({ ...base, overlay }),
+  moduleLoaders,
 });
 
 router.addEventListener((e) => {

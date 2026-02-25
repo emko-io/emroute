@@ -9,7 +9,6 @@ import type {
   MatchedRoute,
   RouteConfig,
   RouteInfo,
-  RoutesManifest,
 } from '../../type/route.type.ts';
 import { logger } from '../../type/logger.type.ts';
 import type { ComponentContext } from '../../component/abstract.component.ts';
@@ -20,6 +19,7 @@ import {
   RouteCore,
   type RouteCoreOptions,
 } from '../../route/route.core.ts';
+import type { RouteResolver } from '../../route/route.resolver.ts';
 import { toUrl } from '../../route/route.matcher.ts';
 import type { WidgetRegistry } from '../../widget/widget.registry.ts';
 
@@ -40,8 +40,8 @@ export abstract class SsrRenderer {
   protected widgetFiles: Record<string, { html?: string; md?: string; css?: string }>;
   protected abstract readonly label: string;
 
-  constructor(manifest: RoutesManifest, options: SsrRendererOptions = {}) {
-    this.core = new RouteCore(manifest, options);
+  constructor(resolver: RouteResolver, options: SsrRendererOptions = {}) {
+    this.core = new RouteCore(resolver, options);
     this.widgets = options.widgets ?? null;
     this.widgetFiles = options.widgetFiles ?? {};
   }
@@ -55,19 +55,12 @@ export abstract class SsrRenderer {
     const urlObj = toUrl(url);
     const pathname = urlObj.pathname;
 
-    // Redirect trailing-slash URLs to canonical form (301)
-    const normalized = this.core.normalizeUrl(pathname);
-    if (normalized !== pathname) {
-      const query = urlObj.search || '';
-      return { content: '', status: 301, redirect: normalized + query };
-    }
-
     const matched = this.core.match(urlObj);
 
     const searchParams = urlObj.searchParams ?? new URLSearchParams();
 
     if (!matched) {
-      const statusPage = this.core.matcher.getStatusPage(404);
+      const statusPage = this.core.getStatusPage(404);
       if (statusPage) {
         try {
           const ri: RouteInfo = { pathname, pattern: statusPage.pattern, params: {}, searchParams };
@@ -93,6 +86,7 @@ export abstract class SsrRenderer {
       return {
         content: this.renderRedirect(redirectConfig.to),
         status: redirectConfig.status ?? 301,
+        redirect: redirectConfig.to,
       };
     }
 
@@ -103,7 +97,7 @@ export abstract class SsrRenderer {
       return { content, status: 200, title };
     } catch (error) {
       if (error instanceof Response) {
-        const statusPage = this.core.matcher.getStatusPage(error.status);
+        const statusPage = this.core.getStatusPage(error.status);
         if (statusPage) {
           try {
             const ri: RouteInfo = {
@@ -132,13 +126,13 @@ export abstract class SsrRenderer {
         error instanceof Error ? error : undefined,
       );
 
-      const boundary = this.core.matcher.findErrorBoundary(pathname);
+      const boundary = this.core.findErrorBoundary(pathname);
       if (boundary) {
         const result = await this.tryRenderErrorModule(boundary.modulePath, pathname, 'boundary');
         if (result) return result;
       }
 
-      const errorHandler = this.core.matcher.getErrorHandler();
+      const errorHandler = this.core.getErrorHandler();
       if (errorHandler) {
         const result = await this.tryRenderErrorModule(errorHandler.modulePath, pathname, 'handler');
         if (result) return result;
@@ -163,10 +157,10 @@ export abstract class SsrRenderer {
 
     for (let i = 0; i < hierarchy.length; i++) {
       const routePattern = hierarchy[i];
-      let route = this.core.matcher.findRoute(routePattern);
+      let route = this.core.findRoute(routePattern);
 
-      if (!route && routePattern === this.core.root) {
-        route = { ...DEFAULT_ROOT_ROUTE, pattern: this.core.root };
+      if (!route && routePattern === '/') {
+        route = DEFAULT_ROOT_ROUTE;
       }
 
       if (!route) continue;

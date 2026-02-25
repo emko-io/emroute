@@ -39,8 +39,10 @@ export type {
   RouterEvent,
   RouterEventListener,
   RouterEventType,
-  RoutesManifest,
 } from '../../type/route.type.ts';
+export type { RouteNode } from '../../type/route-tree.type.ts';
+export type { RouteResolver, ResolvedRoute } from '../../route/route.resolver.ts';
+export { RouteTrie } from '../../route/route.trie.ts';
 export type { MarkdownRenderer } from '../../type/markdown.type.ts';
 export { type BasePath, DEFAULT_BASE_PATH } from '../../route/route.core.ts';
 export { escapeHtml, scopeWidgetCss } from '../../util/html.util.ts';

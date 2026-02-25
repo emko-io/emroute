@@ -19,8 +19,6 @@ function esc(value: string): string {
 
 interface ManifestPluginOptions {
   runtime: Runtime;
-  /** HTML base path prefix for route patterns (e.g. '/html'). */
-  basePath?: string;
   /**
    * Directory prefix to strip from module paths so that import() calls
    * are relative to the entry point (e.g. 'routes/' strips '/routes/').
@@ -34,10 +32,7 @@ interface ManifestPluginOptions {
 type EsbuildPlugin = any;
 
 export function createManifestPlugin(options: ManifestPluginOptions): EsbuildPlugin {
-  const { runtime, basePath = '', stripPrefix = '', resolveDir } = options;
-
-  const prefixPattern = (pattern: string): string =>
-    basePath ? (pattern === '/' ? basePath : basePath + pattern) : pattern;
+  const { runtime, stripPrefix = '', resolveDir } = options;
 
   const strip = (p: string): string =>
     stripPrefix && p.startsWith(stripPrefix) ? p.slice(stripPrefix.length) : p;
@@ -76,121 +71,90 @@ export function createManifestPlugin(options: ManifestPluginOptions): EsbuildPlu
   async function generateRoutesModule(): Promise<string> {
     const response = await runtime.query(ROUTES_MANIFEST_PATH);
     if (response.status === 404) {
-      return `export const routesManifest = { routes: [], errorBoundaries: [], statusPages: new Map(), moduleLoaders: {} };`;
+      return `import type { RouteNode } from '@emkodev/emroute';
+export const routeTree: RouteNode = {};
+export const moduleLoaders: Record<string, () => Promise<unknown>> = {};
+`;
     }
     const raw = await response.json();
 
-    // Routes array
-    const routesArray = (raw.routes ?? [])
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .map((r: any) => {
-        const filesStr = r.files
-          ? `\n    files: { ${
-            Object.entries(r.files)
-              .filter(([_, v]) => v)
-              .map(([k, v]) => `${k}: '${esc(strip(v as string))}'`)
-              .join(', ')
-          } },`
-          : '';
-
-        return `  {
-    pattern: '${esc(prefixPattern(r.pattern))}',
-    type: '${esc(r.type)}',
-    modulePath: '${esc(strip(r.modulePath))}',${filesStr}${
-          r.parent ? `\n    parent: '${esc(prefixPattern(r.parent))}',` : ''
-        }${r.statusCode ? `\n    statusCode: ${r.statusCode},` : ''}
-  }`;
-      })
-      .join(',\n');
-
-    // Error boundaries
-    const errorBoundariesArray = (raw.errorBoundaries ?? [])
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .map((e: any) => `  {
-    pattern: '${esc(prefixPattern(e.pattern))}',
-    modulePath: '${esc(strip(e.modulePath))}',
-  }`)
-      .join(',\n');
-
-    // Status pages
-    const statusPagesEntries = (raw.statusPages ?? [])
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .map(([status, route]: [number, any]) => {
-        const filesStr = route.files
-          ? `, files: { ${
-            Object.entries(route.files)
-              .map(([k, v]) => `${k}: '${esc(strip(v as string))}'`)
-              .join(', ')
-          } }`
-          : '';
-        return `  [${status}, { pattern: '${esc(prefixPattern(route.pattern))}', type: '${
-          esc(route.type)
-        }', modulePath: '${
-          esc(strip(route.modulePath))
-        }', statusCode: ${status}${filesStr} }]`;
-      })
-      .join(',\n');
-
-    // Error handler
-    const errorHandlerCode = raw.errorHandler
-      ? `{
-  pattern: '${esc(prefixPattern(raw.errorHandler.pattern))}',
-  type: '${esc(raw.errorHandler.type)}',
-  modulePath: '${esc(strip(raw.errorHandler.modulePath))}',
-}`
-      : 'undefined';
-
-    // Module loaders — collect all .ts module paths
+    // Walk the RouteNode tree to collect all .ts module paths for import() loaders
     const tsModulePaths = new Set<string>();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    for (const route of (raw.routes ?? []) as any[]) {
-      if (route.files?.ts) tsModulePaths.add(route.files.ts);
-      if (route.modulePath.endsWith('.ts')) tsModulePaths.add(route.modulePath);
-    }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    for (const boundary of (raw.errorBoundaries ?? []) as any[]) {
-      tsModulePaths.add(boundary.modulePath);
-    }
-    if (raw.errorHandler) {
-      tsModulePaths.add(raw.errorHandler.modulePath);
-    }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    for (const [_, statusRoute] of (raw.statusPages ?? []) as [number, any][]) {
-      if (statusRoute.modulePath.endsWith('.ts')) {
-        tsModulePaths.add(statusRoute.modulePath);
-      }
-    }
+    collectModulePaths(raw, tsModulePaths);
+
+    // Serialize the tree with stripped file paths
+    const strippedTree = stripTreePaths(raw);
 
     const moduleLoadersCode = [...tsModulePaths]
       .map((p) => {
         const key = strip(p);
         const rel = key.replace(/^\.?\//, '');
-        return `    '${esc(key)}': () => import('./${esc(rel)}'),`;
+        return `  '${esc(key)}': () => import('./${esc(rel)}'),`;
       })
       .join('\n');
 
-    return `import type { RoutesManifest } from '@emkodev/emroute';
+    return `import type { RouteNode } from '@emkodev/emroute';
 
-export const routesManifest: RoutesManifest = {
-  routes: [
-${routesArray}
-  ],
+export const routeTree: RouteNode = ${JSON.stringify(strippedTree, null, 2)};
 
-  errorBoundaries: [
-${errorBoundariesArray}
-  ],
-
-  statusPages: new Map([
-${statusPagesEntries}
-  ]),
-
-  errorHandler: ${errorHandlerCode},
-
-  moduleLoaders: {
+export const moduleLoaders: Record<string, () => Promise<unknown>> = {
 ${moduleLoadersCode}
-  },
 };
 `;
+  }
+
+  /**
+   * Recursively collect .ts module paths from a RouteNode tree.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function collectModulePaths(node: any, paths: Set<string>): void {
+    if (node.files?.ts) paths.add(node.files.ts);
+    if (node.errorBoundary) paths.add(node.errorBoundary);
+    if (node.redirect) paths.add(node.redirect);
+    if (node.children) {
+      for (const child of Object.values(node.children)) {
+        collectModulePaths(child, paths);
+      }
+    }
+    if (node.dynamic) collectModulePaths(node.dynamic.child, paths);
+    if (node.wildcard) collectModulePaths(node.wildcard.child, paths);
+  }
+
+  /**
+   * Deep-clone a RouteNode tree with stripped file paths.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function stripTreePaths(node: any): any {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const out: any = {};
+
+    if (node.files) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      out.files = {} as any;
+      for (const [ext, path] of Object.entries(node.files)) {
+        if (path) out.files[ext] = strip(path as string);
+      }
+    }
+
+    if (node.errorBoundary) out.errorBoundary = strip(node.errorBoundary);
+    if (node.redirect) out.redirect = strip(node.redirect);
+
+    if (node.children) {
+      out.children = {};
+      for (const [seg, child] of Object.entries(node.children)) {
+        out.children[seg] = stripTreePaths(child);
+      }
+    }
+
+    if (node.dynamic) {
+      out.dynamic = { param: node.dynamic.param, child: stripTreePaths(node.dynamic.child) };
+    }
+
+    if (node.wildcard) {
+      out.wildcard = { param: node.wildcard.param, child: stripTreePaths(node.wildcard.child) };
+    }
+
+    return out;
   }
 
   // ── Widgets module generator ──────────────────────────────────────

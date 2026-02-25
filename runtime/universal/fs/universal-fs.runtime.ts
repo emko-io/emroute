@@ -181,7 +181,6 @@ export class UniversalFsRuntime extends Runtime {
       }
       const manifestPlugin = createManifestPlugin({
         runtime: this,
-        basePath: '/html',
         resolveDir: this.root,
       });
       builds.push(esbuild.build({

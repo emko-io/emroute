@@ -5,7 +5,8 @@
  * Generates Markdown strings for LLM consumption, text clients, curl.
  */
 
-import type { RouteConfig, RouteInfo, RoutesManifest } from '../../type/route.type.ts';
+import type { RouteConfig, RouteInfo } from '../../type/route.type.ts';
+import type { RouteResolver } from '../../route/route.resolver.ts';
 import type { PageComponent } from '../../component/page.component.ts';
 import { DEFAULT_ROOT_ROUTE } from '../../route/route.core.ts';
 import { STATUS_MESSAGES } from '../../util/html.util.ts';
@@ -28,8 +29,8 @@ export type SsrMdRouterOptions = SsrRendererOptions;
 export class SsrMdRouter extends SsrRenderer {
   protected override readonly label = 'SSR MD';
 
-  constructor(manifest: RoutesManifest, options: SsrMdRouterOptions = {}) {
-    super(manifest, options);
+  constructor(resolver: RouteResolver, options: SsrMdRouterOptions = {}) {
+    super(resolver, options);
   }
 
   protected override injectSlot(parent: string, child: string, parentPattern: string): string {
@@ -135,8 +136,8 @@ export class SsrMdRouter extends SsrRenderer {
  * Create SSR Markdown router.
  */
 export function createSsrMdRouter(
-  manifest: RoutesManifest,
+  resolver: RouteResolver,
   options?: SsrMdRouterOptions,
 ): SsrMdRouter {
-  return new SsrMdRouter(manifest, options);
+  return new SsrMdRouter(resolver, options);
 }

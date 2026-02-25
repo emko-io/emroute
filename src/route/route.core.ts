@@ -2,10 +2,11 @@
  * Route Core
  *
  * Shared routing logic used by all renderers:
- * - Route matching and hierarchy building
+ * - Route matching (delegates to RouteResolver)
  * - Module loading and caching
  * - Event emission
  * - URL normalization
+ * - BasePath stripping
  */
 
 import type {
@@ -15,10 +16,10 @@ import type {
   RouteParams,
   RouterEvent,
   RouterEventListener,
-  RoutesManifest,
 } from '../type/route.type.ts';
 import type { ComponentContext, ContextProvider } from '../component/abstract.component.ts';
-import { RouteMatcher, toUrl } from './route.matcher.ts';
+import type { RouteResolver, ResolvedRoute } from './route.resolver.ts';
+import { toUrl } from './route.matcher.ts';
 
 /** Base paths for the two SSR rendering endpoints. */
 export interface BasePath {
@@ -31,34 +32,6 @@ export interface BasePath {
 /** Default base paths — backward compatible with existing /html/ and /md/ prefixes. */
 export const DEFAULT_BASE_PATH: BasePath = { html: '/html', md: '/md' };
 
-/**
- * Create a copy of a manifest with basePath prepended to all patterns.
- * Used by the server to prefix bare in-memory manifests before passing to routers.
- */
-export function prefixManifest(manifest: RoutesManifest, basePath: string): RoutesManifest {
-  if (!basePath) return manifest;
-  return {
-    routes: manifest.routes.map((r) => ({
-      ...r,
-      // Root pattern '/' becomes basePath itself (e.g. '/html'), not '/html/'
-      pattern: r.pattern === '/' ? basePath : basePath + r.pattern,
-      parent: r.parent ? (r.parent === '/' ? basePath : basePath + r.parent) : undefined,
-    })),
-    errorBoundaries: manifest.errorBoundaries.map((e) => ({
-      ...e,
-      pattern: e.pattern === '/' ? basePath : basePath + e.pattern,
-    })),
-    statusPages: new Map(
-      [...manifest.statusPages].map(([status, route]) => [
-        status,
-        { ...route, pattern: basePath + route.pattern },
-      ]),
-    ),
-    errorHandler: manifest.errorHandler,
-    moduleLoaders: manifest.moduleLoaders,
-  };
-}
-
 const BLOCKED_PROTOCOLS = /^(javascript|data|vbscript):/i;
 
 /** Throw if a redirect URL uses a dangerous protocol. */
@@ -68,12 +41,23 @@ export function assertSafeRedirect(url: string): void {
   }
 }
 
-/** Default root route - renders a slot for child routes */
+/** Default root route — renders a slot for child routes. */
 export const DEFAULT_ROOT_ROUTE: RouteConfig = {
   pattern: '/',
   type: 'page',
   modulePath: '__default_root__',
 };
+
+/** Synthesize a RouteConfig from a ResolvedRoute (bridge for renderer compatibility). */
+function toRouteConfig(resolved: ResolvedRoute): RouteConfig {
+  const node = resolved.node;
+  return {
+    pattern: resolved.pattern,
+    type: node.redirect ? 'redirect' : 'page',
+    modulePath: node.redirect ?? node.files?.ts ?? node.files?.html ?? node.files?.md ?? '',
+    files: node.files,
+  };
+}
 
 /** Options for RouteCore */
 export interface RouteCoreOptions {
@@ -85,23 +69,21 @@ export interface RouteCoreOptions {
   fileReader?: (path: string) => Promise<string>;
   /** Enriches every ComponentContext with app-level services before it reaches components. */
   extendContext?: ContextProvider;
-  /** Base path prepended to route patterns for URL matching (e.g. '/html'). No trailing slash. */
+  /** Base path stripped from URLs before matching (e.g. '/html'). No trailing slash. */
   basePath?: string;
+  /** Module loaders keyed by path — server provides these for SSR imports. */
+  moduleLoaders?: Record<string, () => Promise<unknown>>;
 }
 
 /**
  * Core router functionality shared across all rendering contexts.
  */
 export class RouteCore {
-  readonly matcher: RouteMatcher;
+  private readonly resolver: RouteResolver;
   /** Registered context provider (if any). Exposed so renderers can apply it to inline contexts. */
   readonly contextProvider: ContextProvider | undefined;
   /** Base path for URL matching (e.g. '/html'). Empty string when no basePath. */
   readonly basePath: string;
-  /** The root pattern — basePath when set, '/' otherwise. */
-  get root(): string {
-    return this.basePath || '/';
-  }
   private listeners: Set<RouterEventListener> = new Set();
   private moduleCache: Map<string, unknown> = new Map();
   private widgetFileCache: Map<string, string> = new Map();
@@ -109,13 +91,13 @@ export class RouteCore {
   currentRoute: MatchedRoute | null = null;
   private readFile: (path: string) => Promise<string>;
 
-  constructor(manifest: RoutesManifest, options: RouteCoreOptions = {}) {
+  constructor(resolver: RouteResolver, options: RouteCoreOptions = {}) {
+    this.resolver = resolver;
     this.basePath = options.basePath ?? '';
-    this.matcher = new RouteMatcher(manifest);
     this.readFile = options.fileReader ??
       ((path) => fetch(path, { headers: { Accept: 'text/plain' } }).then((r) => r.text()));
     this.contextProvider = options.extendContext;
-    this.moduleLoaders = manifest.moduleLoaders ?? {};
+    this.moduleLoaders = options.moduleLoaders ?? {};
   }
 
   /**
@@ -148,16 +130,24 @@ export class RouteCore {
 
   /**
    * Match a URL to a route.
-   * Falls back to the default root route for the basePath root (or '/' when no basePath).
+   * Falls back to the default root route for '/'.
    */
   match(url: URL | string): MatchedRoute | undefined {
-    const matched = this.matcher.match(url);
-    if (matched) return matched;
-
     const urlObj = toUrl(url);
-    if (urlObj.pathname === this.root || urlObj.pathname === this.root + '/') {
+    const pathname = urlObj.pathname;
+
+    const resolved = this.resolver.match(pathname);
+    if (resolved) {
       return {
-        route: { ...DEFAULT_ROOT_ROUTE, pattern: this.root },
+        route: toRouteConfig(resolved),
+        params: resolved.params,
+        searchParams: urlObj.searchParams,
+      };
+    }
+
+    if (pathname === '/' || pathname === '') {
+      return {
+        route: DEFAULT_ROOT_ROUTE,
         params: {},
         searchParams: urlObj.searchParams,
       };
@@ -166,29 +156,67 @@ export class RouteCore {
     return undefined;
   }
 
+  /** Get status-specific page (404, 401, 403). */
+  getStatusPage(status: number): RouteConfig | undefined {
+    const node = this.resolver.findRoute(`/${status}`);
+    if (!node) return undefined;
+    return {
+      pattern: `/${status}`,
+      type: 'page',
+      modulePath: node.files?.ts ?? node.files?.html ?? node.files?.md ?? '',
+      files: node.files,
+    };
+  }
+
+  /** Get global error handler (root errorBoundary). */
+  getErrorHandler(): RouteConfig | undefined {
+    const modulePath = this.resolver.findErrorBoundary('/');
+    if (!modulePath) return undefined;
+    return { pattern: '/', type: 'error', modulePath };
+  }
+
+  /**
+   * Find error boundary for a given pathname.
+   * Note: pattern is the input pathname, not the boundary's own pattern.
+   * Callers should only rely on modulePath.
+   */
+  findErrorBoundary(pathname: string): { pattern: string; modulePath: string } | undefined {
+    const modulePath = this.resolver.findErrorBoundary(pathname);
+    if (!modulePath) return undefined;
+    return { pattern: pathname, modulePath };
+  }
+
+  /**
+   * Find a route by its exact pattern.
+   * Used for building route hierarchy.
+   */
+  findRoute(pattern: string): RouteConfig | undefined {
+    const node = this.resolver.findRoute(pattern);
+    if (!node) return undefined;
+    return {
+      pattern,
+      type: node.redirect ? 'redirect' : 'page',
+      modulePath: node.redirect ?? node.files?.ts ?? node.files?.html ?? node.files?.md ?? '',
+      files: node.files,
+    };
+  }
+
   /**
    * Build route hierarchy from a pattern.
+   * Patterns are always unprefixed (no basePath).
    *
-   * When basePath is set, the root is the basePath itself and only
-   * segments after it are split into ancestors.
-   *
-   * e.g., basePath='/html', pattern='/html/projects/:id/tasks'
-   *   → ['/html', '/html/projects', '/html/projects/:id', '/html/projects/:id/tasks']
-   *
-   * Without basePath: '/projects/:id/tasks'
+   * e.g., '/projects/:id/tasks'
    *   → ['/', '/projects', '/projects/:id', '/projects/:id/tasks']
    */
   buildRouteHierarchy(pattern: string): string[] {
-    if (pattern === this.root || pattern === this.root + '/') {
-      return [this.root];
+    if (pattern === '/') {
+      return ['/'];
     }
 
-    // Extract the part after basePath
-    const tail = this.basePath ? pattern.slice(this.basePath.length) : pattern;
-    const segments = tail.split('/').filter(Boolean);
+    const segments = pattern.split('/').filter(Boolean);
 
-    const hierarchy: string[] = [this.root];
-    let current = this.basePath || '';
+    const hierarchy: string[] = ['/'];
+    let current = '';
     for (const segment of segments) {
       current += '/' + segment;
       hierarchy.push(current);
@@ -238,7 +266,6 @@ export class RouteCore {
 
   /**
    * Load widget file contents with caching.
-   * Returns an object with loaded file contents.
    */
   async loadWidgetFiles(
     widgetFiles: { html?: string; md?: string; css?: string },
@@ -285,8 +312,6 @@ export class RouteCore {
 
   /**
    * Build a ComponentContext by extending RouteInfo with loaded file contents.
-   * When a signal is provided it is forwarded to fetch() calls and included
-   * in the returned context so that getData() can observe cancellation.
    */
   async buildComponentContext(
     routeInfo: RouteInfo,

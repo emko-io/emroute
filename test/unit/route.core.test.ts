@@ -19,26 +19,17 @@ import {
   assertSafeRedirect,
   DEFAULT_BASE_PATH,
   DEFAULT_ROOT_ROUTE,
-  prefixManifest,
   RouteCore,
 } from '../../src/route/route.core.ts';
-import type { RouteConfig, RouteInfo, RoutesManifest } from '../../src/type/route.type.ts';
+import type { RouteConfig, RouteInfo } from '../../src/type/route.type.ts';
 import type { ComponentContext } from '../../src/component/abstract.component.ts';
+import { createResolver } from './test.util.ts';
 
 /**
- * Helper to create a minimal routes manifest for testing
+ * Helper to create a RouteResolver for testing
  */
-function createTestManifest(
-  routes: RouteConfig[] = [],
-): RoutesManifest {
-  return {
-    routes,
-    errorBoundaries: [],
-    statusPages: new Map(),
-    moduleLoaders: {
-      'test-loader': () => Promise.resolve({ test: true }),
-    },
-  };
+function createTestResolver(routes: RouteConfig[] = []) {
+  return createResolver(routes);
 }
 
 /**
@@ -57,97 +48,55 @@ function createRoute(
   };
 }
 
-describe('RouteCore - basePath matching', () => {
-  test('matches routes with prefixed manifest', () => {
-    const bare = createTestManifest([createRoute('/about')]);
-    const manifest = prefixManifest(bare, '/html');
-    const core = new RouteCore(manifest, { basePath: '/html' });
-    const matched = core.match('/html/about');
-    expect(matched).toBeDefined();
-    expect(matched.route.pattern).toEqual('/html/about');
-  });
+describe('RouteCore - basePath', () => {
+  test('basePath is stored for context but does not affect matching', () => {
+    const resolver = createTestResolver([createRoute('/about')]);
+    const core = new RouteCore(resolver, { basePath: '/html' });
+    expect(core.basePath).toEqual('/html');
 
-  test('root fallback uses basePath', () => {
-    const manifest = createTestManifest([]);
-    const core = new RouteCore(manifest, { basePath: '/html' });
-    const matched = core.match('/html');
-    expect(matched).toBeDefined();
-    expect(matched.route.pattern).toEqual('/html');
-    expect(matched.route.modulePath).toEqual('__default_root__');
-  });
-
-  test('root fallback handles trailing slash', () => {
-    const manifest = createTestManifest([]);
-    const core = new RouteCore(manifest, { basePath: '/html' });
-    const matched = core.match('/html/');
-    expect(matched).toBeDefined();
-    expect(matched.route.pattern).toEqual('/html');
-  });
-
-  test('no match for paths outside basePath', () => {
-    const bare = createTestManifest([createRoute('/about')]);
-    const manifest = prefixManifest(bare, '/html');
-    const core = new RouteCore(manifest, { basePath: '/html' });
-    const matched = core.match('/about');
-    expect(matched).toEqual(undefined);
-  });
-
-  test('works without basePath (backward compatible)', () => {
-    const manifest = createTestManifest([createRoute('/about')]);
-    const core = new RouteCore(manifest);
+    // RouteCore matches unprefixed paths — server strips prefix before calling
     const matched = core.match('/about');
     expect(matched).toBeDefined();
-    expect(matched.route.pattern).toEqual('/about');
+    expect(matched!.route.pattern).toEqual('/about');
+  });
+
+  test('root fallback for /', () => {
+    const resolver = createTestResolver([]);
+    const core = new RouteCore(resolver);
+    const matched = core.match('/');
+    expect(matched).toBeDefined();
+    expect(matched!.route.modulePath).toEqual('__default_root__');
   });
 });
 
-describe('RouteCore - buildRouteHierarchy with basePath', () => {
-  test('root returns basePath', () => {
-    const manifest = createTestManifest([]);
-    const core = new RouteCore(manifest, { basePath: '/html' });
-    expect(core.buildRouteHierarchy('/html')).toEqual(['/html']);
-  });
-
-  test('root with trailing slash', () => {
-    const manifest = createTestManifest([]);
-    const core = new RouteCore(manifest, { basePath: '/html' });
-    expect(core.buildRouteHierarchy('/html/')).toEqual(['/html']);
+describe('RouteCore - buildRouteHierarchy', () => {
+  test('root returns ["/"]', () => {
+    const resolver = createTestResolver([]);
+    const core = new RouteCore(resolver);
+    expect(core.buildRouteHierarchy('/')).toEqual(['/']);
   });
 
   test('nested route', () => {
-    const manifest = createTestManifest([]);
-    const core = new RouteCore(manifest, { basePath: '/html' });
-    expect(
-      core.buildRouteHierarchy('/html/projects/:id'),
-    ).toEqual(
-      ['/html', '/html/projects', '/html/projects/:id'],
-    );
-  });
-
-  test('without basePath (backward compatible)', () => {
-    const manifest = createTestManifest([]);
-    const core = new RouteCore(manifest);
+    const resolver = createTestResolver([]);
+    const core = new RouteCore(resolver);
     expect(
       core.buildRouteHierarchy('/projects/:id'),
     ).toEqual(
       ['/', '/projects', '/projects/:id'],
     );
   });
-});
 
-describe('RouteCore - normalizeUrl with basePath', () => {
-  test('strips trailing slash on basePath root', () => {
-    const manifest = createTestManifest([]);
-    const core = new RouteCore(manifest, { basePath: '/html' });
-    expect(core.normalizeUrl('/html/')).toEqual('/html');
-  });
-
-  test('strips trailing slash on non-root paths', () => {
-    const manifest = createTestManifest([]);
-    const core = new RouteCore(manifest, { basePath: '/html' });
-    expect(core.normalizeUrl('/html/about/')).toEqual('/html/about');
+  test('deeply nested route', () => {
+    const resolver = createTestResolver([]);
+    const core = new RouteCore(resolver);
+    expect(
+      core.buildRouteHierarchy('/projects/:id/tasks'),
+    ).toEqual(
+      ['/', '/projects', '/projects/:id', '/projects/:id/tasks'],
+    );
   });
 });
+
 
 describe('RouteCore - assertSafeRedirect', () => {
   test('allows http URLs', () => {
@@ -225,43 +174,42 @@ describe('RouteCore - assertSafeRedirect', () => {
 
 describe('RouteCore - constructor and initialization', () => {
   test('creates router with manifest', () => {
-    const manifest = createTestManifest();
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver();
+    const router = new RouteCore(resolver);
 
-    expect(router.matcher).toBeDefined();
     expect(router.contextProvider).toEqual(undefined);
   });
 
   test('registers context provider', () => {
-    const manifest = createTestManifest();
+    const resolver = createTestResolver();
     const provider = (ctx: ComponentContext) => ({
       ...ctx,
       custom: 'value',
     });
 
-    const router = new RouteCore(manifest, { extendContext: provider });
+    const router = new RouteCore(resolver, { extendContext: provider });
 
     expect(router.contextProvider).toEqual(provider);
   });
 
   test('sets fileReader from options', () => {
-    const manifest = createTestManifest();
+    const resolver = createTestResolver();
     const reader = (_path: string) => Promise.resolve('');
-    const router = new RouteCore(manifest, { fileReader: reader });
+    const router = new RouteCore(resolver, { fileReader: reader });
 
     expect(router).toBeDefined();
   });
 
   test('defaults fileReader to fetch-based', () => {
-    const manifest = createTestManifest();
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver();
+    const router = new RouteCore(resolver);
 
     expect(router).toBeDefined();
   });
 
   test('initializes currentRoute as null', () => {
-    const manifest = createTestManifest();
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver();
+    const router = new RouteCore(resolver);
 
     expect(router.currentRoute).toEqual(null);
   });
@@ -270,8 +218,8 @@ describe('RouteCore - constructor and initialization', () => {
 describe('RouteCore - route matching', () => {
   test('matches static routes', () => {
     const routes = [createRoute('/about')];
-    const manifest = createTestManifest(routes);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver(routes);
+    const router = new RouteCore(resolver);
 
     const matched = router.match('/about');
 
@@ -281,8 +229,8 @@ describe('RouteCore - route matching', () => {
 
   test('matches dynamic segment routes', () => {
     const routes = [createRoute('/projects/:id')];
-    const manifest = createTestManifest(routes);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver(routes);
+    const router = new RouteCore(resolver);
 
     const matched = router.match('/projects/123');
 
@@ -293,8 +241,8 @@ describe('RouteCore - route matching', () => {
 
   test('matches nested dynamic routes', () => {
     const routes = [createRoute('/projects/:projectId/tasks/:taskId')];
-    const manifest = createTestManifest(routes);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver(routes);
+    const router = new RouteCore(resolver);
 
     const matched = router.match('/projects/42/tasks/99');
 
@@ -305,8 +253,8 @@ describe('RouteCore - route matching', () => {
 
   test('returns undefined for unmatched routes', () => {
     const routes = [createRoute('/about')];
-    const manifest = createTestManifest(routes);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver(routes);
+    const router = new RouteCore(resolver);
 
     const matched = router.match('/nonexistent');
 
@@ -314,8 +262,8 @@ describe('RouteCore - route matching', () => {
   });
 
   test('falls back to default root route for /', () => {
-    const manifest = createTestManifest([]);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver([]);
+    const router = new RouteCore(resolver);
 
     const matched = router.match('/');
 
@@ -326,8 +274,8 @@ describe('RouteCore - route matching', () => {
 
   test('accepts URL objects', () => {
     const routes = [createRoute('/about')];
-    const manifest = createTestManifest(routes);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver(routes);
+    const router = new RouteCore(resolver);
 
     const url = new URL('http://localhost/about');
     const matched = router.match(url);
@@ -338,8 +286,8 @@ describe('RouteCore - route matching', () => {
 
   test('preserves search params in match result', () => {
     const routes = [createRoute('/search')];
-    const manifest = createTestManifest(routes);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver(routes);
+    const router = new RouteCore(resolver);
 
     const matched = router.match('/search?q=test&limit=10');
 
@@ -352,8 +300,8 @@ describe('RouteCore - route matching', () => {
 describe('RouteCore - parameter extraction', () => {
   test('extracts single parameter', () => {
     const routes = [createRoute('/users/:id')];
-    const manifest = createTestManifest(routes);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver(routes);
+    const router = new RouteCore(resolver);
 
     const matched = router.match('/users/john-doe');
 
@@ -362,8 +310,8 @@ describe('RouteCore - parameter extraction', () => {
 
   test('extracts multiple parameters', () => {
     const routes = [createRoute('/projects/:projectId/tasks/:taskId/comments/:commentId')];
-    const manifest = createTestManifest(routes);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver(routes);
+    const router = new RouteCore(resolver);
 
     const matched = router.match('/projects/proj-1/tasks/task-2/comments/comment-3');
 
@@ -374,8 +322,8 @@ describe('RouteCore - parameter extraction', () => {
 
   test('handles numeric parameters', () => {
     const routes = [createRoute('/posts/:id')];
-    const manifest = createTestManifest(routes);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver(routes);
+    const router = new RouteCore(resolver);
 
     const matched = router.match('/posts/12345');
 
@@ -384,8 +332,8 @@ describe('RouteCore - parameter extraction', () => {
 
   test('handles slug parameters with hyphens', () => {
     const routes = [createRoute('/articles/:slug')];
-    const manifest = createTestManifest(routes);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver(routes);
+    const router = new RouteCore(resolver);
 
     const matched = router.match('/articles/my-awesome-article');
 
@@ -394,8 +342,8 @@ describe('RouteCore - parameter extraction', () => {
 
   test('getParams returns current route params', () => {
     const routes = [createRoute('/users/:id')];
-    const manifest = createTestManifest(routes);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver(routes);
+    const router = new RouteCore(resolver);
 
     router.currentRoute = router.match('/users/123')!;
     const params = router.getParams();
@@ -404,8 +352,8 @@ describe('RouteCore - parameter extraction', () => {
   });
 
   test('getParams returns empty object when no current route', () => {
-    const manifest = createTestManifest([]);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver([]);
+    const router = new RouteCore(resolver);
 
     const params = router.getParams();
 
@@ -414,38 +362,37 @@ describe('RouteCore - parameter extraction', () => {
 });
 
 describe('RouteCore - parent-child relationships', () => {
-  test('tracks parent route in config', () => {
-    const routes = [
-      createRoute('/projects', 'projects'),
-      createRoute('/projects/:id', 'project-detail', '/projects'),
-      createRoute('/projects/:id/tasks', 'project-tasks', '/projects/:id'),
-    ];
-    const manifest = createTestManifest(routes);
-    const _router = new RouteCore(manifest);
-
-    expect(routes[1].parent).toEqual('/projects');
-    expect(routes[2].parent).toEqual('/projects/:id');
-  });
-
   test('matches child routes correctly', () => {
     const routes = [
       createRoute('/projects', 'projects'),
-      createRoute('/projects/:id', 'project-detail', '/projects'),
+      createRoute('/projects/:id', 'project-detail'),
     ];
-    const manifest = createTestManifest(routes);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver(routes);
+    const router = new RouteCore(resolver);
 
     const matched = router.match('/projects/123');
 
     expect(matched?.route.pattern).toEqual('/projects/:id');
-    expect(matched?.route.parent).toEqual('/projects');
+  });
+
+  test('hierarchy is derived from pattern segments', () => {
+    const routes = [
+      createRoute('/projects', 'projects'),
+      createRoute('/projects/:id', 'project-detail'),
+      createRoute('/projects/:id/tasks', 'project-tasks'),
+    ];
+    const resolver = createTestResolver(routes);
+    const router = new RouteCore(resolver);
+
+    const hierarchy = router.buildRouteHierarchy('/projects/:id/tasks');
+    expect(hierarchy).toEqual(['/', '/projects', '/projects/:id', '/projects/:id/tasks']);
   });
 });
 
 describe('RouteCore - route hierarchy building', () => {
   test('builds hierarchy for root', () => {
-    const manifest = createTestManifest([]);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver([]);
+    const router = new RouteCore(resolver);
 
     const hierarchy = router.buildRouteHierarchy('/');
 
@@ -453,8 +400,8 @@ describe('RouteCore - route hierarchy building', () => {
   });
 
   test('builds hierarchy for single segment', () => {
-    const manifest = createTestManifest([]);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver([]);
+    const router = new RouteCore(resolver);
 
     const hierarchy = router.buildRouteHierarchy('/about');
 
@@ -462,8 +409,8 @@ describe('RouteCore - route hierarchy building', () => {
   });
 
   test('builds hierarchy for multiple segments', () => {
-    const manifest = createTestManifest([]);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver([]);
+    const router = new RouteCore(resolver);
 
     const hierarchy = router.buildRouteHierarchy('/projects/123/tasks');
 
@@ -471,8 +418,8 @@ describe('RouteCore - route hierarchy building', () => {
   });
 
   test('handles trailing segments correctly', () => {
-    const manifest = createTestManifest([]);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver([]);
+    const router = new RouteCore(resolver);
 
     const hierarchy = router.buildRouteHierarchy('/a/b/c/d/e');
 
@@ -489,8 +436,8 @@ describe('RouteCore - route hierarchy building', () => {
 
 describe('RouteCore - URL normalization', () => {
   test('removes trailing slash', () => {
-    const manifest = createTestManifest([]);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver([]);
+    const router = new RouteCore(resolver);
 
     const normalized = router.normalizeUrl('/about/');
 
@@ -498,8 +445,8 @@ describe('RouteCore - URL normalization', () => {
   });
 
   test('keeps root slash', () => {
-    const manifest = createTestManifest([]);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver([]);
+    const router = new RouteCore(resolver);
 
     const normalized = router.normalizeUrl('/');
 
@@ -507,8 +454,8 @@ describe('RouteCore - URL normalization', () => {
   });
 
   test('keeps URLs without trailing slash', () => {
-    const manifest = createTestManifest([]);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver([]);
+    const router = new RouteCore(resolver);
 
     const normalized = router.normalizeUrl('/projects/123');
 
@@ -516,8 +463,8 @@ describe('RouteCore - URL normalization', () => {
   });
 
   test('handles nested paths with trailing slash', () => {
-    const manifest = createTestManifest([]);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver([]);
+    const router = new RouteCore(resolver);
 
     const normalized = router.normalizeUrl('/projects/123/tasks/');
 
@@ -527,8 +474,8 @@ describe('RouteCore - URL normalization', () => {
 
 describe('RouteCore - path conversion', () => {
   test('converts relative path to absolute', () => {
-    const manifest = createTestManifest([]);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver([]);
+    const router = new RouteCore(resolver);
 
     const absolute = router.toAbsolutePath('about');
 
@@ -536,8 +483,8 @@ describe('RouteCore - path conversion', () => {
   });
 
   test('keeps absolute paths unchanged', () => {
-    const manifest = createTestManifest([]);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver([]);
+    const router = new RouteCore(resolver);
 
     const absolute = router.toAbsolutePath('/about');
 
@@ -545,8 +492,8 @@ describe('RouteCore - path conversion', () => {
   });
 
   test('converts nested relative paths', () => {
-    const manifest = createTestManifest([]);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver([]);
+    const router = new RouteCore(resolver);
 
     const absolute = router.toAbsolutePath('projects/123/tasks');
 
@@ -557,8 +504,8 @@ describe('RouteCore - path conversion', () => {
 describe('RouteCore - route info building', () => {
   test('builds route info from matched route', () => {
     const routes = [createRoute('/projects/:id')];
-    const manifest = createTestManifest(routes);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver(routes);
+    const router = new RouteCore(resolver);
 
     const matched = router.match('/projects/123')!;
     const info = router.toRouteInfo(matched, '/projects/123');
@@ -570,8 +517,8 @@ describe('RouteCore - route info building', () => {
 
   test('includes search params in route info', () => {
     const routes = [createRoute('/search')];
-    const manifest = createTestManifest(routes);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver(routes);
+    const router = new RouteCore(resolver);
 
     const matched = router.match('/search?q=test')!;
     const info = router.toRouteInfo(matched, '/search');
@@ -581,8 +528,8 @@ describe('RouteCore - route info building', () => {
 
   test('provides default empty search params if not set', () => {
     const routes = [createRoute('/about')];
-    const manifest = createTestManifest(routes);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver(routes);
+    const router = new RouteCore(resolver);
 
     const matched = { route: routes[0], params: {} } as {
       route: typeof routes[0];
@@ -597,8 +544,10 @@ describe('RouteCore - route info building', () => {
 
 describe('RouteCore - module loading and caching', () => {
   test('caches modules', async () => {
-    const manifest = createTestManifest();
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver();
+    const router = new RouteCore(resolver, {
+      moduleLoaders: { 'test-loader': () => Promise.resolve({ test: true }) },
+    });
 
     const module1 = await router.loadModule('test-loader');
     const module2 = await router.loadModule('test-loader');
@@ -607,8 +556,10 @@ describe('RouteCore - module loading and caching', () => {
   });
 
   test('loads module from moduleLoaders', async () => {
-    const manifest = createTestManifest();
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver();
+    const router = new RouteCore(resolver, {
+      moduleLoaders: { 'test-loader': () => Promise.resolve({ test: true }) },
+    });
 
     const module = await router.loadModule('test-loader') as { test: boolean };
 
@@ -616,16 +567,13 @@ describe('RouteCore - module loading and caching', () => {
   });
 
   test('returns different modules for different paths', async () => {
-    const manifest: RoutesManifest = {
-      routes: [],
-      errorBoundaries: [],
-      statusPages: new Map(),
+    const resolver = createTestResolver();
+    const router = new RouteCore(resolver, {
       moduleLoaders: {
         'module-1': () => Promise.resolve({ id: 1 }),
         'module-2': () => Promise.resolve({ id: 2 }),
       },
-    };
-    const router = new RouteCore(manifest);
+    });
 
     const mod1 = await router.loadModule('module-1') as { id: number };
     const mod2 = await router.loadModule('module-2') as { id: number };
@@ -637,8 +585,8 @@ describe('RouteCore - module loading and caching', () => {
 
 describe('RouteCore - event emission', () => {
   test('emits events to listeners', () => {
-    const manifest = createTestManifest([]);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver([]);
+    const router = new RouteCore(resolver);
 
     const events: Array<{ type: string; pathname: string; params: Record<string, string> }> = [];
     router.addEventListener((event) => {
@@ -653,8 +601,8 @@ describe('RouteCore - event emission', () => {
   });
 
   test('supports multiple listeners', () => {
-    const manifest = createTestManifest([]);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver([]);
+    const router = new RouteCore(resolver);
 
     const events1: Array<{ type: string; pathname: string; params: Record<string, string> }> = [];
     const events2: Array<{ type: string; pathname: string; params: Record<string, string> }> = [];
@@ -669,8 +617,8 @@ describe('RouteCore - event emission', () => {
   });
 
   test('listener removal returns unsubscribe function', () => {
-    const manifest = createTestManifest([]);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver([]);
+    const router = new RouteCore(resolver);
 
     const events: Array<{ type: string; pathname: string; params: Record<string, string> }> = [];
     const unsubscribe = router.addEventListener((event) => {
@@ -687,8 +635,8 @@ describe('RouteCore - event emission', () => {
   });
 
   test('handles listener errors gracefully', () => {
-    const manifest = createTestManifest([]);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver([]);
+    const router = new RouteCore(resolver);
 
     const errors: Error[] = [];
     const originalError = console.error;
@@ -713,8 +661,8 @@ describe('RouteCore - event emission', () => {
   });
 
   test('emits events with route parameters', () => {
-    const manifest = createTestManifest([]);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver([]);
+    const router = new RouteCore(resolver);
 
     const events: Array<{ type: string; pathname: string; params: Record<string, string> }> = [];
     router.addEventListener((event) => events.push(event));
@@ -729,8 +677,8 @@ describe('RouteCore - event emission', () => {
   });
 
   test('emits error events', () => {
-    const manifest = createTestManifest([]);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver([]);
+    const router = new RouteCore(resolver);
 
     const events: Array<
       { type: string; pathname: string; params: Record<string, string>; error?: Error }
@@ -752,14 +700,14 @@ describe('RouteCore - event emission', () => {
 
 describe('RouteCore - context provider integration', () => {
   test('extends context with provider', () => {
-    const manifest = createTestManifest();
+    const resolver = createTestResolver();
     const provider = (ctx: ComponentContext) => ({
       ...ctx,
       userId: '123',
       isAuthenticated: true,
     });
 
-    const router = new RouteCore(manifest, { extendContext: provider });
+    const router = new RouteCore(resolver, { extendContext: provider });
 
     const baseContext: ComponentContext = {
       pathname: '/dashboard',
@@ -779,18 +727,14 @@ describe('RouteCore - context provider integration', () => {
   });
 
   test('builds component context with provider', async () => {
-    const manifest: RoutesManifest = {
-      routes: [],
-      errorBoundaries: [],
-      statusPages: new Map(),
-    };
+    const resolver = createTestResolver();
 
     const provider = (ctx: ComponentContext) => ({
       ...ctx,
       appName: 'MyApp',
     });
 
-    const router = new RouteCore(manifest, { extendContext: provider });
+    const router = new RouteCore(resolver, { extendContext: provider });
 
     const routeInfo: RouteInfo = {
       pathname: '/home',
@@ -808,18 +752,14 @@ describe('RouteCore - context provider integration', () => {
   });
 
   test('preserves files in extended context', async () => {
-    const manifest: RoutesManifest = {
-      routes: [],
-      errorBoundaries: [],
-      statusPages: new Map(),
-    };
+    const resolver = createTestResolver();
 
     const provider = (ctx: ComponentContext) => ({
       ...ctx,
       custom: 'data',
     });
 
-    const router = new RouteCore(manifest, { extendContext: provider });
+    const router = new RouteCore(resolver, { extendContext: provider });
 
     const routeInfo: RouteInfo = {
       pathname: '/page',
@@ -843,8 +783,8 @@ describe('RouteCore - specificity ordering', () => {
       createRoute('/projects/featured'),
       createRoute('/projects/:id'),
     ];
-    const manifest = createTestManifest(routes);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver(routes);
+    const router = new RouteCore(resolver);
 
     const matched = router.match('/projects/featured');
 
@@ -857,8 +797,8 @@ describe('RouteCore - specificity ordering', () => {
       createRoute('/posts/featured'),
       createRoute('/posts/:id'),
     ];
-    const manifest = createTestManifest(routes);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver(routes);
+    const router = new RouteCore(resolver);
 
     const matched = router.match('/posts/featured');
 
@@ -871,8 +811,8 @@ describe('RouteCore - specificity ordering', () => {
       createRoute('/projects/:id/tasks'),
       createRoute('/projects/:id/tasks/:taskId'),
     ];
-    const manifest = createTestManifest(routes);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver(routes);
+    const router = new RouteCore(resolver);
 
     const matched = router.match('/projects/123/tasks/456');
 
@@ -885,8 +825,8 @@ describe('RouteCore - catch-all and wildcard routes', () => {
     const routes = [
       createRoute('/docs/:rest*'),
     ];
-    const manifest = createTestManifest(routes);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver(routes);
+    const router = new RouteCore(resolver);
 
     const matched = router.match('/docs/guides/getting-started');
 
@@ -898,8 +838,8 @@ describe('RouteCore - catch-all and wildcard routes', () => {
       createRoute('/docs'),
       createRoute('/docs/:rest*'),
     ];
-    const manifest = createTestManifest(routes);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver(routes);
+    const router = new RouteCore(resolver);
 
     const matched1 = router.match('/docs');
     const matched2 = router.match('/docs/guides/advanced/optimization');
@@ -912,8 +852,8 @@ describe('RouteCore - catch-all and wildcard routes', () => {
 describe('RouteCore - edge cases', () => {
   test('handles empty route params', () => {
     const routes = [createRoute('/static')];
-    const manifest = createTestManifest(routes);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver(routes);
+    const router = new RouteCore(resolver);
 
     const matched = router.match('/static');
 
@@ -922,8 +862,8 @@ describe('RouteCore - edge cases', () => {
 
   test('handles route with special characters in dynamic segment', () => {
     const routes = [createRoute('/search/:query')];
-    const manifest = createTestManifest(routes);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver(routes);
+    const router = new RouteCore(resolver);
 
     const matched = router.match('/search/hello-world');
 
@@ -932,8 +872,8 @@ describe('RouteCore - edge cases', () => {
 
   test('handles complex nested dynamic parameters', () => {
     const routes = [createRoute('/api/:version/users/:userId/posts/:postId/comments/:commentId')];
-    const manifest = createTestManifest(routes);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver(routes);
+    const router = new RouteCore(resolver);
 
     const matched = router.match('/api/v1/users/user123/posts/post456/comments/comment789');
 
@@ -945,8 +885,8 @@ describe('RouteCore - edge cases', () => {
 
   test('handles routes with hyphens in static segments', () => {
     const routes = [createRoute('/api-docs/:pageName')];
-    const manifest = createTestManifest(routes);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver(routes);
+    const router = new RouteCore(resolver);
 
     const matched = router.match('/api-docs/getting-started');
 
@@ -955,8 +895,8 @@ describe('RouteCore - edge cases', () => {
   });
 
   test('getParams with no params returns empty object', () => {
-    const manifest = createTestManifest([]);
-    const router = new RouteCore(manifest);
+    const resolver = createTestResolver([]);
+    const router = new RouteCore(resolver);
 
     const params = router.getParams();
 

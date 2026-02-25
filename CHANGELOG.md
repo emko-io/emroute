@@ -5,6 +5,54 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.6-beta.3] - 2026-02-26
+
+### Changed
+
+- **Route matching replaced with trie** — `RouteMatcher` replaced by `RouteTrie`
+  implementing a new `RouteResolver` interface. Route data is now a
+  JSON-serializable `RouteNode` tree instead of a flat `RoutesManifest` array.
+
+- **Router constructors take `RouteResolver`** — `createSpaHtmlRouter`,
+  `createSsrHtmlRouter`, `createSsrMdRouter`, `SsrHtmlRouter`, and
+  `SsrMdRouter` now accept a `RouteResolver` (e.g. `RouteTrie`) as the first
+  argument instead of `RoutesManifest`. Auto-generated `main.ts` handles this
+  automatically — no consumer changes needed unless you have a custom entry point.
+
+- **Server API** — `EmrouteServerConfig.routesManifest` → `routeTree`,
+  `EmrouteServer.manifest` → `routeTree`.
+
+- **SPA basePath stripping** — SPA router now strips the HTML basePath prefix
+  before trie matching, consistent with SSR routers.
+
+- **esbuild manifest plugin** — generates `routeTree` + `moduleLoaders` instead
+  of flat `RoutesManifest`. Redirect and error boundary `.ts` paths are included
+  in module loaders for browser bundling.
+
+### Added
+
+- **`RouteTrie`** — trie-based route resolver with O(segments) matching.
+- **`RouteNode`** type — JSON-serializable tree node for route definitions.
+- **`RouteResolver`** interface — DI point for route matching (`match`,
+  `findErrorBoundary`, `findRoute`).
+- **`SpaHtmlRouterOptions.moduleLoaders`** — passes pre-bundled module loaders
+  through to `RouteCore` for browser-side `.ts` module resolution.
+
+### Removed
+
+- **`RoutesManifest`** export — no longer part of the public API.
+- **`prefixManifest()`** — base path prefixing is handled by the server, not the
+  manifest.
+
+### Fixed
+
+- **SPA error boundaries** — `findErrorBoundary` now receives the stripped
+  pathname (not the browser pathname with basePath prefix).
+- **SPA `load` event** — emits `routeInfo.pathname` (actual URL) instead of
+  `routeInfo.pattern` (trie pattern).
+- **Server redirect prefixing** — only prepends basePath when redirect target
+  starts with `/`, avoiding mangled absolute URLs.
+
 ## [1.6.0] - 2026-02-25
 
 ### Added

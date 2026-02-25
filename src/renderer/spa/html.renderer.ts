@@ -17,10 +17,10 @@ import type {
   RedirectConfig,
   RouteParams,
   RouterState,
-  RoutesManifest,
 } from '../../type/route.type.ts';
 import type { ContextProvider } from '../../component/abstract.component.ts';
 import type { PageComponent } from '../../component/page.component.ts';
+import type { RouteResolver } from '../../route/route.resolver.ts';
 import { ComponentElement } from '../../element/component.element.ts';
 import {
   assertSafeRedirect,
@@ -40,6 +40,8 @@ export interface SpaHtmlRouterOptions {
   extendContext?: ContextProvider;
   /** Base paths for SSR endpoints. SPA uses html basePath for routing, md for passthrough. */
   basePath?: BasePath;
+  /** Pre-bundled module loaders keyed by file path. Bridges JSON route tree → bundled code in the browser. */
+  moduleLoaders?: Record<string, () => Promise<unknown>>;
 }
 
 /**
@@ -51,11 +53,12 @@ export class SpaHtmlRouter extends BaseRenderer {
   private htmlBase: string;
   private mdBase: string;
 
-  constructor(manifest: RoutesManifest, options?: SpaHtmlRouterOptions) {
+  constructor(resolver: RouteResolver, options?: SpaHtmlRouterOptions) {
     const bp = options?.basePath ?? DEFAULT_BASE_PATH;
-    const core = new RouteCore(manifest, {
+    const core = new RouteCore(resolver, {
       extendContext: options?.extendContext,
       basePath: bp.html,
+      moduleLoaders: options?.moduleLoaders,
     });
     super(core);
     this.htmlBase = bp.html;
@@ -120,8 +123,8 @@ export class SpaHtmlRouter extends BaseRenderer {
       logger.ssr('check-adoption', `SSR route=${ssrRoute}, current=${currentPath}`);
 
       if (currentPath === ssrRoute || currentPath === ssrRoute + '/') {
-        // Adopt SSR content — patterns are prefixed, match directly
-        const matched = this.core.match(new URL(ssrRoute, location.origin));
+        // Adopt SSR content — strip basePath before matching unprefixed trie
+        const matched = this.core.match(new URL(this.stripBase(ssrRoute), location.origin));
         if (matched) {
           logger.ssr('adopt', ssrRoute);
           this.core.currentRoute = matched;
@@ -196,6 +199,17 @@ export class SpaHtmlRouter extends BaseRenderer {
   }
 
   /**
+   * Strip the HTML basePath prefix from a browser pathname.
+   * Browser URLs include the prefix (e.g. /html/about) but trie patterns don't.
+   */
+  private stripBase(pathname: string): string {
+    if (this.htmlBase && (pathname.startsWith(this.htmlBase + '/') || pathname === this.htmlBase)) {
+      return pathname === this.htmlBase ? '/' : pathname.slice(this.htmlBase.length);
+    }
+    return pathname;
+  }
+
+  /**
    * Handle navigation to a URL.
    *
    * Pure render function — URL updates and scroll restoration are handled
@@ -217,8 +231,11 @@ export class SpaHtmlRouter extends BaseRenderer {
       return;
     }
 
+    // Strip basePath prefix — trie holds unprefixed patterns
+    const routePath = this.stripBase(pathname);
+
     try {
-      const matched = this.core.match(urlObj);
+      const matched = this.core.match(new URL(routePath, location.origin));
 
       if (!matched) {
         logger.nav('not-found', pathname, pathname);
@@ -267,7 +284,7 @@ export class SpaHtmlRouter extends BaseRenderer {
         await this.renderStatusPage(error.status, pathname);
         return;
       }
-      await this.handleError(error, pathname);
+      await this.handleError(error, routePath);
     }
   }
 
@@ -280,7 +297,7 @@ export class SpaHtmlRouter extends BaseRenderer {
   ): Promise<void> {
     if (!this.slot) return;
 
-    const statusPage = this.core.matcher.getStatusPage(status);
+    const statusPage = this.core.getStatusPage(status);
 
     if (statusPage) {
       try {
@@ -342,10 +359,10 @@ export class SpaHtmlRouter extends BaseRenderer {
       error: error instanceof Error ? error : new Error(String(error)),
     });
 
-    const boundary = this.core.matcher.findErrorBoundary(pathname);
+    const boundary = this.core.findErrorBoundary(pathname);
     if (boundary && await this.tryRenderErrorModule(boundary.modulePath)) return;
 
-    const errorHandler = this.core.matcher.getErrorHandler();
+    const errorHandler = this.core.getErrorHandler();
     if (errorHandler && await this.tryRenderErrorModule(errorHandler.modulePath)) return;
 
     if (this.slot) {
@@ -367,7 +384,7 @@ export class SpaHtmlRouter extends BaseRenderer {
  * Calling this function twice returns the existing router with a warning.
  */
 export async function createSpaHtmlRouter(
-  manifest: RoutesManifest,
+  resolver: RouteResolver,
   options?: SpaHtmlRouterOptions,
 ): Promise<SpaHtmlRouter> {
   const g = globalThis as Record<string, unknown>;
@@ -375,7 +392,7 @@ export async function createSpaHtmlRouter(
     console.warn('eMroute: SPA router already initialized. Remove duplicate <script> tags.');
     return g.__emroute_router as SpaHtmlRouter;
   }
-  const router = new SpaHtmlRouter(manifest, options);
+  const router = new SpaHtmlRouter(resolver, options);
   await router.initialize();
   g.__emroute_router = router;
   return router;

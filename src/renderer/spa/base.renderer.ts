@@ -50,10 +50,10 @@ export abstract class BaseRenderer {
         const routePattern = hierarchy[i];
         const isLeaf = i === hierarchy.length - 1;
 
-        let route = this.core.matcher.findRoute(routePattern);
+        let route = this.core.findRoute(routePattern);
 
-        if (!route && routePattern === this.core.root) {
-          route = { ...DEFAULT_ROOT_ROUTE, pattern: this.core.root };
+        if (!route && routePattern === '/') {
+          route = DEFAULT_ROOT_ROUTE;
         }
 
         if (!route) {
@@ -113,7 +113,7 @@ export abstract class BaseRenderer {
 
       this.core.emit({
         type: 'load',
-        pathname: routeInfo.pattern,
+        pathname: routeInfo.pathname,
         params: routeInfo.params,
       });
     } catch (error) {

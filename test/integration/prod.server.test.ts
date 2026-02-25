@@ -67,7 +67,7 @@ describe('prod server', () => {
 
   test('setup - create servers for all modes', async () => {
     const server = await getServer('root');
-    expect(server.manifest.routes.length > 0).toBeTruthy();
+    expect(server.routeTree).toBeDefined();
     expect(server.htmlRouter !== null).toBeTruthy();
     expect(server.mdRouter !== null).toBeTruthy();
   });

@@ -25,8 +25,8 @@ GET /md/projects/42       → plain Markdown
 npm add @emkodev/emroute    # or bun add, pnpm add, yarn add
 ```
 
-> emroute ships TypeScript source. Your toolchain must handle `.ts` imports
-> (Bun, tsx, esbuild, etc.).
+Works on **Node**, **Bun**, and **Deno**. Node uses compiled JS; Bun and Deno
+use TypeScript source directly.
 
 For markdown rendering, add [@emkodev/emkoma](doc/08c-setup-emkoma.md) (built
 for emroute) or bring your own — [marked](doc/08a-setup-marked.md) and
@@ -134,12 +134,12 @@ publishes to npm. Full analysis:
 
 ## Getting Started
 
-See [Setup](doc/01-setup.md) and [First Route](doc/02-first-route.md).
+Pick your runtime: [Bun](doc/01a-setup-bun.md) | [Node](doc/01b-setup-node.md) | [Deno](doc/01c-setup-deno.md)
 
 ## Documentation
 
-- [Setup](doc/01-setup.md) — install and create a server
-- [First route](doc/02-first-route.md) — create your first page
+- Setup — [Bun](doc/01a-setup-bun.md), [Node](doc/01b-setup-node.md), [Deno](doc/01c-setup-deno.md)
+- [First route](doc/02-first-route.md) — route files and rendering modes
 - [Pages](doc/03-pages.md) — page components, companion files, data fetching
 - [Routing](doc/04-routing.md) — dynamic segments, catch-all, redirects
 - [Nesting](doc/05-nesting.md) — layouts, slots, passthrough pages, tips and tricks

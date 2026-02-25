@@ -8,6 +8,7 @@ export default tseslint.config(
     ignores: [
       'node_modules/',
       '.build/',
+      'dist/',
       'test/browser/fixtures/*.js',
       'server/vendor/',
     ],

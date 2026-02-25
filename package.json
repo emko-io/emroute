@@ -13,6 +13,8 @@
     "file-based",
     "framework",
     "bun",
+    "deno",
+    "node",
     "typescript",
     "markdown"
   ],
@@ -24,21 +26,75 @@
     "src/",
     "server/*.ts",
     "runtime/",
+    "dist/",
     "LICENSE",
     "README.md"
   ],
   "exports": {
-    ".": "./src/index.ts",
-    "./spa": "./src/renderer/spa/mod.ts",
-    "./overlay": "./src/overlay/mod.ts",
-    "./ssr/html": "./src/renderer/ssr/html.renderer.ts",
-    "./ssr/md": "./src/renderer/ssr/md.renderer.ts",
-    "./server": "./server/emroute.server.ts",
-    "./runtime": "./runtime/abstract.runtime.ts",
-    "./runtime/sitemap": "./runtime/sitemap.generator.ts",
-    "./runtime/bun/fs": "./runtime/bun/fs/bun-fs.runtime.ts",
-    "./runtime/bun/sqlite": "./runtime/bun/sqlite/bun-sqlite.runtime.ts",
-    "./runtime/universal/fs": "./runtime/universal/fs/universal-fs.runtime.ts"
+    ".": {
+      "bun": "./src/index.ts",
+      "deno": "./src/index.ts",
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    },
+    "./spa": {
+      "bun": "./src/renderer/spa/mod.ts",
+      "deno": "./src/renderer/spa/mod.ts",
+      "types": "./dist/src/renderer/spa/mod.d.ts",
+      "default": "./dist/src/renderer/spa/mod.js"
+    },
+    "./overlay": {
+      "bun": "./src/overlay/mod.ts",
+      "deno": "./src/overlay/mod.ts",
+      "types": "./dist/src/overlay/mod.d.ts",
+      "default": "./dist/src/overlay/mod.js"
+    },
+    "./ssr/html": {
+      "bun": "./src/renderer/ssr/html.renderer.ts",
+      "deno": "./src/renderer/ssr/html.renderer.ts",
+      "types": "./dist/src/renderer/ssr/html.renderer.d.ts",
+      "default": "./dist/src/renderer/ssr/html.renderer.js"
+    },
+    "./ssr/md": {
+      "bun": "./src/renderer/ssr/md.renderer.ts",
+      "deno": "./src/renderer/ssr/md.renderer.ts",
+      "types": "./dist/src/renderer/ssr/md.renderer.d.ts",
+      "default": "./dist/src/renderer/ssr/md.renderer.js"
+    },
+    "./server": {
+      "bun": "./server/emroute.server.ts",
+      "deno": "./server/emroute.server.ts",
+      "types": "./dist/server/emroute.server.d.ts",
+      "default": "./dist/server/emroute.server.js"
+    },
+    "./runtime": {
+      "bun": "./runtime/abstract.runtime.ts",
+      "deno": "./runtime/abstract.runtime.ts",
+      "types": "./dist/runtime/abstract.runtime.d.ts",
+      "default": "./dist/runtime/abstract.runtime.js"
+    },
+    "./runtime/sitemap": {
+      "bun": "./runtime/sitemap.generator.ts",
+      "deno": "./runtime/sitemap.generator.ts",
+      "types": "./dist/runtime/sitemap.generator.d.ts",
+      "default": "./dist/runtime/sitemap.generator.js"
+    },
+    "./runtime/bun/fs": {
+      "bun": "./runtime/bun/fs/bun-fs.runtime.ts",
+      "types": "./dist/runtime/bun/fs/bun-fs.runtime.d.ts",
+      "default": "./dist/runtime/bun/fs/bun-fs.runtime.js"
+    },
+    "./runtime/bun/sqlite": {
+      "bun": "./runtime/bun/sqlite/bun-sqlite.runtime.ts",
+      "types": "./dist/runtime/bun/sqlite/bun-sqlite.runtime.d.ts",
+      "default": "./dist/runtime/bun/sqlite/bun-sqlite.runtime.js"
+    },
+    "./runtime/universal/fs": {
+      "bun": "./runtime/universal/fs/universal-fs.runtime.ts",
+      "deno": "./runtime/universal/fs/universal-fs.runtime.ts",
+      "types": "./dist/runtime/universal/fs/universal-fs.runtime.d.ts",
+      "default": "./dist/runtime/universal/fs/universal-fs.runtime.js"
+    }
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -46,9 +102,12 @@
     "esbuild": "^0.27.3",
     "eslint": "^10.0.2",
     "playwright": "^1.58.2",
+    "typescript": "^5.9.3",
     "typescript-eslint": "^8.56.1"
   },
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "bun run build",
     "check": "bun x tsc --noEmit",
     "test": "bun test test/unit",
     "test:unit": "bun test test/unit",

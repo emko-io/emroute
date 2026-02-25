@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  File-based router with triple rendering. Zero dependencies.
+  File-based (but storage-agnostic) router with triple rendering. Zero dependencies.
 </p>
 
 ---

@@ -19,7 +19,9 @@ Add to `deno.json`:
 {
   "nodeModulesDir": "manual",
   "imports": {
-    "@emkodev/emroute": "npm:@emkodev/emroute"
+    "@emkodev/emroute": "npm:@emkodev/emroute",
+    "@emkodev/emroute/server": "npm:@emkodev/emroute/server",
+    "@emkodev/emroute/runtime/universal/fs": "npm:@emkodev/emroute/runtime/universal/fs"
   }
 }
 ```
@@ -30,8 +32,16 @@ Then install:
 deno install
 ```
 
-The `nodeModulesDir: "manual"` setting is needed so esbuild can resolve
-packages from `node_modules/` during bundling.
+`nodeModulesDir: "manual"` is required when using `UniversalFsRuntime`. It
+uses `createRequire()` to resolve esbuild during bundling, and the bundler
+itself needs `node_modules/` to resolve package imports. Without a physical
+`node_modules/` directory, module resolution during bundling will fail.
+
+If you need to avoid `node_modules/` entirely, you can create a custom
+Runtime that resolves modules differently. See [Runtime](./09-runtime.md)
+for details on implementing your own. For background on why emroute moved
+from JSR to npm, see
+[ADR-0017](./architecture/ADR-0017-move-to-bun-ecosystem.md).
 
 You'll also need a markdown renderer for `.page.md` files. See
 [Markdown Renderers](./08-markdown-renderer.md) for setup — [marked](./08a-setup-marked.md)
@@ -49,20 +59,22 @@ Deno has built-in TypeScript support. Add DOM types to your `deno.json`:
 }
 ```
 
-## Install esbuild (optional)
+## Install esbuild
 
-If you plan to use SPA mode (client-side navigation), add esbuild:
+Add esbuild to your import map — it's required for bundling (SPA modes, widgets):
 
 ```json
 {
   "imports": {
     "@emkodev/emroute": "npm:@emkodev/emroute",
+    "@emkodev/emroute/server": "npm:@emkodev/emroute/server",
+    "@emkodev/emroute/runtime/universal/fs": "npm:@emkodev/emroute/runtime/universal/fs",
     "esbuild": "npm:esbuild"
   }
 }
 ```
 
-Skip this if you only need server-side rendering (`spa: 'none'`).
+Skip this only if you use `spa: 'none'` and have no widgets.
 
 ## First route
 
@@ -104,14 +116,17 @@ Deno.serve({ port: 1420 }, async (req) => {
 console.log('http://localhost:1420/');
 ```
 
-Deno understands TypeScript natively. `UniversalFsRuntime` uses `node:` APIs
-which Deno supports through its Node compatibility layer.
+`UniversalFsRuntime` uses `node:` APIs which Deno supports through its Node
+compatibility layer.
 
 ## Run it
 
 ```bash
-deno run --allow-net --allow-read server.ts
+deno run --allow-net --allow-read --allow-write --allow-env --allow-run server.ts
 ```
+
+`--allow-write` is needed for bundle output. `--allow-run` is needed for
+esbuild's native binary.
 
 ## Verify
 

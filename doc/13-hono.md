@@ -26,12 +26,12 @@ See [Markdown Renderers](./08-markdown-renderer.md) for full setup with
 // server.ts
 import { Hono } from 'hono';
 import { createEmrouteServer } from '@emkodev/emroute/server';
-import { BunFsRuntime } from '@emkodev/emroute/runtime/bun/fs';
+import { UniversalFsRuntime } from '@emkodev/emroute/runtime/universal/fs';
 import { render } from './renderer.ts';
 
 const appRoot = import.meta.dirname!;
 
-const runtime = new BunFsRuntime(appRoot, {
+const runtime = new UniversalFsRuntime(appRoot, {
   routesDir: '/routes',
   entryPoint: '/main.ts',
 });

@@ -1,6 +1,6 @@
 {
   "name": "@emkodev/emroute",
-  "version": "1.6.0",
+  "version": "1.6.2",
   "description": "File-based router with triple rendering (SPA, SSR HTML, SSR Markdown). Zero dependencies.",
   "license": "BSD-3-Clause",
   "author": "emko.dev",
@@ -37,7 +37,8 @@
     "./runtime": "./runtime/abstract.runtime.ts",
     "./runtime/sitemap": "./runtime/sitemap.generator.ts",
     "./runtime/bun/fs": "./runtime/bun/fs/bun-fs.runtime.ts",
-    "./runtime/bun/sqlite": "./runtime/bun/sqlite/bun-sqlite.runtime.ts"
+    "./runtime/bun/sqlite": "./runtime/bun/sqlite/bun-sqlite.runtime.ts",
+    "./runtime/universal/fs": "./runtime/universal/fs/universal-fs.runtime.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -59,7 +59,8 @@ const mod = await runtime.loadModule('/routes/about.page.ts');
 // mod.default is the page component
 ```
 
-`BunFsRuntime` uses native `import()` (Bun understands TypeScript natively).
+`UniversalFsRuntime` and `BunFsRuntime` use native `import()` (Bun and Deno
+understand TypeScript natively; Node needs `--experimental-strip-types` or tsx).
 `BunSqliteRuntime` transpiles via `Bun.Transpiler` and imports from a blob URL.
 Your runtime can do whatever makes sense — compile, cache, fetch from a CDN.
 
@@ -70,7 +71,7 @@ JavaScript bundles. All output is written back through `this.command()`, so
 it works for any storage backend.
 
 ```typescript
-const runtime = new BunFsRuntime('my-app', {
+const runtime = new UniversalFsRuntime('my-app', {
   entryPoint: '/main.ts',
   // Auto-inferred: bundlePaths: { emroute: '/emroute.js', app: '/app.js' }
 });
@@ -92,9 +93,26 @@ No manual manifest generation needed.
 
 ## Built-in runtimes
 
+### UniversalFsRuntime
+
+Files on disk using only `node:` APIs (`node:fs/promises`, `node:path`,
+`node:module`) and esbuild for transpilation. Works on Node, Deno, and Bun.
+
+```typescript
+import { UniversalFsRuntime } from '@emkodev/emroute/runtime/universal/fs';
+
+const runtime = new UniversalFsRuntime('path/to/app', {
+  routesDir: '/routes',     // default
+  widgetsDir: '/widgets',   // default
+  entryPoint: '/main.ts',   // enables bundling
+});
+```
+
 ### BunFsRuntime
 
-Files on disk. The simplest runtime — delegates to the filesystem.
+Files on disk using Bun-native APIs (`Bun.file()`, `Bun.write()`,
+`Bun.Transpiler`) for better I/O performance. Same interface as
+`UniversalFsRuntime`, but only runs on Bun.
 
 ```typescript
 import { BunFsRuntime } from '@emkodev/emroute/runtime/bun/fs';

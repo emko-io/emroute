@@ -7,12 +7,12 @@ assets, and a **server** that handles requests and renders pages.
 
 ```ts
 import { createEmrouteServer } from '@emkodev/emroute/server';
-import { BunFsRuntime } from '@emkodev/emroute/runtime/bun/fs';
+import { UniversalFsRuntime } from '@emkodev/emroute/runtime/universal/fs';
 import { render } from './renderer.ts';
 
 const appRoot = import.meta.dirname!;
 
-const runtime = new BunFsRuntime(appRoot, {
+const runtime = new UniversalFsRuntime(appRoot, {
   routesDir: '/routes',
 });
 
@@ -33,10 +33,10 @@ Bun.serve({
 
 ## Runtime config
 
-`BunFsRuntime` takes the app root directory and a config object:
+The filesystem runtime takes the app root directory and a config object:
 
 ```ts
-const runtime = new BunFsRuntime(appRoot, {
+const runtime = new UniversalFsRuntime(appRoot, {
   routesDir: '/routes',        // Required. Where route files live.
   widgetsDir: '/widgets',      // Optional. Where widget files live.
   entryPoint: '/main.ts',      // Optional. SPA entry point for bundling.
@@ -88,7 +88,7 @@ Bun.serve({
 When using any SPA mode except `'none'`, set `entryPoint` in the runtime config:
 
 ```ts
-const runtime = new BunFsRuntime(appRoot, {
+const runtime = new UniversalFsRuntime(appRoot, {
   routesDir: '/routes',
   widgetsDir: '/widgets',
   entryPoint: '/main.ts',

@@ -22,7 +22,7 @@ GET /md/projects/42       → plain Markdown
 ## Install
 
 ```bash
-bun add @emkodev/emroute
+npm add @emkodev/emroute    # or bun add, pnpm add, yarn add
 ```
 
 > emroute ships TypeScript source. Your toolchain must handle `.ts` imports
@@ -116,18 +116,20 @@ export default new ProjectPage();
 - **Sitemap generation** — opt-in `sitemap.xml` from the routes manifest with support for dynamic route enumerators
 - **Dev server** — zero-config: auto-generates `main.ts`, `index.html`, and route/widget manifests. File watcher with hot reload and bundle serving
 
-## Why Bun?
+## Runtimes
+
+emroute ships two filesystem runtimes:
+
+- **`UniversalFsRuntime`** — uses only `node:` APIs and esbuild. Works on Node,
+  Deno, and Bun. The default choice for getting started.
+- **`BunFsRuntime`** — uses Bun-native APIs (`Bun.file()`, `Bun.write()`,
+  `Bun.Transpiler`) for better I/O performance in production on Bun.
+
+emroute ships TypeScript source. Your runtime must handle `.ts` imports natively
+(Bun, Deno) or via a loader (`tsx`, `node --experimental-strip-types`).
 
 emroute 1.5.x shipped on JSR (Deno's registry). Starting with 1.6.0, emroute
-publishes to npm and targets Bun as the primary runtime.
-
-**TL;DR:** JSR's design freezes the entire module graph at publish time. This
-breaks dynamic `import()` of consumer dependencies, peer dependency
-deduplication, and runtime resolution of package entry points for bundling — all
-things a framework with plugin architecture needs. The npm/`node_modules` model
-handles them with zero friction.
-
-Full analysis with documentation and issue references:
+publishes to npm. Full analysis:
 [ADR-0017 — Move to Bun ecosystem](doc/architecture/ADR-0017-move-to-bun-ecosystem.md).
 
 ## Getting Started
@@ -144,7 +146,7 @@ See [Setup](doc/01-setup.md) and [First Route](doc/02-first-route.md).
 - [Widgets](doc/06-widgets.md) — interactive islands with data lifecycle
 - [Server](doc/07-server.md) — `createEmrouteServer`, composition, static files
 - [Markdown renderers](doc/08-markdown-renderer.md) — pluggable parser interface and setup
-- [Runtime](doc/09-runtime.md) — abstract runtime, BunFsRuntime, BunSqliteRuntime
+- [Runtime](doc/09-runtime.md) — abstract runtime, UniversalFsRuntime, BunFsRuntime, BunSqliteRuntime
 - [SPA modes](doc/10-spa-mode.md) — none, leaf, root, only
 - [Error handling](doc/11-error-handling.md) — widget errors, boundaries, status pages
 - [Shadow DOM](doc/12-shadow-dom.md) — unified architecture, SSR hydration

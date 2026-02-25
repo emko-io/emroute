@@ -2,19 +2,23 @@
 
 ## Prerequisites
 
-- [Bun](https://bun.sh) v1.1+
+A JavaScript runtime that handles `.ts` imports:
+
+- [Bun](https://bun.sh) v1.1+ (native TypeScript)
+- [Deno](https://deno.land) v2+ (native TypeScript)
+- [Node.js](https://nodejs.org) v22+ with `--experimental-strip-types`, or via [tsx](https://github.com/privatenumber/tsx)
 
 ## Create a new project
 
 ```bash
 mkdir my-app && cd my-app
-bun init -y
+npm init -y               # or bun init -y
 ```
 
 ## Install emroute
 
 ```bash
-bun add @emkodev/emroute
+npm add @emkodev/emroute   # or bun add, pnpm add
 ```
 
 You'll also need a markdown renderer for `.page.md` files. See
@@ -23,8 +27,8 @@ and [markdown-it](./08b-setup-markdown-it.md) both work well.
 
 ## Configure TypeScript
 
-Bun's default `tsconfig.json` only includes `"lib": ["ESNext"]`. emroute
-components use DOM APIs (custom elements, URLPattern), so add DOM types:
+emroute components use DOM APIs (custom elements, URLPattern), so your
+`tsconfig.json` needs DOM types:
 
 ```json
 {
@@ -48,7 +52,7 @@ If you plan to use SPA mode (client-side navigation), install esbuild. It's
 used to bundle the browser entry point:
 
 ```bash
-bun add -d esbuild
+npm add -D esbuild         # or bun add -d esbuild
 ```
 
 Skip this if you only need server-side rendering (`spa: 'none'`).

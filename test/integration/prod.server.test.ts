@@ -7,7 +7,9 @@
  */
 
 import { test, expect, describe, beforeAll } from 'bun:test';
+import { resolve } from 'node:path';
 import { createEmrouteServer } from '../../server/emroute.server.ts';
+import { buildClientBundles } from '../../server/build.util.ts';
 import { UniversalFsRuntime } from '../../runtime/universal/fs/universal-fs.runtime.ts';
 import { WidgetRegistry } from '../../src/widget/widget.registry.ts';
 import { externalWidget } from '../browser/fixtures/assets/external.widget.ts';
@@ -15,7 +17,6 @@ import type { EmrouteServer } from '../../server/server-api.type.ts';
 import type { RuntimeConfig } from '../../runtime/abstract.runtime.ts';
 
 const FIXTURES_DIR = 'test/browser/fixtures';
-const _APP_ROOT = `${process.cwd()}/${FIXTURES_DIR}`;
 
 /** Create a request to the server. */
 function req(path: string): Request {
@@ -32,10 +33,18 @@ async function createTestEmrouteServer(
   const runtimeConfig: RuntimeConfig = {
     routesDir: '/routes',
     widgetsDir: '/widgets',
-    entryPoint: '/main.ts',
   };
 
   const runtime = new UniversalFsRuntime(FIXTURES_DIR, runtimeConfig);
+
+  // Build client bundles for modes that need them
+  if (spa === 'root' || spa === 'only' || spa === 'leaf') {
+    await buildClientBundles({
+      runtime,
+      root: resolve(FIXTURES_DIR),
+      spa,
+    });
+  }
 
   return await createEmrouteServer({
     widgets: manualWidgets,
@@ -216,31 +225,31 @@ describe('prod server', () => {
     expect(response!.headers.get('Location') ?? '').toContain('/html/about');
   });
 
-  test('handleRequest - bare / redirects to /html/ in root mode', async () => {
+  test('handleRequest - bare / redirects to /app/ in root mode', async () => {
     const server = await getServer('root');
     const response = await server.handleRequest(req('/'));
 
     expect(response !== null).toBeTruthy();
     expect(response!.status).toEqual(302);
-    expect(response!.headers.get('Location') ?? '').toContain('/html/');
+    expect(response!.headers.get('Location') ?? '').toContain('/app/');
   });
 
-  test('handleRequest - bare / redirects to /html/ in only mode', async () => {
+  test('handleRequest - bare / redirects to /app/ in only mode', async () => {
     const server = await getServer('only');
     const response = await server.handleRequest(req('/'));
 
     expect(response !== null).toBeTruthy();
     expect(response!.status).toEqual(302);
-    expect(response!.headers.get('Location') ?? '').toContain('/html/');
+    expect(response!.headers.get('Location') ?? '').toContain('/app/');
   });
 
-  test('handleRequest - bare /about redirects to /html/about in root mode', async () => {
+  test('handleRequest - bare /about redirects to /app/about in root mode', async () => {
     const server = await getServer('root');
     const response = await server.handleRequest(req('/about'));
 
     expect(response !== null).toBeTruthy();
     expect(response!.status).toEqual(302);
-    expect(response!.headers.get('Location') ?? '').toContain('/html/about');
+    expect(response!.headers.get('Location') ?? '').toContain('/app/about');
   });
 
   // ── File requests ──────────────────────────────────────────────────────

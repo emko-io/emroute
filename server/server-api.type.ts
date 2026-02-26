@@ -58,6 +58,13 @@ export interface EmrouteServerConfig {
 
   /** Enrich every ComponentContext with app-level services. */
   extendContext?: ContextProvider;
+
+  /**
+   * Pre-bundled module loaders (route + widget modules).
+   * When provided, skips `runtime.loadModule()` — used in the browser
+   * where modules are already bundled into app.js.
+   */
+  moduleLoaders?: Record<string, () => Promise<unknown>>;
 }
 
 /**

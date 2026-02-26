@@ -59,7 +59,8 @@ function createModuleLoaders(
   const paths = new Set<string>();
 
   function walk(node: RouteNode): void {
-    if (node.files?.ts) paths.add(node.files.ts);
+    const modulePath = node.files?.ts ?? node.files?.js;
+    if (modulePath) paths.add(modulePath);
     if (node.redirect) paths.add(node.redirect);
     if (node.errorBoundary) paths.add(node.errorBoundary);
 
@@ -107,6 +108,7 @@ async function importWidgets(
   widgetFiles: Record<string, { html?: string; md?: string; css?: string }>;
 }> {
   const registry = new WidgetRegistry();
+  const widgetFiles: Record<string, { html?: string; md?: string; css?: string }> = {};
 
   for (const entry of entries) {
     try {
@@ -118,8 +120,17 @@ async function importWidgets(
       const instance = extractWidgetExport(mod);
       if (!instance) continue;
       registry.add(instance);
+
+      // Prefer inlined __files from merged module over manifest paths
+      const inlined = mod.__files;
+      if (inlined && typeof inlined === 'object') {
+        widgetFiles[entry.name] = inlined as { html?: string; md?: string; css?: string };
+      } else if (entry.files) {
+        widgetFiles[entry.name] = entry.files;
+      }
     } catch (e) {
       console.error(`[emroute] Failed to load widget ${entry.modulePath}:`, e);
+      if (entry.files) widgetFiles[entry.name] = entry.files;
     }
   }
 
@@ -127,11 +138,6 @@ async function importWidgets(
     for (const widget of manual) {
       registry.add(widget);
     }
-  }
-
-  const widgetFiles: Record<string, { html?: string; md?: string; css?: string }> = {};
-  for (const entry of entries) {
-    if (entry.files) widgetFiles[entry.name] = entry.files;
   }
 
   return { registry, widgetFiles };
@@ -204,10 +210,7 @@ export async function createEmrouteServer(
     spa = 'root',
   } = config;
 
-  // Let the runtime know the SPA mode so bundle() can skip when 'none'.
-  runtime.config.spa = spa;
-
-  const { html: htmlBase, md: mdBase } = config.basePath ?? DEFAULT_BASE_PATH;
+  const { html: htmlBase, md: mdBase, app: appBase } = config.basePath ?? DEFAULT_BASE_PATH;
 
   // ── Route tree (read from runtime) ──────────────────────────────────
 
@@ -226,7 +229,7 @@ export async function createEmrouteServer(
     routeTree = await manifestResponse.json();
   }
 
-  const moduleLoaders = createModuleLoaders(routeTree, runtime);
+  const moduleLoaders = config.moduleLoaders ?? createModuleLoaders(routeTree, runtime);
   const resolver = new RouteTrie(routeTree);
 
   // ── Widgets (read from runtime) ────────────────────────────────────
@@ -238,9 +241,17 @@ export async function createEmrouteServer(
   const widgetsResponse = await runtime.query(WIDGETS_MANIFEST_PATH);
   if (widgetsResponse.status !== 404) {
     discoveredWidgetEntries = await widgetsResponse.json();
-    const imported = await importWidgets(discoveredWidgetEntries, runtime, config.widgets);
-    widgets = imported.registry;
-    widgetFiles = imported.widgetFiles;
+    if (config.widgets) {
+      // Widgets pre-provided (e.g. browser bundle) — just collect file paths
+      widgets = config.widgets;
+      for (const entry of discoveredWidgetEntries) {
+        if (entry.files) widgetFiles[entry.name] = entry.files;
+      }
+    } else {
+      const imported = await importWidgets(discoveredWidgetEntries, runtime);
+      widgets = imported.registry;
+      widgetFiles = imported.widgetFiles;
+    }
   }
 
   // ── SSR routers ──────────────────────────────────────────────────────
@@ -275,10 +286,6 @@ export async function createEmrouteServer(
 
   buildSsrRouters();
 
-  // ── Bundling (runtime decides whether/how to bundle) ────────────────
-
-  await runtime.bundle();
-
   // ── HTML shell ───────────────────────────────────────────────────────
 
   const title = config.title ?? 'emroute';
@@ -297,6 +304,7 @@ export async function createEmrouteServer(
 
     const mdPrefix = mdBase + '/';
     const htmlPrefix = htmlBase + '/';
+    const appPrefix = appBase + '/';
 
     // SSR Markdown: /md/*
     if (
@@ -356,7 +364,15 @@ export async function createEmrouteServer(
       }
     }
 
-    // /html/* or /md/* that wasn't handled by SSR (e.g. 'only' mode) — serve SPA shell
+    // /app/* — serve shell (browser JS takes over via createEmrouteApp)
+    if (pathname.startsWith(appPrefix) || pathname === appBase) {
+      return new Response(shell, {
+        status: 200,
+        headers: { 'Content-Type': 'text/html; charset=utf-8' },
+      });
+    }
+
+    // /html/* or /md/* that wasn't handled by SSR (e.g. 'only' mode) — serve shell
     if (
       pathname.startsWith(htmlPrefix) || pathname === htmlBase ||
       pathname.startsWith(mdPrefix) || pathname === mdBase
@@ -375,9 +391,10 @@ export async function createEmrouteServer(
       return null;
     }
 
-    // Bare paths — redirect to /html/* in all modes.
+    // Bare paths — redirect to /app/* in root/only modes, /html/* otherwise.
+    const base = (spa === 'root' || spa === 'only') ? appBase : htmlBase;
     const bare = pathname === '/' ? '' : pathname.slice(1).replace(/\/$/, '');
-    return Response.redirect(new URL(`${htmlBase}/${bare}`, url.origin), 302);
+    return Response.redirect(new URL(`${base}/${bare}`, url.origin), 302);
   }
 
   // ── Return ───────────────────────────────────────────────────────────

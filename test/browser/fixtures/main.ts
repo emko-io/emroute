@@ -1,37 +1,33 @@
-import { ComponentElement, createSpaHtmlRouter } from '@emkodev/emroute/spa';
-import { RouteTrie } from '@emkodev/emroute';
-import { createOverlayService } from '@emkodev/emroute/overlay';
+import { ComponentElement, createEmrouteApp, MarkdownElement, WidgetRegistry } from '@emkodev/emroute/spa';
+import { renderMarkdown } from '@emkodev/emkoma/render';
+import { createEmrouteServer } from '@emkodev/emroute/server';
+import { FetchRuntime } from '@emkodev/emroute/runtime/fetch';
 import { routeTree, moduleLoaders } from 'emroute:routes';
 import { widgetsManifest } from 'emroute:widgets';
 
-// Set up emko-md markdown renderer (side-effect import)
-import './emko.renderer.ts';
+MarkdownElement.setRenderer({ render: renderMarkdown });
 
-// Register discovered widgets from manifest
+// Pre-load widgets from the bundled manifest (already compiled into app.js)
+const widgets = new WidgetRegistry();
+
 for (const entry of widgetsManifest.widgets) {
   const mod = await widgetsManifest.moduleLoaders![entry.modulePath]() as Record<string, unknown>;
   for (const exp of Object.values(mod)) {
     if (exp && typeof exp === 'object' && 'getData' in exp) {
-      // Merge: discovered companion files as base, widget's own files override
+      const widget = exp as Parameters<typeof widgets.add>[0];
+      widgets.add(widget);
       const widgetFiles = (exp as { files?: Record<string, string> }).files;
       const files = widgetFiles ? { ...entry.files, ...widgetFiles } : entry.files;
-      ComponentElement.register(exp as Parameters<typeof ComponentElement.register>[0], files);
+      ComponentElement.register(widget, files);
       break;
     }
   }
 }
 
-const overlay = createOverlayService();
-const resolver = new RouteTrie(routeTree);
+// Merge route + widget module loaders into a single map
+const allLoaders = { ...moduleLoaders, ...widgetsManifest.moduleLoaders };
 
-const router = await createSpaHtmlRouter(resolver, {
-  extendContext: (base) => ({ ...base, overlay }),
-  moduleLoaders,
-});
-
-router.addEventListener((e) => {
-  if (e.type === 'navigate') overlay.dismissAll();
-});
-
-// Expose for console testing: __overlay.toast({ render(el) { el.textContent = 'hi' } })
-(globalThis as Record<string, unknown>).__overlay = overlay;
+const runtime = new FetchRuntime(location.origin);
+const markdownRenderer = { render: renderMarkdown };
+const server = await createEmrouteServer({ routeTree, widgets, moduleLoaders: allLoaders, markdownRenderer }, runtime);
+await createEmrouteApp(server);

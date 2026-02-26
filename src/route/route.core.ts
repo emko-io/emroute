@@ -26,10 +26,12 @@ export interface BasePath {
   html: string;
   /** Base path for SSR Markdown rendering (default: '/md') */
   md: string;
+  /** Base path for PWA/SPA rendering (default: '/app') */
+  app: string;
 }
 
 /** Default base paths — backward compatible with existing /html/ and /md/ prefixes. */
-export const DEFAULT_BASE_PATH: BasePath = { html: '/html', md: '/md' };
+export const DEFAULT_BASE_PATH: BasePath = { html: '/html', md: '/md', app: '/app' };
 
 const BLOCKED_PROTOCOLS = /^(javascript|data|vbscript):/i;
 
@@ -53,7 +55,7 @@ function toRouteConfig(resolved: ResolvedRoute): RouteConfig {
   return {
     pattern: resolved.pattern,
     type: node.redirect ? 'redirect' : 'page',
-    modulePath: node.redirect ?? node.files?.ts ?? node.files?.html ?? node.files?.md ?? '',
+    modulePath: node.redirect ?? node.files?.ts ?? node.files?.js ?? node.files?.html ?? node.files?.md ?? '',
     files: node.files,
   };
 }
@@ -154,7 +156,7 @@ export class RouteCore {
     return {
       pattern: `/${status}`,
       type: 'page',
-      modulePath: node.files?.ts ?? node.files?.html ?? node.files?.md ?? '',
+      modulePath: node.files?.ts ?? node.files?.js ?? node.files?.html ?? node.files?.md ?? '',
       files: node.files,
     };
   }
@@ -187,7 +189,7 @@ export class RouteCore {
     return {
       pattern,
       type: node.redirect ? 'redirect' : 'page',
-      modulePath: node.redirect ?? node.files?.ts ?? node.files?.html ?? node.files?.md ?? '',
+      modulePath: node.redirect ?? node.files?.ts ?? node.files?.js ?? node.files?.html ?? node.files?.md ?? '',
       files: node.files,
     };
   }
@@ -300,7 +302,22 @@ export class RouteCore {
   }
 
   /**
+   * Get inlined `__files` from a cached module (merged module pattern).
+   * Returns undefined if the module isn't cached or has no __files.
+   */
+  getModuleFiles(modulePath: string): { html?: string; md?: string; css?: string } | undefined {
+    const cached = this.moduleCache.get(modulePath);
+    if (!cached || typeof cached !== 'object') return undefined;
+    const files = (cached as Record<string, unknown>).__files;
+    if (!files || typeof files !== 'object') return undefined;
+    return files as { html?: string; md?: string; css?: string };
+  }
+
+  /**
    * Build a ComponentContext by extending RouteInfo with loaded file contents.
+   *
+   * When the route module is a merged module (contains `__files`), uses
+   * inlined content directly. Otherwise falls back to reading companion files.
    */
   async buildComponentContext(
     routeInfo: RouteInfo,
@@ -308,15 +325,29 @@ export class RouteCore {
     signal?: AbortSignal,
     isLeaf?: boolean,
   ): Promise<ComponentContext> {
-    const fetchFile = (filePath: string): Promise<string> =>
-      this.readFile(this.toAbsolutePath(filePath));
-
     const rf = route.files;
-    const [html, md, css] = await Promise.all([
-      rf?.html ? fetchFile(rf.html) : undefined,
-      rf?.md ? fetchFile(rf.md) : undefined,
-      rf?.css ? fetchFile(rf.css) : undefined,
-    ]);
+    const modulePath = rf?.ts ?? rf?.js;
+
+    // Try inlined __files from merged module (already cached by loadRouteContent)
+    const inlined = modulePath ? this.getModuleFiles(modulePath) : undefined;
+
+    let html: string | undefined;
+    let md: string | undefined;
+    let css: string | undefined;
+
+    if (inlined) {
+      html = inlined.html;
+      md = inlined.md;
+      css = inlined.css;
+    } else {
+      const fetchFile = (filePath: string): Promise<string> =>
+        this.readFile(this.toAbsolutePath(filePath));
+      [html, md, css] = await Promise.all([
+        rf?.html ? fetchFile(rf.html) : undefined,
+        rf?.md ? fetchFile(rf.md) : undefined,
+        rf?.css ? fetchFile(rf.css) : undefined,
+      ]);
+    }
 
     const base: ComponentContext = {
       ...routeInfo,

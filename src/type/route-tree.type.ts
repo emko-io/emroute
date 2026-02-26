@@ -13,6 +13,8 @@
 export interface RouteFiles {
   /** TypeScript module (e.g. "routes/about.page.ts") */
   ts?: string;
+  /** JavaScript module — merged module with inlined companions (e.g. "routes/about.page.js") */
+  js?: string;
   /** HTML template (e.g. "routes/about.page.html") */
   html?: string;
   /** Markdown content (e.g. "routes/about.page.md") */

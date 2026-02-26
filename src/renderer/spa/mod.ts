@@ -2,7 +2,7 @@
  * SPA (Browser) Module
  *
  * Everything needed for the browser bundle:
- * - SPA router with client-side navigation
+ * - EmrouteApp: Navigation API glue wired to an EmrouteServer
  * - Custom elements for rendering and hydrating SSR islands
  * - Widget registry (built-in widgets are opt-in)
  */
@@ -12,13 +12,7 @@ import { MarkdownElement } from '../../element/markdown.element.ts';
 import { ComponentElement } from '../../element/component.element.ts';
 import { WidgetRegistry } from '../../widget/widget.registry.ts';
 
-export { createSpaHtmlRouter, SpaHtmlRouter, type SpaHtmlRouterOptions } from './html.renderer.ts';
-export {
-  createHashRouter,
-  type HashRouteConfig,
-  HashRouter,
-  type HashRouterOptions,
-} from './hash.renderer.ts';
+export { createEmrouteApp, EmrouteApp, type EmrouteAppOptions } from './thin-client.ts';
 export { ComponentElement, MarkdownElement, RouterSlot, WidgetRegistry };
 export type { SpaMode, WidgetsManifest } from '../../type/widget.type.ts';
 

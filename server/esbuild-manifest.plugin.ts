@@ -11,6 +11,7 @@
 
 import type { Runtime } from '../runtime/abstract.runtime.ts';
 import { ROUTES_MANIFEST_PATH, WIDGETS_MANIFEST_PATH } from '../runtime/abstract.runtime.ts';
+import { EMROUTE_VIRTUAL_NS } from './build.util.ts';
 
 /** Escape a string for use inside a single-quoted JS/TS string literal. */
 function esc(value: string): string {
@@ -46,12 +47,12 @@ export function createManifestPlugin(options: ManifestPluginOptions): EsbuildPlu
       build.onResolve(
         { filter: /^emroute:/ },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (args: any) => ({ path: args.path, namespace: 'emroute' }),
+        (args: any) => ({ path: args.path, namespace: EMROUTE_VIRTUAL_NS }),
       );
 
       // ── Load virtual modules ────────────────────────────────────────
       build.onLoad(
-        { filter: /.*/, namespace: 'emroute' },
+        { filter: /.*/, namespace: EMROUTE_VIRTUAL_NS },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         async (args: any) => {
           if (args.path === 'emroute:routes') {
@@ -108,7 +109,8 @@ ${moduleLoadersCode}
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function collectModulePaths(node: any, paths: Set<string>): void {
-    if (node.files?.ts) paths.add(node.files.ts);
+    const modulePath = node.files?.ts ?? node.files?.js;
+    if (modulePath) paths.add(modulePath);
     if (node.errorBoundary) paths.add(node.errorBoundary);
     if (node.redirect) paths.add(node.redirect);
     if (node.children) {

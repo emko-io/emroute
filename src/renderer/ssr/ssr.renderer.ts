@@ -215,7 +215,7 @@ export abstract class SsrRenderer {
   ): Promise<{ content: string; title?: string }> {
     const files = route.files ?? {};
 
-    const tsModule = files.ts;
+    const tsModule = files.ts ?? files.js;
     const component: PageComponent = tsModule
       ? (await this.core.loadModule<{ default: PageComponent }>(tsModule)).default
       : defaultPageComponent;

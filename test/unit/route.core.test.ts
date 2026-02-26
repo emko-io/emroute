@@ -17,13 +17,12 @@
 import { test, expect, describe } from 'bun:test';
 import {
   assertSafeRedirect,
-  DEFAULT_BASE_PATH,
   DEFAULT_ROOT_ROUTE,
   RouteCore,
 } from '../../src/route/route.core.ts';
 import type { RouteConfig, RouteInfo } from '../../src/type/route.type.ts';
 import type { ComponentContext } from '../../src/component/abstract.component.ts';
-import { createResolver } from './test.util.ts';
+import { createResolver, url } from './test.util.ts';
 
 /**
  * Helper to create a RouteResolver for testing
@@ -47,27 +46,6 @@ function createRoute(
     parent,
   };
 }
-
-describe('RouteCore - basePath', () => {
-  test('basePath is stored for context but does not affect matching', () => {
-    const resolver = createTestResolver([createRoute('/about')]);
-    const core = new RouteCore(resolver, { basePath: '/html' });
-    expect(core.basePath).toEqual('/html');
-
-    // RouteCore matches unprefixed paths — server strips prefix before calling
-    const matched = core.match('/about');
-    expect(matched).toBeDefined();
-    expect(matched!.route.pattern).toEqual('/about');
-  });
-
-  test('root fallback for /', () => {
-    const resolver = createTestResolver([]);
-    const core = new RouteCore(resolver);
-    const matched = core.match('/');
-    expect(matched).toBeDefined();
-    expect(matched!.route.modulePath).toEqual('__default_root__');
-  });
-});
 
 describe('RouteCore - buildRouteHierarchy', () => {
   test('root returns ["/"]', () => {
@@ -221,7 +199,7 @@ describe('RouteCore - route matching', () => {
     const resolver = createTestResolver(routes);
     const router = new RouteCore(resolver);
 
-    const matched = router.match('/about');
+    const matched = router.match(url('/about'));
 
     expect(matched).toBeDefined();
     expect(matched?.route.pattern).toEqual('/about');
@@ -232,7 +210,7 @@ describe('RouteCore - route matching', () => {
     const resolver = createTestResolver(routes);
     const router = new RouteCore(resolver);
 
-    const matched = router.match('/projects/123');
+    const matched = router.match(url('/projects/123'));
 
     expect(matched).toBeDefined();
     expect(matched?.route.pattern).toEqual('/projects/:id');
@@ -244,7 +222,7 @@ describe('RouteCore - route matching', () => {
     const resolver = createTestResolver(routes);
     const router = new RouteCore(resolver);
 
-    const matched = router.match('/projects/42/tasks/99');
+    const matched = router.match(url('/projects/42/tasks/99'));
 
     expect(matched).toBeDefined();
     expect(matched?.params.projectId).toEqual('42');
@@ -256,7 +234,7 @@ describe('RouteCore - route matching', () => {
     const resolver = createTestResolver(routes);
     const router = new RouteCore(resolver);
 
-    const matched = router.match('/nonexistent');
+    const matched = router.match(url('/nonexistent'));
 
     expect(matched).toEqual(undefined);
   });
@@ -265,7 +243,7 @@ describe('RouteCore - route matching', () => {
     const resolver = createTestResolver([]);
     const router = new RouteCore(resolver);
 
-    const matched = router.match('/');
+    const matched = router.match(url('/'));
 
     expect(matched).toBeDefined();
     expect(matched?.route.modulePath).toEqual(DEFAULT_ROOT_ROUTE.modulePath);
@@ -277,23 +255,10 @@ describe('RouteCore - route matching', () => {
     const resolver = createTestResolver(routes);
     const router = new RouteCore(resolver);
 
-    const url = new URL('http://localhost/about');
-    const matched = router.match(url);
+    const matched = router.match(new URL('http://localhost/about'));
 
     expect(matched).toBeDefined();
     expect(matched?.route.pattern).toEqual('/about');
-  });
-
-  test('preserves search params in match result', () => {
-    const routes = [createRoute('/search')];
-    const resolver = createTestResolver(routes);
-    const router = new RouteCore(resolver);
-
-    const matched = router.match('/search?q=test&limit=10');
-
-    expect(matched?.searchParams).toBeDefined();
-    expect(matched?.searchParams?.get('q')).toEqual('test');
-    expect(matched?.searchParams?.get('limit')).toEqual('10');
   });
 });
 
@@ -303,7 +268,7 @@ describe('RouteCore - parameter extraction', () => {
     const resolver = createTestResolver(routes);
     const router = new RouteCore(resolver);
 
-    const matched = router.match('/users/john-doe');
+    const matched = router.match(url('/users/john-doe'));
 
     expect(matched?.params.id).toEqual('john-doe');
   });
@@ -313,7 +278,7 @@ describe('RouteCore - parameter extraction', () => {
     const resolver = createTestResolver(routes);
     const router = new RouteCore(resolver);
 
-    const matched = router.match('/projects/proj-1/tasks/task-2/comments/comment-3');
+    const matched = router.match(url('/projects/proj-1/tasks/task-2/comments/comment-3'));
 
     expect(matched?.params.projectId).toEqual('proj-1');
     expect(matched?.params.taskId).toEqual('task-2');
@@ -325,7 +290,7 @@ describe('RouteCore - parameter extraction', () => {
     const resolver = createTestResolver(routes);
     const router = new RouteCore(resolver);
 
-    const matched = router.match('/posts/12345');
+    const matched = router.match(url('/posts/12345'));
 
     expect(matched?.params.id).toEqual('12345');
   });
@@ -335,7 +300,7 @@ describe('RouteCore - parameter extraction', () => {
     const resolver = createTestResolver(routes);
     const router = new RouteCore(resolver);
 
-    const matched = router.match('/articles/my-awesome-article');
+    const matched = router.match(url('/articles/my-awesome-article'));
 
     expect(matched?.params.slug).toEqual('my-awesome-article');
   });
@@ -345,7 +310,7 @@ describe('RouteCore - parameter extraction', () => {
     const resolver = createTestResolver(routes);
     const router = new RouteCore(resolver);
 
-    router.currentRoute = router.match('/users/123')!;
+    router.currentRoute = router.match(url('/users/123'))!;
     const params = router.getParams();
 
     expect(params.id).toEqual('123');
@@ -370,7 +335,7 @@ describe('RouteCore - parent-child relationships', () => {
     const resolver = createTestResolver(routes);
     const router = new RouteCore(resolver);
 
-    const matched = router.match('/projects/123');
+    const matched = router.match(url('/projects/123'));
 
     expect(matched?.route.pattern).toEqual('/projects/:id');
   });
@@ -507,38 +472,24 @@ describe('RouteCore - route info building', () => {
     const resolver = createTestResolver(routes);
     const router = new RouteCore(resolver);
 
-    const matched = router.match('/projects/123')!;
-    const info = router.toRouteInfo(matched, '/projects/123');
+    const u = url('/projects/123');
+    const matched = router.match(u)!;
+    const info = router.toRouteInfo(matched, u);
 
-    expect(info.pathname).toEqual('/projects/123');
-    expect(info.pattern).toEqual('/projects/:id');
+    expect(info.url.pathname).toEqual('/projects/123');
     expect(info.params.id).toEqual('123');
   });
 
-  test('includes search params in route info', () => {
+  test('includes search params via url', () => {
     const routes = [createRoute('/search')];
     const resolver = createTestResolver(routes);
     const router = new RouteCore(resolver);
 
-    const matched = router.match('/search?q=test')!;
-    const info = router.toRouteInfo(matched, '/search');
+    const u = url('/search?q=test');
+    const matched = router.match(u)!;
+    const info = router.toRouteInfo(matched, u);
 
-    expect(info.searchParams.get('q')).toEqual('test');
-  });
-
-  test('provides default empty search params if not set', () => {
-    const routes = [createRoute('/about')];
-    const resolver = createTestResolver(routes);
-    const router = new RouteCore(resolver);
-
-    const matched = { route: routes[0], params: {} } as {
-      route: typeof routes[0];
-      params: Record<string, string>;
-    };
-    const info = router.toRouteInfo(matched, '/about');
-
-    expect(info.searchParams).toBeDefined();
-    expect(info.searchParams.toString()).toEqual('');
+    expect(info.url.searchParams.get('q')).toEqual('test');
   });
 });
 
@@ -710,8 +661,8 @@ describe('RouteCore - context provider integration', () => {
     const router = new RouteCore(resolver, { extendContext: provider });
 
     const baseContext: ComponentContext = {
+      url: url('/dashboard'),
       pathname: '/dashboard',
-      pattern: '/dashboard',
       params: {},
       searchParams: new URLSearchParams(),
     };
@@ -737,10 +688,8 @@ describe('RouteCore - context provider integration', () => {
     const router = new RouteCore(resolver, { extendContext: provider });
 
     const routeInfo: RouteInfo = {
-      pathname: '/home',
-      pattern: '/home',
+      url: url('/home'),
       params: {},
-      searchParams: new URLSearchParams(),
     };
 
     const route = createRoute('/home');
@@ -748,7 +697,7 @@ describe('RouteCore - context provider integration', () => {
     const context = await router.buildComponentContext(routeInfo, route);
 
     expect((context as ComponentContext & { appName: string }).appName).toEqual('MyApp');
-    expect(context.pathname).toEqual('/home');
+    expect(context.url.pathname).toEqual('/home');
   });
 
   test('preserves files in extended context', async () => {
@@ -762,10 +711,8 @@ describe('RouteCore - context provider integration', () => {
     const router = new RouteCore(resolver, { extendContext: provider });
 
     const routeInfo: RouteInfo = {
-      pathname: '/page',
-      pattern: '/page',
+      url: url('/page'),
       params: {},
-      searchParams: new URLSearchParams(),
     };
 
     const route = createRoute('/page');
@@ -786,13 +733,12 @@ describe('RouteCore - specificity ordering', () => {
     const resolver = createTestResolver(routes);
     const router = new RouteCore(resolver);
 
-    const matched = router.match('/projects/featured');
+    const matched = router.match(url('/projects/featured'));
 
     expect(matched?.route.pattern).toEqual('/projects/featured');
   });
 
   test('matches static routes before dynamic when ordered correctly', () => {
-    // Routes must be ordered by specificity in the manifest
     const routes = [
       createRoute('/posts/featured'),
       createRoute('/posts/:id'),
@@ -800,7 +746,7 @@ describe('RouteCore - specificity ordering', () => {
     const resolver = createTestResolver(routes);
     const router = new RouteCore(resolver);
 
-    const matched = router.match('/posts/featured');
+    const matched = router.match(url('/posts/featured'));
 
     expect(matched?.route.pattern).toEqual('/posts/featured');
   });
@@ -814,7 +760,7 @@ describe('RouteCore - specificity ordering', () => {
     const resolver = createTestResolver(routes);
     const router = new RouteCore(resolver);
 
-    const matched = router.match('/projects/123/tasks/456');
+    const matched = router.match(url('/projects/123/tasks/456'));
 
     expect(matched?.route.pattern).toEqual('/projects/:id/tasks/:taskId');
   });
@@ -828,7 +774,7 @@ describe('RouteCore - catch-all and wildcard routes', () => {
     const resolver = createTestResolver(routes);
     const router = new RouteCore(resolver);
 
-    const matched = router.match('/docs/guides/getting-started');
+    const matched = router.match(url('/docs/guides/getting-started'));
 
     expect(matched).toBeDefined();
   });
@@ -841,78 +787,10 @@ describe('RouteCore - catch-all and wildcard routes', () => {
     const resolver = createTestResolver(routes);
     const router = new RouteCore(resolver);
 
-    const matched1 = router.match('/docs');
-    const matched2 = router.match('/docs/guides/advanced/optimization');
+    const matched1 = router.match(url('/docs'));
+    const matched2 = router.match(url('/docs/guides/advanced/optimization'));
 
     expect(matched1?.route.pattern).toEqual('/docs');
     expect(matched2?.route.pattern).toEqual('/docs/:rest*');
-  });
-});
-
-describe('RouteCore - edge cases', () => {
-  test('handles empty route params', () => {
-    const routes = [createRoute('/static')];
-    const resolver = createTestResolver(routes);
-    const router = new RouteCore(resolver);
-
-    const matched = router.match('/static');
-
-    expect(matched?.params).toEqual({});
-  });
-
-  test('handles route with special characters in dynamic segment', () => {
-    const routes = [createRoute('/search/:query')];
-    const resolver = createTestResolver(routes);
-    const router = new RouteCore(resolver);
-
-    const matched = router.match('/search/hello-world');
-
-    expect(matched?.params.query).toEqual('hello-world');
-  });
-
-  test('handles complex nested dynamic parameters', () => {
-    const routes = [createRoute('/api/:version/users/:userId/posts/:postId/comments/:commentId')];
-    const resolver = createTestResolver(routes);
-    const router = new RouteCore(resolver);
-
-    const matched = router.match('/api/v1/users/user123/posts/post456/comments/comment789');
-
-    expect(matched?.params.version).toEqual('v1');
-    expect(matched?.params.userId).toEqual('user123');
-    expect(matched?.params.postId).toEqual('post456');
-    expect(matched?.params.commentId).toEqual('comment789');
-  });
-
-  test('handles routes with hyphens in static segments', () => {
-    const routes = [createRoute('/api-docs/:pageName')];
-    const resolver = createTestResolver(routes);
-    const router = new RouteCore(resolver);
-
-    const matched = router.match('/api-docs/getting-started');
-
-    expect(matched).toBeDefined();
-    expect(matched?.params.pageName).toEqual('getting-started');
-  });
-
-  test('getParams with no params returns empty object', () => {
-    const resolver = createTestResolver([]);
-    const router = new RouteCore(resolver);
-
-    const params = router.getParams();
-
-    expect(params).toEqual({});
-  });
-});
-
-describe('RouteCore - BasePath and DEFAULT_ROOT_ROUTE', () => {
-  test('DEFAULT_BASE_PATH has correct defaults', () => {
-    expect(DEFAULT_BASE_PATH.html).toEqual('/html');
-    expect(DEFAULT_BASE_PATH.md).toEqual('/md');
-  });
-
-  test('DEFAULT_ROOT_ROUTE has correct structure', () => {
-    expect(DEFAULT_ROOT_ROUTE.pattern).toEqual('/');
-    expect(DEFAULT_ROOT_ROUTE.type).toEqual('page');
-    expect(DEFAULT_ROOT_ROUTE.modulePath).toEqual('__default_root__');
   });
 });

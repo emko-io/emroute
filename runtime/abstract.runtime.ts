@@ -34,24 +34,9 @@ export const DEFAULT_WIDGETS_DIR = '/widgets';
 export const ROUTES_MANIFEST_PATH = '/routes.manifest.json';
 export const WIDGETS_MANIFEST_PATH = '/widgets.manifest.json';
 
-export const EMROUTE_EXTERNALS = [
-  '@emkodev/emroute/spa',
-  '@emkodev/emroute/overlay',
-  '@emkodev/emroute',
-] as const;
-
 export interface RuntimeConfig {
   routesDir?: string;
   widgetsDir?: string;
-  /** SPA mode. When 'none', bundling is skipped entirely. */
-  spa?: 'none' | 'leaf' | 'root' | 'only';
-  /** Consumer's SPA entry point (e.g. '/main.ts'). Skips app bundle when absent. */
-  entryPoint?: string;
-  bundlePaths?: {
-    emroute: string;
-    app: string;
-    widgets?: string;
-  };
 }
 
 /**
@@ -98,68 +83,6 @@ export abstract class Runtime {
    */
   loadModule(_path: string): Promise<unknown> {
     throw new Error(`loadModule not implemented for ${this.constructor.name}`);
-  }
-
-  static transpile(_ts: string): Promise<string> {
-    throw new Error('Not implemented');
-  }
-
-  /**
-   * Build client bundles. Called by the server after manifests are written.
-   * No-op by default — override in runtimes that support bundling.
-   */
-  bundle(): Promise<void> {
-    return Promise.resolve();
-  }
-
-  /**
-   * Generate an HTML shell (`index.html`) if one doesn't already exist.
-   * Writes through `this.command()` so it works for any runtime.
-   */
-  protected async writeShell(
-    paths: { emroute: string; app: string; widgets?: string },
-  ): Promise<void> {
-    if ((await this.query('/index.html')).status !== 404) return;
-
-    const imports: Record<(typeof EMROUTE_EXTERNALS)[number], string> = Object.fromEntries(
-      EMROUTE_EXTERNALS.map((pkg) => [pkg, paths.emroute]),
-    ) as Record<(typeof EMROUTE_EXTERNALS)[number], string>;
-    const importMap = JSON.stringify({ imports }, null, 2);
-
-    const scripts = [
-      `<script type="importmap">\n${importMap}\n  </script>`,
-    ];
-    if (this.config.entryPoint) {
-      scripts.push(`<script type="module" src="${paths.app}"></script>`);
-    }
-
-    const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>emroute</title>
-  <style>@view-transition { navigation: auto; } router-slot { display: contents; }</style>
-</head>
-<body>
-  <router-slot></router-slot>
-  ${scripts.join('\n  ')}
-</body>
-</html>`;
-
-    await this.command('/index.html', { body: html });
-  }
-
-  static compress(
-    _data: Uint8Array,
-    _encoding: 'br' | 'gzip',
-  ): Promise<Uint8Array> {
-    throw new Error('Not implemented');
-  }
-
-  /** Stop the bundler subprocess if running. No-op by default. */
-  static stopBundler(): Promise<void> {
-    return Promise.resolve();
   }
 
   // ── Manifest resolution ─────────────────────────────────────────────
@@ -249,7 +172,7 @@ export abstract class Runtime {
       const dirSegments = parts.slice(0, -1);
 
       // Parse filename: name.kind.ext (e.g. "about.page.ts", "[id].page.html", "index.error.ts")
-      const match = filename.match(/^(.+?)\.(page|error|redirect)\.(ts|html|md|css)$/);
+      const match = filename.match(/^(.+?)\.(page|error|redirect)\.(ts|js|html|md|css)$/);
       if (!match) continue;
 
       const [, name, kind, ext] = match;
@@ -297,7 +220,6 @@ export abstract class Runtime {
     pathPrefix?: string,
   ): Promise<WidgetManifestEntry[]> {
     const COMPANION_EXTENSIONS = ['html', 'md', 'css'] as const;
-    const WIDGET_FILE_SUFFIX = '.widget.ts';
     const entries: WidgetManifestEntry[] = [];
 
     const trailingDir = widgetsDir.endsWith('/') ? widgetsDir : widgetsDir + '/';
@@ -308,10 +230,15 @@ export abstract class Runtime {
       if (!item.endsWith('/')) continue;
 
       const name = item.slice(0, -1);
-      const moduleFile = `${name}${WIDGET_FILE_SUFFIX}`;
-      const modulePath = `${trailingDir}${name}/${moduleFile}`;
 
-      if ((await this.query(modulePath)).status === 404) continue;
+      // Try .widget.ts first, then .widget.js
+      let moduleFile = `${name}.widget.ts`;
+      let modulePath = `${trailingDir}${name}/${moduleFile}`;
+      if ((await this.query(modulePath)).status === 404) {
+        moduleFile = `${name}.widget.js`;
+        modulePath = `${trailingDir}${name}/${moduleFile}`;
+        if ((await this.query(modulePath)).status === 404) continue;
+      }
 
       const prefix = pathPrefix ? `${pathPrefix}/` : '';
       const entry: WidgetManifestEntry = {

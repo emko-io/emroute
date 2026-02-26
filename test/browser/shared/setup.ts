@@ -6,10 +6,9 @@
  */
 
 import { createEmrouteServer } from '../../../server/emroute.server.ts';
+import { buildClientBundles } from '../../../server/build.util.ts';
 import { BunFsRuntime } from '../../../runtime/bun/fs/bun-fs.runtime.ts';
-import {
-  type RuntimeConfig,
-} from '../../../runtime/abstract.runtime.ts';
+import type { RuntimeConfig } from '../../../runtime/abstract.runtime.ts';
 
 import { WidgetRegistry } from '../../../src/widget/widget.registry.ts';
 import type { MarkdownRenderer } from '../../../src/type/markdown.type.ts';
@@ -17,6 +16,7 @@ import { renderMarkdown } from '@emkodev/emkoma/render';
 import { externalWidget } from '../fixtures/assets/external.widget.ts';
 import type { SpaMode } from '../../../src/type/widget.type.ts';
 
+import { resolve } from 'node:path';
 import { type Browser, chromium, type Page } from 'playwright';
 
 const FIXTURES_DIR = 'test/browser/fixtures';
@@ -30,25 +30,25 @@ export interface TestServer {
 export async function createTestServer(options: {
   mode: SpaMode;
   port: number;
-  entryPoint?: string;
 }): Promise<TestServer> {
-  const { mode, port, entryPoint: customEntry } = options;
-
-  // Consumer main.ts creates the SPA router — only use it for modes that need routing.
-  const defaultEntry = (mode === 'root' || mode === 'only') ? 'main.ts' : undefined;
-  const entryPoint = customEntry ?? defaultEntry;
+  const { mode, port } = options;
 
   const runtimeConfig: RuntimeConfig = {
     routesDir: '/routes',
     widgetsDir: '/widgets',
   };
 
-  if (entryPoint) {
-    runtimeConfig.entryPoint = `/${entryPoint}`;
-  }
-
   // Create runtime with config (auto-discovers routes + widgets manifests)
   const runtime = new BunFsRuntime(FIXTURES_DIR, runtimeConfig);
+
+  // Build client bundles for modes that need them
+  if (mode === 'root' || mode === 'only' || mode === 'leaf') {
+    await buildClientBundles({
+      runtime,
+      root: resolve(FIXTURES_DIR),
+      spa: mode,
+    });
+  }
 
   // Server-side markdown renderer via emkoma
   const markdownRenderer: MarkdownRenderer = { render: renderMarkdown };
@@ -57,7 +57,7 @@ export async function createTestServer(options: {
   const manualWidgets = new WidgetRegistry();
   manualWidgets.add(externalWidget);
 
-  // Create emroute server (reads manifests from runtime, bundles via virtual plugin)
+  // Create emroute server (reads manifests from runtime)
   const emroute = await createEmrouteServer({
     widgets: manualWidgets,
     markdownRenderer,

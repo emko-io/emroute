@@ -11,6 +11,7 @@
  */
 
 import type { Runtime } from '../../runtime/abstract.runtime.ts';
+import { EMROUTE_VIRTUAL_NS } from '../../server/build.util.ts';
 
 /** Synthetic prefix for runtimes without a filesystem root (e.g. SQLite). */
 export const VIRTUAL_ROOT = '/@emroute-virtual';
@@ -46,7 +47,7 @@ export function createRuntimeLoaderPlugin(options: RuntimeLoaderOptions): Esbuil
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         async (args: any) => {
           if (args.path.startsWith('.') || args.path.startsWith('/')) return undefined;
-          if (args.path.startsWith('emroute:')) return undefined;
+          if (args.path.startsWith(EMROUTE_VIRTUAL_NS + ':')) return { path: args.path, namespace: EMROUTE_VIRTUAL_NS };
           return build.resolve(args.path, { resolveDir: process.cwd(), kind: args.kind });
         },
       );

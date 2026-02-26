@@ -170,21 +170,31 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
     const tagName = this.tagName.toLowerCase();
     const lazyLoader = ComponentElement.lazyLoaders.get(tagName);
     if (lazyLoader) {
-      let modulePromise = ComponentElement.lazyModules.get(tagName);
-      if (!modulePromise) {
-        modulePromise = lazyLoader();
-        ComponentElement.lazyModules.set(tagName, modulePromise);
-      }
-      const mod = await modulePromise as Record<string, unknown>;
-      for (const exp of Object.values(mod)) {
-        if (exp && typeof exp === 'object' && 'getData' in exp) {
-          const WidgetClass = exp.constructor as new () => Component<TParams, TData>;
-          this.component = new WidgetClass();
-          break;
+      try {
+        let modulePromise = ComponentElement.lazyModules.get(tagName);
+        if (!modulePromise) {
+          modulePromise = lazyLoader();
+          ComponentElement.lazyModules.set(tagName, modulePromise);
         }
-        if (typeof exp === 'function' && (exp as { prototype?: { getData?: unknown } }).prototype?.getData) {
-          this.component = new (exp as new () => Component<TParams, TData>)();
-          break;
+        const mod = await modulePromise as Record<string, unknown>;
+        for (const exp of Object.values(mod)) {
+          if (exp && typeof exp === 'object' && 'getData' in exp) {
+            const WidgetClass = exp.constructor as new () => Component<TParams, TData>;
+            this.component = new WidgetClass();
+            break;
+          }
+          if (typeof exp === 'function' && (exp as { prototype?: { getData?: unknown } }).prototype?.getData) {
+            this.component = new (exp as new () => Component<TParams, TData>)();
+            break;
+          }
+        }
+      } catch {
+        // Module failed to load (e.g. raw .ts served without transpilation).
+        // SSR content is already visible — skip hydration gracefully.
+        if (this.hasAttribute(SSR_ATTR)) {
+          this.removeAttribute(SSR_ATTR);
+          this.signalReady();
+          return;
         }
       }
     }

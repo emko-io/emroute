@@ -132,4 +132,8 @@ export class BunFsRuntime extends Runtime {
     return import(this.root + path);
   }
 
+  override async transpile(source: string): Promise<string> {
+    const transpiler = new Bun.Transpiler({ loader: 'ts' });
+    return transpiler.transformSync(source);
+  }
 }

@@ -255,7 +255,8 @@ function buildLazyLoaders(
 
   const loaders: Record<string, () => Promise<unknown>> = {};
   for (const path of paths) {
-    loaders[path] = () => runtime.loadModule(path);
+    const absolute = path.startsWith('/') ? path : '/' + path;
+    loaders[path] = () => runtime.loadModule(absolute);
   }
   return loaders;
 }

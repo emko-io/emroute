@@ -12,5 +12,9 @@ test/browser/fixtures/emroute.js
 test/browser/fixtures/widgets.js
 test/browser/fixtures/app.js
 test/browser/fixtures/index.html
+test/browser/fixtures/routes.manifest.json
+test/browser/fixtures/widgets.manifest.json
+test/browser/fixtures/routes/**/*.js
+test/browser/fixtures/widgets/**/*.js
 test/browser/fixtures/assets/*.wasm
 .claude/

@@ -85,6 +85,14 @@ export abstract class Runtime {
     throw new Error(`loadModule not implemented for ${this.constructor.name}`);
   }
 
+  /**
+   * Transpile TypeScript source to JavaScript.
+   * Used by the build step to produce browser-loadable .js modules.
+   */
+  transpile(_source: string): Promise<string> {
+    throw new Error(`transpile not implemented for ${this.constructor.name}`);
+  }
+
   // ── Manifest resolution ─────────────────────────────────────────────
 
   private routesManifestCache: Response | null = null;

@@ -8,7 +8,9 @@
  * Requires esbuild as a devDependency in the consumer project.
  */
 
+import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
+import { resolve } from 'node:path';
 import type { Runtime } from '../runtime/abstract.runtime.ts';
 import { DEFAULT_ROUTES_DIR, DEFAULT_WIDGETS_DIR } from '../runtime/abstract.runtime.ts';
 import { createManifestPlugin } from './esbuild-manifest.plugin.ts';
@@ -37,7 +39,7 @@ export interface BuildOptions {
   /** Consumer's SPA entry point (e.g. '/main.ts'). When absent, auto-generates one. */
   entryPoint?: string;
   /** Output paths for the bundles. */
-  bundlePaths?: { emroute: string; app: string; widgets?: string };
+  bundlePaths?: { emroute: string; app: string };
 }
 
 const DEFAULT_BUNDLE_PATHS = { emroute: '/emroute.js', app: '/app.js' };
@@ -46,7 +48,7 @@ const DEFAULT_BUNDLE_PATHS = { emroute: '/emroute.js', app: '/app.js' };
  * Build client bundles and write them into the runtime.
  *
  * Produces:
- * - emroute.js — the @emkodev/emroute/spa bundle (import-mapped)
+ * - emroute.js — pre-built from dist/ (no esbuild needed for this)
  * - app.js — consumer entry point with routeTree, FetchRuntime, createEmrouteApp
  * - index.html — shell with import map + script tags (if not already present)
  */
@@ -56,35 +58,15 @@ export async function buildClientBundles(options: BuildOptions): Promise<void> {
 
   const paths = options.bundlePaths ?? DEFAULT_BUNDLE_PATHS;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const esbuild = await loadEsbuild() as any;
-  const builds: Promise<{ outputFiles: { path: string; contents: Uint8Array }[] }>[] = [];
-  const shared = { bundle: true, write: false, format: 'esm' as const, platform: 'browser' as const };
-  const runtimeLoader = createRuntimeLoaderPlugin({ runtime, root });
-
-  // Emroute browser bundle — combined entry re-exporting all browser-needed modules
-  const combinedEntry = [
-    `export * from '@emkodev/emroute/spa';`,
-    `export { createEmrouteServer } from '@emkodev/emroute/server';`,
-    `export { FetchRuntime } from '@emkodev/emroute/runtime/fetch';`,
-  ].join('\n');
+  // Copy pre-built emroute.js from the package dist/
   const consumerRequire = createRequire(root + '/');
-  builds.push(esbuild.build({
-    ...shared,
-    stdin: { contents: combinedEntry, resolveDir: root, loader: 'ts' },
-    outfile: `${root}${paths.emroute}`,
-    plugins: [{
-      name: 'resolve-emroute',
-      setup(build: { onResolve: (opts: { filter: RegExp }, cb: (args: { path: string }) => { path: string } | undefined) => void }) {
-        build.onResolve({ filter: /^@emkodev\/emroute/ }, (args: { path: string }) => {
-          try { return { path: consumerRequire.resolve(args.path) }; }
-          catch { return undefined; }
-        });
-      },
-    }],
-  }));
+  const emrouteJsPath = resolvePrebuiltBundle(consumerRequire);
+  const emrouteJs = await readFile(emrouteJsPath);
+  await runtime.command(paths.emroute, { body: emrouteJs });
 
   // App bundle — generate main.ts if absent, virtual plugin resolves manifests
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const esbuild = await loadEsbuild() as any;
   const ep = entryPoint ?? '/main.ts';
   if ((await runtime.query(ep)).status === 404) {
     const hasRoutes = (await runtime.query((runtime.config.routesDir ?? DEFAULT_ROUTES_DIR) + '/')).status !== 404;
@@ -94,44 +76,48 @@ export async function buildClientBundles(options: BuildOptions): Promise<void> {
   }
 
   const manifestPlugin = createManifestPlugin({ runtime, resolveDir: root });
-  builds.push(esbuild.build({
-    ...shared,
+  const runtimeLoader = createRuntimeLoaderPlugin({ runtime, root });
+
+  const result = await esbuild.build({
+    bundle: true,
+    write: false,
+    format: 'esm' as const,
+    platform: 'browser' as const,
     entryPoints: [`${root}${ep}`],
     outfile: `${root}${paths.app}`,
     external: [...EMROUTE_EXTERNALS],
     plugins: [manifestPlugin, runtimeLoader],
-  }));
+  });
 
-  // Widgets bundle
-  if (paths.widgets) {
-    const widgetsTsPath = paths.widgets.replace('.js', '.ts');
-    if ((await runtime.query(widgetsTsPath)).status !== 404) {
-      builds.push(esbuild.build({
-        ...shared,
-        entryPoints: [`${root}${widgetsTsPath}`],
-        outfile: `${root}${paths.widgets}`,
-        external: [...EMROUTE_EXTERNALS],
-        plugins: [runtimeLoader],
-      }));
-    }
-  }
-
-  const results = await Promise.all(builds);
-
-  // Write all output files through the runtime
-  for (const result of results) {
-    for (const file of result.outputFiles) {
-      const runtimePath = file.path.startsWith(root)
-        ? file.path.slice(root.length)
-        : '/' + file.path;
-      await runtime.command(runtimePath, { body: file.contents as unknown as BodyInit });
-    }
+  for (const file of result.outputFiles) {
+    const runtimePath = file.path.startsWith(root)
+      ? file.path.slice(root.length)
+      : '/' + file.path;
+    await runtime.command(runtimePath, { body: file.contents as unknown as BodyInit });
   }
 
   // Write shell (index.html) if not already present
   await writeShell(runtime, paths, ep);
 
   await esbuild.stop();
+}
+
+/**
+ * Resolve the pre-built dist/emroute.js from the consumer's node_modules.
+ * Falls back to the local dist/ when running from the source repo.
+ */
+function resolvePrebuiltBundle(require: NodeRequire): string {
+  try {
+    const spaEntry = require.resolve('@emkodev/emroute/spa');
+    // Compiled: .../dist/src/renderer/spa/mod.js → .../dist/emroute.js
+    const distMatch = spaEntry.match(/^(.+\/dist\/)src\/renderer\/spa\/mod\.js$/);
+    if (distMatch) return distMatch[1] + 'emroute.js';
+    // Source (Bun): .../src/renderer/spa/mod.ts → .../dist/emroute.js
+    const srcMatch = spaEntry.match(/^(.+\/)src\/renderer\/spa\/mod\.ts$/);
+    if (srcMatch) return srcMatch[1] + 'dist/emroute.js';
+  } catch { /* not installed as dependency */ }
+  // Last resort
+  return resolve(process.cwd(), 'dist/emroute.js');
 }
 
 // ── Shell generation ──────────────────────────────────────────────────

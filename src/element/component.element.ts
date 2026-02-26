@@ -155,10 +155,12 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
     const files = await this.loadFiles();
     if (signal.aborted) return;
 
+    const currentUrl = globalThis.location ? new URL(location.href) : new URL('http://localhost/');
     const base: ComponentContext = {
-      pathname: globalThis.location?.pathname ?? '/',
-      pattern: '',
-      params: {},
+      url: currentUrl,
+      pathname: currentUrl.pathname,
+      searchParams: currentUrl.searchParams,
+      params: this.params ?? {},
       files: (files.html || files.md || files.css) ? files : undefined,
     };
     this.context = ComponentElement.extendContext ? ComponentElement.extendContext(base) : base;

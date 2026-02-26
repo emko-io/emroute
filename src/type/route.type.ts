@@ -31,6 +31,9 @@ export interface RouteFiles {
   /** TypeScript module path (.page.ts) */
   ts?: string;
 
+  /** JavaScript module — merged module with inlined companions (.page.js) */
+  js?: string;
+
   /** HTML template path (.page.html) */
   html?: string;
 

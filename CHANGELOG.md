@@ -5,6 +5,55 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.6-beta.4] - 2026-02-26
+
+### Changed
+
+- **SPA replaced with thin client** — deleted `SpaBaseRouter`, `SpaHashRouter`,
+  `SpaHtmlRouter` (832 lines). Replaced with `EmrouteApp` (165 lines) that wires
+  Navigation API to an `EmrouteServer` running in the browser via `FetchRuntime`.
+  Same server, same pipeline, one-third the code.
+
+- **Build separated from Runtime** — `bundle()`, `transpile()`, `compress()`,
+  `stopBundler()`, `writeShell()` removed from `Runtime`. Bundling is now a
+  standalone `buildClientBundles()` function in `server/build.util.ts`. Runtime
+  is pure storage + serving.
+
+- **Pre-built browser bundle** — `dist/emroute.js` is produced at `bun run build`
+  time (tsc + esbuild). `buildClientBundles()` copies it from dist/ instead of
+  re-bundling with esbuild. Only consumer code (`app.js`) needs esbuild at build time.
+
+- **Sitemap generator updated for RouteNode tree** — `generateSitemap()` now
+  takes a `RouteNode` tree instead of the removed `RoutesManifest` array.
+
+### Added
+
+- **`FetchRuntime`** — browser-compatible Runtime that delegates reads to the
+  server via `fetch()`. Export: `@emkodev/emroute/runtime/fetch`.
+- **`EmrouteApp` + `createEmrouteApp`** — Navigation API glue for `/app/*`
+  routes. Intercepts links, renders via `htmlRouter.render()`, injects content
+  with view transitions.
+- **`buildClientBundles()`** — standalone build function. Produces `emroute.js`
+  (pre-built), `app.js` (consumer entry), `index.html` (shell with import map).
+  Export: `@emkodev/emroute/server/build`.
+- **`EmrouteServerConfig.moduleLoaders`** — pre-bundled module loaders for
+  browser use. Skips `runtime.loadModule()` when provided.
+- **`.js` merged module support** — `RouteFiles.js` field, scanRoutes/scanWidgets
+  detect `.js` files, `buildComponentContext` reads inlined `__files` from modules.
+- **`scripts/bundle-browser.ts`** — post-tsc esbuild step for `dist/emroute.js`.
+
+### Removed
+
+- **`SpaBaseRouter`**, **`SpaHashRouter`**, **`SpaHtmlRouter`** — replaced by
+  `EmrouteApp` thin client.
+- **`Runtime.bundle()`**, **`Runtime.transpile()`**, **`Runtime.compress()`**,
+  **`Runtime.stopBundler()`**, **`Runtime.writeShell()`** — build is no longer
+  a runtime concern.
+- **`RuntimeConfig.entryPoint`**, **`RuntimeConfig.bundlePaths`**,
+  **`RuntimeConfig.spa`** — moved to `BuildOptions`.
+- **`EMROUTE_EXTERNALS`**, **`EMROUTE_VIRTUAL_NS`** from `Runtime` — moved to
+  `server/build.util.ts`.
+
 ## [1.6.6-beta.3] - 2026-02-26
 
 ### Changed

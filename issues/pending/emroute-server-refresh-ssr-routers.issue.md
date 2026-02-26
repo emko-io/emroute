@@ -1,45 +1,41 @@
-# emroute server needs a way to refresh SSR routers after adding routes
+# Runtime should auto-invalidate manifests on write
 
 ## Problem
 
-`createEmrouteServer()` builds the routes manifest and SSR routers once at
-startup. When new pages are written to the runtime at runtime (e.g. via
-`runtime.command('/routes/new.page.md', { body })` followed by
-`runtime.invalidateManifests()`), the manifest cache is cleared but the SSR
-routers still hold the old snapshot of routes. New pages return 404 on
-`/html/*` and `/md/*`.
+`mergeModules()` (in `buildClientBundles`) writes the route and widget manifests
+as physical files to the runtime at `/routes.manifest.json` and
+`/widgets.manifest.json`. When new pages are written at runtime via
+`runtime.command('/routes/new.page.md', { body })`, calling
+`runtime.invalidateManifests()` only clears the in-memory cache — the stored
+manifest file in SQLite still exists, so the next read returns the stale version
+instead of triggering a fresh `resolveRoutesManifest()` scan.
 
-The only workaround is to call `createEmrouteServer()` again, which
-re-initialises everything (manifest scanning, widget imports, bundling).
-This is wasteful and blocks the request while rebundling.
+The server itself doesn't snapshot — it reads from the runtime on each
+`createEmrouteServer()` call. The issue is purely that the stored manifest file
+shadows the scan.
 
 ## Expected behaviour
 
-The returned server object should expose a method to refresh routes:
+`runtime.command()` should detect writes under `routesDir/` or `widgetsDir/`
+and automatically:
+1. Delete the stored manifest file (if any)
+2. Clear the in-memory manifest cache
 
-```ts
-const emroute = await createEmrouteServer(config, runtime);
-
-// After writing a new page:
-await runtime.command('/routes/new.page.md', { body: content });
-runtime.invalidateManifests();
-await emroute.refresh(); // re-scans manifest, rebuilds SSR routers
-```
-
-`refresh()` should:
-1. Re-read the routes manifest from the runtime (which triggers a fresh scan
-   since manifests were invalidated)
-2. Rebuild the SSR HTML and MD routers with the new manifest
-3. Optionally re-import new widget modules
-4. NOT re-bundle (the SPA bundle is stale but that's acceptable — SSR serves
-   the new page immediately)
-
-## Use case
-
-Dynamic page creation from the browser. A Hono API endpoint writes markdown
-to the SQLite runtime and needs the new page to be SSR-renderable immediately.
+This way the next `query('/routes.manifest.json')` triggers a fresh scan that
+includes the new page.
 
 ## Current workaround
 
-Full page reload using `window.location.href` (bypasses the stale SPA router)
-combined with re-calling `createEmrouteServer()` on every write (expensive).
+Consumer manually deletes the stored manifest files and calls
+`invalidateManifests()` before re-creating the server:
+
+```ts
+runtime.deleteFile('/routes.manifest.json');
+runtime.deleteFile('/widgets.manifest.json');
+runtime.invalidateManifests();
+emroute = await createEmrouteServer(serverConfig, runtime);
+```
+
+## Affected version
+
+`@emkodev/emroute@1.6.6-beta.5`

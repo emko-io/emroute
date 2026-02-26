@@ -83,16 +83,20 @@ matter, rapid prototyping, apps where you want full client-side control.
 | `root` | SSR rendered | Yes | Yes | Yes |
 | `only` | Empty shell | Yes | Yes | Yes |
 
-### What gets bundled
+### What gets built
 
-When SPA mode is not `none`, the runtime's `bundle()` produces:
+When SPA mode is not `none`, `buildClientBundles()` produces:
 
-- **`emroute.js`** — the framework (router, component element, widget system)
-- **`app.js`** — your `main.ts` entry point with route manifests and widget
-  registration
-- **`widgets.js`** (optional) — separate widget bundle if configured
+- **Merged `.js` modules** — each `.ts` page/widget transpiled to `.js` with
+  companion files (`.html`, `.md`, `.css`) inlined as `export const __files`
+- **Updated manifests** — route tree and widget manifest reference `.js` paths
+- **`emroute.js`** — the framework (router, component element, widget system,
+  `bootEmrouteApp`)
+- **`app.js`** — your `main.ts` entry point (esbuild only touches consumer code)
 
 These are connected via browser import maps in the generated `index.html` shell.
+Route tree and widget manifest are fetched as JSON at boot time by
+`bootEmrouteApp()` — they are not compiled into `app.js`.
 
 ### Navigation
 
@@ -104,8 +108,9 @@ browser's Navigation API for client-side transitions. Browsers without the
 Navigation API gracefully fall back to full page loads.
 
 Links use the HTML base path (`/html` by default, configurable via `basePath`).
-Bare paths (e.g. `/`, `/about`) redirect to their base path equivalent in all
-modes. This means:
+In `root` and `only` modes, bare paths (e.g. `/`, `/about`) redirect to `/app/*`
+(the SPA endpoint). In `none` and `leaf` modes, they redirect to `/html/*`.
+
 - Without JS: `/html/about` is a real server endpoint that returns rendered HTML
 - With JS: the router intercepts the click, fetches data, and renders client-side
 
@@ -117,10 +122,19 @@ This is progressive enhancement — the same links and URLs work in every mode.
 
 ```typescript
 import { createEmrouteServer } from '@emkodev/emroute/server';
+import { buildClientBundles } from '@emkodev/emroute/server/build';
 import { BunFsRuntime } from '@emkodev/emroute/runtime/bun/fs';
 
 const runtime = new BunFsRuntime('my-app', {
-  entryPoint: '/main.ts',  // enables bundling (required for leaf/root/only)
+  routesDir: '/routes',
+  widgetsDir: '/widgets',
+});
+
+// Build client bundles (required for leaf/root/only)
+await buildClientBundles({
+  runtime,
+  root: 'my-app',
+  spa: 'root',
 });
 
 const emroute = await createEmrouteServer({
@@ -130,10 +144,12 @@ const emroute = await createEmrouteServer({
 
 ### Without bundling
 
-For `none` mode, no entry point or bundling is needed:
+For `none` mode, no build step is needed:
 
 ```typescript
-const runtime = new BunFsRuntime('my-app');
+const runtime = new BunFsRuntime('my-app', {
+  routesDir: '/routes',
+});
 
 const emroute = await createEmrouteServer({
   spa: 'none',
@@ -142,30 +158,28 @@ const emroute = await createEmrouteServer({
 
 ### Custom main.ts
 
-If your entry point file exists, emroute uses it as-is. If it doesn't exist,
-`bundle()` generates a default one that:
+If your entry point file exists, the build step uses it as-is. If it doesn't
+exist, a default one is generated that calls `bootEmrouteApp()`.
 
-1. Imports route and widget manifests from `emroute:routes` / `emroute:widgets`
-2. Registers all discovered widgets
-3. Creates the SPA router (in `root`/`only` modes)
-
-You can write your own `main.ts` for full control:
+Write your own `main.ts` for full control:
 
 ```typescript
-import { routesManifest } from 'emroute:routes';
-import { widgetsManifest } from 'emroute:widgets';
-import { ComponentElement, createSpaHtmlRouter } from '@emkodev/emroute/spa';
+import { bootEmrouteApp, MarkdownElement } from '@emkodev/emroute/spa';
+import { renderMarkdown } from '@emkodev/emkoma/render';
 
-// Register widgets
-for (const widget of widgetsManifest.widgets) {
-  ComponentElement.register(widget, widgetsManifest.moduleLoaders);
-}
+// Set up markdown renderer for client-side rendering of .md pages
+MarkdownElement.setRenderer({ render: renderMarkdown });
 
-// Create router
-createSpaHtmlRouter(routesManifest);
+// Boot the app — fetches manifests, registers widgets, creates router
+await bootEmrouteApp();
 
 // Your custom code here — analytics, service workers, theme switching, etc.
 ```
+
+`bootEmrouteApp()` handles everything:
+1. Fetches route tree and widget manifest as JSON from the runtime
+2. Registers all discovered widgets with lazy module loading
+3. Creates the SPA router and wires client-side navigation
 
 ## Choosing a mode
 

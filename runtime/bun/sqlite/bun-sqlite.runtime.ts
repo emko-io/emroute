@@ -80,6 +80,11 @@ export class BunSqliteRuntime extends Runtime {
     }
   }
 
+  override async transpile(source: string): Promise<string> {
+    const transpiler = new Bun.Transpiler({ loader: 'ts' });
+    return transpiler.transformSync(source);
+  }
+
   close(): void {
     this.db.close();
   }

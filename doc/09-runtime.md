@@ -6,7 +6,7 @@ A Runtime is emroute's storage abstraction. It provides a uniform interface for
 reading and writing files — regardless of whether those files live on a
 filesystem, in a SQLite database, in memory, or behind a REST API.
 
-The server, the bundler, the manifest scanner, and SSR all talk to the Runtime
+The server, the build step, the manifest scanner, and SSR all talk to the Runtime
 through the same `fetch()`-shaped API: `Request` in, `Response` out. No code
 outside the Runtime knows or cares where the bytes actually come from.
 
@@ -64,25 +64,41 @@ understand TypeScript natively; Node needs `--experimental-strip-types` or tsx).
 `BunSqliteRuntime` transpiles via `Bun.Transpiler` and imports from a blob URL.
 Your runtime can do whatever makes sense — compile, cache, fetch from a CDN.
 
-### Bundling
+### Transpilation
 
-When `config.entryPoint` is set, `bundle()` runs esbuild to produce client-side
-JavaScript bundles. All output is written back through `this.command()`, so
-it works for any storage backend.
+The runtime provides a `transpile()` method for TypeScript → JavaScript
+conversion, used by the build step to produce browser-loadable `.js` modules:
 
 ```typescript
-const runtime = new UniversalFsRuntime('my-app', {
-  entryPoint: '/main.ts',
-  // Auto-inferred: bundlePaths: { emroute: '/emroute.js', app: '/app.js' }
-});
-
-await runtime.bundle();
-// /emroute.js, /app.js, /index.html now exist in the runtime
+const js = await runtime.transpile(tsSource);
 ```
 
-If the entry point file doesn't exist, `bundle()` generates a default `main.ts`
-that imports route and widget manifests, registers widgets, and creates the SPA
-router.
+Each runtime implements this with its native transpiler (`Bun.Transpiler` for
+BunFsRuntime, esbuild for UniversalFsRuntime). Custom runtimes should override
+this method.
+
+### Building client bundles
+
+Bundling is a separate step from the runtime. Call `buildClientBundles()` before
+`createEmrouteServer()`:
+
+```typescript
+import { buildClientBundles } from '@emkodev/emroute/server/build';
+
+await buildClientBundles({
+  runtime,
+  root: import.meta.dirname!,
+  spa: 'root',
+  entryPoint: '/main.ts',  // optional, defaults to '/main.ts'
+});
+```
+
+The build step:
+1. Transpiles each `.ts` page/widget module to `.js` via `runtime.transpile()`
+2. Inlines companion files (`.html`, `.md`, `.css`) as `export const __files`
+3. Updates manifests to reference `.js` paths
+4. Bundles the consumer's `main.ts` (esbuild only touches consumer code)
+5. Writes `emroute.js`, `app.js`, and `index.html` into the runtime
 
 ### Manifest resolution
 
@@ -104,7 +120,6 @@ import { UniversalFsRuntime } from '@emkodev/emroute/runtime/universal/fs';
 const runtime = new UniversalFsRuntime('path/to/app', {
   routesDir: '/routes',     // default
   widgetsDir: '/widgets',   // default
-  entryPoint: '/main.ts',   // enables bundling
 });
 ```
 
@@ -120,7 +135,6 @@ import { BunFsRuntime } from '@emkodev/emroute/runtime/bun/fs';
 const runtime = new BunFsRuntime('path/to/app', {
   routesDir: '/routes',     // default
   widgetsDir: '/widgets',   // default
-  entryPoint: '/main.ts',   // enables bundling
 });
 ```
 
@@ -133,21 +147,25 @@ admin interface, not the filesystem.
 import { BunSqliteRuntime } from '@emkodev/emroute/runtime/bun/sqlite';
 
 // In-memory (great for tests)
-const runtime = new BunSqliteRuntime(':memory:', {
-  entryPoint: '/main.ts',
-});
+const runtime = new BunSqliteRuntime(':memory:');
 
 // Persistent
-const runtime = new BunSqliteRuntime('content.db', {
-  entryPoint: '/main.ts',
-});
+const runtime = new BunSqliteRuntime('content.db');
 
 // Write content programmatically
 await runtime.command('/routes/index.page.md', { body: '# Welcome' });
 await runtime.command('/routes/about.page.md', { body: '# About Us' });
+```
 
-// Bundle and serve — works exactly like the filesystem runtime
-await runtime.bundle();
+### FetchRuntime
+
+Browser-compatible runtime that fetches files from the server over HTTP. Used
+by `bootEmrouteApp()` to load manifests and modules in the browser.
+
+```typescript
+import { FetchRuntime } from '@emkodev/emroute/runtime/fetch';
+
+const runtime = new FetchRuntime(location.origin);
 ```
 
 ## Creating your own Runtime
@@ -210,9 +228,7 @@ class MyRuntime extends Runtime {
 | Method | Purpose | Default |
 |--------|---------|---------|
 | `loadModule(path)` | Dynamic `import()` for SSR | Throws "not implemented" |
-| `bundle()` | Build client JS bundles | No-op |
-| `static transpile(source)` | TS → JS transformation | Throws "not implemented" |
-| `static stopBundler()` | Clean up bundler resources | No-op |
+| `transpile(source)` | TS → JS transformation | Throws "not implemented" |
 
 ### What you get for free
 
@@ -221,7 +237,6 @@ The base `Runtime` class provides:
 - **`command(resource, options?)`** — write shortcut (delegates to `handle` with PUT)
 - **`resolveRoutesManifest()`** — scans `routesDir`, builds routes manifest JSON
 - **`resolveWidgetsManifest()`** — scans `widgetsDir`, builds widgets manifest JSON
-- **`writeShell(paths)`** — generates `index.html` with import map and script tags
 - **`walkDirectory(dir)`** — async generator that recursively lists files
 - **`invalidateManifests()`** — clears cached manifests for the next scan
 

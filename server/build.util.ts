@@ -5,16 +5,17 @@
  * separate concern from storage. Call `buildClientBundles()` before
  * `createEmrouteServer()` to produce emroute.js + app.js.
  *
- * Requires esbuild as a devDependency in the consumer project.
+ * Route tree and widget manifest are fetched as JSON at boot time by
+ * `bootEmrouteApp()` — no longer compiled into app.js.
+ *
+ * esbuild (devDependency) is only needed when a consumer-provided main.ts
+ * imports third-party packages or uses TypeScript.
  */
 
 import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
 import type { Runtime } from '../runtime/abstract.runtime.ts';
-import { DEFAULT_ROUTES_DIR, DEFAULT_WIDGETS_DIR } from '../runtime/abstract.runtime.ts';
-import { createManifestPlugin } from './esbuild-manifest.plugin.ts';
-import { createRuntimeLoaderPlugin } from '../runtime/bun/esbuild-runtime-loader.plugin.ts';
 import { generateMainTs } from './codegen.util.ts';
 import type { SpaMode } from '../src/type/widget.type.ts';
 
@@ -49,7 +50,9 @@ const DEFAULT_BUNDLE_PATHS = { emroute: '/emroute.js', app: '/app.js' };
  *
  * Produces:
  * - emroute.js — pre-built from dist/ (no esbuild needed for this)
- * - app.js — consumer entry point with routeTree, FetchRuntime, createEmrouteApp
+ * - app.js — consumer entry point (only if consumer provides main.ts with
+ *   imports that need bundling). If no main.ts exists, generates a minimal
+ *   one that calls `bootEmrouteApp()`.
  * - index.html — shell with import map + script tags (if not already present)
  */
 export async function buildClientBundles(options: BuildOptions): Promise<void> {
@@ -64,19 +67,15 @@ export async function buildClientBundles(options: BuildOptions): Promise<void> {
   const emrouteJs = await readFile(emrouteJsPath);
   await runtime.command(paths.emroute, { body: emrouteJs });
 
-  // App bundle — generate main.ts if absent, virtual plugin resolves manifests
+  // App bundle — consumer's main.ts bundled with esbuild.
+  // Manifests and route modules are NOT bundled — they're fetched at boot time.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const esbuild = await loadEsbuild() as any;
   const ep = entryPoint ?? '/main.ts';
   if ((await runtime.query(ep)).status === 404) {
-    const hasRoutes = (await runtime.query((runtime.config.routesDir ?? DEFAULT_ROUTES_DIR) + '/')).status !== 404;
-    const hasWidgets = (await runtime.query((runtime.config.widgetsDir ?? DEFAULT_WIDGETS_DIR) + '/')).status !== 404;
-    const code = generateMainTs(spa, hasRoutes, hasWidgets, '@emkodev/emroute');
+    const code = generateMainTs(spa, '@emkodev/emroute');
     await runtime.command(ep, { body: code });
   }
-
-  const manifestPlugin = createManifestPlugin({ runtime, resolveDir: root });
-  const runtimeLoader = createRuntimeLoaderPlugin({ runtime, root });
 
   const result = await esbuild.build({
     bundle: true,
@@ -86,7 +85,6 @@ export async function buildClientBundles(options: BuildOptions): Promise<void> {
     entryPoints: [`${root}${ep}`],
     outfile: `${root}${paths.app}`,
     external: [...EMROUTE_EXTERNALS],
-    plugins: [manifestPlugin, runtimeLoader],
   });
 
   for (const file of result.outputFiles) {
@@ -97,7 +95,7 @@ export async function buildClientBundles(options: BuildOptions): Promise<void> {
   }
 
   // Write shell (index.html) if not already present
-  await writeShell(runtime, paths, ep);
+  await writeShell(runtime, paths);
 
   await esbuild.stop();
 }
@@ -125,7 +123,6 @@ function resolvePrebuiltBundle(require: NodeRequire): string {
 async function writeShell(
   runtime: Runtime,
   paths: { emroute: string; app: string },
-  entryPoint: string,
 ): Promise<void> {
   if ((await runtime.query('/index.html')).status !== 404) return;
 
@@ -134,13 +131,6 @@ async function writeShell(
     imports[pkg] = paths.emroute;
   }
   const importMap = JSON.stringify({ imports }, null, 2);
-
-  const scripts = [
-    `<script type="importmap">\n${importMap}\n  </script>`,
-  ];
-  if (entryPoint) {
-    scripts.push(`<script type="module" src="${paths.app}"></script>`);
-  }
 
   const html = `<!DOCTYPE html>
 <html>
@@ -152,7 +142,10 @@ async function writeShell(
 </head>
 <body>
   <router-slot></router-slot>
-  ${scripts.join('\n  ')}
+  <script type="importmap">
+${importMap}
+  </script>
+  <script type="module" src="${paths.app}"></script>
 </body>
 </html>`;
 

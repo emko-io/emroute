@@ -1,20 +1,47 @@
 import { test, expect, describe } from 'bun:test';
 import { generateSitemap } from '../../runtime/sitemap.generator.ts';
-import type { RoutesManifest } from '../../src/type/route.type.ts';
+import type { RouteNode } from '../../src/type/route-tree.type.ts';
 
-/** Minimal manifest factory for testing. */
+/** Build a RouteNode tree from pattern/type pairs for testing. */
 function createManifest(
   routes: Array<{ pattern: string; type?: string }>,
-): RoutesManifest {
-  return {
-    routes: routes.map((r) => ({
-      pattern: r.pattern,
-      type: (r.type ?? 'page') as 'page' | 'error' | 'redirect',
-      modulePath: `routes${r.pattern === '/' ? '/index' : r.pattern}.page.ts`,
-    })),
-    errorBoundaries: [],
-    statusPages: new Map(),
-  };
+): RouteNode {
+  const root: RouteNode = {};
+
+  for (const r of routes) {
+    const type = r.type ?? 'page';
+    const segments = r.pattern === '/'
+      ? []
+      : r.pattern.replace(/\/$/, '').split('/').filter(Boolean);
+    let node = root;
+
+    for (const seg of segments) {
+      if (seg.startsWith(':') && seg.endsWith('*')) {
+        const param = seg.slice(1, -1);
+        if (!node.wildcard) node.wildcard = { param, child: {} };
+        node = node.wildcard.child;
+      } else if (seg.startsWith(':')) {
+        const param = seg.slice(1);
+        if (!node.dynamic) node.dynamic = { param, child: {} };
+        node = node.dynamic.child;
+      } else {
+        if (!node.children) node.children = {};
+        if (!node.children[seg]) node.children[seg] = {};
+        node = node.children[seg];
+      }
+    }
+
+    const modulePath = `routes${r.pattern === '/' ? '/index' : r.pattern}.page.ts`;
+    if (type === 'redirect') {
+      node.redirect = modulePath;
+    } else if (type === 'error') {
+      node.errorBoundary = modulePath;
+    } else {
+      node.files = { ts: modulePath };
+    }
+  }
+
+  return root;
 }
 
 const BASE = 'https://example.com';
@@ -691,7 +718,8 @@ test('sitemap - single route produces valid sitemap', async () => {
   expect(xml).toContain('<loc>https://example.com/html/</loc>');
 });
 
-test('sitemap - routes with trailing slashes', async () => {
+test('sitemap - routes with trailing slashes normalized', async () => {
+  // Tree-based routing normalizes trailing slashes — /projects/ → /projects
   const manifest = createManifest([
     { pattern: '/about' },
     { pattern: '/projects/' },
@@ -699,7 +727,7 @@ test('sitemap - routes with trailing slashes', async () => {
   const xml = await generateSitemap(manifest, { baseUrl: BASE, basePath: '/html' });
 
   expect(xml).toContain('<loc>https://example.com/html/about</loc>');
-  expect(xml).toContain('<loc>https://example.com/html/projects/</loc>');
+  expect(xml).toContain('<loc>https://example.com/html/projects</loc>');
 });
 
 test('sitemap - routes with numeric identifiers', async () => {

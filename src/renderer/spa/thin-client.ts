@@ -9,9 +9,17 @@
  */
 
 import type { EmrouteServer } from '../../../server/server-api.type.ts';
+import { createEmrouteServer } from '../../../server/emroute.server.ts';
+import { FetchRuntime } from '../../../runtime/fetch.runtime.ts';
+import { ROUTES_MANIFEST_PATH, WIDGETS_MANIFEST_PATH } from '../../../runtime/abstract.runtime.ts';
+import type { RouteNode } from '../../type/route-tree.type.ts';
 import type { NavigateOptions } from '../../type/route.type.ts';
+import type { WidgetManifestEntry } from '../../type/widget.type.ts';
 import { assertSafeRedirect, type BasePath, DEFAULT_BASE_PATH } from '../../route/route.core.ts';
 import { escapeHtml } from '../../util/html.util.ts';
+import { ComponentElement } from '../../element/component.element.ts';
+import { MarkdownElement } from '../../element/markdown.element.ts';
+import { WidgetRegistry } from '../../widget/widget.registry.ts';
 
 /** Options for `createEmrouteApp`. */
 export interface EmrouteAppOptions {
@@ -162,4 +170,92 @@ export async function createEmrouteApp(
   await app.initialize();
   g.__emroute_app = app;
   return app;
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────
+
+/** Options for `bootEmrouteApp`. */
+export interface BootOptions extends EmrouteAppOptions {
+  /** Override the server origin (defaults to `location.origin`). */
+  origin?: string;
+}
+
+/**
+ * Boot the browser app from runtime manifests.
+ *
+ * Fetches route tree and widget manifest as JSON, creates lazy module
+ * loaders via FetchRuntime, registers widgets for deferred hydration,
+ * and wires the Navigation API.
+ *
+ * Consumer `main.ts` calls this after setting up MarkdownElement renderer,
+ * custom elements, etc.
+ */
+export async function bootEmrouteApp(options?: BootOptions): Promise<EmrouteApp> {
+  const origin = options?.origin ?? location.origin;
+  const runtime = new FetchRuntime(origin);
+
+  // Fetch route tree
+  const routesResponse = await runtime.handle(ROUTES_MANIFEST_PATH);
+  if (!routesResponse.ok) {
+    throw new Error(`[emroute] Failed to fetch ${ROUTES_MANIFEST_PATH}: ${routesResponse.status}`);
+  }
+  const routeTree: RouteNode = await routesResponse.json();
+
+  // Fetch widget manifest (optional — app may have no widgets)
+  const widgetsResponse = await runtime.handle(WIDGETS_MANIFEST_PATH);
+  const widgetEntries: WidgetManifestEntry[] = widgetsResponse.ok
+    ? await widgetsResponse.json()
+    : [];
+
+  // Build lazy module loaders for all route + widget modules
+  const moduleLoaders = buildLazyLoaders(routeTree, widgetEntries, runtime);
+
+  // Register widgets eagerly (tag defined immediately, module loads on connectedCallback)
+  const widgets = new WidgetRegistry();
+  for (const entry of widgetEntries) {
+    ComponentElement.registerLazy(entry.name, entry.files, moduleLoaders[entry.modulePath]);
+  }
+
+  // Create the server (reuses the same createEmrouteServer as SSR)
+  const server = await createEmrouteServer({
+    routeTree,
+    widgets,
+    moduleLoaders,
+    markdownRenderer: MarkdownElement.getConfiguredRenderer() ?? undefined,
+  }, runtime);
+
+  return createEmrouteApp(server, options);
+}
+
+/**
+ * Walk the route tree and widget entries to build a map of
+ * `path → () => runtime.loadModule(path)` lazy loaders.
+ */
+function buildLazyLoaders(
+  tree: RouteNode,
+  widgetEntries: WidgetManifestEntry[],
+  runtime: FetchRuntime,
+): Record<string, () => Promise<unknown>> {
+  const paths = new Set<string>();
+
+  function walk(node: RouteNode): void {
+    const modulePath = node.files?.ts ?? node.files?.js;
+    if (modulePath) paths.add(modulePath);
+    if (node.redirect) paths.add(node.redirect);
+    if (node.errorBoundary) paths.add(node.errorBoundary);
+    if (node.children) {
+      for (const child of Object.values(node.children)) walk(child);
+    }
+    if (node.dynamic) walk(node.dynamic.child);
+    if (node.wildcard) walk(node.wildcard.child);
+  }
+
+  walk(tree);
+  for (const entry of widgetEntries) paths.add(entry.modulePath);
+
+  const loaders: Record<string, () => Promise<unknown>> = {};
+  for (const path of paths) {
+    loaders[path] = () => runtime.loadModule(path);
+  }
+  return loaders;
 }

@@ -78,9 +78,9 @@ const URLSET_OPEN = '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
 const URLSET_CLOSE = '</urlset>';
 const MAX_URLS = 50_000;
 
-/** Check if a route pattern contains dynamic segments. */
+/** Check if a route pattern contains dynamic or wildcard segments. */
 function isDynamic(pattern: string): boolean {
-  return pattern.includes(':');
+  return pattern.includes(':') || pattern.includes('*');
 }
 
 /** Build the absolute URL for a route path. */
@@ -150,7 +150,7 @@ function collectPatterns(node: RouteNode, prefix: string, out: string[]): void {
   }
 
   if (node.wildcard) {
-    collectPatterns(node.wildcard.child, `${prefix}/*${node.wildcard.param}`, out);
+    collectPatterns(node.wildcard.child, `${prefix}/:${node.wildcard.param}*`, out);
   }
 }
 

@@ -12,7 +12,7 @@ import { MarkdownElement } from '../../element/markdown.element.ts';
 import { ComponentElement } from '../../element/component.element.ts';
 import { WidgetRegistry } from '../../widget/widget.registry.ts';
 
-export { createEmrouteApp, EmrouteApp, type EmrouteAppOptions } from './thin-client.ts';
+export { bootEmrouteApp, createEmrouteApp, EmrouteApp, type BootOptions, type EmrouteAppOptions } from './thin-client.ts';
 export { ComponentElement, MarkdownElement, RouterSlot, WidgetRegistry };
 export type { SpaMode, WidgetsManifest } from '../../type/widget.type.ts';
 

@@ -81,27 +81,25 @@ export async function buildClientBundles(options: BuildOptions): Promise<void> {
   await runtime.command(paths.emroute, { body: emrouteJs });
 
   // App bundle — consumer's main.ts bundled with esbuild.
+  // Read source from the runtime (works for any storage backend).
   const ep = entryPoint ?? '/main.ts';
-  if ((await runtime.query(ep)).status === 404) {
-    const code = generateMainTs(spa, '@emkodev/emroute');
-    await runtime.command(ep, { body: code });
-  }
+  const epResponse = await runtime.query(ep);
+  const source = epResponse.status === 404
+    ? generateMainTs(spa, '@emkodev/emroute')
+    : await epResponse.text();
 
   const result = await esbuild.build({
     bundle: true,
     write: false,
     format: 'esm' as const,
     platform: 'browser' as const,
-    entryPoints: [`${root}${ep}`],
-    outfile: `${root}${paths.app}`,
+    stdin: { contents: source, loader: 'ts', resolveDir: root },
+    outfile: paths.app,
     external: [...EMROUTE_EXTERNALS],
   });
 
   for (const file of result.outputFiles) {
-    const runtimePath = file.path.startsWith(root)
-      ? file.path.slice(root.length)
-      : '/' + file.path;
-    await runtime.command(runtimePath, { body: file.contents as unknown as BodyInit });
+    await runtime.command(paths.app, { body: file.contents as unknown as BodyInit });
   }
 
   // Write shell (index.html) if not already present

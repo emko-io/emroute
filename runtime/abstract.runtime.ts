@@ -74,7 +74,78 @@ export abstract class Runtime {
 
   /** Write. Defaults to PUT; pass `{ method: "DELETE" }` etc. to override. */
   command(resource: FetchParams[0], options?: FetchParams[1]): FetchReturn {
-    return this.handle(resource, { method: 'PUT', ...options });
+    const path = typeof resource === 'string'
+      ? resource
+      : new URL(resource instanceof Request ? resource.url : resource.toString()).pathname;
+    const result = this.handle(resource, { method: 'PUT', ...options });
+    const routesDir = this.config.routesDir ?? DEFAULT_ROUTES_DIR;
+    if (path.startsWith(routesDir + '/')) {
+      return result.then(async (res) => {
+        await this.mergeRouteIntoManifest(path, routesDir);
+        return res;
+      });
+    }
+    return result;
+  }
+
+  /**
+   * Parse a single route file path and merge it into the stored manifest.
+   * Avoids a full directory rescan — just reads the current manifest,
+   * inserts the new entry, and writes it back.
+   */
+  private async mergeRouteIntoManifest(
+    filePath: string,
+    routesDir: string,
+  ): Promise<void> {
+    const relativePath = filePath.slice(routesDir.length + 1);
+    const parts = relativePath.split('/');
+    const filename = parts[parts.length - 1];
+    const dirSegments = parts.slice(0, -1);
+
+    const match = filename.match(/^(.+?)\.(page|error|redirect)\.(ts|js|html|md|css)$/);
+    if (!match) return;
+
+    const [, name, kind, ext] = match;
+
+    // Read current manifest (or start fresh)
+    const response = await this.handle(ROUTES_MANIFEST_PATH);
+    const tree: RouteNode = response.status === 404
+      ? {}
+      : await response.json();
+
+    // Walk to the parent node
+    let node = tree;
+    for (const dir of dirSegments) {
+      if (dir.startsWith('[') && dir.endsWith(']')) {
+        const param = dir.slice(1, -1);
+        node.dynamic ??= { param, child: {} };
+        node = node.dynamic.child;
+      } else {
+        node.children ??= {};
+        node.children[dir] ??= {};
+        node = node.children[dir];
+      }
+    }
+
+    // Place the file
+    if (kind === 'error') {
+      node.errorBoundary = filePath;
+    } else {
+      const target = resolveTargetNode(node, name, dirSegments.length === 0);
+      if (kind === 'redirect') {
+        target.redirect = filePath;
+      } else {
+        target.files ??= {};
+        target.files[ext as keyof RouteFiles] = filePath;
+      }
+    }
+
+    // Write updated manifest back
+    this.routesManifestCache = null;
+    await this.handle(ROUTES_MANIFEST_PATH, {
+      method: 'PUT',
+      body: JSON.stringify(tree),
+    });
   }
 
   /**

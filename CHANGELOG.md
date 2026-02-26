@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.6-beta.5] - 2026-02-26
+
+### Changed
+
+- **Per-file module merging replaces app.js bundling** — route and widget `.ts`
+  modules are no longer compiled into `app.js`. Instead, `buildClientBundles()`
+  transpiles each `.ts` → `.js` via `Runtime.transpile()` and inlines companion
+  files (`.html`, `.md`, `.css`) as `export const __files`. The browser
+  lazy-loads individual `.js` files on demand via `FetchRuntime.loadModule()`.
+  `app.js` now contains only consumer code (markdown renderer setup, custom
+  elements, etc.).
+
+- **`bootEmrouteApp()`** — new browser entry point that fetches
+  `routes.manifest.json` and `widgets.manifest.json` as JSON, builds lazy module
+  loaders, registers widgets for deferred hydration, creates `EmrouteServer`,
+  and wires Navigation API. Replaces inline manifest bundling.
+
+### Added
+
+- **`Runtime.transpile()`** — abstract method for TypeScript → JavaScript
+  transpilation. `BunFsRuntime` implements it via `Bun.Transpiler`.
+- **`ComponentElement.registerLazy()`** — registers a widget custom element
+  immediately (SSR content adopted), defers module loading until
+  `connectedCallback`. Islands pattern: visible from SSR, interactive after
+  lazy load.
+- **`bootEmrouteApp()` + `BootOptions`** — exported from `@emkodev/emroute/spa`.
+- **`MarkdownElement.getConfiguredRenderer()`** — public getter for the
+  configured markdown renderer.
+
+### Removed
+
+- **`emroute:routes` / `emroute:widgets` virtual modules** — no longer used.
+  Route tree and widget manifest are fetched as JSON at boot time.
+
 ## [1.6.6-beta.4] - 2026-02-26
 
 ### Changed

@@ -159,7 +159,6 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
       pathname: globalThis.location?.pathname ?? '/',
       pattern: '',
       params: {},
-      searchParams: new URLSearchParams(globalThis.location?.search ?? ''),
       files: (files.html || files.md || files.css) ? files : undefined,
     };
     this.context = ComponentElement.extendContext ? ComponentElement.extendContext(base) : base;

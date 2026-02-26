@@ -10,17 +10,11 @@ export type RouteParams = Readonly<Record<string, string>>;
 
 /** Immutable route context built once per navigation, shared across the render pipeline. */
 export interface RouteInfo {
-  /** Actual URL path (e.g., '/projects/123') */
-  readonly pathname: string;
+  /** The URL being rendered. Components read pathname, searchParams, hash from this. */
+  readonly url: URL;
 
-  /** Matched route pattern (e.g., '/projects/:id') */
-  readonly pattern: string;
-
-  /** URL parameters extracted by the router */
+  /** URL parameters extracted by the trie match. */
   readonly params: RouteParams;
-
-  /** Query string parameters */
-  readonly searchParams: URLSearchParams;
 }
 
 /** Supported file patterns in file-based routing */
@@ -75,12 +69,6 @@ export interface MatchedRoute {
 
   /** Extracted URL parameters */
   readonly params: RouteParams;
-
-  /** Query string parameters from the matched URL */
-  readonly searchParams?: URLSearchParams;
-
-  /** The URLPatternResult from matching */
-  readonly patternResult?: URLPatternResult;
 }
 
 /** Error boundary configuration */
@@ -92,23 +80,7 @@ export interface ErrorBoundary {
   modulePath: string;
 }
 
-/** Generated routes manifest from build tool */
-export interface RoutesManifest {
-  /** All page routes */
-  routes: RouteConfig[];
-
-  /** Error boundaries by pattern prefix */
-  errorBoundaries: ErrorBoundary[];
-
-  /** Status-specific pages (404, 401, 403) */
-  statusPages: Map<number, RouteConfig>;
-
-  /** Generic error handler */
-  errorHandler?: RouteConfig;
-
-  /** Pre-bundled module loaders keyed by module path (for SPA bundles) */
-  moduleLoaders?: Record<string, () => Promise<unknown>>;
-}
+export type { RouteNode } from './route-tree.type.ts';
 
 /** Router state for history management */
 export interface RouterState {

@@ -100,18 +100,18 @@ export class SsrHtmlRouter extends SsrRenderer {
     return `<meta http-equiv="refresh" content="0;url=${escapeHtml(to)}">`;
   }
 
-  protected override renderStatusPage(status: number, pathname: string): string {
+  protected override renderStatusPage(status: number, url: URL): string {
     return `
       <h1>${STATUS_MESSAGES[status] ?? 'Error'}</h1>
-      <p>Path: ${escapeHtml(pathname)}</p>
+      <p>Path: ${escapeHtml(url.pathname)}</p>
     `;
   }
 
-  protected override renderErrorPage(error: unknown, pathname: string): string {
+  protected override renderErrorPage(error: unknown, url: URL): string {
     const message = error instanceof Error ? error.message : String(error);
     return `
       <h1>Error</h1>
-      <p>Path: ${escapeHtml(pathname)}</p>
+      <p>Path: ${escapeHtml(url.pathname)}</p>
       <p>${escapeHtml(message)}</p>
     `;
   }

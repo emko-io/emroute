@@ -139,10 +139,11 @@ async function importWidgets(
 // ── HTML shell ─────────────────────────────────────────────────────────
 
 /** Build a default HTML shell. */
-function buildHtmlShell(title: string): string {
+function buildHtmlShell(title: string, htmlBase: string): string {
+  const baseTag = htmlBase ? `\n  <base href="${escapeHtml(htmlBase)}/">` : '';
   return `<!DOCTYPE html>
 <html>
-<head>
+<head>${baseTag}
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${escapeHtml(title)}</title>
@@ -178,10 +179,11 @@ function injectSsrContent(
 async function resolveShell(
   runtime: Runtime,
   title: string,
+  htmlBase: string,
 ): Promise<string> {
   const response = await runtime.query('/index.html');
   if (response.status !== 404) return await response.text();
-  return buildHtmlShell(title);
+  return buildHtmlShell(title, htmlBase);
 }
 
 // ── More path helpers ─────────────────────────────────────────────────
@@ -254,7 +256,6 @@ export async function createEmrouteServer(
 
     ssrHtmlRouter = new SsrHtmlRouter(resolver, {
       fileReader: (path) => runtime.query(path, { as: 'text' }),
-      basePath: htmlBase,
       moduleLoaders,
       markdownRenderer: config.markdownRenderer,
       extendContext: config.extendContext,
@@ -264,7 +265,6 @@ export async function createEmrouteServer(
 
     ssrMdRouter = new SsrMdRouter(resolver, {
       fileReader: (path) => runtime.query(path, { as: 'text' }),
-      basePath: mdBase,
       moduleLoaders,
       extendContext: config.extendContext,
       widgets,
@@ -281,7 +281,7 @@ export async function createEmrouteServer(
   // ── HTML shell ───────────────────────────────────────────────────────
 
   const title = config.title ?? 'emroute';
-  let shell = await resolveShell(runtime, title);
+  let shell = await resolveShell(runtime, title, htmlBase);
 
   // Auto-discover main.css and inject <link> into <head>
   if ((await runtime.query('/main.css')).status !== 404) {
@@ -309,7 +309,8 @@ export async function createEmrouteServer(
         return Response.redirect(new URL(canonical, url.origin), 301);
       }
       try {
-        const { content, status, redirect } = await ssrMdRouter.render(routePath);
+        const routeUrl = new URL(routePath + url.search, url.origin);
+        const { content, status, redirect } = await ssrMdRouter.render(routeUrl);
         if (redirect) {
           const target = redirect.startsWith('/') ? mdBase + redirect : redirect;
           return Response.redirect(new URL(target, url.origin), status);
@@ -336,7 +337,8 @@ export async function createEmrouteServer(
         return Response.redirect(new URL(canonical, url.origin), 301);
       }
       try {
-        const result = await ssrHtmlRouter.render(routePath);
+        const routeUrl = new URL(routePath + url.search, url.origin);
+        const result = await ssrHtmlRouter.render(routeUrl);
         if (result.redirect) {
           const target = result.redirect.startsWith('/') ? htmlBase + result.redirect : result.redirect;
           return Response.redirect(new URL(target, url.origin), result.status);

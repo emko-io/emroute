@@ -20,7 +20,6 @@ import {
   type RouteCoreOptions,
 } from '../../route/route.core.ts';
 import type { RouteResolver } from '../../route/route.resolver.ts';
-import { toUrl } from '../../route/route.matcher.ts';
 import type { WidgetRegistry } from '../../widget/widget.registry.ts';
 
 /** Base options for SSR renderers */
@@ -50,30 +49,25 @@ export abstract class SsrRenderer {
    * Render a URL to a content string.
    */
   async render(
-    url: string,
+    url: URL,
   ): Promise<{ content: string; status: number; title?: string; redirect?: string }> {
-    const urlObj = toUrl(url);
-    const pathname = urlObj.pathname;
-
-    const matched = this.core.match(urlObj);
-
-    const searchParams = urlObj.searchParams ?? new URLSearchParams();
+    const matched = this.core.match(url);
 
     if (!matched) {
       const statusPage = this.core.getStatusPage(404);
       if (statusPage) {
         try {
-          const ri: RouteInfo = { pathname, pattern: statusPage.pattern, params: {}, searchParams };
+          const ri: RouteInfo = { url, params: {} };
           const result = await this.renderRouteContent(ri, statusPage);
           return { content: this.stripSlots(result.content), status: 404, title: result.title };
         } catch (e) {
           logger.error(
-            `[${this.label}] Failed to render 404 status page for ${pathname}`,
+            `[${this.label}] Failed to render 404 status page for ${url.pathname}`,
             e instanceof Error ? e : undefined,
           );
         }
       }
-      return { content: this.renderStatusPage(404, pathname), status: 404 };
+      return { content: this.renderStatusPage(404, url), status: 404 };
     }
 
     // Handle redirect
@@ -90,7 +84,7 @@ export abstract class SsrRenderer {
       };
     }
 
-    const routeInfo = this.core.toRouteInfo(matched, pathname);
+    const routeInfo = this.core.toRouteInfo(matched, url);
 
     try {
       const { content, title } = await this.renderPage(routeInfo, matched);
@@ -100,12 +94,7 @@ export abstract class SsrRenderer {
         const statusPage = this.core.getStatusPage(error.status);
         if (statusPage) {
           try {
-            const ri: RouteInfo = {
-              pathname,
-              pattern: statusPage.pattern,
-              params: {},
-              searchParams,
-            };
+            const ri: RouteInfo = { url, params: {} };
             const result = await this.renderRouteContent(ri, statusPage);
             return {
               content: this.stripSlots(result.content),
@@ -114,31 +103,31 @@ export abstract class SsrRenderer {
             };
           } catch (e) {
             logger.error(
-              `[${this.label}] Failed to render ${error.status} status page for ${pathname}`,
+              `[${this.label}] Failed to render ${error.status} status page for ${url.pathname}`,
               e instanceof Error ? e : undefined,
             );
           }
         }
-        return { content: this.renderStatusPage(error.status, pathname), status: error.status };
+        return { content: this.renderStatusPage(error.status, url), status: error.status };
       }
       logger.error(
-        `[${this.label}] Error rendering ${pathname}:`,
+        `[${this.label}] Error rendering ${url.pathname}:`,
         error instanceof Error ? error : undefined,
       );
 
-      const boundary = this.core.findErrorBoundary(pathname);
+      const boundary = this.core.findErrorBoundary(url.pathname);
       if (boundary) {
-        const result = await this.tryRenderErrorModule(boundary.modulePath, pathname, 'boundary');
+        const result = await this.tryRenderErrorModule(boundary.modulePath, url, 'boundary');
         if (result) return result;
       }
 
       const errorHandler = this.core.getErrorHandler();
       if (errorHandler) {
-        const result = await this.tryRenderErrorModule(errorHandler.modulePath, pathname, 'handler');
+        const result = await this.tryRenderErrorModule(errorHandler.modulePath, url, 'handler');
         if (result) return result;
       }
 
-      return { content: this.renderErrorPage(error, pathname), status: 500 };
+      return { content: this.renderErrorPage(error, url), status: 500 };
     }
   }
 
@@ -149,7 +138,7 @@ export abstract class SsrRenderer {
     routeInfo: RouteInfo,
     matched: MatchedRoute,
   ): Promise<{ content: string; title?: string }> {
-    const hierarchy = this.core.buildRouteHierarchy(routeInfo.pattern);
+    const hierarchy = this.core.buildRouteHierarchy(matched.route.pattern);
 
     let result = '';
     let pageTitle: string | undefined;
@@ -239,19 +228,21 @@ export abstract class SsrRenderer {
     return this.renderContent(component, { data, params: {}, context });
   }
 
+  private static readonly EMPTY_URL = new URL('http://error');
+
   /** Try to load and render an error boundary or handler module. Returns null on failure. */
   private async tryRenderErrorModule(
     modulePath: string,
-    pathname: string,
+    url: URL,
     kind: 'boundary' | 'handler',
   ): Promise<{ content: string; status: number } | null> {
     try {
       const module = await this.core.loadModule<{ default: PageComponent }>(modulePath);
       const component = module.default;
       const minCtx: ComponentContext = {
-        pathname: '',
-        pattern: '',
+        url: SsrRenderer.EMPTY_URL,
         params: {},
+        pathname: '',
         searchParams: new URLSearchParams(),
       };
       const data = await component.getData({ params: {}, context: minCtx });
@@ -259,7 +250,7 @@ export abstract class SsrRenderer {
       return { content, status: 500 };
     } catch (e) {
       logger.error(
-        `[${this.label}] Error ${kind} failed for ${pathname}`,
+        `[${this.label}] Error ${kind} failed for ${url.pathname}`,
         e instanceof Error ? e : undefined,
       );
       return null;
@@ -268,9 +259,9 @@ export abstract class SsrRenderer {
 
   protected abstract renderRedirect(to: string): string;
 
-  protected abstract renderStatusPage(status: number, pathname: string): string;
+  protected abstract renderStatusPage(status: number, url: URL): string;
 
-  protected abstract renderErrorPage(error: unknown, pathname: string): string;
+  protected abstract renderErrorPage(error: unknown, url: URL): string;
 
   /** Inject child content into the slot owned by parentPattern. */
   protected abstract injectSlot(parent: string, child: string, parentPattern: string): string;

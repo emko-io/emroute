@@ -19,7 +19,6 @@ import type {
 } from '../type/route.type.ts';
 import type { ComponentContext, ContextProvider } from '../component/abstract.component.ts';
 import type { RouteResolver, ResolvedRoute } from './route.resolver.ts';
-import { toUrl } from './route.matcher.ts';
 
 /** Base paths for the two SSR rendering endpoints. */
 export interface BasePath {
@@ -69,8 +68,6 @@ export interface RouteCoreOptions {
   fileReader?: (path: string) => Promise<string>;
   /** Enriches every ComponentContext with app-level services before it reaches components. */
   extendContext?: ContextProvider;
-  /** Base path stripped from URLs before matching (e.g. '/html'). No trailing slash. */
-  basePath?: string;
   /** Module loaders keyed by path — server provides these for SSR imports. */
   moduleLoaders?: Record<string, () => Promise<unknown>>;
 }
@@ -82,8 +79,6 @@ export class RouteCore {
   private readonly resolver: RouteResolver;
   /** Registered context provider (if any). Exposed so renderers can apply it to inline contexts. */
   readonly contextProvider: ContextProvider | undefined;
-  /** Base path for URL matching (e.g. '/html'). Empty string when no basePath. */
-  readonly basePath: string;
   private listeners: Set<RouterEventListener> = new Set();
   private moduleCache: Map<string, unknown> = new Map();
   private widgetFileCache: Map<string, string> = new Map();
@@ -93,7 +88,6 @@ export class RouteCore {
 
   constructor(resolver: RouteResolver, options: RouteCoreOptions = {}) {
     this.resolver = resolver;
-    this.basePath = options.basePath ?? '';
     this.readFile = options.fileReader ??
       ((path) => fetch(path, { headers: { Accept: 'text/plain' } }).then((r) => r.text()));
     this.contextProvider = options.extendContext;
@@ -132,16 +126,14 @@ export class RouteCore {
    * Match a URL to a route.
    * Falls back to the default root route for '/'.
    */
-  match(url: URL | string): MatchedRoute | undefined {
-    const urlObj = toUrl(url);
-    const pathname = urlObj.pathname;
+  match(url: URL): MatchedRoute | undefined {
+    const pathname = url.pathname;
 
     const resolved = this.resolver.match(pathname);
     if (resolved) {
       return {
         route: toRouteConfig(resolved),
         params: resolved.params,
-        searchParams: urlObj.searchParams,
       };
     }
 
@@ -149,7 +141,6 @@ export class RouteCore {
       return {
         route: DEFAULT_ROOT_ROUTE,
         params: {},
-        searchParams: urlObj.searchParams,
       };
     }
 
@@ -301,12 +292,10 @@ export class RouteCore {
    * Build a RouteInfo from a matched route and the resolved URL pathname.
    * Called once per navigation; the result is reused across the route hierarchy.
    */
-  toRouteInfo(matched: MatchedRoute, pathname: string): RouteInfo {
+  toRouteInfo(matched: MatchedRoute, url: URL): RouteInfo {
     return {
-      pathname,
-      pattern: matched.route.pattern,
+      url,
       params: matched.params,
-      searchParams: matched.searchParams ?? new URLSearchParams(),
     };
   }
 
@@ -331,10 +320,11 @@ export class RouteCore {
 
     const base: ComponentContext = {
       ...routeInfo,
+      pathname: routeInfo.url.pathname,
+      searchParams: routeInfo.url.searchParams,
       files: { html, md, css },
       signal,
       isLeaf,
-      basePath: this.basePath || undefined,
     };
     return this.contextProvider ? this.contextProvider(base) : base;
   }

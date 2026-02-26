@@ -19,7 +19,7 @@ import type { RouteConfig } from '../../src/type/route.type.ts';
 import { WidgetRegistry } from '../../src/widget/widget.registry.ts';
 import type { WidgetComponent } from '../../src/component/widget.component.ts';
 import type { ComponentContext } from '../../src/component/abstract.component.ts';
-import { createResolver, type TestManifest } from './test.util.ts';
+import { createResolver, url, type TestManifest } from './test.util.ts';
 
 function createTestManifest(overrides?: TestManifest): TestManifest {
   return { routes: [], ...overrides };
@@ -145,7 +145,7 @@ test('SsrMdRouter - injectSlot replaces ```router-slot\\n``` block', async () =>
     const manifest = createTestManifest({ routes });
     const router = createRouter(manifest);
 
-    const result = await router.render('/parent/child');
+    const result = await router.render(url('/parent/child'));
 
     expect(result.status).toEqual(200);
     expect(result.content).toContain('Parent');
@@ -173,7 +173,7 @@ test('SsrMdRouter - slot block is exactly ```router-slot\\n```', async () => {
     const manifest = createTestManifest({ routes });
     const router = createRouter(manifest);
 
-    const result = await router.render('/test');
+    const result = await router.render(url('/test'));
 
     expect(result.status).toEqual(200);
     expect(result.content).toContain('Content with');
@@ -215,7 +215,7 @@ test('SsrMdRouter - nested slots inject at multiple levels', async () => {
     const manifest = createTestManifest({ routes });
     const router = createRouter(manifest);
 
-    const result = await router.render('/a/b/c');
+    const result = await router.render(url('/a/b/c'));
 
     expect(result.status).toEqual(200);
     expect(result.content).toContain('Level A');
@@ -263,7 +263,7 @@ test('SsrMdRouter - deeply nested routes compose correctly', async () => {
     const manifest = createTestManifest({ routes });
     const router = createRouter(manifest);
 
-    const result = await router.render('/l1/l2/l3/l4/l5');
+    const result = await router.render(url('/l1/l2/l3/l4/l5'));
 
     expect(result.status).toEqual(200);
     expect(result.content).toContain('L1');
@@ -297,7 +297,7 @@ test('SsrMdRouter - stripSlots removes unconsumed router-slot blocks', async () 
     const manifest = createTestManifest({ routes });
     const router = createRouter(manifest);
 
-    const result = await router.render('/page');
+    const result = await router.render(url('/page'));
 
     expect(result.status).toEqual(200);
     expect(result.content.includes('```router-slot\n```')).toEqual(false);
@@ -324,7 +324,7 @@ test('SsrMdRouter - stripSlots trims whitespace after removal', async () => {
     const manifest = createTestManifest({ routes });
     const router = createRouter(manifest);
 
-    const result = await router.render('/page');
+    const result = await router.render(url('/page'));
 
     expect(result.status).toEqual(200);
     expect(result.content).toEqual('Content');
@@ -350,7 +350,7 @@ test('SsrMdRouter - stripSlots handles multiple slot blocks', async () => {
     const manifest = createTestManifest({ routes });
     const router = createRouter(manifest);
 
-    const result = await router.render('/page');
+    const result = await router.render(url('/page'));
 
     expect(result.status).toEqual(200);
     // stripSlots removes all slot blocks and trims, but the extra newlines remain
@@ -387,7 +387,7 @@ test('SsrMdRouter - resolves and renders widgets in markdown content', async () 
     const manifest = createTestManifest({ routes });
     const router = createRouter(manifest, { widgets });
 
-    const result = await router.render('/page');
+    const result = await router.render(url('/page'));
 
     expect(result.status).toEqual(200);
     expect(result.content).toContain('Page content');
@@ -429,7 +429,7 @@ test('SsrMdRouter - passes widget params to renderMarkdown', async () => {
     const manifest = createTestManifest({ routes });
     const router = createRouter(manifest, { widgets });
 
-    const result = await router.render('/page');
+    const result = await router.render(url('/page'));
 
     expect(result.status).toEqual(200);
     expect(result.content).toContain('Counter starts at: 5');
@@ -458,7 +458,7 @@ test('SsrMdRouter - handles widget with invalid JSON params', async () => {
     const manifest = createTestManifest({ routes });
     const router = createRouter(manifest, { widgets });
 
-    const result = await router.render('/page');
+    const result = await router.render(url('/page'));
 
     expect(result.status).toEqual(200);
     expect(result.content).toContain('Error');
@@ -485,7 +485,7 @@ test('SsrMdRouter - handles unknown widget name', async () => {
     const manifest = createTestManifest({ routes });
     const router = createRouter(manifest, { widgets });
 
-    const result = await router.render('/page');
+    const result = await router.render(url('/page'));
 
     expect(result.status).toEqual(200);
     expect(result.content).toContain('Unknown widget');
@@ -525,7 +525,7 @@ test('SsrMdRouter - widget error is rendered as markdown quote', async () => {
     const manifest = createTestManifest({ routes });
     const router = createRouter(manifest, { widgets });
 
-    const result = await router.render('/page');
+    const result = await router.render(url('/page'));
 
     expect(result.status).toEqual(200);
     expect(result.content).toContain('Widget Error');
@@ -556,7 +556,7 @@ test('SsrMdRouter - multiple widgets in same page are all resolved', async () =>
     const manifest = createTestManifest({ routes });
     const router = createRouter(manifest, { widgets });
 
-    const result = await router.render('/page');
+    const result = await router.render(url('/page'));
 
     expect(result.status).toEqual(200);
     expect(result.content).toContain('Widget 1');
@@ -574,7 +574,7 @@ test('SsrMdRouter - 404 status page renders markdown format', async () => {
   const manifest = createTestManifest();
   const router = createRouter(manifest);
 
-  const result = await router.render('/nonexistent');
+  const result = await router.render(url('/nonexistent'));
 
   expect(result.status).toEqual(404);
   expect(result.content).toContain('# Not Found');
@@ -585,7 +585,7 @@ test('SsrMdRouter - 404 markdown includes path in code block', async () => {
   const manifest = createTestManifest();
   const router = createRouter(manifest);
 
-  const result = await router.render('/missing/route');
+  const result = await router.render(url('/missing/route'));
 
   expect(result.status).toEqual(404);
   expect(result.content).toContain('`/missing/route`');
@@ -603,7 +603,7 @@ test('SsrMdRouter - 500 status page renders markdown format', async () => {
   const manifest = createTestManifest({ routes });
   const router = createRouter(manifest);
 
-  const result = await router.render('/error');
+  const result = await router.render(url('/error'));
 
   expect(result.status).toEqual(500);
   expect(result.content).toContain('Error');
@@ -632,7 +632,7 @@ test('SsrMdRouter - custom markdown status page is used when available', async (
     });
     const router = createRouter(manifest);
 
-    const result = await router.render('/missing');
+    const result = await router.render(url('/missing'));
 
     expect(result.status).toEqual(404);
     expect(result.content).toContain('Oops!');
@@ -660,7 +660,7 @@ test('SsrMdRouter - status page markdown has router-slot stripped', async () => 
     });
     const router = createRouter(manifest);
 
-    const result = await router.render('/missing');
+    const result = await router.render(url('/missing'));
 
     expect(result.status).toEqual(404);
     expect(result.content.includes('```router-slot\n```')).toEqual(false);
@@ -693,7 +693,7 @@ test('SsrMdRouter - redirect renders plain text output', async () => {
   };
 
   const router = createRouter(manifest);
-  const result = await router.render('/old');
+  const result = await router.render(url('/old'));
 
   expect(result.status).toEqual(301);
   expect(result.content).toContain('Redirect to: /new');
@@ -719,7 +719,7 @@ test('SsrMdRouter - redirect with 302 status', async () => {
   };
 
   const router = createRouter(manifest);
-  const result = await router.render('/temp');
+  const result = await router.render(url('/temp'));
 
   expect(result.status).toEqual(302);
   expect(result.content).toContain('Redirect to: /permanent');
@@ -758,7 +758,7 @@ test('SsrMdRouter - composes full hierarchy for nested route', async () => {
     const manifest = createTestManifest({ routes });
     const router = createRouter(manifest);
 
-    const result = await router.render('/docs/guide/setup');
+    const result = await router.render(url('/docs/guide/setup'));
 
     expect(result.status).toEqual(200);
     expect(result.content).toContain('Documentation');
@@ -790,7 +790,7 @@ test('SsrMdRouter - respects slot positions in hierarchy', async () => {
     const manifest = createTestManifest({ routes });
     const router = createRouter(manifest);
 
-    const result = await router.render('/a/b/c');
+    const result = await router.render(url('/a/b/c'));
 
     expect(result.status).toEqual(200);
     // Verify order: A-before, B-before, C, B-after, A-after
@@ -833,7 +833,7 @@ test('SsrMdRouter - skips routes without content in hierarchy', async () => {
     const manifest = createTestManifest({ routes });
     const router = createRouter(manifest);
 
-    const result = await router.render('/docs/api');
+    const result = await router.render(url('/docs/api'));
 
     expect(result.status).toEqual(200);
     expect(result.content).toContain('Docs');
@@ -864,7 +864,7 @@ test('SsrMdRouter - renders unprefixed routes (server strips /md/ prefix)', asyn
     const manifest = createTestManifest({ routes });
     const router = createRouter(manifest);
 
-    const result = await router.render('/page');
+    const result = await router.render(url('/page'));
 
     expect(result.status).toEqual(200);
     expect(result.content).toContain('Page content');
@@ -890,7 +890,7 @@ test('SsrMdRouter - renders unprefixed nested path', async () => {
     const manifest = createTestManifest({ routes });
     const router = createRouter(manifest);
 
-    const result = await router.render('/docs/guide');
+    const result = await router.render(url('/docs/guide'));
 
     expect(result.status).toEqual(200);
     expect(result.content).toContain('Guide');
@@ -903,7 +903,7 @@ test('SsrMdRouter - renders root path', async () => {
   const manifest = createTestManifest({ routes: [] });
   const router = createRouter(manifest);
 
-  const result = await router.render('/');
+  const result = await router.render(url('/'));
   expect(result.status).toEqual(200);
 });
 
@@ -942,7 +942,7 @@ test('SsrMdRouter - resolves widget blocks and calls renderMarkdown', async () =
     const manifest = createTestManifest({ routes });
     const router = createRouter(manifest, { widgets });
 
-    const result = await router.render('/page');
+    const result = await router.render(url('/page'));
 
     expect(result.status).toEqual(200);
     expect(result.content).toContain('Start');
@@ -969,7 +969,7 @@ test('SsrMdRouter - default root route returns slot placeholder', async () => {
   const manifest = createTestManifest({ routes });
   const router = createRouter(manifest);
 
-  const result = await router.render('/');
+  const result = await router.render(url('/'));
 
   expect(result.status).toEqual(200);
 });
@@ -996,7 +996,7 @@ test('SsrMdRouter - default root route injects child content correctly', async (
     const manifest = createTestManifest({ routes });
     const router = createRouter(manifest);
 
-    const result = await router.render('/child');
+    const result = await router.render(url('/child'));
 
     expect(result.status).toEqual(200);
     expect(result.content).toContain('Child content');
@@ -1047,7 +1047,7 @@ test('SsrMdRouter - renders error boundary when available for errors', async () 
     };
 
     const router = createRouter(manifest);
-    const result = await router.render('/projects/123');
+    const result = await router.render(url('/projects/123'));
 
     // Error boundary patterns are recognized
     expect(result.status === 200 || result.status === 500).toEqual(true);
@@ -1078,7 +1078,7 @@ test('SsrMdRouter - render result has title property', async () => {
     const manifest = createTestManifest({ routes });
     const router = createRouter(manifest);
 
-    const result = await router.render('/page');
+    const result = await router.render(url('/page'));
 
     expect(result.status).toEqual(200);
     // Result object has these properties
@@ -1111,7 +1111,7 @@ test('SsrMdRouter - handles empty markdown file', async () => {
     const manifest = createTestManifest({ routes });
     const router = createRouter(manifest);
 
-    const result = await router.render('/empty');
+    const result = await router.render(url('/empty'));
 
     expect(result.status).toEqual(200);
     expect(result.content).toEqual('');
@@ -1137,7 +1137,7 @@ test('SsrMdRouter - handles markdown with no slots', async () => {
     const manifest = createTestManifest({ routes });
     const router = createRouter(manifest);
 
-    const result = await router.render('/page');
+    const result = await router.render(url('/page'));
 
     expect(result.status).toEqual(200);
     expect(result.content).toContain('No slots here');
@@ -1163,7 +1163,7 @@ test('SsrMdRouter - handles route with query parameters', async () => {
     const manifest = createTestManifest({ routes });
     const router = createRouter(manifest);
 
-    const result = await router.render('/search?q=test&limit=10');
+    const result = await router.render(url('/search?q=test&limit=10'));
 
     expect(result.status).toEqual(200);
     expect(result.content).toContain('Search results');
@@ -1189,7 +1189,7 @@ test('SsrMdRouter - handles route with fragment', async () => {
     const manifest = createTestManifest({ routes });
     const router = createRouter(manifest);
 
-    const result = await router.render('/docs#section');
+    const result = await router.render(url('/docs#section'));
 
     expect(result.status).toEqual(200);
     expect(result.content).toContain('Documentation');
@@ -1215,7 +1215,7 @@ test('SsrMdRouter - handles route with dynamic parameters', async () => {
     const manifest = createTestManifest({ routes });
     const router = createRouter(manifest);
 
-    const result = await router.render('/posts/123');
+    const result = await router.render(url('/posts/123'));
 
     expect(result.status).toEqual(200);
   } finally {
@@ -1252,7 +1252,7 @@ test('SsrMdRouter - uses discovered widget files when available', async () => {
     const manifest = createTestManifest({ routes });
     const router = createRouter(manifest, { widgets, widgetFiles });
 
-    const result = await router.render('/page');
+    const result = await router.render(url('/page'));
 
     expect(result.status).toEqual(200);
     expect(result.content).toContain('From discovered files');
@@ -1302,7 +1302,7 @@ test('SsrMdRouter - passes context to widget getData', async () => {
     const manifest = createTestManifest({ routes });
     const router = createRouter(manifest, { widgets, extendContext });
 
-    const result = await router.render('/page');
+    const result = await router.render(url('/page'));
 
     expect(result.status).toEqual(200);
     expect(result.content).toContain('Context passed');

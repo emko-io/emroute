@@ -57,7 +57,6 @@ export class SpaHtmlRouter extends BaseRenderer {
     const bp = options?.basePath ?? DEFAULT_BASE_PATH;
     const core = new RouteCore(resolver, {
       extendContext: options?.extendContext,
-      basePath: bp.html,
       moduleLoaders: options?.moduleLoaders,
     });
     super(core);
@@ -235,7 +234,8 @@ export class SpaHtmlRouter extends BaseRenderer {
     const routePath = this.stripBase(pathname);
 
     try {
-      const matched = this.core.match(new URL(routePath, location.origin));
+      const routeUrl = new URL(routePath + urlObj.search + urlObj.hash, location.origin);
+      const matched = this.core.match(routeUrl);
 
       if (!matched) {
         logger.nav('not-found', pathname, pathname);
@@ -258,7 +258,7 @@ export class SpaHtmlRouter extends BaseRenderer {
 
       // Render page
       this.core.currentRoute = matched;
-      const routeInfo = this.core.toRouteInfo(matched, pathname);
+      const routeInfo = this.core.toRouteInfo(matched, routeUrl);
 
       if (document.startViewTransition) {
         const transition = document.startViewTransition(async () => {
@@ -308,7 +308,6 @@ export class SpaHtmlRouter extends BaseRenderer {
           pathname,
           pattern: statusPage.pattern,
           params: {},
-          searchParams: new URLSearchParams(),
         };
         const context = await this.core.buildComponentContext(ri, statusPage);
         const data = await component.getData({ params: {}, context });
@@ -332,7 +331,7 @@ export class SpaHtmlRouter extends BaseRenderer {
     try {
       const module = await this.core.loadModule<{ default: PageComponent }>(modulePath);
       const component = module.default;
-      const minCtx = { pathname: '', pattern: '', params: {}, searchParams: new URLSearchParams() };
+      const minCtx = { pathname: '', pattern: '', params: {} };
       const data = await component.getData({ params: {}, context: minCtx });
       const html = component.renderHTML({ data, params: {}, context: minCtx });
       if (this.slot) {

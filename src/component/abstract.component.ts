@@ -17,7 +17,7 @@ import { escapeHtml } from '../util/html.util.ts';
 
 /**
  * Context passed to components during rendering.
- * Extends RouteInfo (pathname, pattern, params, searchParams)
+ * Extends RouteInfo (pathname, pattern, params)
  * with pre-loaded file content and an abort signal.
  *
  * Consumers can extend this interface via module augmentation
@@ -27,12 +27,14 @@ import { escapeHtml } from '../util/html.util.ts';
 export type FileContents = { html?: string; md?: string; css?: string };
 
 export interface ComponentContext extends RouteInfo {
+  /** @deprecated Use context.url.pathname */
+  readonly pathname: string;
+  /** @deprecated Use context.url.searchParams */
+  readonly searchParams: URLSearchParams;
   readonly files?: Readonly<FileContents>;
   readonly signal?: AbortSignal;
   /** True when this component is the leaf (matched) route, false when rendered as a layout parent. */
   readonly isLeaf?: boolean;
-  /** Base path for SSR HTML links (e.g. '/html'). */
-  readonly basePath?: string;
 }
 
 /**

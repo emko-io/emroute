@@ -115,6 +115,11 @@ function resolveNode(root: RouteNode, pattern: string): RouteNode {
  * Build a RouteTrie from a flat list of RouteConfig.
  * Drop-in replacement for old RoutesManifest in tests.
  */
+/** Shorthand for tests: string → URL (defaults to http://test base). */
+export function url(path: string): URL {
+  return new URL(path, 'http://test');
+}
+
 export function createResolver(
   routes: RouteConfig[],
   options?: {

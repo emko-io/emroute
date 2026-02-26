@@ -81,12 +81,12 @@ export class SsrMdRouter extends SsrRenderer {
     return `Redirect to: ${to}`;
   }
 
-  protected override renderStatusPage(status: number, pathname: string): string {
-    return `# ${STATUS_MESSAGES[status] ?? 'Error'}\n\nPath: \`${pathname}\``;
+  protected override renderStatusPage(status: number, url: URL): string {
+    return `# ${STATUS_MESSAGES[status] ?? 'Error'}\n\nPath: \`${url.pathname}\``;
   }
 
-  protected override renderErrorPage(_error: unknown, pathname: string): string {
-    return `# Internal Server Error\n\nPath: \`${pathname}\``;
+  protected override renderErrorPage(_error: unknown, url: URL): string {
+    return `# Internal Server Error\n\nPath: \`${url.pathname}\``;
   }
 
   /**
@@ -117,7 +117,12 @@ export class SsrMdRouter extends SsrRenderer {
             files = await this.core.loadWidgetFiles(filePaths);
           }
 
-          const baseContext = { ...routeInfo, files };
+          const baseContext = {
+            ...routeInfo,
+            pathname: routeInfo.url.pathname,
+            searchParams: routeInfo.url.searchParams,
+            files,
+          };
           const context = this.core.contextProvider
             ? this.core.contextProvider(baseContext)
             : baseContext;

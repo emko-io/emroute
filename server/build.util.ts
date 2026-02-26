@@ -81,12 +81,16 @@ export async function buildClientBundles(options: BuildOptions): Promise<void> {
   await runtime.command(paths.emroute, { body: emrouteJs });
 
   // App bundle — consumer's main.ts bundled with esbuild.
-  // Read source from the runtime (works for any storage backend).
+  // Try filesystem first (where node_modules lives), then runtime, then generate.
   const ep = entryPoint ?? '/main.ts';
-  const epResponse = await runtime.query(ep);
-  const source = epResponse.status === 404
-    ? generateMainTs(spa, '@emkodev/emroute')
-    : await epResponse.text();
+  let source: string | undefined;
+  try {
+    source = await readFile(root + ep, 'utf-8');
+  } catch {
+    const epResponse = await runtime.query(ep);
+    if (epResponse.status !== 404) source = await epResponse.text();
+  }
+  source ??= generateMainTs(spa, '@emkodev/emroute');
 
   const result = await esbuild.build({
     bundle: true,
@@ -100,6 +104,14 @@ export async function buildClientBundles(options: BuildOptions): Promise<void> {
 
   for (const file of result.outputFiles) {
     await runtime.command(paths.app, { body: file.contents as unknown as BodyInit });
+  }
+
+  // Copy main.css from disk into runtime if it exists (and runtime doesn't have it)
+  if ((await runtime.query('/main.css')).status === 404) {
+    try {
+      const css = await readFile(root + '/main.css');
+      await runtime.command('/main.css', { body: css });
+    } catch { /* no main.css on disk — fine */ }
   }
 
   // Write shell (index.html) if not already present

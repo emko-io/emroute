@@ -1,15 +1,5 @@
-import {
-  filePathToPattern,
-  getPageFileType,
-  getRouteType,
-  sortRoutesBySpecificity,
-} from '../src/route/route.matcher.ts';
-import type {
-  ErrorBoundary,
-  RouteConfig,
-  RouteFiles,
-  RoutesManifest,
-} from '../src/type/route.type.ts';
+import type { RouteNode, RouteFiles } from '../src/type/route-tree.type.ts';
+import { resolveTargetNode } from '../src/route/route-tree.util.ts';
 import type { WidgetManifestEntry } from '../src/type/widget.type.ts';
 
 export const CONTENT_TYPES: Map<string, string> = new Map<string, string>([
@@ -44,24 +34,9 @@ export const DEFAULT_WIDGETS_DIR = '/widgets';
 export const ROUTES_MANIFEST_PATH = '/routes.manifest.json';
 export const WIDGETS_MANIFEST_PATH = '/widgets.manifest.json';
 
-export const EMROUTE_EXTERNALS = [
-  '@emkodev/emroute/spa',
-  '@emkodev/emroute/overlay',
-  '@emkodev/emroute',
-] as const;
-
 export interface RuntimeConfig {
   routesDir?: string;
   widgetsDir?: string;
-  /** SPA mode. When 'none', bundling is skipped entirely. */
-  spa?: 'none' | 'leaf' | 'root' | 'only';
-  /** Consumer's SPA entry point (e.g. '/main.ts'). Skips app bundle when absent. */
-  entryPoint?: string;
-  bundlePaths?: {
-    emroute: string;
-    app: string;
-    widgets?: string;
-  };
 }
 
 /**
@@ -99,7 +74,78 @@ export abstract class Runtime {
 
   /** Write. Defaults to PUT; pass `{ method: "DELETE" }` etc. to override. */
   command(resource: FetchParams[0], options?: FetchParams[1]): FetchReturn {
-    return this.handle(resource, { method: 'PUT', ...options });
+    const path = typeof resource === 'string'
+      ? resource
+      : new URL(resource instanceof Request ? resource.url : resource.toString()).pathname;
+    const result = this.handle(resource, { method: 'PUT', ...options });
+    const routesDir = this.config.routesDir ?? DEFAULT_ROUTES_DIR;
+    if (path.startsWith(routesDir + '/')) {
+      return result.then(async (res) => {
+        await this.mergeRouteIntoManifest(path, routesDir);
+        return res;
+      });
+    }
+    return result;
+  }
+
+  /**
+   * Parse a single route file path and merge it into the stored manifest.
+   * Avoids a full directory rescan — just reads the current manifest,
+   * inserts the new entry, and writes it back.
+   */
+  private async mergeRouteIntoManifest(
+    filePath: string,
+    routesDir: string,
+  ): Promise<void> {
+    const relativePath = filePath.slice(routesDir.length + 1);
+    const parts = relativePath.split('/');
+    const filename = parts[parts.length - 1];
+    const dirSegments = parts.slice(0, -1);
+
+    const match = filename.match(/^(.+?)\.(page|error|redirect)\.(ts|js|html|md|css)$/);
+    if (!match) return;
+
+    const [, name, kind, ext] = match;
+
+    // Read current manifest (or start fresh)
+    const response = await this.handle(ROUTES_MANIFEST_PATH);
+    const tree: RouteNode = response.status === 404
+      ? {}
+      : await response.json();
+
+    // Walk to the parent node
+    let node = tree;
+    for (const dir of dirSegments) {
+      if (dir.startsWith('[') && dir.endsWith(']')) {
+        const param = dir.slice(1, -1);
+        node.dynamic ??= { param, child: {} };
+        node = node.dynamic.child;
+      } else {
+        node.children ??= {};
+        node.children[dir] ??= {};
+        node = node.children[dir];
+      }
+    }
+
+    // Place the file
+    if (kind === 'error') {
+      node.errorBoundary = filePath;
+    } else {
+      const target = resolveTargetNode(node, name, dirSegments.length === 0);
+      if (kind === 'redirect') {
+        target.redirect = filePath;
+      } else {
+        target.files ??= {};
+        target.files[ext as keyof RouteFiles] = filePath;
+      }
+    }
+
+    // Write updated manifest back
+    this.routesManifestCache = null;
+    await this.handle(ROUTES_MANIFEST_PATH, {
+      method: 'PUT',
+      body: JSON.stringify(tree),
+    });
   }
 
   /**
@@ -110,66 +156,12 @@ export abstract class Runtime {
     throw new Error(`loadModule not implemented for ${this.constructor.name}`);
   }
 
-  static transpile(_ts: string): Promise<string> {
-    throw new Error('Not implemented');
-  }
-
   /**
-   * Build client bundles. Called by the server after manifests are written.
-   * No-op by default — override in runtimes that support bundling.
+   * Transpile TypeScript source to JavaScript.
+   * Used by the build step to produce browser-loadable .js modules.
    */
-  bundle(): Promise<void> {
-    return Promise.resolve();
-  }
-
-  /**
-   * Generate an HTML shell (`index.html`) if one doesn't already exist.
-   * Writes through `this.command()` so it works for any runtime.
-   */
-  protected async writeShell(
-    paths: { emroute: string; app: string; widgets?: string },
-  ): Promise<void> {
-    if ((await this.query('/index.html')).status !== 404) return;
-
-    const imports: Record<(typeof EMROUTE_EXTERNALS)[number], string> = Object.fromEntries(
-      EMROUTE_EXTERNALS.map((pkg) => [pkg, paths.emroute]),
-    ) as Record<(typeof EMROUTE_EXTERNALS)[number], string>;
-    const importMap = JSON.stringify({ imports }, null, 2);
-
-    const scripts = [
-      `<script type="importmap">\n${importMap}\n  </script>`,
-    ];
-    if (this.config.entryPoint) {
-      scripts.push(`<script type="module" src="${paths.app}"></script>`);
-    }
-
-    const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>emroute</title>
-  <style>@view-transition { navigation: auto; } router-slot { display: contents; }</style>
-</head>
-<body>
-  <router-slot></router-slot>
-  ${scripts.join('\n  ')}
-</body>
-</html>`;
-
-    await this.command('/index.html', { body: html });
-  }
-
-  static compress(
-    _data: Uint8Array,
-    _encoding: 'br' | 'gzip',
-  ): Promise<Uint8Array> {
-    throw new Error('Not implemented');
-  }
-
-  /** Stop the bundler subprocess if running. No-op by default. */
-  static stopBundler(): Promise<void> {
-    return Promise.resolve();
+  transpile(_source: string): Promise<string> {
+    throw new Error(`transpile not implemented for ${this.constructor.name}`);
   }
 
   // ── Manifest resolution ─────────────────────────────────────────────
@@ -198,17 +190,9 @@ export abstract class Runtime {
       return new Response('Not Found', { status: 404 });
     }
 
-    const { warnings, ...manifest } = await this.scanRoutes(routesDir);
-    for (const w of warnings) console.warn(w);
+    const tree = await this.scanRoutes(routesDir);
 
-    const json = {
-      routes: manifest.routes,
-      errorBoundaries: manifest.errorBoundaries,
-      statusPages: [...manifest.statusPages.entries()],
-      errorHandler: manifest.errorHandler,
-    };
-
-    this.routesManifestCache = Response.json(json);
+    this.routesManifestCache = Response.json(tree);
     return this.routesManifestCache.clone();
   }
 
@@ -248,16 +232,12 @@ export abstract class Runtime {
     }
   }
 
-  protected async scanRoutes(routesDir: string): Promise<RoutesManifest & { warnings: string[] }> {
-    const pageFiles: Array<{
-      path: string;
-      pattern: string;
-      fileType: 'ts' | 'html' | 'md' | 'css';
-    }> = [];
-    const redirects: RouteConfig[] = [];
-    const errorBoundaries: ErrorBoundary[] = [];
-    const statusPages = new Map<number, RouteConfig>();
-    let errorHandler: RouteConfig | undefined;
+  /**
+   * Scan a routes directory and build a RouteNode tree.
+   * The filesystem structure maps directly to the tree — no intermediate array.
+   */
+  protected async scanRoutes(routesDir: string): Promise<RouteNode> {
+    const root: RouteNode = {};
 
     const allFiles: string[] = [];
     for await (const file of this.walkDirectory(routesDir)) {
@@ -266,130 +246,52 @@ export abstract class Runtime {
 
     for (const filePath of allFiles) {
       const relativePath = filePath.replace(`${routesDir}/`, '');
-      const filename = relativePath.split('/').pop() ?? '';
+      const parts = relativePath.split('/');
+      const filename = parts[parts.length - 1];
+      const dirSegments = parts.slice(0, -1);
 
-      if (filename === 'index.error.ts' && relativePath === 'index.error.ts') {
-        errorHandler = {
-          pattern: '/',
-          type: 'error',
-          modulePath: filePath,
-        };
-        continue;
-      }
+      // Parse filename: name.kind.ext (e.g. "about.page.ts", "[id].page.html", "index.error.ts")
+      const match = filename.match(/^(.+?)\.(page|error|redirect)\.(ts|js|html|md|css)$/);
+      if (!match) continue;
 
-      const cssFileType = getPageFileType(filename);
-      if (cssFileType === 'css') {
-        const pattern = filePathToPattern(relativePath);
-        pageFiles.push({ path: filePath, pattern, fileType: 'css' });
-        continue;
-      }
+      const [, name, kind, ext] = match;
 
-      const routeType = getRouteType(filename);
-      if (!routeType) continue;
-
-      const statusMatch = filename.match(/^(\d{3})\.page\.(ts|html|md)$/);
-      if (statusMatch) {
-        const statusCode = parseInt(statusMatch[1], 10);
-        const fileType = getPageFileType(filename);
-        if (fileType) {
-          const existing = statusPages.get(statusCode);
-          if (existing) {
-            existing.files ??= {};
-            existing.files[fileType] = filePath;
-            existing.modulePath = existing.files.ts ?? existing.files.html ?? existing.files.md ??
-              '';
-          } else {
-            const files: RouteFiles = { [fileType]: filePath };
-            statusPages.set(statusCode, {
-              pattern: `/${statusCode}`,
-              type: 'page',
-              modulePath: filePath,
-              statusCode,
-              files,
-            });
-          }
+      // Walk directory segments to reach the parent node
+      let node = root;
+      for (const dir of dirSegments) {
+        if (dir.startsWith('[') && dir.endsWith(']')) {
+          const param = dir.slice(1, -1);
+          node.dynamic ??= { param, child: {} };
+          node = node.dynamic.child;
+        } else {
+          node.children ??= {};
+          node.children[dir] ??= {};
+          node = node.children[dir];
         }
+      }
+
+      // Place the file on the correct node
+      if (kind === 'error') {
+        // Error boundary scopes to the directory it's in.
+        // Root index.error.ts → root.errorBoundary (global handler).
+        // projects/projects.error.ts → projects node errorBoundary.
+        node.errorBoundary = filePath;
         continue;
       }
 
-      const pattern = filePathToPattern(relativePath);
+      // For page and redirect files, the name determines the final node
+      const target = resolveTargetNode(node, name, dirSegments.length === 0);
 
-      if (routeType === 'error') {
-        const boundaryPattern = pattern.replace(/\/[^/]+$/, '') || '/';
-        errorBoundaries.push({ pattern: boundaryPattern, modulePath: filePath });
-        continue;
-      }
-
-      if (routeType === 'redirect') {
-        redirects.push({ pattern, type: 'redirect', modulePath: filePath });
-        continue;
-      }
-
-      const fileType = getPageFileType(filename);
-      if (fileType) {
-        pageFiles.push({ path: filePath, pattern, fileType });
+      if (kind === 'redirect') {
+        target.redirect = filePath;
+      } else {
+        // kind === 'page'
+        target.files ??= {};
+        target.files[ext as keyof RouteFiles] = filePath;
       }
     }
 
-    // Group files by pattern
-    const groups = new Map<string, { pattern: string; files: RouteFiles; parent?: string }>();
-    for (const { path, pattern, fileType } of pageFiles) {
-      let group = groups.get(pattern);
-      if (!group) {
-        group = { pattern, files: {} };
-        const segments = pattern.split('/').filter(Boolean);
-        if (segments.length > 1) {
-          group.parent = '/' + segments.slice(0, -1).join('/');
-        }
-        groups.set(pattern, group);
-      }
-      const existing = group.files[fileType];
-      if (existing?.includes('/index.page.') && !path.includes('/index.page.')) {
-        continue;
-      }
-      group.files[fileType] = path;
-    }
-
-    // Detect collisions
-    const warnings: string[] = [];
-    for (const [pattern, group] of groups) {
-      const filePaths = Object.values(group.files).filter(Boolean);
-      const hasIndex = filePaths.some((p) => p?.includes('/index.page.'));
-      const hasFlat = filePaths.some((p) => p && !p.includes('/index.page.'));
-      if (hasIndex && hasFlat) {
-        warnings.push(
-          `Warning: Mixed file structure for ${pattern}:\n` +
-            filePaths.map((p) => `     ${p}`).join('\n') +
-            `\n     Both folder/index and flat files detected`,
-        );
-      }
-    }
-
-    // Convert groups to RouteConfig array
-    const routes: RouteConfig[] = [];
-    for (const [_, group] of groups) {
-      const modulePath = group.files.ts ?? group.files.html ?? group.files.md ?? '';
-      if (!modulePath) continue;
-      const route: RouteConfig = {
-        pattern: group.pattern,
-        type: 'page',
-        modulePath,
-        files: group.files,
-      };
-      if (group.parent) route.parent = group.parent;
-      routes.push(route);
-    }
-
-    routes.push(...redirects);
-    const sortedRoutes = sortRoutesBySpecificity(routes);
-
-    return {
-      routes: sortedRoutes,
-      errorBoundaries,
-      statusPages,
-      errorHandler,
-      warnings,
-    };
+    return root;
   }
 
   protected async scanWidgets(
@@ -397,7 +299,6 @@ export abstract class Runtime {
     pathPrefix?: string,
   ): Promise<WidgetManifestEntry[]> {
     const COMPANION_EXTENSIONS = ['html', 'md', 'css'] as const;
-    const WIDGET_FILE_SUFFIX = '.widget.ts';
     const entries: WidgetManifestEntry[] = [];
 
     const trailingDir = widgetsDir.endsWith('/') ? widgetsDir : widgetsDir + '/';
@@ -408,10 +309,15 @@ export abstract class Runtime {
       if (!item.endsWith('/')) continue;
 
       const name = item.slice(0, -1);
-      const moduleFile = `${name}${WIDGET_FILE_SUFFIX}`;
-      const modulePath = `${trailingDir}${name}/${moduleFile}`;
 
-      if ((await this.query(modulePath)).status === 404) continue;
+      // Try .widget.ts first, then .widget.js
+      let moduleFile = `${name}.widget.ts`;
+      let modulePath = `${trailingDir}${name}/${moduleFile}`;
+      if ((await this.query(modulePath)).status === 404) {
+        moduleFile = `${name}.widget.js`;
+        modulePath = `${trailingDir}${name}/${moduleFile}`;
+        if ((await this.query(modulePath)).status === 404) continue;
+      }
 
       const prefix = pathPrefix ? `${pathPrefix}/` : '';
       const entry: WidgetManifestEntry = {

@@ -118,7 +118,12 @@ export function resolveWidgetTags(
         files = await loadFiles(widgetName, widget.files);
       }
 
-      const baseContext = { ...routeInfo, files };
+      const baseContext = {
+        ...routeInfo,
+        pathname: routeInfo.url.pathname,
+        searchParams: routeInfo.url.searchParams,
+        files,
+      };
       const context = contextProvider ? contextProvider(baseContext) : baseContext;
 
       const data = await widget.getData({ params, context });

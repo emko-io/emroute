@@ -6,7 +6,8 @@
  * Expands <mark-down> tags server-side when a markdown renderer is provided.
  */
 
-import type { RouteConfig, RouteInfo, RoutesManifest } from '../../type/route.type.ts';
+import type { RouteConfig, RouteInfo } from '../../type/route.type.ts';
+import type { RouteResolver } from '../../route/route.resolver.ts';
 import type { MarkdownRenderer } from '../../type/markdown.type.ts';
 import type { PageComponent } from '../../component/page.component.ts';
 import { DEFAULT_ROOT_ROUTE } from '../../route/route.core.ts';
@@ -28,8 +29,8 @@ export class SsrHtmlRouter extends SsrRenderer {
   private markdownRenderer: MarkdownRenderer | null;
   private markdownReady: Promise<void> | null = null;
 
-  constructor(manifest: RoutesManifest, options: SsrHtmlRouterOptions = {}) {
-    super(manifest, options);
+  constructor(resolver: RouteResolver, options: SsrHtmlRouterOptions = {}) {
+    super(resolver, options);
     this.markdownRenderer = options.markdownRenderer ?? null;
 
     if (this.markdownRenderer?.init) {
@@ -56,12 +57,13 @@ export class SsrHtmlRouter extends SsrRenderer {
     routeInfo: RouteInfo,
     route: RouteConfig,
     isLeaf?: boolean,
+    signal?: AbortSignal,
   ): Promise<{ content: string; title?: string }> {
     if (route.modulePath === DEFAULT_ROOT_ROUTE.modulePath) {
       return { content: `<router-slot pattern="${route.pattern}"></router-slot>` };
     }
 
-    const { content: rawContent, title } = await this.loadRouteContent(routeInfo, route, isLeaf);
+    const { content: rawContent, title } = await this.loadRouteContent(routeInfo, route, isLeaf, signal);
     let content = rawContent;
 
     // Expand <mark-down> tags server-side
@@ -99,18 +101,18 @@ export class SsrHtmlRouter extends SsrRenderer {
     return `<meta http-equiv="refresh" content="0;url=${escapeHtml(to)}">`;
   }
 
-  protected override renderStatusPage(status: number, pathname: string): string {
+  protected override renderStatusPage(status: number, url: URL): string {
     return `
       <h1>${STATUS_MESSAGES[status] ?? 'Error'}</h1>
-      <p>Path: ${escapeHtml(pathname)}</p>
+      <p>Path: ${escapeHtml(url.pathname)}</p>
     `;
   }
 
-  protected override renderErrorPage(error: unknown, pathname: string): string {
+  protected override renderErrorPage(error: unknown, url: URL): string {
     const message = error instanceof Error ? error.message : String(error);
     return `
       <h1>Error</h1>
-      <p>Path: ${escapeHtml(pathname)}</p>
+      <p>Path: ${escapeHtml(url.pathname)}</p>
       <p>${escapeHtml(message)}</p>
     `;
   }
@@ -152,8 +154,8 @@ export class SsrHtmlRouter extends SsrRenderer {
  * Create SSR HTML router.
  */
 export function createSsrHtmlRouter(
-  manifest: RoutesManifest,
+  resolver: RouteResolver,
   options?: SsrHtmlRouterOptions,
 ): SsrHtmlRouter {
-  return new SsrHtmlRouter(manifest, options);
+  return new SsrHtmlRouter(resolver, options);
 }

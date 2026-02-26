@@ -19,8 +19,9 @@ import { SsrMdRouter } from '../../src/renderer/ssr/md.renderer.ts';
 import { PageComponent } from '../../src/component/page.component.ts';
 import { WidgetComponent } from '../../src/component/widget.component.ts';
 import { WidgetRegistry } from '../../src/widget/widget.registry.ts';
-import type { RouteConfig, RouteInfo, RoutesManifest } from '../../src/type/route.type.ts';
+import type { RouteConfig, RouteInfo } from '../../src/type/route.type.ts';
 import type { ComponentContext, ContextProvider } from '../../src/component/abstract.component.ts';
+import { createResolver, type TestManifest } from './test.util.ts';
 
 // deno-lint-ignore no-explicit-any
 const asAny = (v: unknown): any => v;
@@ -31,14 +32,34 @@ const asAny = (v: unknown): any => v;
 
 function createTestManifest(
   routes?: RouteConfig[],
-  overrides?: Partial<RoutesManifest>,
-): RoutesManifest {
+  overrides?: Partial<TestManifest>,
+): TestManifest {
   return {
     routes: routes ?? [],
-    errorBoundaries: [],
-    statusPages: new Map(),
     ...overrides,
   };
+}
+
+function resolverFromManifest(manifest: TestManifest) {
+  return createResolver(manifest.routes ?? [], {
+    errorBoundaries: manifest.errorBoundaries,
+    statusPages: manifest.statusPages,
+    errorHandler: manifest.errorHandler,
+  });
+}
+
+function createHtmlRouter(manifest: TestManifest, options?: Record<string, unknown>) {
+  return new SsrHtmlRouter(resolverFromManifest(manifest), {
+    moduleLoaders: manifest.moduleLoaders,
+    ...options,
+  });
+}
+
+function createMdRouter(manifest: TestManifest, options?: Record<string, unknown>) {
+  return new SsrMdRouter(resolverFromManifest(manifest), {
+    moduleLoaders: manifest.moduleLoaders,
+    ...options,
+  });
 }
 
 function createTestRoute(
@@ -78,13 +99,13 @@ function mockFetch(contentMap: Record<string, string>) {
 // ============================================================================
 
 test('RouteCore - contextProvider is undefined by default', () => {
-  const core = new RouteCore(createTestManifest([]));
+  const core = new RouteCore(createResolver([]));
   expect(core.contextProvider).toEqual(undefined);
 });
 
 test('RouteCore - contextProvider is set from extendContext option', () => {
   const provider: ContextProvider = (ctx) => ctx;
-  const core = new RouteCore(createTestManifest([]), {
+  const core = new RouteCore(createResolver([]), {
     extendContext: provider,
   });
   expect(core.contextProvider).toEqual(provider);
@@ -97,7 +118,7 @@ test(
       ...base,
       customProperty: 'value',
     });
-    const core = new RouteCore(createTestManifest([]), {
+    const core = new RouteCore(createResolver([]), {
       extendContext: provider,
     });
     expect(core.contextProvider !== undefined).toBeTruthy();
@@ -117,7 +138,7 @@ test(
       pattern: '/hello',
       files: { html: '/hello.page.html' },
     });
-    const core = new RouteCore(createTestManifest([route]), {
+    const core = new RouteCore(resolverFromManifest(createTestManifest([route])), {
       extendContext: (base) => ({ ...base, locale: 'en-US' }),
     });
 
@@ -145,7 +166,7 @@ test(
       pattern: '/users/:id',
       files: { html: '/users.page.html' },
     });
-    const core = new RouteCore(createTestManifest([route]), {
+    const core = new RouteCore(resolverFromManifest(createTestManifest([route])), {
       extendContext: (base) => ({ ...base, service: 'api' }),
     });
 
@@ -173,7 +194,7 @@ test(
       pattern: '/articles/:slug',
       files: { html: '/articles.page.html' },
     });
-    const core = new RouteCore(createTestManifest([route]), {
+    const core = new RouteCore(resolverFromManifest(createTestManifest([route])), {
       extendContext: (base) => ({ ...base, service: 'api' }),
     });
 
@@ -201,7 +222,7 @@ test(
       pattern: '/search',
       files: { html: '/search.page.html' },
     });
-    const core = new RouteCore(createTestManifest([route]), {
+    const core = new RouteCore(resolverFromManifest(createTestManifest([route])), {
       extendContext: (base) => ({ ...base, service: 'search' }),
     });
 
@@ -231,7 +252,7 @@ test(
       pattern: '/page',
       files: { html: '/page.page.html' },
     });
-    const core = new RouteCore(createTestManifest([route]), {
+    const core = new RouteCore(resolverFromManifest(createTestManifest([route])), {
       extendContext: (base) => ({ ...base, extra: true }),
     });
 
@@ -259,7 +280,7 @@ test(
       pattern: '/page',
       files: { md: '/page.page.md' },
     });
-    const core = new RouteCore(createTestManifest([route]), {
+    const core = new RouteCore(resolverFromManifest(createTestManifest([route])), {
       extendContext: (base) => ({ ...base, extra: true }),
     });
 
@@ -287,7 +308,7 @@ test(
       pattern: '/page',
       files: { css: '/page.page.css' },
     });
-    const core = new RouteCore(createTestManifest([route]), {
+    const core = new RouteCore(resolverFromManifest(createTestManifest([route])), {
       extendContext: (base) => ({ ...base, extra: true }),
     });
 
@@ -321,7 +342,7 @@ test(
         css: '/users.page.css',
       },
     });
-    const core = new RouteCore(createTestManifest([route]), {
+    const core = new RouteCore(resolverFromManifest(createTestManifest([route])), {
       extendContext: (base) => ({ ...base, extra: true }),
     });
 
@@ -355,7 +376,7 @@ test(
       pattern: '/page',
       files: { html: '/page.page.html' },
     });
-    const core = new RouteCore(createTestManifest([route]), {
+    const core = new RouteCore(resolverFromManifest(createTestManifest([route])), {
       extendContext: (base) => ({ ...base, extra: true }),
     });
 
@@ -389,7 +410,7 @@ test(
   'RouteCore - buildComponentContext sets isLeaf true when passed true',
   async () => {
     const route = createTestRoute({ pattern: '/leaf' });
-    const core = new RouteCore(createTestManifest([route]));
+    const core = new RouteCore(resolverFromManifest(createTestManifest([route])));
     const routeInfo: RouteInfo = {
       pathname: '/leaf',
       pattern: '/leaf',
@@ -406,7 +427,7 @@ test(
   'RouteCore - buildComponentContext sets isLeaf false when passed false',
   async () => {
     const route = createTestRoute({ pattern: '/layout' });
-    const core = new RouteCore(createTestManifest([route]));
+    const core = new RouteCore(resolverFromManifest(createTestManifest([route])));
     const routeInfo: RouteInfo = {
       pathname: '/layout/child',
       pattern: '/layout/child',
@@ -423,7 +444,7 @@ test(
   'RouteCore - buildComponentContext leaves isLeaf undefined when not passed',
   async () => {
     const route = createTestRoute({ pattern: '/page' });
-    const core = new RouteCore(createTestManifest([route]));
+    const core = new RouteCore(resolverFromManifest(createTestManifest([route])));
     const routeInfo: RouteInfo = {
       pathname: '/page',
       pattern: '/page',
@@ -440,7 +461,7 @@ test(
   'RouteCore - isLeaf is preserved through contextProvider',
   async () => {
     const route = createTestRoute({ pattern: '/test' });
-    const core = new RouteCore(createTestManifest([route]), {
+    const core = new RouteCore(resolverFromManifest(createTestManifest([route])), {
       extendContext: (base) => ({ ...base, custom: 'value' }),
     });
     const routeInfo: RouteInfo = {
@@ -467,7 +488,7 @@ test(
       pattern: '/hello',
       files: { html: '/hello.page.html' },
     });
-    const core = new RouteCore(createTestManifest([route]), {
+    const core = new RouteCore(resolverFromManifest(createTestManifest([route])), {
       extendContext: (base) => ({ ...base, locale: 'en-US' }),
     });
 
@@ -495,7 +516,7 @@ test(
       pattern: '/page',
       files: { html: '/page.page.html' },
     });
-    const core = new RouteCore(createTestManifest([route]), {
+    const core = new RouteCore(resolverFromManifest(createTestManifest([route])), {
       extendContext: (base) => ({
         ...base,
         locale: 'en-US',
@@ -537,7 +558,7 @@ test(
       call: () => 'result',
     };
 
-    const core = new RouteCore(createTestManifest([route]), {
+    const core = new RouteCore(resolverFromManifest(createTestManifest([route])), {
       extendContext: (base) => ({ ...base, service: mockService }),
     });
 
@@ -570,7 +591,7 @@ test(
     });
     let capturedBase: ComponentContext | undefined;
 
-    const core = new RouteCore(createTestManifest([route]), {
+    const core = new RouteCore(resolverFromManifest(createTestManifest([route])), {
       extendContext: (base) => {
         capturedBase = base;
         return { ...base, custom: 'value' };
@@ -634,7 +655,7 @@ test(
 
     const restore = mockFetch({});
     try {
-      const router = new SsrHtmlRouter(manifest, {
+      const router = createHtmlRouter(manifest, {
         fileReader: () => Promise.resolve(''),
       });
 
@@ -680,9 +701,9 @@ test(
 
     const restore = mockFetch({});
     try {
-      const router = new SsrHtmlRouter(manifest, {
+      const router = createHtmlRouter(manifest, {
         fileReader: () => Promise.resolve(''),
-        extendContext: (base) => ({ ...base, rpc: true, apiVersion: 2 }),
+        extendContext: (base: ComponentContext) => ({ ...base, rpc: true, apiVersion: 2 }),
       });
 
       await router.render('http://test/test');
@@ -729,7 +750,7 @@ test(
 
     const restore = mockFetch({});
     try {
-      const router = new SsrMdRouter(manifest, {
+      const router = createMdRouter(manifest, {
         fileReader: () => Promise.resolve(''),
       });
 
@@ -775,9 +796,9 @@ test(
 
     const restore = mockFetch({});
     try {
-      const router = new SsrMdRouter(manifest, {
+      const router = createMdRouter(manifest, {
         fileReader: () => Promise.resolve(''),
-        extendContext: (base) => ({ ...base, rpc: true, feature: 'markdown' }),
+        extendContext: (base: ComponentContext) => ({ ...base, rpc: true, feature: 'markdown' }),
       });
 
       await router.render('http://test/test');
@@ -827,9 +848,9 @@ test(
 
     const restore = mockFetch({});
     try {
-      const router = new SsrHtmlRouter(manifest, {
+      const router = createHtmlRouter(manifest, {
         fileReader: () => Promise.resolve(''),
-        extendContext: (base) => ({ ...base, renderMode: 'html' }),
+        extendContext: (base: ComponentContext) => ({ ...base, renderMode: 'html' }),
       });
 
       await router.render('http://test/test');
@@ -874,9 +895,9 @@ test(
 
     const restore = mockFetch({});
     try {
-      const router = new SsrMdRouter(manifest, {
+      const router = createMdRouter(manifest, {
         fileReader: () => Promise.resolve(''),
-        extendContext: (base) => ({ ...base, renderMode: 'markdown' }),
+        extendContext: (base: ComponentContext) => ({ ...base, renderMode: 'markdown' }),
       });
 
       await router.render('http://test/test');
@@ -944,10 +965,10 @@ test(
 
     const restore = mockFetch({});
     try {
-      const router = new SsrHtmlRouter(manifest, {
+      const router = createHtmlRouter(manifest, {
         fileReader: () => Promise.resolve(''),
         widgets,
-        extendContext: (base) => ({
+        extendContext: (base: ComponentContext) => ({
           ...base,
           rpc: true,
           apiVersion: 3,
@@ -1017,10 +1038,10 @@ test(
 
     const restore = mockFetch({});
     try {
-      const router = new SsrMdRouter(manifest, {
+      const router = createMdRouter(manifest, {
         fileReader: () => Promise.resolve(''),
         widgets,
-        extendContext: (base) => ({
+        extendContext: (base: ComponentContext) => ({
           ...base,
           rpc: true,
           apiVersion: 3,
@@ -1050,7 +1071,7 @@ test(
       pattern: '/about',
       files: { html: '/about.page.html' },
     });
-    const core = new RouteCore(createTestManifest([route]));
+    const core = new RouteCore(resolverFromManifest(createTestManifest([route])));
 
     const routeInfo: RouteInfo = {
       pathname: '/about',
@@ -1107,7 +1128,7 @@ test(
 
     const restore = mockFetch({});
     try {
-      const router = new SsrHtmlRouter(manifest, {
+      const router = createHtmlRouter(manifest, {
         fileReader: () => Promise.resolve(''),
       });
 
@@ -1172,9 +1193,9 @@ test(
 
     const restore = mockFetch({});
     try {
-      const router = new SsrHtmlRouter(manifest, {
+      const router = createHtmlRouter(manifest, {
         fileReader: () => Promise.resolve(''),
-        extendContext: (base) => ({ ...base, appId: 'myapp' }),
+        extendContext: (base: ComponentContext) => ({ ...base, appId: 'myapp' }),
       });
 
       await router.render('http://test/route1');
@@ -1235,9 +1256,9 @@ test(
 
     const restore = mockFetch({});
     try {
-      const router = new SsrHtmlRouter(manifest, {
+      const router = createHtmlRouter(manifest, {
         fileReader: () => Promise.resolve(''),
-        extendContext: (base) => ({
+        extendContext: (base: ComponentContext) => ({
           ...base,
           locale: 'en-US',
           apiVersion: 2,
@@ -1264,7 +1285,7 @@ test(
       files: { html: '/test.page.html' },
     });
 
-    const core = new RouteCore(createTestManifest([route]), {
+    const core = new RouteCore(resolverFromManifest(createTestManifest([route])), {
       extendContext: (base) => base, // Return base unchanged
     });
 
@@ -1294,7 +1315,7 @@ test(
       files: { html: '/test.page.html' },
     });
 
-    const core = new RouteCore(createTestManifest([route]), {
+    const core = new RouteCore(resolverFromManifest(createTestManifest([route])), {
       extendContext: (base) => {
         const enriched: unknown = {
           ...base,
@@ -1401,9 +1422,9 @@ test(
 
     const restore = mockFetch({});
     try {
-      const router = new SsrHtmlRouter(manifest, {
+      const router = createHtmlRouter(manifest, {
         fileReader: () => Promise.resolve(''),
-        extendContext: (base) => ({
+        extendContext: (base: ComponentContext) => ({
           ...base,
           contextId: 'test-context',
         }),

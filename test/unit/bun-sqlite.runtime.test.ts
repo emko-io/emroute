@@ -132,11 +132,13 @@ describe('BunSqliteRuntime', () => {
 
       const response = await runtime.query('/routes.manifest.json');
       expect(response.status).toEqual(200);
-      const manifest = await response.json();
-      expect(manifest.routes.length).toBeGreaterThanOrEqual(2);
-      const patterns = manifest.routes.map((r: { pattern: string }) => r.pattern);
-      expect(patterns).toContain('/');
-      expect(patterns).toContain('/about');
+      const tree = await response.json();
+      // Root node represents '/' — index.page.md sets files on root
+      expect(tree.files).toBeDefined();
+      expect(tree.files.md).toContain('index.page.md');
+      // about.page.md creates a child node
+      expect(tree.children?.about).toBeDefined();
+      expect(tree.children.about.files.md).toContain('about.page.md');
       runtime.close();
     });
 

@@ -1,7 +1,8 @@
 # Server Setup
 
-The server consists of two parts: a **runtime** that reads files and bundles
-assets, and a **server** that handles requests and renders pages.
+The server consists of three parts: a **runtime** that reads files, a **build
+step** that transpiles modules and produces client bundles, and a **server**
+that handles requests and renders pages.
 
 ## Minimal server
 
@@ -31,6 +32,53 @@ Bun.serve({
 });
 ```
 
+## With SPA (root mode)
+
+When using any SPA mode except `'none'`, call `buildClientBundles()` before
+creating the server:
+
+```ts
+import { createEmrouteServer } from '@emkodev/emroute/server';
+import { buildClientBundles } from '@emkodev/emroute/server/build';
+import { BunFsRuntime } from '@emkodev/emroute/runtime/bun/fs';
+import { render } from './renderer.ts';
+
+const appRoot = import.meta.dirname!;
+
+const runtime = new BunFsRuntime(appRoot, {
+  routesDir: '/routes',
+  widgetsDir: '/widgets',
+});
+
+await buildClientBundles({
+  runtime,
+  root: appRoot,
+  spa: 'root',
+  // entryPoint: '/main.ts',  // optional, defaults to '/main.ts'
+});
+
+const emroute = await createEmrouteServer({
+  spa: 'root',
+  markdownRenderer: { render },
+}, runtime);
+
+Bun.serve({
+  port: 1420,
+  async fetch(req) {
+    const response = await emroute.handleRequest(req);
+    if (response) return response;
+    return new Response('Not Found', { status: 404 });
+  },
+});
+```
+
+The build step:
+1. Transpiles each `.ts` page/widget to `.js` with companion files inlined
+2. Updates manifests to reference `.js` paths
+3. Bundles the consumer's `main.ts` (esbuild only touches consumer code)
+4. Copies `emroute.js` (pre-built framework bundle)
+5. Generates `index.html` shell with import map
+
 ## Runtime config
 
 The filesystem runtime takes the app root directory and a config object:
@@ -39,7 +87,6 @@ The filesystem runtime takes the app root directory and a config object:
 const runtime = new UniversalFsRuntime(appRoot, {
   routesDir: '/routes',        // Required. Where route files live.
   widgetsDir: '/widgets',      // Optional. Where widget files live.
-  entryPoint: '/main.ts',      // Optional. SPA entry point for bundling.
 });
 ```
 
@@ -55,10 +102,10 @@ All paths are relative to `appRoot` and start with `/`.
 | `title`            | `string`                            | `'emroute'`    | Default page `<title>` |
 | `markdownRenderer` | `{ render(md: string): string }`    | —              | Converts markdown to HTML in `<mark-down>` elements |
 | `extendContext`    | `(base: ComponentContext) => ComponentContext` | — | Inject services into every component's context |
-| `basePath`         | `{ html: string, md: string }`      | `{ html: '/html', md: '/md' }` | URL prefixes for SSR endpoints |
-| `stream`           | `boolean`                           | `false`        | Stream SSR HTML responses |
-| `routesManifest`   | `RoutesManifest`                    | —              | Pre-built manifest (skips runtime scanning) |
+| `basePath`         | `{ html: string, md: string, app: string }` | `{ html: '/html', md: '/md', app: '/app' }` | URL prefixes for SSR and SPA endpoints |
+| `routeTree`        | `RouteNode`                         | —              | Pre-built route tree (skips runtime scanning) |
 | `widgets`          | `WidgetRegistry`                    | —              | Manually registered widgets |
+| `moduleLoaders`    | `Record<string, () => Promise<unknown>>` | — | Pre-built module loaders (used in browser) |
 
 ## `handleRequest` composability
 
@@ -83,35 +130,26 @@ Bun.serve({
 });
 ```
 
-## SPA entry point
+## Consumer main.ts
 
-When using any SPA mode except `'none'`, set `entryPoint` in the runtime config:
+When using any SPA mode except `'none'`, the build step bundles a consumer
+entry point. If the file doesn't exist, a default `main.ts` is auto-generated.
 
-```ts
-const runtime = new UniversalFsRuntime(appRoot, {
-  routesDir: '/routes',
-  widgetsDir: '/widgets',
-  entryPoint: '/main.ts',
-});
-```
-
-If the file doesn't exist, the runtime generates a default `main.ts`
-automatically. If you want custom setup (e.g., configuring a markdown renderer
-for client-side rendering), create your own:
+To customize setup (e.g., configuring a markdown renderer for client-side
+rendering of `.md` pages), create your own `main.ts`:
 
 ```ts
 // main.ts
-import { createSpaHtmlRouter, MarkdownElement } from '@emkodev/emroute/spa';
-import { routesManifest } from 'emroute:routes';
-import { render } from './renderer.ts';
+import { bootEmrouteApp, MarkdownElement } from '@emkodev/emroute/spa';
+import { renderMarkdown } from '@emkodev/emkoma/render';
 
-MarkdownElement.setRenderer({ render });
-
-await createSpaHtmlRouter(routesManifest);
+MarkdownElement.setRenderer({ render: renderMarkdown });
+await bootEmrouteApp();
 ```
 
-The `emroute:routes` import is a virtual module resolved at bundle time — no
-generated files on disk.
+`bootEmrouteApp()` handles everything: fetches route tree and widget manifest
+as JSON from the runtime, registers widgets with lazy module loading, creates
+the SPA router, and wires client-side navigation.
 
 ## SPA modes
 
@@ -121,11 +159,11 @@ The `spa` option controls how the server handles requests:
 |----------|----------------------|----------------------|------------|-----------|
 | `'none'` | 302 → `/html`        | 302 → `/html/about`  | SSR HTML   | SSR MD    |
 | `'leaf'` | 302 → `/html`        | 302 → `/html/about`  | SSR HTML + JS | SSR MD |
-| `'root'` | 302 → `/html`        | 302 → `/html/about`  | SSR HTML + JS + SPA router | SSR MD |
-| `'only'` | 302 → `/html`        | 302 → `/html/about`  | SPA shell  | SPA shell |
+| `'root'` | 302 → `/app`         | 302 → `/app/about`   | SSR HTML + JS + SPA router | SSR MD |
+| `'only'` | 302 → `/app`         | 302 → `/app/about`   | SPA shell  | SPA shell |
 
-All modes redirect bare paths to the configured HTML base path (`/html` by
-default). The mode controls what the server bundles and serves there:
+In `root` and `only` modes, bare paths redirect to `/app/*` (the SPA
+endpoint). In `none` and `leaf` modes, they redirect to `/html/*`.
 
 - **`'none'`** — SSR HTML only. No client-side JavaScript.
 - **`'leaf'`** — SSR HTML with JS bundles. Widgets hydrate, but no emroute

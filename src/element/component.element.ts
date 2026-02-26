@@ -27,6 +27,12 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
   /** Shared file content cache — deduplicates fetches across all widget instances. */
   private static fileCache = new Map<string, Promise<string | undefined>>();
 
+  /** Lazy module loaders keyed by tag name — set by registerLazy(). */
+  private static lazyLoaders = new Map<string, () => Promise<unknown>>();
+
+  /** Cached module promises for lazy-loaded widgets — avoids re-fetching. */
+  private static lazyModules = new Map<string, Promise<unknown>>();
+
   /** App-level context provider set once during router initialization. */
   private static extendContext: ContextProvider | undefined;
 
@@ -112,6 +118,42 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
   }
 
   /**
+   * Register a widget lazily: define the custom element immediately (so SSR
+   * content via Declarative Shadow DOM is adopted), but defer loading the
+   * module until connectedCallback fires. Once loaded, the real component
+   * replaces the placeholder and hydration proceeds normally.
+   */
+  static registerLazy(
+    name: string,
+    files: WidgetFiles | undefined,
+    loader: () => Promise<unknown>,
+  ): void {
+    const tagName = `widget-${name}`;
+    if (!globalThis.customElements || customElements.get(tagName)) return;
+
+    ComponentElement.lazyLoaders.set(tagName, loader);
+
+    // Placeholder component — replaced by the real one once the module loads.
+    // Cast needed because Component is abstract; the real module replaces this.
+    const placeholder = {
+      name,
+      getData: () => Promise.resolve(null),
+      renderHTML: () => '',
+      renderMarkdown: () => '',
+      renderError: () => '',
+      renderMarkdownError: () => '',
+    } as unknown as Component<unknown, unknown>;
+
+    const BoundElement = class extends ComponentElement<unknown, unknown> {
+      constructor() {
+        super(placeholder, files);
+      }
+    };
+
+    customElements.define(tagName, BoundElement);
+  }
+
+  /**
    * Promise that resolves when component is ready (data loaded and rendered).
    * Used by router to wait for async components.
    */
@@ -124,6 +166,39 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
   }
 
   async connectedCallback(): Promise<void> {
+    // Lazy module loading — resolve actual component before proceeding
+    const tagName = this.tagName.toLowerCase();
+    const lazyLoader = ComponentElement.lazyLoaders.get(tagName);
+    if (lazyLoader) {
+      try {
+        let modulePromise = ComponentElement.lazyModules.get(tagName);
+        if (!modulePromise) {
+          modulePromise = lazyLoader();
+          ComponentElement.lazyModules.set(tagName, modulePromise);
+        }
+        const mod = await modulePromise as Record<string, unknown>;
+        for (const exp of Object.values(mod)) {
+          if (exp && typeof exp === 'object' && 'getData' in exp) {
+            const WidgetClass = exp.constructor as new () => Component<TParams, TData>;
+            this.component = new WidgetClass();
+            break;
+          }
+          if (typeof exp === 'function' && (exp as { prototype?: { getData?: unknown } }).prototype?.getData) {
+            this.component = new (exp as new () => Component<TParams, TData>)();
+            break;
+          }
+        }
+      } catch {
+        // Module failed to load (e.g. raw .ts served without transpilation).
+        // SSR content is already visible — skip hydration gracefully.
+        if (this.hasAttribute(SSR_ATTR)) {
+          this.removeAttribute(SSR_ATTR);
+          this.signalReady();
+          return;
+        }
+      }
+    }
+
     this.component.element = this;
     this.style.contentVisibility = 'auto';
     this.abortController = new AbortController();
@@ -155,11 +230,12 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
     const files = await this.loadFiles();
     if (signal.aborted) return;
 
+    const currentUrl = globalThis.location ? new URL(location.href) : new URL('http://localhost/');
     const base: ComponentContext = {
-      pathname: globalThis.location?.pathname ?? '/',
-      pattern: '',
-      params: {},
-      searchParams: new URLSearchParams(globalThis.location?.search ?? ''),
+      url: currentUrl,
+      pathname: currentUrl.pathname,
+      searchParams: currentUrl.searchParams,
+      params: this.params ?? {},
       files: (files.html || files.md || files.css) ? files : undefined,
     };
     this.context = ComponentElement.extendContext ? ComponentElement.extendContext(base) : base;

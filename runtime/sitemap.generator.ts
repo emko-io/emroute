@@ -1,7 +1,7 @@
 /**
  * Sitemap Generator — Opt-in Submodule
  *
- * Generates sitemap.xml from a RoutesManifest. Pure function over manifest data,
+ * Generates sitemap.xml from a RouteNode tree. Pure function over tree data,
  * no filesystem access needed.
  *
  * Usage:
@@ -18,7 +18,7 @@
  */
 
 import { escapeHtml } from '../src/util/html.util.ts';
-import type { RoutesManifest } from '../src/type/route.type.ts';
+import type { RouteNode } from '../src/type/route-tree.type.ts';
 
 /** Valid changefreq values per sitemaps.org protocol. */
 export type Changefreq =
@@ -78,9 +78,9 @@ const URLSET_OPEN = '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
 const URLSET_CLOSE = '</urlset>';
 const MAX_URLS = 50_000;
 
-/** Check if a route pattern contains dynamic segments. */
+/** Check if a route pattern contains dynamic or wildcard segments. */
 function isDynamic(pattern: string): boolean {
-  return pattern.includes(':');
+  return pattern.includes(':') || pattern.includes('*');
 }
 
 /** Build the absolute URL for a route path. */
@@ -130,32 +130,57 @@ function serializeEntry(entry: SitemapEntry): string {
 }
 
 /**
- * Generate sitemap.xml content from a routes manifest.
+ * Collect page routes from a RouteNode tree as pattern strings.
+ * Skips redirect and error boundary nodes.
+ */
+function collectPatterns(node: RouteNode, prefix: string, out: string[]): void {
+  // This node has page files — it's a page route
+  if (node.files && !node.redirect) {
+    out.push(prefix || '/');
+  }
+
+  if (node.children) {
+    for (const [segment, child] of Object.entries(node.children)) {
+      collectPatterns(child, `${prefix}/${segment}`, out);
+    }
+  }
+
+  if (node.dynamic) {
+    collectPatterns(node.dynamic.child, `${prefix}/:${node.dynamic.param}`, out);
+  }
+
+  if (node.wildcard) {
+    collectPatterns(node.wildcard.child, `${prefix}/:${node.wildcard.param}*`, out);
+  }
+}
+
+/**
+ * Generate sitemap.xml content from a route tree.
  *
  * Static routes (no :param) are included directly.
  * Dynamic routes are included only if an enumerator is provided.
  * All URLs point to /html/ prefixed paths for SSR HTML rendering.
  */
 export async function generateSitemap(
-  manifest: RoutesManifest,
+  routeTree: RouteNode,
   options: SitemapOptions,
 ): Promise<string> {
   const entries: SitemapEntry[] = [];
   const bp = options.basePath ?? '';
 
-  // Filter to page routes only (exclude error, redirect)
-  const pages = manifest.routes.filter((r) => r.type === 'page');
+  const patterns: string[] = [];
+  collectPatterns(routeTree, '', patterns);
 
-  for (const route of pages) {
-    const routeOpts = resolveOptions(route.pattern, options);
+  for (const pattern of patterns) {
+    const routeOpts = resolveOptions(pattern, options);
 
-    if (isDynamic(route.pattern)) {
+    if (isDynamic(pattern)) {
       // Dynamic route — use enumerator if provided, skip otherwise
-      const enumerator = options.enumerators?.[route.pattern];
+      const enumerator = options.enumerators?.[pattern];
       if (!enumerator) continue;
 
       const values = await enumerator();
-      const paths = expandDynamic(route.pattern, values);
+      const paths = expandDynamic(pattern, values);
 
       for (const path of paths) {
         entries.push({
@@ -166,7 +191,7 @@ export async function generateSitemap(
     } else {
       // Static route — include directly
       entries.push({
-        loc: buildLoc(options.baseUrl, route.pattern, bp),
+        loc: buildLoc(options.baseUrl, pattern, bp),
         ...routeOpts,
       });
     }

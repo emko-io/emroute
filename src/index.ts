@@ -27,8 +27,11 @@ export type {
   RouterEventListener,
   RouterEventType,
   RouterState,
-  RoutesManifest,
 } from './type/route.type.ts';
+
+export type { RouteNode } from './type/route-tree.type.ts';
+export type { RouteResolver, ResolvedRoute } from './route/route.resolver.ts';
+export { RouteTrie } from './route/route.trie.ts';
 
 export type {
   ParsedWidgetBlock,
@@ -55,7 +58,7 @@ export { WidgetComponent } from './component/widget.component.ts';
 export { WidgetRegistry } from './widget/widget.registry.ts';
 
 // Route config
-export { type BasePath, DEFAULT_BASE_PATH, prefixManifest } from './route/route.core.ts';
+export { type BasePath, DEFAULT_BASE_PATH } from './route/route.core.ts';
 
 // Utils
 export { escapeHtml, scopeWidgetCss } from './util/html.util.ts';

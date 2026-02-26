@@ -5,6 +5,7 @@
     "": {
       "name": "@emkodev/emroute",
       "devDependencies": {
+        "@emkodev/emkoma": "^0.1.0",
         "@eslint/js": "^10.0.1",
         "@types/bun": "^1.3.9",
         "esbuild": "^0.27.3",
@@ -16,6 +17,8 @@
     },
   },
   "packages": {
+    "@emkodev/emkoma": ["@emkodev/emkoma@0.1.0", "", {}, "sha512-vMHCsyqV7zlFNWnYtDKk/KSh2hm+sn1keInfTg3Y6hPsB83QpH4Hpb6glbySGdL5qAfxRcMrL/GdSbxWoPowxQ=="],
+
     "@esbuild/aix-ppc64": ["@esbuild/aix-ppc64@0.27.3", "", { "os": "aix", "cpu": "ppc64" }, "sha512-9fJMTNFTWZMh5qwrBItuziu834eOCUcEqymSH7pY+zoMVEZg3gcPuBNxH1EvfVYe9h0x/Ptw8KBzv7qxb7l8dg=="],
 
     "@esbuild/android-arm": ["@esbuild/android-arm@0.27.3", "", { "os": "android", "cpu": "arm" }, "sha512-i5D1hPY7GIQmXlXhs2w8AWHhenb00+GxjxRncS2ZM7YNVGNfaMxgzSGuO8o8SJzRc/oZwU2bcScvVERk03QhzA=="],

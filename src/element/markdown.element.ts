@@ -30,6 +30,11 @@ export class MarkdownElement extends HTMLElementBase {
     MarkdownElement.rendererInitPromise = renderer.init ? renderer.init() : null;
   }
 
+  /** Get the current renderer (if set). Used by bootEmrouteApp to pass through to createEmrouteServer. */
+  static getConfiguredRenderer(): MarkdownRenderer | null {
+    return MarkdownElement.renderer;
+  }
+
   /**
    * Get the current renderer, waiting for init if needed.
    */

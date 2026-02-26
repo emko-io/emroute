@@ -18,22 +18,35 @@
  */
 
 import { test, expect, describe } from 'bun:test';
-import { createSsrHtmlRouter, SsrHtmlRouter } from '../../src/renderer/ssr/html.renderer.ts';
-import type { RouteConfig, RoutesManifest } from '../../src/type/route.type.ts';
+import { SsrHtmlRouter } from '../../src/renderer/ssr/html.renderer.ts';
+import type { RouteConfig } from '../../src/type/route.type.ts';
 import type { MarkdownRenderer } from '../../src/type/markdown.type.ts';
 import { WidgetRegistry } from '../../src/widget/widget.registry.ts';
 import { WidgetComponent } from '../../src/component/widget.component.ts';
+import { createResolver, url, type TestManifest } from './test.util.ts';
 
 /**
- * Create a minimal test manifest
+ * Create a test manifest object (old shape).
+ * Use with `createRouter(manifest, ...)` below.
  */
-function createTestManifest(overrides?: Partial<RoutesManifest>): RoutesManifest {
-  return {
-    routes: [],
-    errorBoundaries: [],
-    statusPages: new Map(),
-    ...overrides,
-  };
+function createTestManifest(overrides?: TestManifest): TestManifest {
+  return { routes: [], ...overrides };
+}
+
+/** Build an SsrHtmlRouter from the old manifest shape. */
+function createRouter(
+  manifest: TestManifest,
+  options?: ConstructorParameters<typeof SsrHtmlRouter>[1],
+): SsrHtmlRouter {
+  const resolver = createResolver(manifest.routes ?? [], {
+    errorBoundaries: manifest.errorBoundaries,
+    statusPages: manifest.statusPages,
+    errorHandler: manifest.errorHandler,
+  });
+  return new SsrHtmlRouter(resolver, {
+    moduleLoaders: manifest.moduleLoaders,
+    ...options,
+  });
 }
 
 /**
@@ -105,7 +118,7 @@ function stubComponent(overrides: {
 
 test('SsrHtmlRouter - constructor initializes without markdown renderer', () => {
   const manifest = createTestManifest();
-  const router = new SsrHtmlRouter(manifest);
+  const router = createRouter(manifest);
   expect(router instanceof SsrHtmlRouter).toEqual(true);
 });
 
@@ -114,20 +127,19 @@ test('SsrHtmlRouter - constructor initializes with markdown renderer', () => {
     render: (md) => `<p>${md}</p>`,
   };
   const manifest = createTestManifest();
-  const router = new SsrHtmlRouter(manifest, { markdownRenderer });
+  const router = createRouter(manifest, { markdownRenderer });
   expect(router instanceof SsrHtmlRouter).toEqual(true);
 });
 
 test('SsrHtmlRouter - createSsrHtmlRouter factory function', () => {
-  const manifest = createTestManifest();
-  const router = createSsrHtmlRouter(manifest);
+  const router = createRouter(createTestManifest());
   expect(router instanceof SsrHtmlRouter).toEqual(true);
 });
 
 test('SsrHtmlRouter - constructor with widget registry', () => {
   const registry = new WidgetRegistry();
   const manifest = createTestManifest();
-  const router = new SsrHtmlRouter(manifest, { widgets: registry });
+  const router = createRouter(manifest, { widgets: registry });
   expect(router instanceof SsrHtmlRouter).toEqual(true);
 });
 
@@ -149,7 +161,7 @@ test('SsrHtmlRouter - injectSlot replaces <router-slot> with child content', asy
     }),
   ];
   const manifest = createTestManifest({ routes });
-  const router = new SsrHtmlRouter(manifest);
+  const router = createRouter(manifest);
 
   const restore = mockFetch({
     '/layout.page.html':
@@ -158,7 +170,7 @@ test('SsrHtmlRouter - injectSlot replaces <router-slot> with child content', asy
   });
 
   try {
-    const result = await router.render('http://localhost/page');
+    const result = await router.render(url('http://localhost/page'));
     expect(result.status).toEqual(200);
     expect(result.content).toContain('Navigation');
     expect(result.content).toContain('Page Content');
@@ -178,14 +190,14 @@ test('SsrHtmlRouter - stripSlots removes unconsumed <router-slot> tags', async (
     }),
   ];
   const manifest = createTestManifest({ routes });
-  const router = new SsrHtmlRouter(manifest);
+  const router = createRouter(manifest);
 
   const restore = mockFetch({
     '/leaf.page.html': '<div>Leaf Page<router-slot></router-slot></div>',
   });
 
   try {
-    const result = await router.render('http://localhost/leaf');
+    const result = await router.render(url('http://localhost/leaf'));
     expect(result.status).toEqual(200);
     expect(result.content).toContain('Leaf Page');
     expect(result.content.includes('<router-slot')).toEqual(false);
@@ -217,7 +229,7 @@ test('SsrHtmlRouter - nested slots inject correctly through hierarchy', async ()
     }),
   ];
   const manifest = createTestManifest({ routes });
-  const router = new SsrHtmlRouter(manifest);
+  const router = createRouter(manifest);
 
   const restore = mockFetch({
     '/root.page.html': '<html><body><router-slot></router-slot></body></html>',
@@ -227,7 +239,7 @@ test('SsrHtmlRouter - nested slots inject correctly through hierarchy', async ()
   });
 
   try {
-    const result = await router.render('http://localhost/docs/guide');
+    const result = await router.render(url('http://localhost/docs/guide'));
     expect(result.status).toEqual(200);
     expect(result.content).toContain('<html>');
     expect(result.content).toContain('Docs Nav');
@@ -263,7 +275,7 @@ test('SsrHtmlRouter - deeply nested slots (4 levels) compose correctly', async (
     }),
   ];
   const manifest = createTestManifest({ routes });
-  const router = new SsrHtmlRouter(manifest);
+  const router = createRouter(manifest);
 
   const restore = mockFetch({
     '/l0.page.html': '<div>L0<router-slot></router-slot></div>',
@@ -273,7 +285,7 @@ test('SsrHtmlRouter - deeply nested slots (4 levels) compose correctly', async (
   });
 
   try {
-    const result = await router.render('http://localhost/l1/l2/l3');
+    const result = await router.render(url('http://localhost/l1/l2/l3'));
     expect(result.status).toEqual(200);
     expect(result.content).toContain('L0');
     expect(result.content).toContain('L1');
@@ -320,14 +332,14 @@ test('SsrHtmlRouter - widget resolution calls getData and renderHTML', async () 
   const registry = new WidgetRegistry();
   registry.add(new TestWidget());
 
-  const router = new SsrHtmlRouter(manifest, { widgets: registry });
+  const router = createRouter(manifest, { widgets: registry });
 
   const restore = mockFetch({
     '/widgets.page.html': '<div><widget-test-widget name="hello"></widget-test-widget></div>',
   });
 
   try {
-    const result = await router.render('http://localhost/widgets');
+    const result = await router.render(url('http://localhost/widgets'));
     expect(result.status).toEqual(200);
     expect(result.content).toContain('Widget: hello');
   } finally {
@@ -348,14 +360,14 @@ test('SsrHtmlRouter - widget renders with SSR data attribute', async () => {
   const registry = new WidgetRegistry();
   registry.add(new TestWidget());
 
-  const router = new SsrHtmlRouter(manifest, { widgets: registry });
+  const router = createRouter(manifest, { widgets: registry });
 
   const restore = mockFetch({
     '/widgets.page.html': '<widget-test-widget name="ssr"></widget-test-widget>',
   });
 
   try {
-    const result = await router.render('http://localhost/widgets');
+    const result = await router.render(url('http://localhost/widgets'));
     expect(result.status).toEqual(200);
     expect(
       result.content.includes(' ssr ') || result.content.includes(' ssr>'),
@@ -379,7 +391,7 @@ test('SsrHtmlRouter - multiple widgets on same page resolve concurrently', async
   const registry = new WidgetRegistry();
   registry.add(new TestWidget());
 
-  const router = new SsrHtmlRouter(manifest, { widgets: registry });
+  const router = createRouter(manifest, { widgets: registry });
 
   const restore = mockFetch({
     '/multi-widgets.page.html': `
@@ -391,7 +403,7 @@ test('SsrHtmlRouter - multiple widgets on same page resolve concurrently', async
   });
 
   try {
-    const result = await router.render('http://localhost/multi-widgets');
+    const result = await router.render(url('http://localhost/multi-widgets'));
     expect(result.status).toEqual(200);
     expect(result.content).toContain('Widget: first');
     expect(result.content).toContain('Widget: second');
@@ -407,12 +419,12 @@ test('SsrHtmlRouter - multiple widgets on same page resolve concurrently', async
 test('SsrHtmlRouter - 404 status page includes status and pathname', async () => {
   const routes: RouteConfig[] = [];
   const manifest = createTestManifest({ routes });
-  const router = new SsrHtmlRouter(manifest);
+  const router = createRouter(manifest);
 
   const restore = mockFetch({});
 
   try {
-    const result = await router.render('http://localhost/missing/page');
+    const result = await router.render(url('http://localhost/missing/page'));
     expect(result.status).toEqual(404);
     expect(result.content).toContain('<h1>');
     expect(result.content).toContain('Not Found');
@@ -432,12 +444,12 @@ test('SsrHtmlRouter - 500 error status page renders', async () => {
     }),
   ];
   const manifest = createTestManifest({ routes });
-  const router = new SsrHtmlRouter(manifest);
+  const router = createRouter(manifest);
 
   const restore = mockFetch({});
 
   try {
-    const result = await router.render('http://localhost/crash');
+    const result = await router.render(url('http://localhost/crash'));
     expect(result.status).toEqual(500);
     expect(result.content).toContain('<h1>Error</h1>');
     expect(result.content).toContain('Path:');
@@ -467,11 +479,11 @@ test('SsrHtmlRouter - custom status page used when registered', async () => {
     },
   });
 
-  const router = new SsrHtmlRouter(manifest);
+  const router = createRouter(manifest);
   const restore = mockFetch({});
 
   try {
-    const result = await router.render('http://localhost/anything');
+    const result = await router.render(url('http://localhost/anything'));
     expect(result.status).toEqual(404);
     expect(result.content).toContain('Custom 404 Page');
   } finally {
@@ -513,11 +525,11 @@ test('SsrHtmlRouter - error boundary catches 500 errors in scoped path', async (
     },
   });
 
-  const router = new SsrHtmlRouter(manifest);
+  const router = createRouter(manifest);
   const restore = mockFetch({});
 
   try {
-    const result = await router.render('http://localhost/admin/crash');
+    const result = await router.render(url('http://localhost/admin/crash'));
     expect(result.status).toEqual(500);
     expect(result.content).toContain('Admin Error Boundary');
   } finally {
@@ -566,11 +578,11 @@ test('SsrHtmlRouter - error boundary takes precedence over root handler', async 
     },
   });
 
-  const router = new SsrHtmlRouter(manifest);
+  const router = createRouter(manifest);
   const restore = mockFetch({});
 
   try {
-    const result = await router.render('http://localhost/api/fail');
+    const result = await router.render(url('http://localhost/api/fail'));
     expect(result.status).toEqual(500);
     expect(result.content).toContain('API Error Boundary');
   } finally {
@@ -598,11 +610,11 @@ test('SsrHtmlRouter - renderRedirect returns meta refresh tag', async () => {
     },
   });
 
-  const router = new SsrHtmlRouter(manifest);
+  const router = createRouter(manifest);
   const restore = mockFetch({});
 
   try {
-    const result = await router.render('http://localhost/old-path');
+    const result = await router.render(url('http://localhost/old-path'));
     expect(result.status).toEqual(301);
     expect(result.content).toContain('<meta http-equiv="refresh"');
     expect(result.content).toContain('/new-path');
@@ -627,11 +639,11 @@ test('SsrHtmlRouter - redirect escapes URL in meta refresh', async () => {
     },
   });
 
-  const router = new SsrHtmlRouter(manifest);
+  const router = createRouter(manifest);
   const restore = mockFetch({});
 
   try {
-    const result = await router.render('http://localhost/old');
+    const result = await router.render(url('http://localhost/old'));
     expect(result.status).toEqual(301);
     // Verify HTML entities are escaped
     expect(result.content.includes('<script>')).toEqual(false);
@@ -657,7 +669,7 @@ test('SsrHtmlRouter - CSS from context is injected as <style> tag', async () => 
   ];
 
   const manifest = createTestManifest({ routes });
-  const router = new SsrHtmlRouter(manifest);
+  const router = createRouter(manifest);
 
   const restore = mockFetch({
     '/styled.page.html': '<div>Styled Page</div>',
@@ -665,7 +677,7 @@ test('SsrHtmlRouter - CSS from context is injected as <style> tag', async () => 
   });
 
   try {
-    const result = await router.render('http://localhost/styled');
+    const result = await router.render(url('http://localhost/styled'));
     expect(result.status).toEqual(200);
     expect(result.content).toContain('<style>');
     expect(result.content).toContain('color: red');
@@ -686,14 +698,14 @@ test('SsrHtmlRouter - CSS is only injected when present', async () => {
   ];
 
   const manifest = createTestManifest({ routes });
-  const router = new SsrHtmlRouter(manifest);
+  const router = createRouter(manifest);
 
   const restore = mockFetch({
     '/no-css.page.html': '<div>No CSS</div>',
   });
 
   try {
-    const result = await router.render('http://localhost/no-css');
+    const result = await router.render(url('http://localhost/no-css'));
     expect(result.status).toEqual(200);
     expect(result.content).toContain('No CSS');
     expect(result.content.includes('<style>')).toEqual(false);
@@ -726,7 +738,7 @@ test('SsrHtmlRouter - route hierarchy is built from pattern path segments', asyn
   ];
 
   const manifest = createTestManifest({ routes });
-  const router = new SsrHtmlRouter(manifest);
+  const router = createRouter(manifest);
 
   const restore = mockFetch({
     '/index.page.html': '<html><body><router-slot></router-slot></body></html>',
@@ -735,7 +747,7 @@ test('SsrHtmlRouter - route hierarchy is built from pattern path segments', asyn
   });
 
   try {
-    const result = await router.render('http://localhost/shop/products');
+    const result = await router.render(url('http://localhost/shop/products'));
     expect(result.status).toEqual(200);
     expect(result.content).toContain('<html>');
     expect(result.content).toContain('Shop');
@@ -761,7 +773,7 @@ test('SsrHtmlRouter - dynamic route parameters are passed through hierarchy', as
   ];
 
   const manifest = createTestManifest({ routes });
-  const router = new SsrHtmlRouter(manifest);
+  const router = createRouter(manifest);
 
   const restore = mockFetch({
     '/index.page.html': '<div><router-slot></router-slot></div>',
@@ -769,7 +781,7 @@ test('SsrHtmlRouter - dynamic route parameters are passed through hierarchy', as
   });
 
   try {
-    const result = await router.render('http://localhost/user/42');
+    const result = await router.render(url('http://localhost/user/42'));
     expect(result.status).toEqual(200);
     expect(result.content).toContain('User Page');
   } finally {
@@ -795,14 +807,14 @@ test('SsrHtmlRouter - markdown is expanded via MarkdownRenderer', async () => {
   ];
 
   const manifest = createTestManifest({ routes });
-  const router = new SsrHtmlRouter(manifest, { markdownRenderer });
+  const router = createRouter(manifest, { markdownRenderer });
 
   const restore = mockFetch({
     '/docs.page.html': '<mark-down>**Bold Text**</mark-down>',
   });
 
   try {
-    const result = await router.render('http://localhost/docs');
+    const result = await router.render(url('http://localhost/docs'));
     expect(result.status).toEqual(200);
     expect(result.content).toContain('Bold Text');
     expect(result.content).toContain('markdown');
@@ -821,14 +833,14 @@ test('SsrHtmlRouter - markdown without renderer leaves <mark-down> tags', async 
   ];
 
   const manifest = createTestManifest({ routes });
-  const router = new SsrHtmlRouter(manifest);
+  const router = createRouter(manifest);
 
   const restore = mockFetch({
     '/docs.page.html': '<mark-down>**Text**</mark-down>',
   });
 
   try {
-    const result = await router.render('http://localhost/docs');
+    const result = await router.render(url('http://localhost/docs'));
     expect(result.status).toEqual(200);
     expect(result.content).toContain('<mark-down>');
   } finally {
@@ -850,14 +862,14 @@ test('SsrHtmlRouter - multiple <mark-down> tags in single page are expanded', as
   ];
 
   const manifest = createTestManifest({ routes });
-  const router = new SsrHtmlRouter(manifest, { markdownRenderer });
+  const router = createRouter(manifest, { markdownRenderer });
 
   const restore = mockFetch({
     '/multi-md.page.html': '<div><mark-down>First</mark-down><mark-down>Second</mark-down></div>',
   });
 
   try {
-    const result = await router.render('http://localhost/multi-md');
+    const result = await router.render(url('http://localhost/multi-md'));
     expect(result.status).toEqual(200);
     expect(result.content).toContain('<p>First</p>');
     expect(result.content).toContain('<p>Second</p>');
@@ -880,14 +892,14 @@ test('SsrHtmlRouter - HTML entities in markdown are unescaped before rendering',
   ];
 
   const manifest = createTestManifest({ routes });
-  const router = new SsrHtmlRouter(manifest, { markdownRenderer });
+  const router = createRouter(manifest, { markdownRenderer });
 
   const restore = mockFetch({
     '/escape.page.html': '<mark-down>&lt;tag&gt;</mark-down>',
   });
 
   try {
-    const result = await router.render('http://localhost/escape');
+    const result = await router.render(url('http://localhost/escape'));
     expect(result.status).toEqual(200);
     // Entities should be unescaped for the renderer
     expect(result.content).toContain('[rendered]<tag>[/rendered]');
@@ -927,7 +939,7 @@ test('SsrHtmlRouter - markdown renderer output with widget tags is processed', a
   const registry = new WidgetRegistry();
   registry.add(new TestWidget());
 
-  const router = new SsrHtmlRouter(manifest, {
+  const router = createRouter(manifest, {
     markdownRenderer: new WidgetAwareRenderer(),
     widgets: registry,
   });
@@ -937,7 +949,7 @@ test('SsrHtmlRouter - markdown renderer output with widget tags is processed', a
   });
 
   try {
-    const result = await router.render('http://localhost/blog');
+    const result = await router.render(url('http://localhost/blog'));
     expect(result.status).toEqual(200);
     expect(result.content).toContain(' ssr>');
     expect(result.content).toContain('Widget:');
@@ -956,7 +968,7 @@ test('SsrHtmlRouter - markdown router-slot in leaf route is stripped as unconsum
   ];
 
   const manifest = createTestManifest({ routes });
-  const router = new SsrHtmlRouter(manifest, {
+  const router = createRouter(manifest, {
     markdownRenderer: new WidgetAwareRenderer(),
   });
 
@@ -965,7 +977,7 @@ test('SsrHtmlRouter - markdown router-slot in leaf route is stripped as unconsum
   });
 
   try {
-    const result = await router.render('http://localhost/nested-md');
+    const result = await router.render(url('http://localhost/nested-md'));
     expect(result.status).toEqual(200);
     // Leaf route -- unconsumed slots are stripped from final output
     expect(result.content.includes('<router-slot')).toEqual(false);
@@ -981,12 +993,12 @@ test('SsrHtmlRouter - markdown router-slot in leaf route is stripped as unconsum
 test('SsrHtmlRouter - error page escapes pathname to prevent XSS', async () => {
   const routes: RouteConfig[] = [];
   const manifest = createTestManifest({ routes });
-  const router = new SsrHtmlRouter(manifest);
+  const router = createRouter(manifest);
 
   const restore = mockFetch({});
 
   try {
-    const result = await router.render('http://localhost/<script>alert("xss")</script>');
+    const result = await router.render(url('http://localhost/<script>alert("xss")</script>'));
     expect(result.status).toEqual(404);
     expect(result.content.includes('<script>')).toEqual(false);
   } finally {
@@ -1017,11 +1029,11 @@ test('SsrHtmlRouter - error page escapes error message to prevent XSS', async ()
     },
   });
 
-  const router = new SsrHtmlRouter(manifest);
+  const router = createRouter(manifest);
   const restore = mockFetch({});
 
   try {
-    const result = await router.render('http://localhost/xss-test');
+    const result = await router.render(url('http://localhost/xss-test'));
     expect(result.status).toEqual(500);
     // Error message should be escaped in the HTML output
     expect(result.content).toContain('&lt;img');
@@ -1049,7 +1061,7 @@ test('SsrHtmlRouter - handles page with HTML + MD + CSS all present', async () =
   ];
 
   const manifest = createTestManifest({ routes });
-  const router = new SsrHtmlRouter(manifest);
+  const router = createRouter(manifest);
 
   const restore = mockFetch({
     '/full.page.html': '<div>HTML Content</div>',
@@ -1058,7 +1070,7 @@ test('SsrHtmlRouter - handles page with HTML + MD + CSS all present', async () =
   });
 
   try {
-    const result = await router.render('http://localhost/full');
+    const result = await router.render(url('http://localhost/full'));
     expect(result.status).toEqual(200);
     expect(result.content).toContain('<style>');
     expect(result.content).toContain('margin: 0');
@@ -1085,7 +1097,7 @@ test('SsrHtmlRouter - markdown with <mark-down> placeholder in HTML', async () =
   ];
 
   const manifest = createTestManifest({ routes });
-  const router = new SsrHtmlRouter(manifest, { markdownRenderer });
+  const router = createRouter(manifest, { markdownRenderer });
 
   const restore = mockFetch({
     '/page-with-md.page.html': '<main><h1>Title</h1><mark-down></mark-down></main>',
@@ -1093,7 +1105,7 @@ test('SsrHtmlRouter - markdown with <mark-down> placeholder in HTML', async () =
   });
 
   try {
-    const result = await router.render('http://localhost/page-with-md');
+    const result = await router.render(url('http://localhost/page-with-md'));
     expect(result.status).toEqual(200);
     expect(result.content).toContain('<h1>Title</h1>');
     expect(result.content).toContain('<section>');
@@ -1113,12 +1125,12 @@ test('SsrHtmlRouter - leaf route with no files renders empty content', async () 
   ];
 
   const manifest = createTestManifest({ routes });
-  const router = new SsrHtmlRouter(manifest);
+  const router = createRouter(manifest);
 
   const restore = mockFetch({});
 
   try {
-    const result = await router.render('http://localhost/empty');
+    const result = await router.render(url('http://localhost/empty'));
     expect(result.status).toEqual(200);
     expect(result.content).toEqual('');
   } finally {
@@ -1136,14 +1148,14 @@ test('SsrHtmlRouter - URL with query params is handled', async () => {
   ];
 
   const manifest = createTestManifest({ routes });
-  const router = new SsrHtmlRouter(manifest);
+  const router = createRouter(manifest);
 
   const restore = mockFetch({
     '/search.page.html': '<div>Search</div>',
   });
 
   try {
-    const result = await router.render('http://localhost/search?q=test&limit=10');
+    const result = await router.render(url('http://localhost/search?q=test&limit=10'));
     expect(result.status).toEqual(200);
     expect(result.content).toContain('Search');
   } finally {
@@ -1161,14 +1173,14 @@ test('SsrHtmlRouter - URL with hash is handled', async () => {
   ];
 
   const manifest = createTestManifest({ routes });
-  const router = new SsrHtmlRouter(manifest);
+  const router = createRouter(manifest);
 
   const restore = mockFetch({
     '/docs.page.html': '<div>Docs</div>',
   });
 
   try {
-    const result = await router.render('http://localhost/docs#section-1');
+    const result = await router.render(url('http://localhost/docs#section-1'));
     expect(result.status).toEqual(200);
     expect(result.content).toContain('Docs');
   } finally {
@@ -1186,14 +1198,14 @@ test('SsrHtmlRouter - pathname-only URL (no host) is handled', async () => {
   ];
 
   const manifest = createTestManifest({ routes });
-  const router = new SsrHtmlRouter(manifest);
+  const router = createRouter(manifest);
 
   const restore = mockFetch({
     '/simple.page.html': '<div>Simple</div>',
   });
 
   try {
-    const result = await router.render('/simple');
+    const result = await router.render(url('/simple'));
     expect(result.status).toEqual(200);
     expect(result.content).toContain('Simple');
   } finally {
@@ -1215,14 +1227,14 @@ test('SsrHtmlRouter - widget with no params uses default values', async () => {
   const registry = new WidgetRegistry();
   registry.add(new TestWidget());
 
-  const router = new SsrHtmlRouter(manifest, { widgets: registry });
+  const router = createRouter(manifest, { widgets: registry });
 
   const restore = mockFetch({
     '/widget-default.page.html': '<widget-test-widget></widget-test-widget>',
   });
 
   try {
-    const result = await router.render('http://localhost/widget-default');
+    const result = await router.render(url('http://localhost/widget-default'));
     expect(result.status).toEqual(200);
     expect(result.content).toContain('Widget: default');
   } finally {
@@ -1242,14 +1254,14 @@ test('SsrHtmlRouter - unknown widget tag is left unchanged', async () => {
   const manifest = createTestManifest({ routes });
 
   const registry = new WidgetRegistry();
-  const router = new SsrHtmlRouter(manifest, { widgets: registry });
+  const router = createRouter(manifest, { widgets: registry });
 
   const restore = mockFetch({
     '/unknown-widget.page.html': '<widget-unknown></widget-unknown>',
   });
 
   try {
-    const result = await router.render('http://localhost/unknown-widget');
+    const result = await router.render(url('http://localhost/unknown-widget'));
     expect(result.status).toEqual(200);
     expect(result.content).toContain('<widget-unknown>');
   } finally {
@@ -1282,11 +1294,11 @@ test('SsrHtmlRouter - render returns object with content, status, and optional t
     },
   });
 
-  const router = new SsrHtmlRouter(manifest);
+  const router = createRouter(manifest);
   const restore = mockFetch({});
 
   try {
-    const result = await router.render('http://localhost/page');
+    const result = await router.render(url('http://localhost/page'));
     expect(typeof result.content).toEqual('string');
     expect(typeof result.status).toEqual('number');
     expect(result.title).toEqual('Page Title');

@@ -17,7 +17,6 @@
 import { WidgetComponent } from '../component/widget.component.ts';
 import { escapeHtml } from '../util/html.util.ts';
 import type { ComponentContext } from '../component/abstract.component.ts';
-import { DEFAULT_BASE_PATH } from '../route/route.core.ts';
 
 const DEFAULT_HTML_SEPARATOR = ' \u203A ';
 const DEFAULT_MD_SEPARATOR = ' > ';
@@ -42,20 +41,14 @@ export class BreadcrumbWidget extends WidgetComponent<BreadcrumbParams, Breadcru
   override getData(
     args: { params: BreadcrumbParams; signal?: AbortSignal; context: ComponentContext },
   ): Promise<BreadcrumbData | null> {
-    const htmlBase = args.context.basePath ?? DEFAULT_BASE_PATH.html;
-    const pathname = args.context.pathname ?? this.resolvePathname(htmlBase);
-
-    // Skip basePath segments for display — only show route segments
-    const barePathname = htmlBase && pathname.startsWith(htmlBase)
-      ? pathname.slice(htmlBase.length) || '/'
-      : pathname;
-    const parts = barePathname.split('/').filter(Boolean);
+    const pathname = args.context.pathname || '/';
+    const parts = pathname.split('/').filter(Boolean);
 
     const segments: BreadcrumbSegment[] = [
-      { label: 'Home', href: htmlBase + '/' },
+      { label: 'Home', href: '/' },
     ];
 
-    let accumulated = htmlBase;
+    let accumulated = '';
     for (const part of parts) {
       accumulated += '/' + part;
       segments.push({
@@ -65,11 +58,6 @@ export class BreadcrumbWidget extends WidgetComponent<BreadcrumbParams, Breadcru
     }
 
     return Promise.resolve({ segments });
-  }
-
-  private resolvePathname(htmlBase: string): string {
-    if (typeof globalThis.location === 'undefined') return htmlBase + '/';
-    return location.pathname;
   }
 
   override renderHTML(

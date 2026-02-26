@@ -5,6 +5,137 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.6-beta.5] - 2026-02-26
+
+### Changed
+
+- **Per-file module merging replaces app.js bundling** — route and widget `.ts`
+  modules are no longer compiled into `app.js`. Instead, `buildClientBundles()`
+  transpiles each `.ts` → `.js` via `Runtime.transpile()` and inlines companion
+  files (`.html`, `.md`, `.css`) as `export const __files`. The browser
+  lazy-loads individual `.js` files on demand via `FetchRuntime.loadModule()`.
+  `app.js` now contains only consumer code (markdown renderer setup, custom
+  elements, etc.).
+
+- **`bootEmrouteApp()`** — new browser entry point that fetches
+  `routes.manifest.json` and `widgets.manifest.json` as JSON, builds lazy module
+  loaders, registers widgets for deferred hydration, creates `EmrouteServer`,
+  and wires Navigation API. Replaces inline manifest bundling.
+
+### Added
+
+- **`Runtime.transpile()`** — abstract method for TypeScript → JavaScript
+  transpilation. `BunFsRuntime` implements it via `Bun.Transpiler`.
+- **`ComponentElement.registerLazy()`** — registers a widget custom element
+  immediately (SSR content adopted), defers module loading until
+  `connectedCallback`. Islands pattern: visible from SSR, interactive after
+  lazy load.
+- **`bootEmrouteApp()` + `BootOptions`** — exported from `@emkodev/emroute/spa`.
+- **`MarkdownElement.getConfiguredRenderer()`** — public getter for the
+  configured markdown renderer.
+
+### Removed
+
+- **`emroute:routes` / `emroute:widgets` virtual modules** — no longer used.
+  Route tree and widget manifest are fetched as JSON at boot time.
+
+## [1.6.6-beta.4] - 2026-02-26
+
+### Changed
+
+- **SPA replaced with thin client** — deleted `SpaBaseRouter`, `SpaHashRouter`,
+  `SpaHtmlRouter` (832 lines). Replaced with `EmrouteApp` (165 lines) that wires
+  Navigation API to an `EmrouteServer` running in the browser via `FetchRuntime`.
+  Same server, same pipeline, one-third the code.
+
+- **Build separated from Runtime** — `bundle()`, `transpile()`, `compress()`,
+  `stopBundler()`, `writeShell()` removed from `Runtime`. Bundling is now a
+  standalone `buildClientBundles()` function in `server/build.util.ts`. Runtime
+  is pure storage + serving.
+
+- **Pre-built browser bundle** — `dist/emroute.js` is produced at `bun run build`
+  time (tsc + esbuild). `buildClientBundles()` copies it from dist/ instead of
+  re-bundling with esbuild. Only consumer code (`app.js`) needs esbuild at build time.
+
+- **Sitemap generator updated for RouteNode tree** — `generateSitemap()` now
+  takes a `RouteNode` tree instead of the removed `RoutesManifest` array.
+
+### Added
+
+- **`FetchRuntime`** — browser-compatible Runtime that delegates reads to the
+  server via `fetch()`. Export: `@emkodev/emroute/runtime/fetch`.
+- **`EmrouteApp` + `createEmrouteApp`** — Navigation API glue for `/app/*`
+  routes. Intercepts links, renders via `htmlRouter.render()`, injects content
+  with view transitions.
+- **`buildClientBundles()`** — standalone build function. Produces `emroute.js`
+  (pre-built), `app.js` (consumer entry), `index.html` (shell with import map).
+  Export: `@emkodev/emroute/server/build`.
+- **`EmrouteServerConfig.moduleLoaders`** — pre-bundled module loaders for
+  browser use. Skips `runtime.loadModule()` when provided.
+- **`.js` merged module support** — `RouteFiles.js` field, scanRoutes/scanWidgets
+  detect `.js` files, `buildComponentContext` reads inlined `__files` from modules.
+- **`scripts/bundle-browser.ts`** — post-tsc esbuild step for `dist/emroute.js`.
+
+### Removed
+
+- **`SpaBaseRouter`**, **`SpaHashRouter`**, **`SpaHtmlRouter`** — replaced by
+  `EmrouteApp` thin client.
+- **`Runtime.bundle()`**, **`Runtime.transpile()`**, **`Runtime.compress()`**,
+  **`Runtime.stopBundler()`**, **`Runtime.writeShell()`** — build is no longer
+  a runtime concern.
+- **`RuntimeConfig.entryPoint`**, **`RuntimeConfig.bundlePaths`**,
+  **`RuntimeConfig.spa`** — moved to `BuildOptions`.
+- **`EMROUTE_EXTERNALS`**, **`EMROUTE_VIRTUAL_NS`** from `Runtime` — moved to
+  `server/build.util.ts`.
+
+## [1.6.6-beta.3] - 2026-02-26
+
+### Changed
+
+- **Route matching replaced with trie** — `RouteMatcher` replaced by `RouteTrie`
+  implementing a new `RouteResolver` interface. Route data is now a
+  JSON-serializable `RouteNode` tree instead of a flat `RoutesManifest` array.
+
+- **Router constructors take `RouteResolver`** — `createSpaHtmlRouter`,
+  `createSsrHtmlRouter`, `createSsrMdRouter`, `SsrHtmlRouter`, and
+  `SsrMdRouter` now accept a `RouteResolver` (e.g. `RouteTrie`) as the first
+  argument instead of `RoutesManifest`. Auto-generated `main.ts` handles this
+  automatically — no consumer changes needed unless you have a custom entry point.
+
+- **Server API** — `EmrouteServerConfig.routesManifest` → `routeTree`,
+  `EmrouteServer.manifest` → `routeTree`.
+
+- **SPA basePath stripping** — SPA router now strips the HTML basePath prefix
+  before trie matching, consistent with SSR routers.
+
+- **esbuild manifest plugin** — generates `routeTree` + `moduleLoaders` instead
+  of flat `RoutesManifest`. Redirect and error boundary `.ts` paths are included
+  in module loaders for browser bundling.
+
+### Added
+
+- **`RouteTrie`** — trie-based route resolver with O(segments) matching.
+- **`RouteNode`** type — JSON-serializable tree node for route definitions.
+- **`RouteResolver`** interface — DI point for route matching (`match`,
+  `findErrorBoundary`, `findRoute`).
+- **`SpaHtmlRouterOptions.moduleLoaders`** — passes pre-bundled module loaders
+  through to `RouteCore` for browser-side `.ts` module resolution.
+
+### Removed
+
+- **`RoutesManifest`** export — no longer part of the public API.
+- **`prefixManifest()`** — base path prefixing is handled by the server, not the
+  manifest.
+
+### Fixed
+
+- **SPA error boundaries** — `findErrorBoundary` now receives the stripped
+  pathname (not the browser pathname with basePath prefix).
+- **SPA `load` event** — emits `routeInfo.pathname` (actual URL) instead of
+  `routeInfo.pattern` (trie pattern).
+- **Server redirect prefixing** — only prepends basePath when redirect target
+  starts with `/`, avoiding mangled absolute URLs.
+
 ## [1.6.0] - 2026-02-25
 
 ### Added

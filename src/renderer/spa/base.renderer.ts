@@ -41,15 +41,10 @@ export abstract class BaseRenderer {
       const hierarchy = this.core.buildRouteHierarchy(routeInfo.pattern);
       logger.render('page', routeInfo.pattern, `hierarchy: ${hierarchy.join(' > ')}`);
 
-      let currentSlot: Element = this.slot;
-      let pageTitle: string | undefined;
-
+      // Resolve routes for each hierarchy segment
+      const segments: { route: RouteConfig; isLeaf: boolean; pattern: string }[] = [];
       for (let i = 0; i < hierarchy.length; i++) {
-        if (signal.aborted) return;
-
         const routePattern = hierarchy[i];
-        const isLeaf = i === hierarchy.length - 1;
-
         let route = this.core.findRoute(routePattern);
 
         if (!route && routePattern === '/') {
@@ -61,16 +56,30 @@ export abstract class BaseRenderer {
           continue;
         }
 
+        if (route === matched.route && routePattern !== matched.route.pattern) continue;
+
+        const isLeaf = i === hierarchy.length - 1;
         const routeType = isLeaf ? 'leaf' : 'layout';
         logger.render(routeType, routePattern, `${route.files?.ts ?? 'default'} → slot`);
 
-        // Skip wildcard route appearing as its own parent (prevents double-render)
-        if (route === matched.route && routePattern !== matched.route.pattern) {
-          continue;
-        }
+        segments.push({ route, isLeaf, pattern: routePattern });
+      }
 
-        const { html, title } = await this.renderRouteContent(routeInfo, route, signal, isLeaf);
+      // Fire all renderRouteContent calls in parallel
+      const results = await Promise.all(
+        segments.map(({ route, isLeaf }) =>
+          this.renderRouteContent(routeInfo, route, signal, isLeaf),
+        ),
+      );
+
+      // Sequential DOM injection — each segment paints as soon as it's injected
+      let currentSlot: Element = this.slot;
+      let pageTitle: string | undefined;
+
+      for (let i = 0; i < segments.length; i++) {
         if (signal.aborted) return;
+
+        const { html, title } = results[i];
 
         currentSlot.setHTMLUnsafe(html);
 
@@ -87,11 +96,12 @@ export abstract class BaseRenderer {
         }
 
         // Attribute bare <router-slot> tags with this route's pattern
+        const routePattern = segments[i].pattern;
         for (const slot of currentSlot.querySelectorAll('router-slot:not([pattern])')) {
           slot.setAttribute('pattern', routePattern);
         }
 
-        if (!isLeaf) {
+        if (!segments[i].isLeaf) {
           const nestedSlot = currentSlot.querySelector(
             `router-slot[pattern="${CSS.escape(routePattern)}"]`,
           );

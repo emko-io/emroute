@@ -37,6 +37,7 @@ import type { WidgetManifestEntry } from '../src/type/widget.type.ts';
 import { WidgetRegistry } from '../src/widget/widget.registry.ts';
 import type { WidgetComponent } from '../src/component/widget.component.ts';
 import { escapeHtml } from '../src/util/html.util.ts';
+import { rewriteMdLinks } from '../src/util/md.util.ts';
 import {
   ROUTES_MANIFEST_PATH,
   Runtime,
@@ -310,12 +311,12 @@ export async function createEmrouteServer(
       }
       try {
         const routeUrl = new URL(routePath + url.search, url.origin);
-        const { content, status, redirect } = await ssrMdRouter.render(routeUrl);
+        const { content, status, redirect } = await ssrMdRouter.render(routeUrl, req.signal);
         if (redirect) {
           const target = redirect.startsWith('/') ? mdBase + redirect : redirect;
           return Response.redirect(new URL(target, url.origin), status);
         }
-        return new Response(content, {
+        return new Response(rewriteMdLinks(content, mdBase, [mdBase, htmlBase]), {
           status,
           headers: { 'Content-Type': 'text/markdown; charset=utf-8; variant=CommonMark' },
         });
@@ -338,7 +339,7 @@ export async function createEmrouteServer(
       }
       try {
         const routeUrl = new URL(routePath + url.search, url.origin);
-        const result = await ssrHtmlRouter.render(routeUrl);
+        const result = await ssrHtmlRouter.render(routeUrl, req.signal);
         if (result.redirect) {
           const target = result.redirect.startsWith('/') ? htmlBase + result.redirect : result.redirect;
           return Response.redirect(new URL(target, url.origin), result.status);

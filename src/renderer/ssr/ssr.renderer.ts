@@ -50,6 +50,7 @@ export abstract class SsrRenderer {
    */
   async render(
     url: URL,
+    signal?: AbortSignal,
   ): Promise<{ content: string; status: number; title?: string; redirect?: string }> {
     const matched = this.core.match(url);
 
@@ -58,7 +59,7 @@ export abstract class SsrRenderer {
       if (statusPage) {
         try {
           const ri: RouteInfo = { url, params: {} };
-          const result = await this.renderRouteContent(ri, statusPage);
+          const result = await this.renderRouteContent(ri, statusPage, undefined, signal);
           return { content: this.stripSlots(result.content), status: 404, title: result.title };
         } catch (e) {
           logger.error(
@@ -87,7 +88,7 @@ export abstract class SsrRenderer {
     const routeInfo = this.core.toRouteInfo(matched, url);
 
     try {
-      const { content, title } = await this.renderPage(routeInfo, matched);
+      const { content, title } = await this.renderPage(routeInfo, matched, signal);
       return { content, status: 200, title };
     } catch (error) {
       if (error instanceof Response) {
@@ -95,7 +96,7 @@ export abstract class SsrRenderer {
         if (statusPage) {
           try {
             const ri: RouteInfo = { url, params: {} };
-            const result = await this.renderRouteContent(ri, statusPage);
+            const result = await this.renderRouteContent(ri, statusPage, undefined, signal);
             return {
               content: this.stripSlots(result.content),
               status: error.status,
@@ -137,13 +138,12 @@ export abstract class SsrRenderer {
   protected async renderPage(
     routeInfo: RouteInfo,
     matched: MatchedRoute,
+    signal?: AbortSignal,
   ): Promise<{ content: string; title?: string }> {
     const hierarchy = this.core.buildRouteHierarchy(matched.route.pattern);
 
-    let result = '';
-    let pageTitle: string | undefined;
-    let lastRenderedPattern = '';
-
+    // Resolve routes for each hierarchy segment (skip missing / duplicate wildcard)
+    const segments: { route: RouteConfig; isLeaf: boolean }[] = [];
     for (let i = 0; i < hierarchy.length; i++) {
       const routePattern = hierarchy[i];
       let route = this.core.findRoute(routePattern);
@@ -153,12 +153,25 @@ export abstract class SsrRenderer {
       }
 
       if (!route) continue;
-
-      // Skip wildcard route appearing as its own parent (prevents double-render)
       if (route === matched.route && routePattern !== matched.route.pattern) continue;
 
-      const isLeaf = i === hierarchy.length - 1;
-      const { content, title } = await this.renderRouteContent(routeInfo, route, isLeaf);
+      segments.push({ route, isLeaf: i === hierarchy.length - 1 });
+    }
+
+    // Fire all renderRouteContent calls in parallel
+    const results = await Promise.all(
+      segments.map(({ route, isLeaf }) =>
+        this.renderRouteContent(routeInfo, route, isLeaf, signal),
+      ),
+    );
+
+    // Sequential slot injection
+    let result = '';
+    let pageTitle: string | undefined;
+    let lastRenderedPattern = '';
+
+    for (let i = 0; i < segments.length; i++) {
+      const { content, title } = results[i];
 
       if (title) {
         pageTitle = title;
@@ -171,14 +184,14 @@ export abstract class SsrRenderer {
         if (injected === result) {
           logger.warn(
             `[${this.label}] Route "${lastRenderedPattern}" has no <router-slot> ` +
-              `for child route "${routePattern}" to render into. ` +
+              `for child route "${hierarchy[i]}" to render into. ` +
               `Add <router-slot></router-slot> to the parent template.`,
           );
         }
         result = injected;
       }
 
-      lastRenderedPattern = route.pattern;
+      lastRenderedPattern = segments[i].route.pattern;
     }
 
     result = this.stripSlots(result);
@@ -190,6 +203,7 @@ export abstract class SsrRenderer {
     routeInfo: RouteInfo,
     route: RouteConfig,
     isLeaf?: boolean,
+    signal?: AbortSignal,
   ): Promise<{ content: string; title?: string }>;
 
   /** Load component, build context, get data, render content, get title. */
@@ -197,6 +211,7 @@ export abstract class SsrRenderer {
     routeInfo: RouteInfo,
     route: RouteConfig,
     isLeaf?: boolean,
+    signal?: AbortSignal,
   ): Promise<{ content: string; title?: string }> {
     const files = route.files ?? {};
 
@@ -205,8 +220,8 @@ export abstract class SsrRenderer {
       ? (await this.core.loadModule<{ default: PageComponent }>(tsModule)).default
       : defaultPageComponent;
 
-    const context = await this.core.buildComponentContext(routeInfo, route, undefined, isLeaf);
-    const data = await component.getData({ params: routeInfo.params, context });
+    const context = await this.core.buildComponentContext(routeInfo, route, signal, isLeaf);
+    const data = await component.getData({ params: routeInfo.params, signal, context });
     const content = this.renderContent(component, { data, params: routeInfo.params, context });
     const title = component.getTitle({ data, params: routeInfo.params, context });
 

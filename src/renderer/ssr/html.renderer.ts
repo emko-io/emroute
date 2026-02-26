@@ -57,12 +57,13 @@ export class SsrHtmlRouter extends SsrRenderer {
     routeInfo: RouteInfo,
     route: RouteConfig,
     isLeaf?: boolean,
+    signal?: AbortSignal,
   ): Promise<{ content: string; title?: string }> {
     if (route.modulePath === DEFAULT_ROOT_ROUTE.modulePath) {
       return { content: `<router-slot pattern="${route.pattern}"></router-slot>` };
     }
 
-    const { content: rawContent, title } = await this.loadRouteContent(routeInfo, route, isLeaf);
+    const { content: rawContent, title } = await this.loadRouteContent(routeInfo, route, isLeaf, signal);
     let content = rawContent;
 
     // Expand <mark-down> tags server-side

@@ -50,12 +50,13 @@ export class SsrMdRouter extends SsrRenderer {
     routeInfo: RouteInfo,
     route: RouteConfig,
     isLeaf?: boolean,
+    signal?: AbortSignal,
   ): Promise<{ content: string; title?: string }> {
     if (route.modulePath === DEFAULT_ROOT_ROUTE.modulePath) {
       return { content: routerSlotBlock(route.pattern) };
     }
 
-    const { content: rawContent, title } = await this.loadRouteContent(routeInfo, route, isLeaf);
+    const { content: rawContent, title } = await this.loadRouteContent(routeInfo, route, isLeaf, signal);
     let content = rawContent;
 
     // Attribute bare router-slot blocks with this route's pattern

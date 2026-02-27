@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.2] - 2026-02-27
+
+### Changed
+
+- **README**: updated Runtimes section to list all four runtimes
+  (`BunFsRuntime`, `UniversalFsRuntime`, `BunSqliteRuntime`, `FetchRuntime`)
+  with storage-agnostic framing.
+
+### Fixed
+
+- **Docs**: removed stale `entryPoint` from runtime config in markdown renderer
+  setup guides (08a, 08b, 08c). Updated client-side examples from
+  `createSpaHtmlRouter` + `emroute:routes` to `bootEmrouteApp()`.
+- **Docs**: updated Hono integration guide (13) with `buildClientBundles()` call
+  and corrected verify table for `/app/` prefix.
+
 ## [1.6.6-beta.5] - 2026-02-26
 
 ### Changed

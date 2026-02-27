@@ -118,19 +118,20 @@ export default new ProjectPage();
 
 ## Runtimes
 
-emroute ships two filesystem runtimes:
+The router is storage-agnostic — it reads routes through a `Runtime` abstraction,
+not the filesystem directly. emroute ships four runtimes:
 
-- **`UniversalFsRuntime`** — uses only `node:` APIs and esbuild. Works on Node,
-  Deno, and Bun. The default choice for getting started.
-- **`BunFsRuntime`** — uses Bun-native APIs (`Bun.file()`, `Bun.write()`,
-  `Bun.Transpiler`) for better I/O performance in production on Bun.
+- **`BunFsRuntime`** — Bun-native APIs (`Bun.file()`, `Bun.write()`,
+  `Bun.Transpiler`). The default choice for Bun projects.
+- **`UniversalFsRuntime`** — `node:` APIs only. Works on Node, Deno, and Bun.
+- **`BunSqliteRuntime`** — stores routes in a SQLite database. Proves the
+  storage-agnostic design: no filesystem needed.
+- **`FetchRuntime`** — browser runtime that fetches files from a remote server.
+  Powers the SPA in `root` and `only` modes.
 
-emroute ships TypeScript source. Your runtime must handle `.ts` imports natively
-(Bun, Deno) or via a loader (`tsx`, `node --experimental-strip-types`).
-
-emroute 1.5.x shipped on JSR (Deno's registry). Starting with 1.6.0, emroute
-publishes to npm. Full analysis:
-[ADR-0017 — Move to Bun ecosystem](doc/architecture/ADR-0017-move-to-bun-ecosystem.md).
+Bun runs TypeScript source directly. Node and Deno use the compiled JS from
+`dist/`. See [ADR-0017](doc/architecture/ADR-0017-move-to-bun-ecosystem.md) for
+the full analysis.
 
 ## Getting Started
 

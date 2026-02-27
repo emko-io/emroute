@@ -82,7 +82,6 @@ const appRoot = import.meta.dirname!;
 
 const runtime = new BunFsRuntime(appRoot, {
   routesDir: '/routes',
-  entryPoint: '/main.ts',
 });
 
 const emroute = await createEmrouteServer({
@@ -103,13 +102,12 @@ Bun.serve({
 
 ```ts
 // main.ts
-import { createSpaHtmlRouter, MarkdownElement } from '@emkodev/emroute/spa';
-import { routesManifest } from 'emroute:routes';
+import { bootEmrouteApp, MarkdownElement } from '@emkodev/emroute/spa';
 import { render } from './renderer.ts';
 
 MarkdownElement.setRenderer({ render });
 
-await createSpaHtmlRouter(routesManifest);
+await bootEmrouteApp();
 ```
 
 `setRenderer()` must be called **before** any `<mark-down>` elements are

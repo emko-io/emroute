@@ -40,6 +40,7 @@ export type {
   WidgetsManifest,
 } from './type/widget.type.ts';
 
+export type { ElementManifestEntry } from './type/element.type.ts';
 export type { MarkdownRenderer } from './type/markdown.type.ts';
 export { type Logger, setLogger } from './type/logger.type.ts';
 

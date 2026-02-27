@@ -1,6 +1,7 @@
 import type { RouteNode, RouteFiles } from '../src/type/route-tree.type.ts';
 import { resolveTargetNode } from '../src/route/route-tree.util.ts';
 import type { WidgetManifestEntry } from '../src/type/widget.type.ts';
+import type { ElementManifestEntry } from '../src/type/element.type.ts';
 
 export const CONTENT_TYPES: Map<string, string> = new Map<string, string>([
   ['.html', 'text/html; charset=utf-8'],
@@ -31,12 +32,15 @@ export type FetchReturn = ReturnType<typeof fetch>;
 
 export const DEFAULT_ROUTES_DIR = '/routes';
 export const DEFAULT_WIDGETS_DIR = '/widgets';
+export const DEFAULT_ELEMENTS_DIR = '/elements';
 export const ROUTES_MANIFEST_PATH = '/routes.manifest.json';
 export const WIDGETS_MANIFEST_PATH = '/widgets.manifest.json';
+export const ELEMENTS_MANIFEST_PATH = '/elements.manifest.json';
 
 export interface RuntimeConfig {
   routesDir?: string;
   widgetsDir?: string;
+  elementsDir?: string;
 }
 
 /**
@@ -168,11 +172,13 @@ export abstract class Runtime {
 
   private routesManifestCache: Response | null = null;
   private widgetsManifestCache: Response | null = null;
+  private elementsManifestCache: Response | null = null;
 
   /** Clear cached manifests so the next query triggers a fresh scan. */
   invalidateManifests(): void {
     this.routesManifestCache = null;
     this.widgetsManifestCache = null;
+    this.elementsManifestCache = null;
   }
 
   /**
@@ -213,6 +219,25 @@ export abstract class Runtime {
     const entries = await this.scanWidgets(widgetsDir, widgetsDir.replace(/^\//, ''));
     this.widgetsManifestCache = Response.json(entries);
     return this.widgetsManifestCache.clone();
+  }
+
+  /**
+   * Resolve the elements manifest. Called when the concrete runtime returns
+   * 404 for ELEMENTS_MANIFEST_PATH. Scans `config.elementsDir` (or default).
+   */
+  async resolveElementsManifest(): Promise<Response> {
+    if (this.elementsManifestCache) return this.elementsManifestCache.clone();
+
+    const elementsDir = this.config.elementsDir ?? DEFAULT_ELEMENTS_DIR;
+
+    const dirResponse = await this.query(elementsDir + '/');
+    if (dirResponse.status === 404) {
+      return new Response('Not Found', { status: 404 });
+    }
+
+    const entries = await this.scanElements(elementsDir, elementsDir.replace(/^\//, ''));
+    this.elementsManifestCache = Response.json(entries);
+    return this.elementsManifestCache.clone();
   }
 
   // ── Scanning ──────────────────────────────────────────────────────────
@@ -339,6 +364,48 @@ export abstract class Runtime {
 
       if (hasFiles) entry.files = files;
       entries.push(entry);
+    }
+
+    entries.sort((a, b) => a.name.localeCompare(b.name));
+    return entries;
+  }
+
+  protected async scanElements(
+    elementsDir: string,
+    pathPrefix?: string,
+  ): Promise<ElementManifestEntry[]> {
+    const entries: ElementManifestEntry[] = [];
+
+    const trailingDir = elementsDir.endsWith('/') ? elementsDir : elementsDir + '/';
+    const response = await this.query(trailingDir);
+    const listing: string[] = await response.json();
+
+    for (const item of listing) {
+      if (!item.endsWith('/')) continue;
+
+      const name = item.slice(0, -1);
+
+      // Custom element names must contain a hyphen (web spec requirement)
+      if (!name.includes('-')) {
+        console.warn(`[emroute] Skipping element "${name}": custom element names must contain a hyphen (e.g. "my-element")`);
+        continue;
+      }
+
+      // Try .element.ts first, then .element.js
+      let moduleFile = `${name}.element.ts`;
+      let modulePath = `${trailingDir}${name}/${moduleFile}`;
+      if ((await this.query(modulePath)).status === 404) {
+        moduleFile = `${name}.element.js`;
+        modulePath = `${trailingDir}${name}/${moduleFile}`;
+        if ((await this.query(modulePath)).status === 404) continue;
+      }
+
+      const prefix = pathPrefix ? `${pathPrefix}/` : '';
+      entries.push({
+        name,
+        modulePath: `${prefix}${name}/${moduleFile}`,
+        tagName: name,
+      });
     }
 
     entries.sort((a, b) => a.name.localeCompare(b.name));

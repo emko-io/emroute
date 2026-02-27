@@ -1,0 +1,6 @@
+{
+  "imports": {
+    "@emkodev/emkoma/": "https://esm.sh/@emkodev/emkoma/",
+    "test-lib": "/vendor/test-lib.js"
+  }
+}

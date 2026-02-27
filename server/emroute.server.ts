@@ -34,6 +34,7 @@ import { SsrHtmlRouter } from '../src/renderer/ssr/html.renderer.ts';
 import { SsrMdRouter } from '../src/renderer/ssr/md.renderer.ts';
 import type { RouteNode } from '../src/type/route-tree.type.ts';
 import type { WidgetManifestEntry } from '../src/type/widget.type.ts';
+import type { ElementManifestEntry } from '../src/type/element.type.ts';
 import { WidgetRegistry } from '../src/widget/widget.registry.ts';
 import type { WidgetComponent } from '../src/component/widget.component.ts';
 import { escapeHtml } from '../src/util/html.util.ts';
@@ -42,6 +43,7 @@ import {
   ROUTES_MANIFEST_PATH,
   Runtime,
   WIDGETS_MANIFEST_PATH,
+  ELEMENTS_MANIFEST_PATH,
 } from '../runtime/abstract.runtime.ts';
 import type { EmrouteServer, EmrouteServerConfig } from './server-api.type.ts';
 
@@ -254,6 +256,14 @@ export async function createEmrouteServer(
     }
   }
 
+  // ── Elements (read from runtime) ──────────────────────────────────
+
+  let discoveredElementEntries: ElementManifestEntry[] = [];
+  const elementsResponse = await runtime.query(ELEMENTS_MANIFEST_PATH);
+  if (elementsResponse.status !== 404) {
+    discoveredElementEntries = await elementsResponse.json();
+  }
+
   // ── SSR routers ──────────────────────────────────────────────────────
 
   let ssrHtmlRouter: SsrHtmlRouter | null = null;
@@ -289,7 +299,8 @@ export async function createEmrouteServer(
   // ── HTML shell ───────────────────────────────────────────────────────
 
   const title = config.title ?? 'emroute';
-  let shell = await resolveShell(runtime, title, htmlBase);
+  const shellBase = (spa === 'root' || spa === 'only') ? appBase : htmlBase;
+  let shell = await resolveShell(runtime, title, shellBase);
 
   // Auto-discover main.css and inject <link> into <head>
   if ((await runtime.query('/main.css')).status !== 404) {
@@ -412,6 +423,9 @@ export async function createEmrouteServer(
     },
     get widgetEntries() {
       return discoveredWidgetEntries;
+    },
+    get elementEntries() {
+      return discoveredElementEntries;
     },
     get shell() {
       return shell;

@@ -8,6 +8,7 @@ import {
   Runtime,
   type RuntimeConfig,
   WIDGETS_MANIFEST_PATH,
+  ELEMENTS_MANIFEST_PATH,
 } from '../../abstract.runtime.ts';
 
 export class BunFsRuntime extends Runtime {
@@ -99,6 +100,7 @@ export class BunFsRuntime extends Runtime {
         const pathname = path.slice(this.root.length);
         if (pathname === ROUTES_MANIFEST_PATH) return this.resolveRoutesManifest();
         if (pathname === WIDGETS_MANIFEST_PATH) return this.resolveWidgetsManifest();
+        if (pathname === ELEMENTS_MANIFEST_PATH) return this.resolveElementsManifest();
         return new Response('Not Found', { status: 404 });
       }
       return new Response(`Internal Error: ${error}`, { status: 500 });

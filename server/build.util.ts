@@ -20,9 +20,11 @@ import type { Runtime } from '../runtime/abstract.runtime.ts';
 import {
   ROUTES_MANIFEST_PATH,
   WIDGETS_MANIFEST_PATH,
+  ELEMENTS_MANIFEST_PATH,
 } from '../runtime/abstract.runtime.ts';
 import type { RouteNode } from '../src/type/route-tree.type.ts';
 import type { WidgetManifestEntry } from '../src/type/widget.type.ts';
+import type { ElementManifestEntry } from '../src/type/element.type.ts';
 import { generateMainTs } from './codegen.util.ts';
 import type { SpaMode } from '../src/type/widget.type.ts';
 
@@ -146,10 +148,23 @@ async function writeShell(
 ): Promise<void> {
   if ((await runtime.query('/index.html')).status !== 404) return;
 
+  // Base emroute imports
   const imports: Record<string, string> = {};
   for (const pkg of EMROUTE_EXTERNALS) {
     imports[pkg] = paths.emroute;
   }
+
+  // Merge user-provided importmap.json (user entries win on conflict)
+  const mapResponse = await runtime.query('/importmap.json');
+  if (mapResponse.status !== 404) {
+    const userMap = await mapResponse.json() as { imports?: Record<string, string> };
+    if (userMap.imports) {
+      for (const [key, value] of Object.entries(userMap.imports)) {
+        imports[key] = value;
+      }
+    }
+  }
+
   const importMap = JSON.stringify({ imports }, null, 2);
 
   const html = `<!DOCTYPE html>
@@ -289,6 +304,19 @@ async function mergeModules(runtime: Runtime): Promise<void> {
     }
   }
 
+  // Read element manifest
+  const elementsResponse = await runtime.query(ELEMENTS_MANIFEST_PATH);
+  const elementEntries: ElementManifestEntry[] = elementsResponse.status !== 404
+    ? await elementsResponse.json()
+    : [];
+
+  // Merge element modules
+  for (const entry of elementEntries) {
+    if (entry.modulePath.endsWith('.ts')) {
+      entry.modulePath = await transpileAndMerge(runtime, entry.modulePath);
+    }
+  }
+
   // Write updated manifests back
   await runtime.command(ROUTES_MANIFEST_PATH, {
     body: JSON.stringify(routeTree),
@@ -296,6 +324,11 @@ async function mergeModules(runtime: Runtime): Promise<void> {
   await runtime.command(WIDGETS_MANIFEST_PATH, {
     body: JSON.stringify(widgetEntries),
   });
+  if (elementEntries.length > 0) {
+    await runtime.command(ELEMENTS_MANIFEST_PATH, {
+      body: JSON.stringify(elementEntries),
+    });
+  }
 }
 
 // ── esbuild loader ────────────────────────────────────────────────────

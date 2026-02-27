@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.3] - 2026-02-27
+
+### Added
+
+- **`importmap.json` support**: place an `importmap.json` in your project root
+  to map third-party packages for the browser. emroute merges your entries with
+  its base import map and writes the combined map into the HTML shell.
+
+- **`elements/` auto-discovery**: custom elements placed in
+  `elements/{name}/{name}.element.ts` are discovered automatically.
+  `bootEmrouteApp()` imports all element modules at boot and registers them via
+  `customElements.define()`. Element names must contain a hyphen per web spec.
+
+- **`ElementManifestEntry` type** exported from `@emkodev/emroute`.
+
+- **`EmrouteServer.elementEntries`** exposes discovered element manifest entries.
+
+- **`ELEMENTS_MANIFEST_PATH`** constant and `resolveElementsManifest()` /
+  `scanElements()` on `Runtime`. All concrete runtimes (BunFs, BunSqlite,
+  UniversalFs) intercept `elements.manifest.json` for auto-scanning.
+
+- **`mergeModules`** now transpiles element `.ts` → `.js` during build.
+
+- **`doc/14-browser-js.md`**: user-facing guide covering import maps, `main.ts`,
+  widget and element registration, third-party packages, and framework usage.
+
+### Fixed
+
+- **`exactOptionalPropertyTypes`**: aligned unit and browser tests with strict
+  optional property handling.
+
 ## [1.7.2] - 2026-02-27
 
 ### Changed

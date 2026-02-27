@@ -135,6 +135,19 @@ describe('prod server', () => {
     expect(server.shell).toContain('<router-slot>');
   });
 
+  test('shell contains emroute base import map entries', async () => {
+    const server = await getServer('root');
+    expect(server.shell).toContain('@emkodev/emroute/spa');
+    expect(server.shell).toContain('/emroute.js');
+  });
+
+  test('shell contains user importmap.json entries', async () => {
+    const server = await getServer('root');
+    expect(server.shell).toContain('https://esm.sh/@emkodev/emkoma/');
+    expect(server.shell).toContain('test-lib');
+    expect(server.shell).toContain('/vendor/test-lib.js');
+  });
+
   // ── SSR HTML ───────────────────────────────────────────────────────────
 
   test('handleRequest - SSR HTML renders /html', async () => {

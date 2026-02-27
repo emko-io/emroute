@@ -11,10 +11,11 @@
 import type { EmrouteServer } from '../../../server/server-api.type.ts';
 import { createEmrouteServer } from '../../../server/emroute.server.ts';
 import { FetchRuntime } from '../../../runtime/fetch.runtime.ts';
-import { ROUTES_MANIFEST_PATH, WIDGETS_MANIFEST_PATH } from '../../../runtime/abstract.runtime.ts';
+import { ROUTES_MANIFEST_PATH, WIDGETS_MANIFEST_PATH, ELEMENTS_MANIFEST_PATH } from '../../../runtime/abstract.runtime.ts';
 import type { RouteNode } from '../../type/route-tree.type.ts';
 import type { NavigateOptions } from '../../type/route.type.ts';
 import type { WidgetManifestEntry } from '../../type/widget.type.ts';
+import type { ElementManifestEntry } from '../../type/element.type.ts';
 import { assertSafeRedirect, type BasePath, DEFAULT_BASE_PATH } from '../../route/route.core.ts';
 import { escapeHtml } from '../../util/html.util.ts';
 import { ComponentElement } from '../../element/component.element.ts';
@@ -207,13 +208,34 @@ export async function bootEmrouteApp(options?: BootOptions): Promise<EmrouteApp>
     ? await widgetsResponse.json()
     : [];
 
-  // Build lazy module loaders for all route + widget modules
-  const moduleLoaders = buildLazyLoaders(routeTree, widgetEntries, runtime);
+  // Fetch element manifest (optional — app may have no custom elements)
+  const elementsResponse = await runtime.handle(ELEMENTS_MANIFEST_PATH);
+  const elementEntries: ElementManifestEntry[] = elementsResponse.ok
+    ? await elementsResponse.json()
+    : [];
+
+  // Build lazy module loaders for all route + widget + element modules
+  const moduleLoaders = buildLazyLoaders(routeTree, widgetEntries, elementEntries, runtime);
 
   // Register widgets eagerly (tag defined immediately, module loads on connectedCallback)
   const widgets = new WidgetRegistry();
   for (const entry of widgetEntries) {
     ComponentElement.registerLazy(entry.name, entry.files, moduleLoaders[entry.modulePath]);
+  }
+
+  // Register custom elements — import all modules, define when loaded
+  for (const entry of elementEntries) {
+    const loader = moduleLoaders[entry.modulePath];
+    if (loader) {
+      loader().then((mod) => {
+        const cls = (mod as Record<string, unknown>).default;
+        if (typeof cls === 'function' && !customElements.get(entry.tagName)) {
+          customElements.define(entry.tagName, cls as CustomElementConstructor);
+        }
+      }).catch((e) => {
+        console.error(`[emroute] Failed to load element ${entry.tagName}:`, e);
+      });
+    }
   }
 
   // Create the server (reuses the same createEmrouteServer as SSR)
@@ -229,12 +251,13 @@ export async function bootEmrouteApp(options?: BootOptions): Promise<EmrouteApp>
 }
 
 /**
- * Walk the route tree and widget entries to build a map of
+ * Walk the route tree, widget entries, and element entries to build a map of
  * `path → () => runtime.loadModule(path)` lazy loaders.
  */
 function buildLazyLoaders(
   tree: RouteNode,
   widgetEntries: WidgetManifestEntry[],
+  elementEntries: ElementManifestEntry[],
   runtime: FetchRuntime,
 ): Record<string, () => Promise<unknown>> {
   const paths = new Set<string>();
@@ -253,6 +276,7 @@ function buildLazyLoaders(
 
   walk(tree);
   for (const entry of widgetEntries) paths.add(entry.modulePath);
+  for (const entry of elementEntries) paths.add(entry.modulePath);
 
   const loaders: Record<string, () => Promise<unknown>> = {};
   for (const path of paths) {

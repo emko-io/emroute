@@ -7,6 +7,7 @@ import {
   Runtime,
   type RuntimeConfig,
   WIDGETS_MANIFEST_PATH,
+  ELEMENTS_MANIFEST_PATH,
 } from '../../abstract.runtime.ts';
 
 export class BunSqliteRuntime extends Runtime {
@@ -108,6 +109,7 @@ export class BunSqliteRuntime extends Runtime {
     if (!row) {
       if (path === ROUTES_MANIFEST_PATH) return this.resolveRoutesManifest();
       if (path === WIDGETS_MANIFEST_PATH) return this.resolveWidgetsManifest();
+      if (path === ELEMENTS_MANIFEST_PATH) return this.resolveElementsManifest();
       return new Response('Not Found', { status: 404 });
     }
 

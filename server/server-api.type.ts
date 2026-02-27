@@ -9,6 +9,7 @@
 import type { RouteNode } from '../src/type/route-tree.type.ts';
 import type { MarkdownRenderer } from '../src/type/markdown.type.ts';
 import type { SpaMode, WidgetManifestEntry } from '../src/type/widget.type.ts';
+import type { ElementManifestEntry } from '../src/type/element.type.ts';
 import type { ContextProvider } from '../src/component/abstract.component.ts';
 import type { BasePath } from '../src/route/route.core.ts';
 import type { WidgetRegistry } from '../src/widget/widget.registry.ts';
@@ -91,6 +92,9 @@ export interface EmrouteServer {
 
   /** Discovered widget entries. */
   readonly widgetEntries: WidgetManifestEntry[];
+
+  /** Discovered element entries. */
+  readonly elementEntries: ElementManifestEntry[];
 
   /** The resolved HTML shell. */
   readonly shell: string;

@@ -5,7 +5,7 @@
  * Calls getData() + renderHTML() on widgets and injects SSR hydration data.
  */
 
-import type { Component, ContextProvider } from '../component/abstract.component.ts';
+import type { Component, ComponentContext, ContextProvider } from '../component/abstract.component.ts';
 import { logger } from '../type/logger.type.ts';
 import type { RouteInfo } from '../type/route.type.ts';
 import { LAZY_ATTR, SSR_ATTR } from './html.util.ts';
@@ -118,13 +118,13 @@ export function resolveWidgetTags(
         files = await loadFiles(widgetName, widget.files);
       }
 
-      const baseContext = {
+      const baseContext: ComponentContext = {
         ...routeInfo,
         pathname: routeInfo.url.pathname,
         searchParams: routeInfo.url.searchParams,
-        files,
+        ...(files ? { files } : {}),
       };
-      const context = contextProvider ? contextProvider(baseContext) : baseContext;
+      const context: ComponentContext = contextProvider ? contextProvider(baseContext) : baseContext;
 
       const data = await widget.getData({ params, context });
       const rendered = widget.renderHTML({ data, params, context });

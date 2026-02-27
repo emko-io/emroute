@@ -60,7 +60,7 @@ export abstract class SsrRenderer {
         try {
           const ri: RouteInfo = { url, params: {} };
           const result = await this.renderRouteContent(ri, statusPage, undefined, signal);
-          return { content: this.stripSlots(result.content), status: 404, title: result.title };
+          return { content: this.stripSlots(result.content), status: 404, ...(result.title != null ? { title: result.title } : {}) };
         } catch (e) {
           logger.error(
             `[${this.label}] Failed to render 404 status page for ${url.pathname}`,
@@ -89,7 +89,7 @@ export abstract class SsrRenderer {
 
     try {
       const { content, title } = await this.renderPage(routeInfo, matched, signal);
-      return { content, status: 200, title };
+      return { content, status: 200, ...(title != null ? { title } : {}) };
     } catch (error) {
       if (error instanceof Response) {
         const statusPage = this.core.getStatusPage(error.status);
@@ -100,7 +100,7 @@ export abstract class SsrRenderer {
             return {
               content: this.stripSlots(result.content),
               status: error.status,
-              title: result.title,
+              ...(result.title != null ? { title: result.title } : {}),
             };
           } catch (e) {
             logger.error(
@@ -196,7 +196,7 @@ export abstract class SsrRenderer {
 
     result = this.stripSlots(result);
 
-    return { content: result, title: pageTitle };
+    return { content: result, ...(pageTitle != null ? { title: pageTitle } : {}) };
   }
 
   protected abstract renderRouteContent(
@@ -221,11 +221,11 @@ export abstract class SsrRenderer {
       : defaultPageComponent;
 
     const context = await this.core.buildComponentContext(routeInfo, route, signal, isLeaf);
-    const data = await component.getData({ params: routeInfo.params, signal, context });
+    const data = await component.getData({ params: routeInfo.params, ...(signal ? { signal } : {}), context });
     const content = this.renderContent(component, { data, params: routeInfo.params, context });
     const title = component.getTitle({ data, params: routeInfo.params, context });
 
-    return { content, title };
+    return { content, ...(title != null ? { title } : {}) };
   }
 
   /** Render a component to the output format (HTML or Markdown). */

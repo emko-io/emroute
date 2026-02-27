@@ -251,11 +251,10 @@ async function mergeModules(runtime: Runtime): Promise<void> {
   // Merge route modules
   async function walkRoutes(node: RouteNode): Promise<void> {
     if (node.files?.ts) {
-      const companions = {
-        html: node.files.html,
-        md: node.files.md,
-        css: node.files.css,
-      };
+      const companions: { html?: string; md?: string; css?: string } = {};
+      if (node.files.html) companions.html = node.files.html;
+      if (node.files.md) companions.md = node.files.md;
+      if (node.files.css) companions.css = node.files.css;
       node.files.js = await transpileAndMerge(runtime, node.files.ts, companions);
       delete node.files.ts;
       delete node.files.html;

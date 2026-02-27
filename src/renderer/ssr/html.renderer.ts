@@ -87,7 +87,7 @@ export class SsrHtmlRouter extends SsrRenderer {
       );
     }
 
-    return { content, title };
+    return { content, ...(title != null ? { title } : {}) };
   }
 
   protected override renderContent(

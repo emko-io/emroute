@@ -217,11 +217,12 @@ export async function bootEmrouteApp(options?: BootOptions): Promise<EmrouteApp>
   }
 
   // Create the server (reuses the same createEmrouteServer as SSR)
+  const mdRenderer = MarkdownElement.getConfiguredRenderer();
   const server = await createEmrouteServer({
     routeTree,
     widgets,
     moduleLoaders,
-    markdownRenderer: MarkdownElement.getConfiguredRenderer() ?? undefined,
+    ...(mdRenderer ? { markdownRenderer: mdRenderer } : {}),
   }, runtime);
 
   return createEmrouteApp(server, options);

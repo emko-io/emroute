@@ -3,6 +3,7 @@
     "lib": ["dom", "dom.iterable", "esnext"],
     "types": ["bun-types"],
     "strict": true,
+    "exactOptionalPropertyTypes": true,
     "module": "esnext",
     "moduleResolution": "bundler",
     "target": "esnext",

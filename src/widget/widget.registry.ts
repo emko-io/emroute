@@ -40,7 +40,7 @@ export class WidgetRegistry {
         name,
         modulePath: name,
         tagName: `widget-${name}`,
-        files: widget.files,
+        ...(widget.files ? { files: widget.files } : {}),
       };
       widgets.push(entry);
       moduleLoaders[name] = () => Promise.resolve({ default: widget.constructor });

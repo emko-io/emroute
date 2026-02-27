@@ -80,7 +80,7 @@ export class MarkdownElement extends HTMLElementBase {
     const signal = this.abortController?.signal;
 
     try {
-      const response = await fetch(src, { signal });
+      const response = await fetch(src, signal ? { signal } : {});
 
       if (!response.ok) {
         throw new Error(`Failed to fetch ${src}: ${response.status}`);

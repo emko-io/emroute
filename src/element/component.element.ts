@@ -18,6 +18,17 @@ import { HTMLElementBase, LAZY_ATTR, SSR_ATTR } from '../util/html.util.ts';
 
 type ComponentState = 'idle' | 'loading' | 'ready' | 'error';
 
+/** Strip keys with undefined values — returns the filtered object, or undefined if all values are undefined. */
+function filterUndefined<T extends Record<string, unknown>>(obj: T): { [K in keyof T as T[K] extends undefined ? never : K]: NonNullable<T[K]> } | undefined {
+  const result: Record<string, unknown> = {};
+  let hasValue = false;
+  for (const [k, v] of Object.entries(obj)) {
+    if (v !== undefined) { result[k] = v; hasValue = true; }
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return hasValue ? result as any : undefined;
+}
+
 type WidgetFiles = { html?: string; md?: string; css?: string };
 
 /**
@@ -42,7 +53,7 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
   }
 
   private component: Component<TParams, TData>;
-  private effectiveFiles?: WidgetFiles;
+  private effectiveFiles?: WidgetFiles | undefined;
   private params: TParams | null = null;
   private data: TData | null = null;
   private context!: ComponentContext;
@@ -231,12 +242,13 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
     if (signal.aborted) return;
 
     const currentUrl = globalThis.location ? new URL(location.href) : new URL('http://localhost/');
+    const filteredFiles = filterUndefined(files);
     const base: ComponentContext = {
       url: currentUrl,
       pathname: currentUrl.pathname,
       searchParams: currentUrl.searchParams,
       params: this.params ?? {},
-      files: (files.html || files.md || files.css) ? files : undefined,
+      ...(filteredFiles ? { files: filteredFiles } : {}),
     };
     this.context = ComponentElement.extendContext ? ComponentElement.extendContext(base) : base;
 
@@ -350,7 +362,7 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
       filePaths.css ? ComponentElement.loadFile(filePaths.css) : undefined,
     ]);
 
-    return { html, md, css };
+    return filterUndefined({ html, md, css }) ?? {};
   }
 
   private async loadData(): Promise<void> {
@@ -364,7 +376,7 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
     try {
       const promise = this.component.getData({
         params: this.params,
-        signal,
+        ...(signal ? { signal } : {}),
         context: this.context,
       });
       this.dataPromise = promise;

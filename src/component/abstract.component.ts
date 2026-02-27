@@ -105,7 +105,7 @@ export abstract class Component<
   abstract readonly name: string;
 
   /** Host element reference, set by ComponentElement in the browser. */
-  element?: HTMLElement;
+  element?: HTMLElement | undefined;
 
   /** Associated file paths for pre-loaded content (html, md, css). */
   readonly files?: { html?: string; md?: string; css?: string };

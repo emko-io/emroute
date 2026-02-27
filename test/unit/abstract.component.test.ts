@@ -136,10 +136,10 @@ class ContextAwareComponent extends Component<
     } | null
   > {
     const context = args.context as AppContext;
-    return Promise.resolve({
-      userId: context?.userId,
-      isAdmin: context?.isAdmin,
-    });
+    const result: { userId?: string; isAdmin?: boolean } = {};
+    if (context?.userId != null) result.userId = context.userId;
+    if (context?.isAdmin != null) result.isAdmin = context.isAdmin;
+    return Promise.resolve(result);
   }
 
   override renderMarkdown(args: this['RenderArgs']): string {

@@ -42,22 +42,22 @@ function createTestManifest(
 
 function resolverFromManifest(manifest: TestManifest) {
   return createResolver(manifest.routes ?? [], {
-    errorBoundaries: manifest.errorBoundaries,
-    statusPages: manifest.statusPages,
-    errorHandler: manifest.errorHandler,
+    ...(manifest.errorBoundaries ? { errorBoundaries: manifest.errorBoundaries } : {}),
+    ...(manifest.statusPages ? { statusPages: manifest.statusPages } : {}),
+    ...(manifest.errorHandler ? { errorHandler: manifest.errorHandler } : {}),
   });
 }
 
 function createHtmlRouter(manifest: TestManifest, options?: Record<string, unknown>) {
   return new SsrHtmlRouter(resolverFromManifest(manifest), {
-    moduleLoaders: manifest.moduleLoaders,
+    ...(manifest.moduleLoaders ? { moduleLoaders: manifest.moduleLoaders } : {}),
     ...options,
   });
 }
 
 function createMdRouter(manifest: TestManifest, options?: Record<string, unknown>) {
   return new SsrMdRouter(resolverFromManifest(manifest), {
-    moduleLoaders: manifest.moduleLoaders,
+    ...(manifest.moduleLoaders ? { moduleLoaders: manifest.moduleLoaders } : {}),
     ...options,
   });
 }

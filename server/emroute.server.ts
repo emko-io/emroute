@@ -269,17 +269,17 @@ export async function createEmrouteServer(
     ssrHtmlRouter = new SsrHtmlRouter(resolver, {
       fileReader: (path) => runtime.query(path, { as: 'text' }),
       moduleLoaders,
-      markdownRenderer: config.markdownRenderer,
-      extendContext: config.extendContext,
-      widgets,
+      ...(config.markdownRenderer ? { markdownRenderer: config.markdownRenderer } : {}),
+      ...(config.extendContext ? { extendContext: config.extendContext } : {}),
+      ...(widgets ? { widgets } : {}),
       widgetFiles,
     });
 
     ssrMdRouter = new SsrMdRouter(resolver, {
       fileReader: (path) => runtime.query(path, { as: 'text' }),
       moduleLoaders,
-      extendContext: config.extendContext,
-      widgets,
+      ...(config.extendContext ? { extendContext: config.extendContext } : {}),
+      ...(widgets ? { widgets } : {}),
       widgetFiles,
     });
   }

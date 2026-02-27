@@ -6,6 +6,7 @@
  */
 
 import type { RouteConfig, RouteInfo } from '../../type/route.type.ts';
+import type { ComponentContext } from '../../component/abstract.component.ts';
 import type { RouteResolver } from '../../route/route.resolver.ts';
 import type { PageComponent } from '../../component/page.component.ts';
 import { DEFAULT_ROOT_ROUTE } from '../../route/route.core.ts';
@@ -68,7 +69,7 @@ export class SsrMdRouter extends SsrRenderer {
       content = await this.resolveWidgets(content, routeInfo);
     }
 
-    return { content, title };
+    return { content, ...(title != null ? { title } : {}) };
   }
 
   protected override renderContent(
@@ -118,13 +119,13 @@ export class SsrMdRouter extends SsrRenderer {
             files = await this.core.loadWidgetFiles(filePaths);
           }
 
-          const baseContext = {
+          const baseContext: ComponentContext = {
             ...routeInfo,
             pathname: routeInfo.url.pathname,
             searchParams: routeInfo.url.searchParams,
-            files,
+            ...(files ? { files } : {}),
           };
-          const context = this.core.contextProvider
+          const context: ComponentContext = this.core.contextProvider
             ? this.core.contextProvider(baseContext)
             : baseContext;
           const data = await widget.getData({ params: block.params, context });

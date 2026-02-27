@@ -43,7 +43,7 @@ function createRoute(
     pattern,
     type: 'page',
     modulePath,
-    parent,
+    ...(parent ? { parent } : {}),
   };
 }
 

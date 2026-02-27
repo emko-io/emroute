@@ -39,12 +39,12 @@ function createRouter(
   options?: ConstructorParameters<typeof SsrHtmlRouter>[1],
 ): SsrHtmlRouter {
   const resolver = createResolver(manifest.routes ?? [], {
-    errorBoundaries: manifest.errorBoundaries,
-    statusPages: manifest.statusPages,
-    errorHandler: manifest.errorHandler,
+    ...(manifest.errorBoundaries ? { errorBoundaries: manifest.errorBoundaries } : {}),
+    ...(manifest.statusPages ? { statusPages: manifest.statusPages } : {}),
+    ...(manifest.errorHandler ? { errorHandler: manifest.errorHandler } : {}),
   });
   return new SsrHtmlRouter(resolver, {
-    moduleLoaders: manifest.moduleLoaders,
+    ...(manifest.moduleLoaders ? { moduleLoaders: manifest.moduleLoaders } : {}),
     ...options,
   });
 }

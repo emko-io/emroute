@@ -17,7 +17,7 @@ import type {
   RouterEvent,
   RouterEventListener,
 } from '../type/route.type.ts';
-import type { ComponentContext, ContextProvider } from '../component/abstract.component.ts';
+import type { ComponentContext, ContextProvider, FileContents } from '../component/abstract.component.ts';
 import type { RouteResolver, ResolvedRoute } from './route.resolver.ts';
 
 /** Base paths for the two SSR rendering endpoints. */
@@ -56,7 +56,7 @@ function toRouteConfig(resolved: ResolvedRoute): RouteConfig {
     pattern: resolved.pattern,
     type: node.redirect ? 'redirect' : 'page',
     modulePath: node.redirect ?? node.files?.ts ?? node.files?.js ?? node.files?.html ?? node.files?.md ?? '',
-    files: node.files,
+    ...(node.files ? { files: node.files } : {}),
   };
 }
 
@@ -157,7 +157,7 @@ export class RouteCore {
       pattern: `/${status}`,
       type: 'page',
       modulePath: node.files?.ts ?? node.files?.js ?? node.files?.html ?? node.files?.md ?? '',
-      files: node.files,
+      ...(node.files ? { files: node.files } : {}),
     };
   }
 
@@ -190,7 +190,7 @@ export class RouteCore {
       pattern,
       type: node.redirect ? 'redirect' : 'page',
       modulePath: node.redirect ?? node.files?.ts ?? node.files?.js ?? node.files?.html ?? node.files?.md ?? '',
-      files: node.files,
+      ...(node.files ? { files: node.files } : {}),
     };
   }
 
@@ -287,7 +287,11 @@ export class RouteCore {
       widgetFiles.css ? load(widgetFiles.css) : undefined,
     ]);
 
-    return { html, md, css };
+    const result: { html?: string; md?: string; css?: string } = {};
+    if (html != null) result.html = html;
+    if (md != null) result.md = md;
+    if (css != null) result.css = css;
+    return result;
   }
 
   /**
@@ -349,13 +353,18 @@ export class RouteCore {
       ]);
     }
 
+    const files: FileContents = {};
+    if (html != null) files.html = html;
+    if (md != null) files.md = md;
+    if (css != null) files.css = css;
+
     const base: ComponentContext = {
       ...routeInfo,
       pathname: routeInfo.url.pathname,
       searchParams: routeInfo.url.searchParams,
-      files: { html, md, css },
-      signal,
-      isLeaf,
+      files,
+      ...(signal ? { signal } : {}),
+      ...(isLeaf != null ? { isLeaf } : {}),
     };
     return this.contextProvider ? this.contextProvider(base) : base;
   }

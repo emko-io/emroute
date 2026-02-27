@@ -30,12 +30,12 @@ function createRouter(
   options?: ConstructorParameters<typeof SsrMdRouter>[1],
 ): SsrMdRouter {
   const resolver = createResolver(manifest.routes ?? [], {
-    errorBoundaries: manifest.errorBoundaries,
-    statusPages: manifest.statusPages,
-    errorHandler: manifest.errorHandler,
+    ...(manifest.errorBoundaries ? { errorBoundaries: manifest.errorBoundaries } : {}),
+    ...(manifest.statusPages ? { statusPages: manifest.statusPages } : {}),
+    ...(manifest.errorHandler ? { errorHandler: manifest.errorHandler } : {}),
   });
   return new SsrMdRouter(resolver, {
-    moduleLoaders: manifest.moduleLoaders,
+    ...(manifest.moduleLoaders ? { moduleLoaders: manifest.moduleLoaders } : {}),
     ...options,
   });
 }

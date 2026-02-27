@@ -30,6 +30,11 @@ const asAny = (v: unknown): any => v;
 // Helpers
 // ============================================================================
 
+/** Build a RouteInfo from a pathname and optional params. */
+function ri(pathname: string, params: Record<string, string> = {}): RouteInfo {
+  return { url: new URL(pathname, 'http://test'), params };
+}
+
 function createTestManifest(
   routes?: RouteConfig[],
   overrides?: Partial<TestManifest>,
@@ -142,12 +147,7 @@ test(
       extendContext: (base) => ({ ...base, locale: 'en-US' }),
     });
 
-    const routeInfo: RouteInfo = {
-      pathname: '/hello',
-      pattern: '/hello',
-      params: {},
-      searchParams: new URLSearchParams(),
-    };
+    const routeInfo = ri('/hello');
 
     const restore = mockFetch({ '/hello.page.html': '<p>Hello</p>' });
     try {
@@ -170,17 +170,12 @@ test(
       extendContext: (base) => ({ ...base, service: 'api' }),
     });
 
-    const routeInfo: RouteInfo = {
-      pathname: '/users/42',
-      pattern: '/users/:id',
-      params: { id: '42' },
-      searchParams: new URLSearchParams(),
-    };
+    const routeInfo = ri('/users/42', { id: '42' });
 
     const restore = mockFetch({ '/users.page.html': '<div>User</div>' });
     try {
       const ctx = await core.buildComponentContext(routeInfo, route);
-      expect(ctx.pattern).toEqual('/users/:id');
+      expect(ctx.url.pathname).toEqual('/users/42');
     } finally {
       restore();
     }
@@ -198,12 +193,7 @@ test(
       extendContext: (base) => ({ ...base, service: 'api' }),
     });
 
-    const routeInfo: RouteInfo = {
-      pathname: '/articles/hello-world',
-      pattern: '/articles/:slug',
-      params: { slug: 'hello-world' },
-      searchParams: new URLSearchParams(),
-    };
+    const routeInfo = ri('/articles/hello-world', { slug: 'hello-world' });
 
     const restore = mockFetch({ '/articles.page.html': '<article/>' });
     try {
@@ -226,12 +216,9 @@ test(
       extendContext: (base) => ({ ...base, service: 'search' }),
     });
 
-    const searchParams = new URLSearchParams('q=test&limit=10');
     const routeInfo: RouteInfo = {
-      pathname: '/search',
-      pattern: '/search',
+      url: new URL('/search?q=test&limit=10', 'http://test'),
       params: {},
-      searchParams,
     };
 
     const restore = mockFetch({ '/search.page.html': '<div>Search</div>' });
@@ -256,12 +243,7 @@ test(
       extendContext: (base) => ({ ...base, extra: true }),
     });
 
-    const routeInfo: RouteInfo = {
-      pathname: '/page',
-      pattern: '/page',
-      params: {},
-      searchParams: new URLSearchParams(),
-    };
+    const routeInfo = ri('/page');
 
     const restore = mockFetch({ '/page.page.html': '<div>Content</div>' });
     try {
@@ -284,12 +266,7 @@ test(
       extendContext: (base) => ({ ...base, extra: true }),
     });
 
-    const routeInfo: RouteInfo = {
-      pathname: '/page',
-      pattern: '/page',
-      params: {},
-      searchParams: new URLSearchParams(),
-    };
+    const routeInfo = ri('/page');
 
     const restore = mockFetch({ '/page.page.md': '# Page Content' });
     try {
@@ -312,12 +289,7 @@ test(
       extendContext: (base) => ({ ...base, extra: true }),
     });
 
-    const routeInfo: RouteInfo = {
-      pathname: '/page',
-      pattern: '/page',
-      params: {},
-      searchParams: new URLSearchParams(),
-    };
+    const routeInfo = ri('/page');
 
     const restore = mockFetch({
       '/page.page.css': 'body { color: red; }',
@@ -346,12 +318,7 @@ test(
       extendContext: (base) => ({ ...base, extra: true }),
     });
 
-    const routeInfo: RouteInfo = {
-      pathname: '/users/42',
-      pattern: '/users/:id',
-      params: { id: '42' },
-      searchParams: new URLSearchParams(),
-    };
+    const routeInfo = ri('/users/42', { id: '42' });
 
     const restore = mockFetch({
       '/users.page.html': '<div>User</div>',
@@ -380,12 +347,7 @@ test(
       extendContext: (base) => ({ ...base, extra: true }),
     });
 
-    const routeInfo: RouteInfo = {
-      pathname: '/page',
-      pattern: '/page',
-      params: {},
-      searchParams: new URLSearchParams(),
-    };
+    const routeInfo = ri('/page');
 
     const signal = new AbortController().signal;
     const restore = mockFetch({ '/page.page.html': '<div>Content</div>' });
@@ -411,12 +373,7 @@ test(
   async () => {
     const route = createTestRoute({ pattern: '/leaf' });
     const core = new RouteCore(resolverFromManifest(createTestManifest([route])));
-    const routeInfo: RouteInfo = {
-      pathname: '/leaf',
-      pattern: '/leaf',
-      params: {},
-      searchParams: new URLSearchParams(),
-    };
+    const routeInfo = ri('/leaf');
 
     const ctx = await core.buildComponentContext(routeInfo, route, undefined, true);
     expect(ctx.isLeaf).toEqual(true);
@@ -428,12 +385,7 @@ test(
   async () => {
     const route = createTestRoute({ pattern: '/layout' });
     const core = new RouteCore(resolverFromManifest(createTestManifest([route])));
-    const routeInfo: RouteInfo = {
-      pathname: '/layout/child',
-      pattern: '/layout/child',
-      params: {},
-      searchParams: new URLSearchParams(),
-    };
+    const routeInfo = ri('/layout/child');
 
     const ctx = await core.buildComponentContext(routeInfo, route, undefined, false);
     expect(ctx.isLeaf).toEqual(false);
@@ -445,12 +397,7 @@ test(
   async () => {
     const route = createTestRoute({ pattern: '/page' });
     const core = new RouteCore(resolverFromManifest(createTestManifest([route])));
-    const routeInfo: RouteInfo = {
-      pathname: '/page',
-      pattern: '/page',
-      params: {},
-      searchParams: new URLSearchParams(),
-    };
+    const routeInfo = ri('/page');
 
     const ctx = await core.buildComponentContext(routeInfo, route);
     expect(ctx.isLeaf).toEqual(undefined);
@@ -464,12 +411,7 @@ test(
     const core = new RouteCore(resolverFromManifest(createTestManifest([route])), {
       extendContext: (base) => ({ ...base, custom: 'value' }),
     });
-    const routeInfo: RouteInfo = {
-      pathname: '/test',
-      pattern: '/test',
-      params: {},
-      searchParams: new URLSearchParams(),
-    };
+    const routeInfo = ri('/test');
 
     const ctx = await core.buildComponentContext(routeInfo, route, undefined, true);
     expect(ctx.isLeaf).toEqual(true);
@@ -492,12 +434,7 @@ test(
       extendContext: (base) => ({ ...base, locale: 'en-US' }),
     });
 
-    const routeInfo: RouteInfo = {
-      pathname: '/hello',
-      pattern: '/hello',
-      params: {},
-      searchParams: new URLSearchParams(),
-    };
+    const routeInfo = ri('/hello');
 
     const restore = mockFetch({ '/hello.page.html': '<p>Hello</p>' });
     try {
@@ -525,12 +462,7 @@ test(
       }),
     });
 
-    const routeInfo: RouteInfo = {
-      pathname: '/page',
-      pattern: '/page',
-      params: {},
-      searchParams: new URLSearchParams(),
-    };
+    const routeInfo = ri('/page');
 
     const restore = mockFetch({ '/page.page.html': '<div>Page</div>' });
     try {
@@ -562,12 +494,7 @@ test(
       extendContext: (base) => ({ ...base, service: mockService }),
     });
 
-    const routeInfo: RouteInfo = {
-      pathname: '/page',
-      pattern: '/page',
-      params: {},
-      searchParams: new URLSearchParams(),
-    };
+    const routeInfo = ri('/page');
 
     const restore = mockFetch({ '/page.page.html': '<div>Page</div>' });
     try {
@@ -599,10 +526,8 @@ test(
     });
 
     const routeInfo: RouteInfo = {
-      pathname: '/test',
-      pattern: '/test',
+      url: new URL('/test?tab=info', 'http://test'),
       params: { id: '123' },
-      searchParams: new URLSearchParams('tab=info'),
     };
 
     const restore = mockFetch({ '/test.page.html': '<div>Test</div>' });
@@ -610,7 +535,7 @@ test(
       await core.buildComponentContext(routeInfo, route);
       expect(capturedBase !== undefined).toBeTruthy();
       expect(capturedBase!.pathname).toEqual('/test');
-      expect(capturedBase!.pattern).toEqual('/test');
+      expect(capturedBase!.url.pathname).toEqual('/test');
       expect(capturedBase!.params).toEqual({ id: '123' });
       expect(capturedBase!.searchParams.get('tab')).toEqual('info');
     } finally {
@@ -659,7 +584,7 @@ test(
         fileReader: () => Promise.resolve(''),
       });
 
-      await router.render('http://test/test');
+      await router.render(new URL('http://test/test'));
 
       expect(capturedContext !== undefined).toBeTruthy();
       expect(capturedContext!.pathname).toEqual('/test');
@@ -706,7 +631,7 @@ test(
         extendContext: (base: ComponentContext) => ({ ...base, rpc: true, apiVersion: 2 }),
       });
 
-      await router.render('http://test/test');
+      await router.render(new URL('http://test/test'));
 
       expect(capturedContext !== undefined).toBeTruthy();
       expect(asAny(capturedContext).rpc).toEqual(true);
@@ -754,7 +679,7 @@ test(
         fileReader: () => Promise.resolve(''),
       });
 
-      await router.render('http://test/test');
+      await router.render(new URL('http://test/test'));
 
       expect(capturedContext !== undefined).toBeTruthy();
       expect(capturedContext!.pathname).toEqual('/test');
@@ -801,7 +726,7 @@ test(
         extendContext: (base: ComponentContext) => ({ ...base, rpc: true, feature: 'markdown' }),
       });
 
-      await router.render('http://test/test');
+      await router.render(new URL('http://test/test'));
 
       expect(capturedContext !== undefined).toBeTruthy();
       expect(asAny(capturedContext).rpc).toEqual(true);
@@ -853,7 +778,7 @@ test(
         extendContext: (base: ComponentContext) => ({ ...base, renderMode: 'html' }),
       });
 
-      await router.render('http://test/test');
+      await router.render(new URL('http://test/test'));
 
       expect(capturedRenderContext !== undefined).toBeTruthy();
       expect(asAny(capturedRenderContext).renderMode).toEqual('html');
@@ -900,7 +825,7 @@ test(
         extendContext: (base: ComponentContext) => ({ ...base, renderMode: 'markdown' }),
       });
 
-      await router.render('http://test/test');
+      await router.render(new URL('http://test/test'));
 
       expect(capturedRenderContext !== undefined).toBeTruthy();
       expect(asAny(capturedRenderContext).renderMode).toEqual('markdown');
@@ -975,7 +900,7 @@ test(
         }),
       });
 
-      await router.render('http://test/wtest');
+      await router.render(new URL('http://test/wtest'));
 
       expect(capturedWidgetContext !== undefined).toBeTruthy();
       expect(asAny(capturedWidgetContext).rpc).toEqual(true);
@@ -1048,7 +973,7 @@ test(
         }),
       });
 
-      await router.render('http://test/wmd');
+      await router.render(new URL('http://test/wmd'));
 
       expect(capturedWidgetContext !== undefined).toBeTruthy();
       expect(asAny(capturedWidgetContext).rpc).toEqual(true);
@@ -1073,12 +998,7 @@ test(
     });
     const core = new RouteCore(resolverFromManifest(createTestManifest([route])));
 
-    const routeInfo: RouteInfo = {
-      pathname: '/about',
-      pattern: '/about',
-      params: {},
-      searchParams: new URLSearchParams(),
-    };
+    const routeInfo = ri('/about');
 
     const restore = mockFetch({
       '/about.page.html': '<section>About</section>',
@@ -1132,7 +1052,7 @@ test(
         fileReader: () => Promise.resolve(''),
       });
 
-      await router.render('http://test/test');
+      await router.render(new URL('http://test/test'));
 
       expect(capturedContext !== undefined).toBeTruthy();
       expect(capturedContext!.pathname).toEqual('/test');
@@ -1198,8 +1118,8 @@ test(
         extendContext: (base: ComponentContext) => ({ ...base, appId: 'myapp' }),
       });
 
-      await router.render('http://test/route1');
-      await router.render('http://test/route2');
+      await router.render(new URL('http://test/route1'));
+      await router.render(new URL('http://test/route2'));
 
       expect(capturedContexts.length).toEqual(2);
       expect(asAny(capturedContexts[0]).appId).toEqual('myapp');
@@ -1265,7 +1185,7 @@ test(
         }),
       });
 
-      const result = await router.render('http://test/test');
+      const result = await router.render(new URL('http://test/test'));
       expect(result.status).toEqual(200);
     } finally {
       restore();
@@ -1289,12 +1209,7 @@ test(
       extendContext: (base) => base, // Return base unchanged
     });
 
-    const routeInfo: RouteInfo = {
-      pathname: '/test',
-      pattern: '/test',
-      params: {},
-      searchParams: new URLSearchParams(),
-    };
+    const routeInfo = ri('/test');
 
     const restore = mockFetch({ '/test.page.html': '<div>Test</div>' });
     try {
@@ -1338,12 +1253,7 @@ test(
       },
     });
 
-    const routeInfo: RouteInfo = {
-      pathname: '/test',
-      pattern: '/test',
-      params: {},
-      searchParams: new URLSearchParams(),
-    };
+    const routeInfo = ri('/test');
 
     const restore = mockFetch({ '/test.page.html': '<div>Test</div>' });
     try {
@@ -1430,7 +1340,7 @@ test(
         }),
       });
 
-      await router.render('http://test/child');
+      await router.render(new URL('http://test/child'));
 
       // Both root and child page should have the enriched context
       expect(capturedContexts.length >= 1).toBeTruthy();

@@ -32,7 +32,7 @@ function baseUrl(path = '/'): string {
 //      issues/pending/hash-router-use-navigation-api.issue.md
 describe.skip('Hash router — leaf mode', () => {
   beforeAll(async () => {
-    server = await createTestServer({ mode: 'leaf', port: 4106, entryPoint: 'hash-main.ts' });
+    server = await createTestServer({ mode: 'leaf', port: 4106 });
     tb = await createTestBrowser();
   });
 

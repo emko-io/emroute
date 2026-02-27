@@ -18,6 +18,9 @@ import type { ComponentContext, ContextProvider } from '../../src/component/abst
 import { createResolver } from './test.util.ts';
 import type { RouteResolver } from '../../src/route/route.resolver.ts';
 
+// deno-lint-ignore no-explicit-any
+const asAny = (v: unknown): any => v;
+
 /** Build a RouteResolver + moduleLoaders from inline hash route definitions. */
 function buildHashResolver(
   routes: { pattern: string; loader: () => Promise<unknown> }[],
@@ -234,9 +237,8 @@ test('HashRouter toRouteInfo - builds correct route info', () => {
   const matched = core.match(new URL('/users/99', 'http://localhost'));
   expect(matched).toBeDefined();
 
-  const info = core.toRouteInfo(matched!, '/users/99');
-  expect(info.pathname).toEqual('/users/99');
-  expect(info.pattern).toEqual('/users/:id');
+  const info = core.toRouteInfo(matched!, new URL('/users/99', 'http://localhost'));
+  expect(info.url.pathname).toEqual('/users/99');
   expect(info.params).toEqual({ id: '99' });
 });
 
@@ -255,7 +257,7 @@ test('HashRouter context - extends context via provider', async () => {
   const matched = core.match(new URL('/test', 'http://localhost'));
   expect(matched).toBeDefined();
 
-  const routeInfo = core.toRouteInfo(matched!, '/test');
+  const routeInfo = core.toRouteInfo(matched!, new URL('/test', 'http://localhost'));
   const context = await core.buildComponentContext(routeInfo, matched!.route);
   expect((context as ComponentContext & { custom: string }).custom).toEqual('value');
 });
@@ -268,9 +270,9 @@ test('HashRouter context - no basePath in context', async () => {
   const matched = core.match(new URL('/test', 'http://localhost'));
   expect(matched).toBeDefined();
 
-  const routeInfo = core.toRouteInfo(matched!, '/test');
+  const routeInfo = core.toRouteInfo(matched!, new URL('/test', 'http://localhost'));
   const context = await core.buildComponentContext(routeInfo, matched!.route);
-  expect(context.basePath).toEqual(undefined);
+  expect(asAny(context).basePath).toEqual(undefined);
 });
 
 // -- Event Emission --
@@ -312,7 +314,7 @@ test('HashRouter context - no file fetching for hash routes', async () => {
   const matched = core.match(new URL('/test', 'http://localhost'));
   expect(matched).toBeDefined();
 
-  const routeInfo = core.toRouteInfo(matched!, '/test');
+  const routeInfo = core.toRouteInfo(matched!, new URL('/test', 'http://localhost'));
   const context = await core.buildComponentContext(routeInfo, matched!.route);
 
   expect(context.files?.html).toEqual(undefined);
@@ -346,6 +348,7 @@ test('HashRouter matching - preserves search params', () => {
   const url = new URL('/search?q=hello&page=2', 'http://localhost');
   const matched = core.match(url);
   expect(matched).toBeDefined();
-  expect(matched!.searchParams?.get('q')).toEqual('hello');
-  expect(matched!.searchParams?.get('page')).toEqual('2');
+  // Search params come from the URL, not the match result
+  expect(url.searchParams.get('q')).toEqual('hello');
+  expect(url.searchParams.get('page')).toEqual('2');
 });

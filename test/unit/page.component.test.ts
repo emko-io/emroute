@@ -34,11 +34,12 @@ import { PageComponent } from '../../src/component/page.component.ts';
 function createMockContext(
   overrides?: Partial<ComponentContext>,
 ): ComponentContext {
+  const url = new URL('/test', 'http://test');
   return {
-    pathname: '/test',
-    pattern: '/test',
+    url,
+    pathname: url.pathname,
     params: {},
-    searchParams: new URLSearchParams(),
+    searchParams: url.searchParams,
     ...overrides,
   };
 }

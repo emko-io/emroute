@@ -25,11 +25,12 @@ import { Component } from '../../src/component/abstract.component.ts';
 function createMockContext<T extends ComponentContext = ComponentContext>(
   overrides?: Partial<T>,
 ): T {
+  const url = new URL('/test', 'http://test');
   return {
-    pathname: '/test',
-    pattern: '/test',
+    url,
+    pathname: url.pathname,
     params: {},
-    searchParams: new URLSearchParams(),
+    searchParams: url.searchParams,
     ...overrides,
   } as T;
 }
@@ -595,14 +596,15 @@ test('Component - Generic TContext extends ComponentContext', () => {
 // ============================================================================
 
 test('Component - ComponentContext includes route info', () => {
+  const url = new URL('/projects/123', 'http://test');
   const context = createMockContext({
-    pathname: '/projects/123',
-    pattern: '/projects/:id',
+    url,
+    pathname: url.pathname,
     params: { id: '123' },
   });
 
   expect(context.pathname).toEqual('/projects/123');
-  expect(context.pattern).toEqual('/projects/:id');
+  expect(context.url.pathname).toEqual('/projects/123');
   expect(context.params.id).toEqual('123');
 });
 

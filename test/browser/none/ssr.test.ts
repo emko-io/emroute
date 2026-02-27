@@ -312,12 +312,11 @@ describe('SSR HTML renderer', () => {
 
   // --- Redirect ---
 
-  test('redirect returns meta refresh', async () => {
+  test('redirect returns 302 with Location header', async () => {
     const res = await fetch(baseUrl('/html/old'), { redirect: 'manual' });
     expect(res.status).toEqual(302);
-    const html = await res.text();
-    expect(html).toContain('http-equiv="refresh"');
-    expect(html).toContain('/about');
+    const location = res.headers.get('location');
+    expect(location).toContain('/html/about');
   });
 
   // --- 404 ---
@@ -676,11 +675,11 @@ describe('SSR Markdown renderer', () => {
 
   // --- Redirect ---
 
-  test('redirect returns plain text with target', async () => {
+  test('redirect returns 302 with Location header', async () => {
     const res = await fetch(baseUrl('/md/old'), { redirect: 'manual' });
     expect(res.status).toEqual(302);
-    const md = await res.text();
-    expect(md).toContain('/about');
+    const location = res.headers.get('location');
+    expect(location).toContain('/md/about');
   });
 
   // --- 404 ---

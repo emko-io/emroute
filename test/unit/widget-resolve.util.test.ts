@@ -31,14 +31,12 @@ type WidgetFileLoader = (
 /** Create a test RouteInfo for widget resolution */
 function createTestRouteInfo(
   pathname = '/test',
-  pattern = '/test',
+  _pattern = '/test',
   params: Record<string, string> = {},
 ): RouteInfo {
   return {
-    pathname,
-    pattern,
+    url: new URL(pathname, 'http://test'),
     params,
-    searchParams: new URLSearchParams(),
   };
 }
 
@@ -49,6 +47,8 @@ function _createTestContext(
 ): ComponentContext {
   return {
     ...routeInfo,
+    pathname: routeInfo.url.pathname,
+    searchParams: routeInfo.url.searchParams,
     ...(files !== undefined ? { files } : {}),
   };
 }

@@ -60,3 +60,10 @@ slot would be created but immediately cleaned up, matching SSR behavior.
   `waitForMarkdownRender` so the SPA router finds `<router-slot>` inside
   rendered `<mark-down>` content (timing fix, stays regardless of this issue)
 - `src/component/page.component.ts:74-82` — hotfix with JSDoc marker
+
+## Resolution (1.7.0)
+
+The old SPA renderer (`base.renderer.ts`, `html.renderer.ts`) that performed
+DOM-based slot attribution was deleted. The thin-client architecture runs the
+full SSR pipeline in the browser, which uses `stripSlots` to remove empty
+`<router-slot>` tags — the same deduplication that SSR always had.

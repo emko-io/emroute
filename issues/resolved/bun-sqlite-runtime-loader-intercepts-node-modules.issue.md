@@ -70,6 +70,15 @@ await runtime.bundle();
 Even without the bare import issue, a `/main.ts` entry point that uses relative
 imports (e.g. `./renderer.ts`) fails because `resolveDir` is `''`.
 
+## Resolution (1.7.0)
+
+Fixed in commit `6e0c0bd`. The plugin now uses a `VIRTUAL_ROOT` sentinel
+(`/@emroute-virtual`) and the `onResolve` guard properly gates interception
+with `if (!absPath.startsWith(root + '/')) return undefined`. Additionally,
+`bundle()` was removed from Runtime entirely — build is now a separate concern
+(`buildClientBundles` in `build.util.ts`), so BunSqliteRuntime no longer
+invokes the plugin at all.
+
 ## Expected behaviour
 
 - The runtime-loader plugin should only intercept files that belong to the

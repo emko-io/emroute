@@ -57,3 +57,11 @@ This gives abort signals, per-entry state, and awaitable navigation — matching
 - **Slot attribution order** changed during `BaseRenderer` extraction
   (markdown wait now happens before slot attribution). This is a behavior
   fix but should be noted explicitly.
+
+## Resolution (1.7.0)
+
+The entire SPA renderer layer (`base.renderer.ts`, `html.renderer.ts`,
+`hash.renderer.ts`) was deleted. Replaced by the thin-client architecture
+(`thin-client.ts`) where `createEmrouteApp` runs the full EmrouteServer
+in the browser with Navigation API glue. Hash routing is no longer a
+separate code path — the Navigation API handles all navigation types.

@@ -39,3 +39,10 @@ emroute = await createEmrouteServer(serverConfig, runtime);
 ## Affected version
 
 `@emkodev/emroute@1.6.6-beta.5`
+
+## Resolution (1.7.0)
+
+`Runtime.command()` now detects writes under `routesDir/` and calls
+`mergeRouteIntoManifest()` to incrementally update the stored manifest. The
+in-memory cache is also cleared. `RouteTrie` replaced `RouteMatcher` and reads
+the tree once on creation — no stale snapshot, no manual refresh needed.

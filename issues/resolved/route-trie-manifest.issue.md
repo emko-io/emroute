@@ -111,3 +111,12 @@ root
 - **Runtime-specific optimizations**: `BunSqliteRuntime` could potentially do
   `LIKE`-based matching in SQL instead of an in-memory trie. The interface
   should allow this — the trie is the default, not the only implementation.
+
+## Resolution (1.7.0)
+
+`RouteTrie` fully implemented in `src/route/route.trie.ts` with a
+`RouteResolver` interface in `src/route/route.resolver.ts`. `RouteMatcher`,
+`sortRoutesBySpecificity`, `prefixManifest`, and `buildRouteHierarchy` deleted.
+The route tree is now a `RouteNode` tree type (`src/type/route-tree.type.ts`)
+that maps directly to the filesystem structure. The server uses `RouteTrie` for
+O(depth) matching with free hierarchy, error boundaries, and live updates.

@@ -1,4 +1,4 @@
-import { stat, readdir, mkdir } from 'node:fs/promises';
+import { stat, readdir, mkdir, unlink } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import {
   CONTENT_TYPES,
@@ -30,6 +30,8 @@ export class BunFsRuntime extends Runtime {
     switch (method) {
       case 'PUT':
         return this.write(path, body);
+      case 'DELETE':
+        return this.delete(path);
       default:
         return this.read(path);
     }
@@ -127,6 +129,18 @@ export class BunFsRuntime extends Runtime {
       return new Response(null, { status: 204 });
     } catch (error) {
       return new Response(`Write failed: ${error}`, { status: 500 });
+    }
+  }
+
+  private async delete(path: string): Promise<Response> {
+    try {
+      await unlink(path);
+      return new Response(null, { status: 204 });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        return new Response('Not Found', { status: 404 });
+      }
+      return new Response(`Delete failed: ${error}`, { status: 500 });
     }
   }
 

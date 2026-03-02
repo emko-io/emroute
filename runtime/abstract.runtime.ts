@@ -76,16 +76,47 @@ export abstract class Runtime {
     options?: FetchParams[1],
   ): FetchReturn;
 
-  /** Write. Defaults to PUT; pass `{ method: "DELETE" }` etc. to override. */
+  /** Write or delete. Defaults to PUT; pass `{ method: "DELETE" }` to remove. */
   command(resource: FetchParams[0], options?: FetchParams[1]): FetchReturn {
     const path = typeof resource === 'string'
       ? resource
       : new URL(resource instanceof Request ? resource.url : resource.toString()).pathname;
-    const result = this.handle(resource, { method: 'PUT', ...options });
+    const method = options?.method ?? 'PUT';
+    const isDelete = method === 'DELETE';
+    const result = this.handle(resource, { method, ...options });
     const routesDir = this.config.routesDir ?? DEFAULT_ROUTES_DIR;
+    const widgetsDir = this.config.widgetsDir ?? DEFAULT_WIDGETS_DIR;
+    const elementsDir = this.config.elementsDir ?? DEFAULT_ELEMENTS_DIR;
     if (path.startsWith(routesDir + '/')) {
       return result.then(async (res) => {
-        await this.mergeRouteIntoManifest(path, routesDir);
+        if (isDelete) {
+          await this.pruneRouteFromManifest(path, routesDir);
+        } else {
+          await this.mergeRouteIntoManifest(path, routesDir);
+          await this.retranspileIfNeeded(path, routesDir, 'route');
+        }
+        return res;
+      });
+    }
+    if (path.startsWith(widgetsDir + '/')) {
+      return result.then(async (res) => {
+        if (isDelete) {
+          await this.pruneWidgetFromManifest(path, widgetsDir);
+        } else {
+          await this.mergeWidgetIntoManifest(path, widgetsDir);
+          await this.retranspileIfNeeded(path, widgetsDir, 'widget');
+        }
+        return res;
+      });
+    }
+    if (path.startsWith(elementsDir + '/')) {
+      return result.then(async (res) => {
+        if (isDelete) {
+          await this.pruneElementFromManifest(path, elementsDir);
+        } else {
+          await this.mergeElementIntoManifest(path, elementsDir);
+          await this.retranspileIfNeeded(path, elementsDir, 'element');
+        }
         return res;
       });
     }
@@ -153,6 +184,274 @@ export abstract class Runtime {
   }
 
   /**
+   * Remove a route entry from the stored manifest when a file is deleted.
+   * Walks the tree to find the node, clears the relevant field, then
+   * prunes empty ancestor nodes.
+   */
+  private async pruneRouteFromManifest(
+    filePath: string,
+    routesDir: string,
+  ): Promise<void> {
+    const relativePath = filePath.slice(routesDir.length + 1);
+    const parts = relativePath.split('/');
+    const filename = parts[parts.length - 1];
+    const dirSegments = parts.slice(0, -1);
+
+    const match = filename.match(/^(.+?)\.(page|error|redirect)\.(ts|js|html|md|css)$/);
+    if (!match) return;
+
+    const [, name, kind, ext] = match;
+
+    const response = await this.handle(ROUTES_MANIFEST_PATH);
+    if (response.status === 404) return;
+    const tree: RouteNode = await response.json();
+
+    // Walk to the parent node, tracking path for pruning
+    const ancestors: { node: RouteNode; key: string; via: 'children' | 'dynamic' }[] = [];
+    let node = tree;
+    for (const dir of dirSegments) {
+      if (dir.startsWith('[') && dir.endsWith(']')) {
+        if (!node.dynamic) return;
+        ancestors.push({ node, key: dir, via: 'dynamic' });
+        node = node.dynamic.child;
+      } else {
+        if (!node.children?.[dir]) return;
+        ancestors.push({ node, key: dir, via: 'children' });
+        node = node.children[dir];
+      }
+    }
+
+    // Clear the field
+    if (kind === 'error') {
+      if (node.errorBoundary === filePath) delete node.errorBoundary;
+    } else {
+      const isRoot = dirSegments.length === 0;
+      const target = this.findTargetNode(node, name, isRoot);
+      if (!target) return;
+
+      if (kind === 'redirect') {
+        if (target.redirect === filePath) delete target.redirect;
+      } else {
+        if (target.files?.[ext as keyof RouteFiles] === filePath) {
+          delete target.files[ext as keyof RouteFiles];
+          if (Object.keys(target.files).length === 0) delete target.files;
+        }
+      }
+
+      // If target is a child node and now empty, remove it
+      if (target !== node && this.isEmptyNode(target)) {
+        if (name === 'index' && !isRoot) {
+          delete node.wildcard;
+        } else if (name.startsWith('[') && name.endsWith(']')) {
+          delete node.dynamic;
+        } else if (node.children) {
+          delete node.children[name];
+          if (Object.keys(node.children).length === 0) delete node.children;
+        }
+      }
+    }
+
+    // Prune empty ancestors bottom-up
+    for (let i = ancestors.length - 1; i >= 0; i--) {
+      const { node: parent, key, via } = ancestors[i];
+      const child = via === 'dynamic' ? parent.dynamic?.child : parent.children?.[key];
+      if (child && this.isEmptyNode(child)) {
+        if (via === 'dynamic') {
+          delete parent.dynamic;
+        } else if (parent.children) {
+          delete parent.children[key];
+          if (Object.keys(parent.children).length === 0) delete parent.children;
+        }
+      }
+    }
+
+    this.routesManifestCache = null;
+    await this.handle(ROUTES_MANIFEST_PATH, {
+      method: 'PUT',
+      body: JSON.stringify(tree),
+    });
+  }
+
+  /** Find a target node without creating it (read-only counterpart to resolveTargetNode). */
+  private findTargetNode(node: RouteNode, name: string, isRoot: boolean): RouteNode | null {
+    if (name === 'index') {
+      return isRoot ? node : (node.wildcard?.child ?? null);
+    }
+    if (name.startsWith('[') && name.endsWith(']')) {
+      return node.dynamic?.child ?? null;
+    }
+    return node.children?.[name] ?? null;
+  }
+
+  private isEmptyNode(node: RouteNode): boolean {
+    return (
+      !node.files &&
+      !node.errorBoundary &&
+      !node.redirect &&
+      !node.children &&
+      !node.dynamic &&
+      !node.wildcard
+    );
+  }
+
+  /**
+   * Remove a widget entry from the stored manifest when a file is deleted.
+   */
+  private async pruneWidgetFromManifest(
+    filePath: string,
+    widgetsDir: string,
+  ): Promise<void> {
+    const relativePath = filePath.slice(widgetsDir.length + 1);
+    const parts = relativePath.split('/');
+    if (parts.length !== 2) return;
+
+    const [dirName, filename] = parts;
+    const match = filename.match(/^(.+?)\.widget\.(ts|js|html|md|css)$/);
+    if (!match) return;
+
+    const [, name, ext] = match;
+    if (name !== dirName) return;
+
+    const response = await this.handle(WIDGETS_MANIFEST_PATH);
+    if (response.status === 404) return;
+    const entries: WidgetManifestEntry[] = await response.json();
+
+    if (ext === 'ts' || ext === 'js') {
+      // Module deleted → remove entire entry
+      const idx = entries.findIndex((e) => e.name === name);
+      if (idx === -1) return;
+      entries.splice(idx, 1);
+    } else {
+      // Companion deleted → remove from files
+      const entry = entries.find((e) => e.name === name);
+      if (!entry?.files) return;
+      delete (entry.files as Record<string, string>)[ext];
+      if (Object.keys(entry.files).length === 0) delete entry.files;
+    }
+
+    this.widgetsManifestCache = null;
+    await this.handle(WIDGETS_MANIFEST_PATH, {
+      method: 'PUT',
+      body: JSON.stringify(entries),
+    });
+  }
+
+  /**
+   * Remove an element entry from the stored manifest when a file is deleted.
+   */
+  private async pruneElementFromManifest(
+    filePath: string,
+    elementsDir: string,
+  ): Promise<void> {
+    const relativePath = filePath.slice(elementsDir.length + 1);
+    const parts = relativePath.split('/');
+    if (parts.length !== 2) return;
+
+    const [dirName, filename] = parts;
+    const match = filename.match(/^(.+?)\.element\.(ts|js)$/);
+    if (!match) return;
+
+    const [, name] = match;
+    if (name !== dirName) return;
+
+    const response = await this.handle(ELEMENTS_MANIFEST_PATH);
+    if (response.status === 404) return;
+    const entries: ElementManifestEntry[] = await response.json();
+
+    const idx = entries.findIndex((e) => e.name === name);
+    if (idx === -1) return;
+    entries.splice(idx, 1);
+
+    this.elementsManifestCache = null;
+    await this.handle(ELEMENTS_MANIFEST_PATH, {
+      method: 'PUT',
+      body: JSON.stringify(entries),
+    });
+  }
+
+  /**
+   * After a source or companion file is written, check if a built `.js`
+   * artifact exists for that module. If so, re-transpile the `.ts` source
+   * with companions inlined and write the `.js` back.
+   *
+   * Best-effort: silently skips if `transpile()` is not implemented.
+   */
+  private async retranspileIfNeeded(
+    filePath: string,
+    dir: string,
+    kind: 'route' | 'widget' | 'element',
+  ): Promise<void> {
+    // Only act on source/companion files, not the .js output itself
+    if (filePath.endsWith('.js')) return;
+
+    const relativePath = filePath.slice(dir.length + 1);
+    const parts = relativePath.split('/');
+    const filename = parts[parts.length - 1];
+
+    // Determine the module base name and the .js output path
+    let jsPath: string;
+    if (kind === 'route') {
+      const match = filename.match(/^(.+?)\.(page)\.(ts|html|md|css)$/);
+      if (!match) return;
+      const [, name] = match;
+      jsPath = `${dir}/${parts.slice(0, -1).join('/')}${parts.length > 1 ? '/' : ''}${name}.page.js`;
+    } else if (kind === 'widget') {
+      const match = filename.match(/^(.+?)\.(widget)\.(ts|html|md|css)$/);
+      if (!match) return;
+      const [, name] = match;
+      jsPath = `${dir}/${name}/${name}.widget.js`;
+    } else {
+      const match = filename.match(/^(.+?)\.(element)\.ts$/);
+      if (!match) return;
+      const [, name] = match;
+      jsPath = `${dir}/${name}/${name}.element.js`;
+    }
+
+    // Check if the .js artifact exists
+    const jsResponse = await this.handle(jsPath);
+    if (jsResponse.status === 404) return;
+
+    // Read the .ts source
+    const tsPath = jsPath.replace(/\.js$/, '.ts');
+    let tsSource: string;
+    try {
+      tsSource = await this.query(tsPath, { as: 'text' });
+    } catch {
+      return; // .ts doesn't exist (maybe .js was hand-written)
+    }
+
+    // Collect companion files and inline them
+    const companionExts = kind === 'element' ? [] : ['html', 'md', 'css'];
+    const files: Record<string, string> = {};
+    for (const ext of companionExts) {
+      const companionPath = tsPath.replace(/\.ts$/, `.${ext}`);
+      try {
+        files[ext] = await this.query(companionPath, { as: 'text' });
+      } catch {
+        // companion doesn't exist — skip
+      }
+    }
+
+    // Transpile
+    let jsCode: string;
+    try {
+      jsCode = await this.transpile(tsSource);
+    } catch {
+      return; // transpile not implemented — skip silently
+    }
+
+    // Append __files export if there are companions
+    if (Object.keys(files).length > 0) {
+      const entries = Object.entries(files)
+        .map(([k, v]) => `${k}: \`${v.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$')}\``)
+        .join(', ');
+      jsCode += `\nexport const __files = { ${entries} };\n`;
+    }
+
+    await this.handle(jsPath, { method: 'PUT', body: jsCode });
+  }
+
+  /**
    * Dynamically import a module from this runtime's storage.
    * Used by the server for SSR imports of `.page.ts` and `.widget.ts` files.
    */
@@ -166,6 +465,112 @@ export abstract class Runtime {
    */
   transpile(_source: string): Promise<string> {
     throw new Error(`transpile not implemented for ${this.constructor.name}`);
+  }
+
+  /**
+   * Parse a widget file path and merge it into the stored manifest.
+   * Reads the current manifest, upserts the entry, writes it back.
+   */
+  private async mergeWidgetIntoManifest(
+    filePath: string,
+    widgetsDir: string,
+  ): Promise<void> {
+    const relativePath = filePath.slice(widgetsDir.length + 1);
+    const parts = relativePath.split('/');
+    if (parts.length !== 2) return; // must be widgets/{name}/{file}
+
+    const [dirName, filename] = parts;
+
+    // Only act on .widget.{ts,js,html,md,css} files
+    const match = filename.match(/^(.+?)\.widget\.(ts|js|html|md|css)$/);
+    if (!match) return;
+
+    const [, name, ext] = match;
+    if (name !== dirName) return; // filename must match directory
+
+    const response = await this.handle(WIDGETS_MANIFEST_PATH);
+    const entries: WidgetManifestEntry[] = response.status === 404
+      ? []
+      : await response.json();
+
+    const prefix = widgetsDir.replace(/^\//, '');
+
+    if (ext === 'ts' || ext === 'js') {
+      // Module file — upsert the entry
+      let entry = entries.find((e) => e.name === name);
+      if (!entry) {
+        entry = {
+          name,
+          modulePath: `${prefix}/${name}/${filename}`,
+          tagName: `widget-${name}`,
+        };
+        entries.push(entry);
+        entries.sort((a, b) => a.name.localeCompare(b.name));
+      } else {
+        entry.modulePath = `${prefix}/${name}/${filename}`;
+      }
+    } else {
+      // Companion file — update files on existing entry
+      const entry = entries.find((e) => e.name === name);
+      if (!entry) return; // no module yet, companion alone is not enough
+      entry.files ??= {};
+      (entry.files as Record<string, string>)[ext] = `${prefix}/${name}/${filename}`;
+    }
+
+    this.widgetsManifestCache = null;
+    await this.handle(WIDGETS_MANIFEST_PATH, {
+      method: 'PUT',
+      body: JSON.stringify(entries),
+    });
+  }
+
+  /**
+   * Parse an element file path and merge it into the stored manifest.
+   * Reads the current manifest, upserts the entry, writes it back.
+   */
+  private async mergeElementIntoManifest(
+    filePath: string,
+    elementsDir: string,
+  ): Promise<void> {
+    const relativePath = filePath.slice(elementsDir.length + 1);
+    const parts = relativePath.split('/');
+    if (parts.length !== 2) return;
+
+    const [dirName, filename] = parts;
+
+    const match = filename.match(/^(.+?)\.element\.(ts|js)$/);
+    if (!match) return;
+
+    const [, name] = match;
+    if (name !== dirName) return;
+
+    // Custom element names must contain a hyphen
+    if (!name.includes('-')) return;
+
+    const response = await this.handle(ELEMENTS_MANIFEST_PATH);
+    const entries: ElementManifestEntry[] = response.status === 404
+      ? []
+      : await response.json();
+
+    const prefix = elementsDir.replace(/^\//, '');
+    let entry = entries.find((e) => e.name === name);
+    if (!entry) {
+      entry = {
+        name,
+        modulePath: `${prefix}/${name}/${filename}`,
+        tagName: name,
+      };
+      entries.push(entry);
+      entries.sort((a, b) => a.name.localeCompare(b.name));
+    } else {
+      entry.modulePath = `${prefix}/${name}/${filename}`;
+    }
+
+    this.elementsManifestCache = null;
+    await this.handle(ELEMENTS_MANIFEST_PATH, {
+      method: 'PUT',
+      body: JSON.stringify(entries),
+    });
   }
 
   // ── Manifest resolution ─────────────────────────────────────────────

@@ -14,6 +14,7 @@ export class BunSqliteRuntime extends Runtime {
   private readonly db: Database;
   private readonly stmtGet: ReturnType<Database['prepare']>;
   private readonly stmtSet: ReturnType<Database['prepare']>;
+  private readonly stmtDel: ReturnType<Database['prepare']>;
   private readonly stmtList: ReturnType<Database['prepare']>;
   private readonly stmtHas: ReturnType<Database['prepare']>;
 
@@ -29,6 +30,7 @@ export class BunSqliteRuntime extends Runtime {
     `);
     this.stmtGet = this.db.prepare('SELECT data, mtime FROM files WHERE path = ?');
     this.stmtSet = this.db.prepare('INSERT OR REPLACE INTO files (path, data, mtime) VALUES (?, ?, ?)');
+    this.stmtDel = this.db.prepare('DELETE FROM files WHERE path = ?');
     this.stmtList = this.db.prepare("SELECT DISTINCT path FROM files WHERE path LIKE ? || '%'");
     this.stmtHas = this.db.prepare("SELECT 1 FROM files WHERE path LIKE ? || '%' LIMIT 1");
   }
@@ -42,6 +44,8 @@ export class BunSqliteRuntime extends Runtime {
     switch (method) {
       case 'PUT':
         return this.write(pathname, body);
+      case 'DELETE':
+        return this.delete(pathname);
       default:
         return this.read(pathname);
     }
@@ -129,6 +133,11 @@ export class BunSqliteRuntime extends Runtime {
       ? new Uint8Array(await new Response(body).arrayBuffer())
       : new Uint8Array();
     this.stmtSet.run(path, data, new Date().toISOString());
+    return new Response(null, { status: 204 });
+  }
+
+  private async delete(path: string): Promise<Response> {
+    this.stmtDel.run(path);
     return new Response(null, { status: 204 });
   }
 

@@ -14,5 +14,6 @@
     "allowImportingTsExtensions": true,
     "noEmit": true,
     "skipLibCheck": true
-  }
+  },
+  "exclude": ["vendor", "INTERFACES.sketch.ts"]
 }

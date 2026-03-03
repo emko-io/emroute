@@ -143,7 +143,6 @@ export function writeManifest(
 
 /**
  * Create a RouteTrie from route configs.
- * Used by browser-side RouteCore tests and route.trie tests.
  */
 export function createResolver(
   routes: RouteConfig[],

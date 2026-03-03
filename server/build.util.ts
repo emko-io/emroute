@@ -1,7 +1,7 @@
 /**
  * Build Utilities
  *
- * Standalone client bundling — extracted from Runtime so that build is a
+ * Standalone client build step — extracted from Runtime so that build is a
  * separate concern from storage. Call `buildClientBundles()` before
  * `createEmrouteServer()` to produce emroute.js + app.js.
  *
@@ -28,6 +28,7 @@ import type { ElementManifestEntry } from '../core/type/element.type.ts';
 import { generateMainTs } from './codegen.util.ts';
 import type { SpaMode } from '../core/type/widget.type.ts';
 
+/** Package specifiers that map to emroute.js via import map. */
 export const EMROUTE_EXTERNALS = [
   '@emkodev/emroute/spa',
   '@emkodev/emroute/overlay',
@@ -36,15 +37,12 @@ export const EMROUTE_EXTERNALS = [
   '@emkodev/emroute/runtime/fetch',
 ] as const;
 
-/** esbuild namespace for virtual `emroute:routes` / `emroute:widgets` modules. */
-export const EMROUTE_VIRTUAL_NS = 'emroute';
-
 export interface BuildOptions {
   /** Runtime instance to read manifests and source files from. */
   runtime: Runtime;
-  /** Filesystem root for esbuild resolution (e.g. process.cwd() or the app directory). */
+  /** Filesystem root for resolving the pre-built emroute.js bundle. */
   root: string;
-  /** SPA mode — skips bundling when 'none'. */
+  /** SPA mode — skips build when 'none'. */
   spa: SpaMode;
   /** Consumer's SPA entry point (e.g. '/main.ts'). When absent, auto-generates one. */
   entryPoint?: string;
@@ -55,13 +53,13 @@ export interface BuildOptions {
 const DEFAULT_BUNDLE_PATHS = { emroute: '/emroute.js', app: '/app.js' };
 
 /**
- * Build client bundles and write them into the runtime.
+ * Build client assets and write them into the runtime.
  *
  * Produces:
  * - Merged .js modules — each .ts page/widget transpiled with companions inlined
  * - Updated manifests — route tree and widget manifest reference .js paths
- * - emroute.js — pre-built from dist/ (no esbuild needed for this)
- * - app.js — consumer entry point (esbuild only touches consumer code)
+ * - emroute.js — pre-built from dist/ (copied into runtime)
+ * - app.js — consumer entry point (transpiled from .ts, no bundler)
  * - index.html — shell with import map + script tags (if not already present)
  */
 export async function buildClientBundles(options: BuildOptions): Promise<void> {
@@ -73,17 +71,14 @@ export async function buildClientBundles(options: BuildOptions): Promise<void> {
   // Merge .ts modules → .js with inlined companions, update manifests
   await mergeModules(runtime);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const esbuild = await loadEsbuild() as any;
-
   // Copy pre-built emroute.js from the package dist/
   const consumerRequire = createRequire(root + '/');
   const emrouteJsPath = resolvePrebuiltBundle(consumerRequire);
   const emrouteJs = await readFile(emrouteJsPath);
   await runtime.command(paths.emroute, { body: emrouteJs });
 
-  // App bundle — consumer's main.ts bundled with esbuild.
-  // Try filesystem first (where node_modules lives), then runtime, then generate.
+  // App entry point — transpile consumer's main.ts (or generate a default one).
+  // Imports resolve via the import map in index.html — no bundler needed.
   const ep = entryPoint ?? '/main.ts';
   let source: string | undefined;
   try {
@@ -94,19 +89,8 @@ export async function buildClientBundles(options: BuildOptions): Promise<void> {
   }
   source ??= generateMainTs(spa, '@emkodev/emroute');
 
-  const result = await esbuild.build({
-    bundle: true,
-    write: false,
-    format: 'esm' as const,
-    platform: 'browser' as const,
-    stdin: { contents: source, loader: 'ts', resolveDir: root },
-    outfile: paths.app,
-    external: [...EMROUTE_EXTERNALS],
-  });
-
-  for (const file of result.outputFiles) {
-    await runtime.command(paths.app, { body: file.contents as unknown as BodyInit });
-  }
+  const appJs = await runtime.transpile(source);
+  await runtime.command(paths.app, { body: appJs });
 
   // Copy main.css from disk into runtime if it exists (and runtime doesn't have it)
   if ((await runtime.query('/main.css')).status === 404) {
@@ -118,8 +102,6 @@ export async function buildClientBundles(options: BuildOptions): Promise<void> {
 
   // Write shell (index.html) if not already present
   await writeShell(runtime, paths);
-
-  await esbuild.stop();
 }
 
 /**
@@ -329,12 +311,4 @@ async function mergeModules(runtime: Runtime): Promise<void> {
       body: JSON.stringify(elementEntries),
     });
   }
-}
-
-// ── esbuild loader ────────────────────────────────────────────────────
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function loadEsbuild(): Promise<any> {
-  const consumerRequire = createRequire(process.cwd() + '/');
-  return consumerRequire('esbuild');
 }

@@ -1,10 +1,10 @@
 import { test, expect, describe } from 'bun:test';
-import { RouteTrie } from '../../core/router/route.trie.ts';
 import type { RouteConfig } from '../../core/type/route.type.ts';
+import { RouteTrie } from '../../core/router/route.trie.ts';
 import { routesToTree, createResolver } from './test.util.ts';
 
 function route(pattern: string, modulePath = pattern + '.page.ts'): RouteConfig {
-  return { pattern, type: 'page', modulePath };
+  return { pattern, type: 'page', modulePath, files: { ts: modulePath } };
 }
 
 function trie(routes: RouteConfig[]) {

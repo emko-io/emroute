@@ -6,8 +6,7 @@
 
 import type { RouteNode } from '../type/route-tree.type.ts';
 import type { MarkdownRenderer } from '../type/markdown.type.ts';
-import type { SpaMode, WidgetManifestEntry } from '../type/widget.type.ts';
-import type { ElementManifestEntry } from '../type/element.type.ts';
+import type { SpaMode } from '../type/widget.type.ts';
 import type { ContextProvider } from '../type/component.type.ts';
 import type { WidgetRegistry } from '../widget/widget.registry.ts';
 import type { SsrHtmlRenderer } from '../renderer/html.renderer.ts';
@@ -44,8 +43,5 @@ export interface EmrouteServer {
   handleRequest(req: Request): Promise<Response | null>;
   readonly htmlRenderer: SsrHtmlRenderer | null;
   readonly mdRenderer: SsrMdRenderer | null;
-  readonly routeTree: RouteNode;
-  readonly widgetEntries: WidgetManifestEntry[];
-  readonly elementEntries: ElementManifestEntry[];
   readonly shell: string;
 }

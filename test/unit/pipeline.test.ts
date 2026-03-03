@@ -21,7 +21,7 @@ import { Pipeline, DEFAULT_ROOT_ROUTE } from '../../core/pipeline/pipeline.ts';
 import type { RouteConfig } from '../../core/type/route.type.ts';
 import type { ComponentContext } from '../../core/type/component.type.ts';
 import { Runtime } from '../../core/runtime/abstract.runtime.ts';
-import { createResolver, url } from './test.util.ts';
+import { writeManifest, url } from './test.util.ts';
 
 // ============================================================================
 // Test Infrastructure
@@ -87,102 +87,110 @@ function createTestRoute(overrides?: Partial<RouteConfig>): RouteConfig {
 // match() Tests
 // ============================================================================
 
-test('Pipeline.match - resolves a static route', () => {
+test('Pipeline.match - resolves a static route', async () => {
+  const runtime = new MockRuntime();
   const routes = [createTestRoute({ pattern: '/about', modulePath: '/about.page.ts', files: { ts: '/about.page.ts' } })];
-  const resolver = createResolver(routes);
-  const pipeline = new Pipeline({ runtime: new MockRuntime(), resolver });
+  writeManifest(runtime, routes);
+  const pipeline = new Pipeline({ runtime });
 
-  const result = pipeline.match(url('/about'));
+  const result = await pipeline.match(url('/about'));
 
   expect(result).toBeDefined();
   expect(result!.route.pattern).toEqual('/about');
   expect(result!.params).toEqual({});
 });
 
-test('Pipeline.match - returns params for dynamic segments', () => {
+test('Pipeline.match - returns params for dynamic segments', async () => {
+  const runtime = new MockRuntime();
   const routes = [createTestRoute({ pattern: '/user/:id', modulePath: '/user.page.ts', files: { ts: '/user.page.ts' } })];
-  const resolver = createResolver(routes);
-  const pipeline = new Pipeline({ runtime: new MockRuntime(), resolver });
+  writeManifest(runtime, routes);
+  const pipeline = new Pipeline({ runtime });
 
-  const result = pipeline.match(url('/user/42'));
+  const result = await pipeline.match(url('/user/42'));
 
   expect(result).toBeDefined();
   expect(result!.params).toEqual({ id: '42' });
   expect(result!.route.pattern).toEqual('/user/:id');
 });
 
-test('Pipeline.match - returns params for multiple dynamic segments', () => {
+test('Pipeline.match - returns params for multiple dynamic segments', async () => {
+  const runtime = new MockRuntime();
   const routes = [createTestRoute({ pattern: '/org/:orgId/repo/:repoId', modulePath: '/repo.page.ts', files: { ts: '/repo.page.ts' } })];
-  const resolver = createResolver(routes);
-  const pipeline = new Pipeline({ runtime: new MockRuntime(), resolver });
+  writeManifest(runtime, routes);
+  const pipeline = new Pipeline({ runtime });
 
-  const result = pipeline.match(url('/org/acme/repo/widgets'));
+  const result = await pipeline.match(url('/org/acme/repo/widgets'));
 
   expect(result).toBeDefined();
   expect(result!.params).toEqual({ orgId: 'acme', repoId: 'widgets' });
 });
 
-test('Pipeline.match - returns undefined for unmatched path (404)', () => {
+test('Pipeline.match - returns undefined for unmatched path (404)', async () => {
+  const runtime = new MockRuntime();
   const routes = [createTestRoute({ pattern: '/about', modulePath: '/about.page.ts', files: { ts: '/about.page.ts' } })];
-  const resolver = createResolver(routes);
-  const pipeline = new Pipeline({ runtime: new MockRuntime(), resolver });
+  writeManifest(runtime, routes);
+  const pipeline = new Pipeline({ runtime });
 
-  const result = pipeline.match(url('/nonexistent'));
+  const result = await pipeline.match(url('/nonexistent'));
 
   expect(result).toBeUndefined();
 });
 
-test('Pipeline.match - returns default root route for "/" when no explicit root defined', () => {
-  const resolver = createResolver([]);
-  const pipeline = new Pipeline({ runtime: new MockRuntime(), resolver });
+test('Pipeline.match - returns default root route for "/" when no explicit root defined', async () => {
+  const runtime = new MockRuntime();
+  writeManifest(runtime, []);
+  const pipeline = new Pipeline({ runtime });
 
-  const result = pipeline.match(url('/'));
+  const result = await pipeline.match(url('/'));
 
   expect(result).toBeDefined();
   expect(result!.route).toEqual(DEFAULT_ROOT_ROUTE);
   expect(result!.params).toEqual({});
 });
 
-test('Pipeline.match - returns explicit root route when defined', () => {
+test('Pipeline.match - returns explicit root route when defined', async () => {
+  const runtime = new MockRuntime();
   const routes = [createTestRoute({ pattern: '/', modulePath: '/index.page.ts', files: { ts: '/index.page.ts' } })];
-  const resolver = createResolver(routes);
-  const pipeline = new Pipeline({ runtime: new MockRuntime(), resolver });
+  writeManifest(runtime, routes);
+  const pipeline = new Pipeline({ runtime });
 
-  const result = pipeline.match(url('/'));
+  const result = await pipeline.match(url('/'));
 
   expect(result).toBeDefined();
   expect(result!.route.modulePath).toEqual('/index.page.ts');
 });
 
-test('Pipeline.match - ignores query params during matching', () => {
+test('Pipeline.match - ignores query params during matching', async () => {
+  const runtime = new MockRuntime();
   const routes = [createTestRoute({ pattern: '/search', modulePath: '/search.page.ts', files: { ts: '/search.page.ts' } })];
-  const resolver = createResolver(routes);
-  const pipeline = new Pipeline({ runtime: new MockRuntime(), resolver });
+  writeManifest(runtime, routes);
+  const pipeline = new Pipeline({ runtime });
 
-  const result = pipeline.match(url('/search?q=test&limit=10'));
+  const result = await pipeline.match(url('/search?q=test&limit=10'));
 
   expect(result).toBeDefined();
   expect(result!.route.pattern).toEqual('/search');
 });
 
-test('Pipeline.match - sets type to redirect for redirect routes', () => {
+test('Pipeline.match - sets type to redirect for redirect routes', async () => {
+  const runtime = new MockRuntime();
   const routes = [createTestRoute({ pattern: '/old', type: 'redirect', modulePath: '/new' })];
-  const resolver = createResolver(routes);
-  const pipeline = new Pipeline({ runtime: new MockRuntime(), resolver });
+  writeManifest(runtime, routes);
+  const pipeline = new Pipeline({ runtime });
 
-  const result = pipeline.match(url('/old'));
+  const result = await pipeline.match(url('/old'));
 
   expect(result).toBeDefined();
   expect(result!.route.type).toEqual('redirect');
   expect(result!.route.modulePath).toEqual('/new');
 });
 
-test('Pipeline.match - returns default root for empty pathname', () => {
-  const resolver = createResolver([]);
-  const pipeline = new Pipeline({ runtime: new MockRuntime(), resolver });
+test('Pipeline.match - returns default root for empty pathname', async () => {
+  const runtime = new MockRuntime();
+  writeManifest(runtime, []);
+  const pipeline = new Pipeline({ runtime });
 
-  // URL with empty pathname (rare but valid)
-  const result = pipeline.match(new URL('http://test'));
+  const result = await pipeline.match(new URL('http://test'));
 
   expect(result).toBeDefined();
   expect(result!.route).toEqual(DEFAULT_ROOT_ROUTE);
@@ -192,23 +200,25 @@ test('Pipeline.match - returns default root for empty pathname', () => {
 // findRoute() Tests
 // ============================================================================
 
-test('Pipeline.findRoute - finds a route by exact pattern', () => {
+test('Pipeline.findRoute - finds a route by exact pattern', async () => {
+  const runtime = new MockRuntime();
   const routes = [createTestRoute({ pattern: '/docs', modulePath: '/docs.page.ts', files: { ts: '/docs.page.ts' } })];
-  const resolver = createResolver(routes);
-  const pipeline = new Pipeline({ runtime: new MockRuntime(), resolver });
+  writeManifest(runtime, routes);
+  const pipeline = new Pipeline({ runtime });
 
-  const result = pipeline.findRoute('/docs');
+  const result = await pipeline.findRoute('/docs');
 
   expect(result).toBeDefined();
   expect(result!.pattern).toEqual('/docs');
   expect(result!.type).toEqual('page');
 });
 
-test('Pipeline.findRoute - returns undefined for non-existent pattern', () => {
-  const resolver = createResolver([]);
-  const pipeline = new Pipeline({ runtime: new MockRuntime(), resolver });
+test('Pipeline.findRoute - returns undefined for non-existent pattern', async () => {
+  const runtime = new MockRuntime();
+  writeManifest(runtime, []);
+  const pipeline = new Pipeline({ runtime });
 
-  const result = pipeline.findRoute('/nonexistent');
+  const result = await pipeline.findRoute('/nonexistent');
 
   expect(result).toBeUndefined();
 });
@@ -218,22 +228,19 @@ test('Pipeline.findRoute - returns undefined for non-existent pattern', () => {
 // ============================================================================
 
 test('Pipeline.buildRouteHierarchy - root pattern returns ["/"]', () => {
-  const resolver = createResolver([]);
-  const pipeline = new Pipeline({ runtime: new MockRuntime(), resolver });
+  const pipeline = new Pipeline({ runtime: new MockRuntime() });
 
   expect(pipeline.buildRouteHierarchy('/')).toEqual(['/']);
 });
 
 test('Pipeline.buildRouteHierarchy - single segment returns root + segment', () => {
-  const resolver = createResolver([]);
-  const pipeline = new Pipeline({ runtime: new MockRuntime(), resolver });
+  const pipeline = new Pipeline({ runtime: new MockRuntime() });
 
   expect(pipeline.buildRouteHierarchy('/about')).toEqual(['/', '/about']);
 });
 
 test('Pipeline.buildRouteHierarchy - multi-segment builds full ancestor chain', () => {
-  const resolver = createResolver([]);
-  const pipeline = new Pipeline({ runtime: new MockRuntime(), resolver });
+  const pipeline = new Pipeline({ runtime: new MockRuntime() });
 
   expect(pipeline.buildRouteHierarchy('/docs/guide/intro')).toEqual([
     '/',
@@ -244,8 +251,7 @@ test('Pipeline.buildRouteHierarchy - multi-segment builds full ancestor chain', 
 });
 
 test('Pipeline.buildRouteHierarchy - dynamic segments are preserved', () => {
-  const resolver = createResolver([]);
-  const pipeline = new Pipeline({ runtime: new MockRuntime(), resolver });
+  const pipeline = new Pipeline({ runtime: new MockRuntime() });
 
   expect(pipeline.buildRouteHierarchy('/user/:id/settings')).toEqual([
     '/',
@@ -256,8 +262,7 @@ test('Pipeline.buildRouteHierarchy - dynamic segments are preserved', () => {
 });
 
 test('Pipeline.buildRouteHierarchy - deeply nested path builds complete chain', () => {
-  const resolver = createResolver([]);
-  const pipeline = new Pipeline({ runtime: new MockRuntime(), resolver });
+  const pipeline = new Pipeline({ runtime: new MockRuntime() });
 
   const result = pipeline.buildRouteHierarchy('/a/b/c/d/e');
   expect(result).toHaveLength(6);
@@ -270,11 +275,9 @@ test('Pipeline.buildRouteHierarchy - deeply nested path builds complete chain', 
 // ============================================================================
 
 test('Pipeline.loadModule - loads from moduleLoaders map', async () => {
-  const resolver = createResolver([]);
   const exported = { default: { name: 'test' } };
   const pipeline = new Pipeline({
     runtime: new MockRuntime(),
-    resolver,
     moduleLoaders: {
       '/page.ts': () => Promise.resolve(exported),
     },
@@ -290,8 +293,7 @@ test('Pipeline.loadModule - falls back to runtime.loadModule when no loader exis
   const exported = { default: { name: 'runtime-loaded' } };
   runtime.setModule('/page.ts', exported);
 
-  const resolver = createResolver([]);
-  const pipeline = new Pipeline({ runtime, resolver });
+  const pipeline = new Pipeline({ runtime });
 
   const result = await pipeline.loadModule('/page.ts');
 
@@ -303,24 +305,21 @@ test('Pipeline.loadModule - normalizes path to absolute before runtime call', as
   const exported = { default: 'ok' };
   runtime.setModule('/relative.ts', exported);
 
-  const resolver = createResolver([]);
-  const pipeline = new Pipeline({ runtime, resolver });
+  const pipeline = new Pipeline({ runtime });
 
   const result = await pipeline.loadModule('relative.ts');
 
   expect(result).toEqual(exported);
 });
 
-test('Pipeline.loadModule - caches modules after first load', async () => {
+test('Pipeline.loadModule - does not cache, always delegates to loader', async () => {
   let callCount = 0;
-  const resolver = createResolver([]);
   const pipeline = new Pipeline({
     runtime: new MockRuntime(),
-    resolver,
     moduleLoaders: {
       '/counted.ts': () => {
         callCount++;
-        return Promise.resolve({ default: 'cached' });
+        return Promise.resolve({ default: 'fresh' });
       },
     },
   });
@@ -329,12 +328,11 @@ test('Pipeline.loadModule - caches modules after first load', async () => {
   await pipeline.loadModule('/counted.ts');
   await pipeline.loadModule('/counted.ts');
 
-  expect(callCount).toEqual(1);
+  expect(callCount).toEqual(3);
 });
 
 test('Pipeline.loadModule - rejects when module not found in runtime', async () => {
-  const resolver = createResolver([]);
-  const pipeline = new Pipeline({ runtime: new MockRuntime(), resolver });
+  const pipeline = new Pipeline({ runtime: new MockRuntime() });
 
   await expect(pipeline.loadModule('/missing.ts')).rejects.toThrow('Module not found');
 });
@@ -343,56 +341,33 @@ test('Pipeline.loadModule - rejects when module not found in runtime', async () 
 // getModuleFiles() Tests
 // ============================================================================
 
-test('Pipeline.getModuleFiles - returns __files from cached module', async () => {
-  const resolver = createResolver([]);
+test('Pipeline.getModuleFiles - returns __files from module object', () => {
+  const pipeline = new Pipeline({ runtime: new MockRuntime() });
   const files = { html: '<p>hello</p>', css: 'p { color: red; }' };
-  const pipeline = new Pipeline({
-    runtime: new MockRuntime(),
-    resolver,
-    moduleLoaders: {
-      '/merged.ts': () => Promise.resolve({ default: {}, __files: files }),
-    },
-  });
+  const mod = { default: {}, __files: files };
 
-  await pipeline.loadModule('/merged.ts');
-  const result = pipeline.getModuleFiles('/merged.ts');
+  const result = pipeline.getModuleFiles(mod);
 
   expect(result).toEqual(files);
 });
 
-test('Pipeline.getModuleFiles - returns undefined for uncached module', () => {
-  const resolver = createResolver([]);
-  const pipeline = new Pipeline({ runtime: new MockRuntime(), resolver });
+test('Pipeline.getModuleFiles - returns undefined for null/undefined', () => {
+  const pipeline = new Pipeline({ runtime: new MockRuntime() });
 
-  expect(pipeline.getModuleFiles('/never-loaded.ts')).toBeUndefined();
+  expect(pipeline.getModuleFiles(undefined)).toBeUndefined();
+  expect(pipeline.getModuleFiles(null)).toBeUndefined();
 });
 
-test('Pipeline.getModuleFiles - returns undefined when module has no __files', async () => {
-  const resolver = createResolver([]);
-  const pipeline = new Pipeline({
-    runtime: new MockRuntime(),
-    resolver,
-    moduleLoaders: {
-      '/no-files.ts': () => Promise.resolve({ default: {} }),
-    },
-  });
+test('Pipeline.getModuleFiles - returns undefined when module has no __files', () => {
+  const pipeline = new Pipeline({ runtime: new MockRuntime() });
 
-  await pipeline.loadModule('/no-files.ts');
-  expect(pipeline.getModuleFiles('/no-files.ts')).toBeUndefined();
+  expect(pipeline.getModuleFiles({ default: {} })).toBeUndefined();
 });
 
-test('Pipeline.getModuleFiles - returns undefined when cached value is not an object', async () => {
-  const resolver = createResolver([]);
-  const pipeline = new Pipeline({
-    runtime: new MockRuntime(),
-    resolver,
-    moduleLoaders: {
-      '/primitive.ts': () => Promise.resolve('just a string'),
-    },
-  });
+test('Pipeline.getModuleFiles - returns undefined when value is not an object', () => {
+  const pipeline = new Pipeline({ runtime: new MockRuntime() });
 
-  await pipeline.loadModule('/primitive.ts');
-  expect(pipeline.getModuleFiles('/primitive.ts')).toBeUndefined();
+  expect(pipeline.getModuleFiles('just a string')).toBeUndefined();
 });
 
 // ============================================================================
@@ -405,8 +380,7 @@ test('Pipeline.loadFiles - loads all companion files from runtime', async () => 
   runtime.set('/page.md', '# Hello');
   runtime.set('/page.css', 'h1 { color: blue; }');
 
-  const resolver = createResolver([]);
-  const pipeline = new Pipeline({ runtime, resolver });
+  const pipeline = new Pipeline({ runtime });
 
   const files = await pipeline.loadFiles({ html: '/page.html', md: '/page.md', css: '/page.css' });
 
@@ -419,8 +393,7 @@ test('Pipeline.loadFiles - loads only specified files', async () => {
   const runtime = new MockRuntime();
   runtime.set('/page.html', '<p>Content</p>');
 
-  const resolver = createResolver([]);
-  const pipeline = new Pipeline({ runtime, resolver });
+  const pipeline = new Pipeline({ runtime });
 
   const files = await pipeline.loadFiles({ html: '/page.html' });
 
@@ -430,8 +403,7 @@ test('Pipeline.loadFiles - loads only specified files', async () => {
 });
 
 test('Pipeline.loadFiles - returns empty object when no files specified', async () => {
-  const resolver = createResolver([]);
-  const pipeline = new Pipeline({ runtime: new MockRuntime(), resolver });
+  const pipeline = new Pipeline({ runtime: new MockRuntime() });
 
   const files = await pipeline.loadFiles({});
 
@@ -439,36 +411,32 @@ test('Pipeline.loadFiles - returns empty object when no files specified', async 
 });
 
 test('Pipeline.loadFiles - gracefully handles missing files', async () => {
-  const resolver = createResolver([]);
-  const pipeline = new Pipeline({ runtime: new MockRuntime(), resolver });
+  const pipeline = new Pipeline({ runtime: new MockRuntime() });
 
   const files = await pipeline.loadFiles({ html: '/missing.html' });
 
   expect(files.html).toBeUndefined();
 });
 
-test('Pipeline.loadFiles - caches loaded files across calls', async () => {
+test('Pipeline.loadFiles - always reads fresh content from runtime', async () => {
   const runtime = new MockRuntime();
-  runtime.set('/cached.html', '<p>cached</p>');
+  runtime.set('/page.html', '<p>original</p>');
 
-  const resolver = createResolver([]);
-  const pipeline = new Pipeline({ runtime, resolver });
+  const pipeline = new Pipeline({ runtime });
 
-  const first = await pipeline.loadFiles({ html: '/cached.html' });
-  // Remove from runtime to prove it uses cache
-  runtime.set('/cached.html', '<p>CHANGED</p>');
-  const second = await pipeline.loadFiles({ html: '/cached.html' });
+  const first = await pipeline.loadFiles({ html: '/page.html' });
+  runtime.set('/page.html', '<p>updated</p>');
+  const second = await pipeline.loadFiles({ html: '/page.html' });
 
-  expect(first.html).toEqual('<p>cached</p>');
-  expect(second.html).toEqual('<p>cached</p>');
+  expect(first.html).toEqual('<p>original</p>');
+  expect(second.html).toEqual('<p>updated</p>');
 });
 
 test('Pipeline.loadFiles - normalizes relative paths to absolute', async () => {
   const runtime = new MockRuntime();
   runtime.set('/relative.html', '<p>relative</p>');
 
-  const resolver = createResolver([]);
-  const pipeline = new Pipeline({ runtime, resolver });
+  const pipeline = new Pipeline({ runtime });
 
   const files = await pipeline.loadFiles({ html: 'relative.html' });
 
@@ -480,8 +448,7 @@ test('Pipeline.loadFiles - normalizes relative paths to absolute', async () => {
 // ============================================================================
 
 test('Pipeline.toRouteInfo - builds RouteInfo from MatchedRoute and URL', () => {
-  const resolver = createResolver([]);
-  const pipeline = new Pipeline({ runtime: new MockRuntime(), resolver });
+  const pipeline = new Pipeline({ runtime: new MockRuntime() });
 
   const matched = {
     route: createTestRoute({ pattern: '/user/:id' }),
@@ -499,8 +466,7 @@ test('Pipeline.toRouteInfo - builds RouteInfo from MatchedRoute and URL', () => 
 // ============================================================================
 
 test('Pipeline.buildContext - constructs base context with url, params, pathname, searchParams', async () => {
-  const resolver = createResolver([]);
-  const pipeline = new Pipeline({ runtime: new MockRuntime(), resolver });
+  const pipeline = new Pipeline({ runtime: new MockRuntime() });
 
   const testUrl = url('/page?q=hello');
   const routeInfo = { url: testUrl, params: { id: '1' } };
@@ -519,8 +485,7 @@ test('Pipeline.buildContext - includes files from route companion files', async 
   runtime.set('/page.html', '<p>html</p>');
   runtime.set('/page.css', 'p {}');
 
-  const resolver = createResolver([]);
-  const pipeline = new Pipeline({ runtime, resolver });
+  const pipeline = new Pipeline({ runtime });
 
   const route = createTestRoute({
     pattern: '/page',
@@ -534,19 +499,10 @@ test('Pipeline.buildContext - includes files from route companion files', async 
   expect(ctx.files?.css).toEqual('p {}');
 });
 
-test('Pipeline.buildContext - uses inlined __files from merged module when available', async () => {
-  const resolver = createResolver([]);
+test('Pipeline.buildContext - uses inlined __files from loaded module when passed', async () => {
   const inlinedFiles = { html: '<p>inlined</p>', md: '# inlined' };
-  const pipeline = new Pipeline({
-    runtime: new MockRuntime(),
-    resolver,
-    moduleLoaders: {
-      '/merged.ts': () => Promise.resolve({ default: {}, __files: inlinedFiles }),
-    },
-  });
-
-  // Pre-load so module is cached
-  await pipeline.loadModule('/merged.ts');
+  const loadedModule = { default: {}, __files: inlinedFiles };
+  const pipeline = new Pipeline({ runtime: new MockRuntime() });
 
   const route = createTestRoute({
     pattern: '/page',
@@ -555,14 +511,13 @@ test('Pipeline.buildContext - uses inlined __files from merged module when avail
   });
   const routeInfo = { url: url('/page'), params: {} };
 
-  const ctx = await pipeline.buildContext(routeInfo, route);
+  const ctx = await pipeline.buildContext(routeInfo, route, undefined, undefined, loadedModule);
 
   expect(ctx.files).toEqual(inlinedFiles);
 });
 
 test('Pipeline.buildContext - returns empty files when route has no files property', async () => {
-  const resolver = createResolver([]);
-  const pipeline = new Pipeline({ runtime: new MockRuntime(), resolver });
+  const pipeline = new Pipeline({ runtime: new MockRuntime() });
 
   const route = createTestRoute({ pattern: '/bare', files: undefined });
   const routeInfo = { url: url('/bare'), params: {} };
@@ -573,8 +528,7 @@ test('Pipeline.buildContext - returns empty files when route has no files proper
 });
 
 test('Pipeline.buildContext - passes signal when provided', async () => {
-  const resolver = createResolver([]);
-  const pipeline = new Pipeline({ runtime: new MockRuntime(), resolver });
+  const pipeline = new Pipeline({ runtime: new MockRuntime() });
 
   const controller = new AbortController();
   const route = createTestRoute({ pattern: '/sig' });
@@ -586,8 +540,7 @@ test('Pipeline.buildContext - passes signal when provided', async () => {
 });
 
 test('Pipeline.buildContext - omits signal when not provided', async () => {
-  const resolver = createResolver([]);
-  const pipeline = new Pipeline({ runtime: new MockRuntime(), resolver });
+  const pipeline = new Pipeline({ runtime: new MockRuntime() });
 
   const route = createTestRoute({ pattern: '/no-sig' });
   const routeInfo = { url: url('/no-sig'), params: {} };
@@ -598,8 +551,7 @@ test('Pipeline.buildContext - omits signal when not provided', async () => {
 });
 
 test('Pipeline.buildContext - passes isLeaf when provided', async () => {
-  const resolver = createResolver([]);
-  const pipeline = new Pipeline({ runtime: new MockRuntime(), resolver });
+  const pipeline = new Pipeline({ runtime: new MockRuntime() });
 
   const route = createTestRoute({ pattern: '/leaf' });
   const routeInfo = { url: url('/leaf'), params: {} };
@@ -612,8 +564,7 @@ test('Pipeline.buildContext - passes isLeaf when provided', async () => {
 });
 
 test('Pipeline.buildContext - omits isLeaf when not provided', async () => {
-  const resolver = createResolver([]);
-  const pipeline = new Pipeline({ runtime: new MockRuntime(), resolver });
+  const pipeline = new Pipeline({ runtime: new MockRuntime() });
 
   const route = createTestRoute({ pattern: '/no-leaf' });
   const routeInfo = { url: url('/no-leaf'), params: {} };
@@ -628,10 +579,8 @@ test('Pipeline.buildContext - omits isLeaf when not provided', async () => {
 // ============================================================================
 
 test('Pipeline.buildContext - contextProvider enriches base context', async () => {
-  const resolver = createResolver([]);
   const pipeline = new Pipeline({
     runtime: new MockRuntime(),
-    resolver,
     contextProvider: (base) => ({ ...base, custom: 'enriched' }) as ComponentContext & { custom: string },
   });
 
@@ -645,16 +594,14 @@ test('Pipeline.buildContext - contextProvider enriches base context', async () =
 });
 
 test('Pipeline.contextProvider - is undefined when not provided', () => {
-  const resolver = createResolver([]);
-  const pipeline = new Pipeline({ runtime: new MockRuntime(), resolver });
+  const pipeline = new Pipeline({ runtime: new MockRuntime() });
 
   expect(pipeline.contextProvider).toBeUndefined();
 });
 
 test('Pipeline.contextProvider - is set when provided', () => {
   const provider = (base: ComponentContext) => base;
-  const resolver = createResolver([]);
-  const pipeline = new Pipeline({ runtime: new MockRuntime(), resolver, contextProvider: provider });
+  const pipeline = new Pipeline({ runtime: new MockRuntime(), contextProvider: provider });
 
   expect(pipeline.contextProvider).toBe(provider);
 });
@@ -663,40 +610,43 @@ test('Pipeline.contextProvider - is set when provided', () => {
 // getStatusPage() Tests
 // ============================================================================
 
-test('Pipeline.getStatusPage - returns registered status page', () => {
+test('Pipeline.getStatusPage - returns registered status page', async () => {
+  const runtime = new MockRuntime();
   const statusPageRoute = createTestRoute({
     pattern: '/404',
     modulePath: '/404.page.ts',
     files: { ts: '/404.page.ts' },
   });
-  const resolver = createResolver([], { statusPages: new Map([[404, statusPageRoute]]) });
-  const pipeline = new Pipeline({ runtime: new MockRuntime(), resolver });
+  writeManifest(runtime, [], { statusPages: new Map([[404, statusPageRoute]]) });
+  const pipeline = new Pipeline({ runtime });
 
-  const result = pipeline.getStatusPage(404);
+  const result = await pipeline.getStatusPage(404);
 
   expect(result).toBeDefined();
   expect(result!.pattern).toEqual('/404');
   expect(result!.modulePath).toEqual('/404.page.ts');
 });
 
-test('Pipeline.getStatusPage - returns undefined for unregistered status', () => {
-  const resolver = createResolver([]);
-  const pipeline = new Pipeline({ runtime: new MockRuntime(), resolver });
+test('Pipeline.getStatusPage - returns undefined for unregistered status', async () => {
+  const runtime = new MockRuntime();
+  writeManifest(runtime, []);
+  const pipeline = new Pipeline({ runtime });
 
-  expect(pipeline.getStatusPage(404)).toBeUndefined();
-  expect(pipeline.getStatusPage(500)).toBeUndefined();
+  expect(await pipeline.getStatusPage(404)).toBeUndefined();
+  expect(await pipeline.getStatusPage(500)).toBeUndefined();
 });
 
-test('Pipeline.getStatusPage - supports 500 status page', () => {
+test('Pipeline.getStatusPage - supports 500 status page', async () => {
+  const runtime = new MockRuntime();
   const statusPageRoute = createTestRoute({
     pattern: '/500',
     modulePath: '/500.page.ts',
     files: { ts: '/500.page.ts' },
   });
-  const resolver = createResolver([], { statusPages: new Map([[500, statusPageRoute]]) });
-  const pipeline = new Pipeline({ runtime: new MockRuntime(), resolver });
+  writeManifest(runtime, [], { statusPages: new Map([[500, statusPageRoute]]) });
+  const pipeline = new Pipeline({ runtime });
 
-  const result = pipeline.getStatusPage(500);
+  const result = await pipeline.getStatusPage(500);
 
   expect(result).toBeDefined();
   expect(result!.pattern).toEqual('/500');
@@ -706,46 +656,50 @@ test('Pipeline.getStatusPage - supports 500 status page', () => {
 // findErrorBoundary() Tests
 // ============================================================================
 
-test('Pipeline.findErrorBoundary - finds error boundary for matching path', () => {
-  const resolver = createResolver([], {
+test('Pipeline.findErrorBoundary - finds error boundary for matching path', async () => {
+  const runtime = new MockRuntime();
+  writeManifest(runtime, [], {
     errorBoundaries: [{ pattern: '/admin', modulePath: '/admin.error.ts' }],
   });
-  const pipeline = new Pipeline({ runtime: new MockRuntime(), resolver });
+  const pipeline = new Pipeline({ runtime });
 
-  const result = pipeline.findErrorBoundary('/admin/users');
+  const result = await pipeline.findErrorBoundary('/admin/users');
 
   expect(result).toBeDefined();
   expect(result!.modulePath).toEqual('/admin.error.ts');
 });
 
-test('Pipeline.findErrorBoundary - returns undefined when no boundary matches', () => {
-  const resolver = createResolver([]);
-  const pipeline = new Pipeline({ runtime: new MockRuntime(), resolver });
+test('Pipeline.findErrorBoundary - returns undefined when no boundary matches', async () => {
+  const runtime = new MockRuntime();
+  writeManifest(runtime, []);
+  const pipeline = new Pipeline({ runtime });
 
-  expect(pipeline.findErrorBoundary('/any/path')).toBeUndefined();
+  expect(await pipeline.findErrorBoundary('/any/path')).toBeUndefined();
 });
 
 // ============================================================================
 // getErrorHandler() Tests
 // ============================================================================
 
-test('Pipeline.getErrorHandler - returns root error handler when registered', () => {
+test('Pipeline.getErrorHandler - returns root error handler when registered', async () => {
+  const runtime = new MockRuntime();
   const errorHandler = createTestRoute({ pattern: '/', type: 'error', modulePath: '/root.error.ts' });
-  const resolver = createResolver([], { errorHandler });
-  const pipeline = new Pipeline({ runtime: new MockRuntime(), resolver });
+  writeManifest(runtime, [], { errorHandler });
+  const pipeline = new Pipeline({ runtime });
 
-  const result = pipeline.getErrorHandler();
+  const result = await pipeline.getErrorHandler();
 
   expect(result).toBeDefined();
   expect(result!.type).toEqual('error');
   expect(result!.modulePath).toEqual('/root.error.ts');
 });
 
-test('Pipeline.getErrorHandler - returns undefined when no root error handler', () => {
-  const resolver = createResolver([]);
-  const pipeline = new Pipeline({ runtime: new MockRuntime(), resolver });
+test('Pipeline.getErrorHandler - returns undefined when no root error handler', async () => {
+  const runtime = new MockRuntime();
+  writeManifest(runtime, []);
+  const pipeline = new Pipeline({ runtime });
 
-  expect(pipeline.getErrorHandler()).toBeUndefined();
+  expect(await pipeline.getErrorHandler()).toBeUndefined();
 });
 
 // ============================================================================
@@ -762,16 +716,17 @@ test('DEFAULT_ROOT_ROUTE - has correct shape', () => {
 // Edge Cases
 // ============================================================================
 
-test('Pipeline.match - handles route with files containing all companion types', () => {
+test('Pipeline.match - handles route with files containing all companion types', async () => {
+  const runtime = new MockRuntime();
   const routes = [createTestRoute({
     pattern: '/full',
     modulePath: '/full.page.ts',
     files: { ts: '/full.page.ts', html: '/full.page.html', md: '/full.page.md', css: '/full.page.css' },
   })];
-  const resolver = createResolver(routes);
-  const pipeline = new Pipeline({ runtime: new MockRuntime(), resolver });
+  writeManifest(runtime, routes);
+  const pipeline = new Pipeline({ runtime });
 
-  const result = pipeline.match(url('/full'));
+  const result = await pipeline.match(url('/full'));
 
   expect(result).toBeDefined();
   expect(result!.route.files?.ts).toEqual('/full.page.ts');
@@ -780,12 +735,13 @@ test('Pipeline.match - handles route with files containing all companion types',
   expect(result!.route.files?.css).toEqual('/full.page.css');
 });
 
-test('Pipeline.match - handles URL with hash fragment', () => {
+test('Pipeline.match - handles URL with hash fragment', async () => {
+  const runtime = new MockRuntime();
   const routes = [createTestRoute({ pattern: '/docs', modulePath: '/docs.page.ts', files: { ts: '/docs.page.ts' } })];
-  const resolver = createResolver(routes);
-  const pipeline = new Pipeline({ runtime: new MockRuntime(), resolver });
+  writeManifest(runtime, routes);
+  const pipeline = new Pipeline({ runtime });
 
-  const result = pipeline.match(url('/docs#section'));
+  const result = await pipeline.match(url('/docs#section'));
 
   expect(result).toBeDefined();
   expect(result!.route.pattern).toEqual('/docs');
@@ -795,10 +751,8 @@ test('Pipeline.loadModule - moduleLoaders take precedence over runtime', async (
   const runtime = new MockRuntime();
   runtime.setModule('/page.ts', { default: 'from-runtime' });
 
-  const resolver = createResolver([]);
   const pipeline = new Pipeline({
     runtime,
-    resolver,
     moduleLoaders: {
       '/page.ts': () => Promise.resolve({ default: 'from-loader' }),
     },
@@ -810,16 +764,14 @@ test('Pipeline.loadModule - moduleLoaders take precedence over runtime', async (
 });
 
 test('Pipeline - constructor defaults moduleLoaders to empty object', () => {
-  const resolver = createResolver([]);
-  const pipeline = new Pipeline({ runtime: new MockRuntime(), resolver });
+  const pipeline = new Pipeline({ runtime: new MockRuntime() });
 
   // Should not throw when trying to load (will fall through to runtime)
   expect(pipeline.loadModule('/anything.ts')).rejects.toThrow();
 });
 
 test('Pipeline.buildContext - searchParams are accessible from context', async () => {
-  const resolver = createResolver([]);
-  const pipeline = new Pipeline({ runtime: new MockRuntime(), resolver });
+  const pipeline = new Pipeline({ runtime: new MockRuntime() });
 
   const testUrl = url('/search?q=hello&page=2&sort=desc');
   const routeInfo = { url: testUrl, params: {} };
@@ -833,8 +785,7 @@ test('Pipeline.buildContext - searchParams are accessible from context', async (
 });
 
 test('Pipeline.buildRouteHierarchy - two segments return root plus both', () => {
-  const resolver = createResolver([]);
-  const pipeline = new Pipeline({ runtime: new MockRuntime(), resolver });
+  const pipeline = new Pipeline({ runtime: new MockRuntime() });
 
   expect(pipeline.buildRouteHierarchy('/foo/bar')).toEqual(['/', '/foo', '/foo/bar']);
 });

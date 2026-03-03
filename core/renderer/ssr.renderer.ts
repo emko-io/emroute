@@ -45,10 +45,10 @@ export abstract class SsrRenderer {
     url: URL,
     signal?: AbortSignal,
   ): Promise<{ content: string; status: number; title?: string; redirect?: string }> {
-    const matched = this.pipeline.match(url);
+    const matched = await this.pipeline.match(url);
 
     if (!matched) {
-      const statusPage = this.pipeline.getStatusPage(404);
+      const statusPage = await this.pipeline.getStatusPage(404);
       if (statusPage) {
         try {
           const ri: RouteInfo = { url, params: {} };
@@ -85,7 +85,7 @@ export abstract class SsrRenderer {
       return { content, status: 200, ...(title != null ? { title } : {}) };
     } catch (error) {
       if (error instanceof Response) {
-        const statusPage = this.pipeline.getStatusPage(error.status);
+        const statusPage = await this.pipeline.getStatusPage(error.status);
         if (statusPage) {
           try {
             const ri: RouteInfo = { url, params: {} };
@@ -109,13 +109,13 @@ export abstract class SsrRenderer {
         error instanceof Error ? error : undefined,
       );
 
-      const boundary = this.pipeline.findErrorBoundary(url.pathname);
+      const boundary = await this.pipeline.findErrorBoundary(url.pathname);
       if (boundary) {
         const result = await this.tryRenderErrorModule(boundary.modulePath, url, 'boundary');
         if (result) return result;
       }
 
-      const errorHandler = this.pipeline.getErrorHandler();
+      const errorHandler = await this.pipeline.getErrorHandler();
       if (errorHandler) {
         const result = await this.tryRenderErrorModule(errorHandler.modulePath, url, 'handler');
         if (result) return result;
@@ -138,7 +138,7 @@ export abstract class SsrRenderer {
     const segments: { route: RouteConfig; isLeaf: boolean }[] = [];
     for (let i = 0; i < hierarchy.length; i++) {
       const routePattern = hierarchy[i];
-      let route = this.pipeline.findRoute(routePattern);
+      let route = await this.pipeline.findRoute(routePattern);
 
       if (!route && routePattern === '/') {
         route = DEFAULT_ROOT_ROUTE;
@@ -206,11 +206,12 @@ export abstract class SsrRenderer {
     const files = route.files ?? {};
 
     const tsModule = files.ts ?? files.js;
-    const component: PageComponent = tsModule
-      ? (await this.pipeline.loadModule<{ default: PageComponent }>(tsModule)).default
-      : defaultPageComponent;
+    const loadedModule = tsModule
+      ? await this.pipeline.loadModule<{ default: PageComponent }>(tsModule)
+      : undefined;
+    const component: PageComponent = loadedModule?.default ?? defaultPageComponent;
 
-    const context = await this.pipeline.buildContext(routeInfo, route, signal, isLeaf);
+    const context = await this.pipeline.buildContext(routeInfo, route, signal, isLeaf, loadedModule);
     const data = await component.getData({ params: routeInfo.params, ...(signal ? { signal } : {}), context });
     const content = this.renderContent(component, { data, params: routeInfo.params, context });
     const title = component.getTitle({ data, params: routeInfo.params, context });

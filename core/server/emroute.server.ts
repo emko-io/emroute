@@ -5,12 +5,9 @@
  * builds Pipeline + Renderers, handles Request → Response.
  */
 
-import type { RouteNode } from '../type/route-tree.type.ts';
 import type { WidgetManifestEntry } from '../type/widget.type.ts';
-import type { ElementManifestEntry } from '../type/element.type.ts';
 import type { WidgetComponent } from '../component/widget.component.ts';
 import type { Runtime } from '../runtime/abstract.runtime.ts';
-import { RouteTrie } from '../router/route.trie.ts';
 import { Pipeline } from '../pipeline/pipeline.ts';
 import { SsrHtmlRenderer } from '../renderer/html.renderer.ts';
 import { SsrMdRenderer } from '../renderer/md.renderer.ts';
@@ -21,40 +18,9 @@ import {
   DEFAULT_BASE_PATH,
   ROUTES_MANIFEST_PATH,
   WIDGETS_MANIFEST_PATH,
-  ELEMENTS_MANIFEST_PATH,
   type EmrouteServer,
   type EmrouteServerConfig,
 } from './server.type.ts';
-
-// ── Module loaders ─────────────────────────────────────────────────────
-
-function createModuleLoaders(
-  tree: RouteNode,
-  runtime: Runtime,
-): Record<string, () => Promise<unknown>> {
-  const paths = new Set<string>();
-
-  function walk(node: RouteNode): void {
-    const modulePath = node.files?.ts ?? node.files?.js;
-    if (modulePath) paths.add(modulePath);
-    if (node.redirect) paths.add(node.redirect);
-    if (node.errorBoundary) paths.add(node.errorBoundary);
-
-    if (node.children) {
-      for (const child of Object.values(node.children)) walk(child);
-    }
-    if (node.dynamic) walk(node.dynamic.child);
-    if (node.wildcard) walk(node.wildcard.child);
-  }
-
-  walk(tree);
-
-  const loaders: Record<string, () => Promise<unknown>> = {};
-  for (const path of paths) {
-    loaders[path] = () => runtime.loadModule(path);
-  }
-  return loaders;
-}
 
 // ── Widget helpers ─────────────────────────────────────────────────────
 
@@ -172,62 +138,50 @@ export async function createEmrouteServer(
   const { spa = 'root' } = config;
   const { html: htmlBase, md: mdBase, app: appBase } = config.basePath ?? DEFAULT_BASE_PATH;
 
-  // ── Route tree ──────────────────────────────────────────────────────
+  // ── Verify route manifest exists ────────────────────────────────────
 
-  let routeTree: RouteNode;
-
-  if (config.routeTree) {
-    routeTree = config.routeTree;
-  } else {
-    const manifestResponse = await runtime.query(ROUTES_MANIFEST_PATH);
-    if (manifestResponse.status === 404) {
-      throw new Error(
-        `[emroute] ${ROUTES_MANIFEST_PATH} not found in runtime. ` +
-          'Provide routeTree in config or ensure the runtime produces it.',
-      );
-    }
-    routeTree = await manifestResponse.json();
+  const manifestResponse = await runtime.query(ROUTES_MANIFEST_PATH);
+  if (manifestResponse.status === 404 && !config.routeTree) {
+    throw new Error(
+      `[emroute] ${ROUTES_MANIFEST_PATH} not found in runtime. ` +
+        'Provide routeTree in config or ensure the runtime produces it.',
+    );
   }
 
-  const moduleLoaders = config.moduleLoaders ?? createModuleLoaders(routeTree, runtime);
-  const resolver = new RouteTrie(routeTree);
+  // If a static routeTree was provided, write it into Runtime so Pipeline
+  // can read it from the single source of truth.
+  if (config.routeTree && manifestResponse.status === 404) {
+    await runtime.command(ROUTES_MANIFEST_PATH, {
+      body: JSON.stringify(config.routeTree),
+    });
+  }
 
   // ── Pipeline ────────────────────────────────────────────────────────
 
   const pipeline = new Pipeline({
     runtime,
-    resolver,
     ...(config.extendContext ? { contextProvider: config.extendContext } : {}),
-    moduleLoaders,
+    ...(config.moduleLoaders ? { moduleLoaders: config.moduleLoaders } : {}),
   });
 
   // ── Widgets ─────────────────────────────────────────────────────────
 
   let widgets: WidgetRegistry | undefined = config.widgets;
   let widgetFiles: Record<string, { html?: string; md?: string; css?: string }> = {};
-  let discoveredWidgetEntries: WidgetManifestEntry[] = [];
 
   const widgetsResponse = await runtime.query(WIDGETS_MANIFEST_PATH);
   if (widgetsResponse.status !== 404) {
-    discoveredWidgetEntries = await widgetsResponse.json();
+    const entries: WidgetManifestEntry[] = await widgetsResponse.json();
     if (config.widgets) {
       widgets = config.widgets;
-      for (const entry of discoveredWidgetEntries) {
+      for (const entry of entries) {
         if (entry.files) widgetFiles[entry.name] = entry.files;
       }
     } else {
-      const imported = await importWidgets(discoveredWidgetEntries, runtime);
+      const imported = await importWidgets(entries, runtime);
       widgets = imported.registry;
       widgetFiles = imported.widgetFiles;
     }
-  }
-
-  // ── Elements ────────────────────────────────────────────────────────
-
-  let discoveredElementEntries: ElementManifestEntry[] = [];
-  const elementsResponse = await runtime.query(ELEMENTS_MANIFEST_PATH);
-  if (elementsResponse.status !== 404) {
-    discoveredElementEntries = await elementsResponse.json();
   }
 
   // ── Renderers ───────────────────────────────────────────────────────
@@ -374,15 +328,6 @@ export async function createEmrouteServer(
     },
     get mdRenderer() {
       return ssrMdRenderer;
-    },
-    get routeTree() {
-      return routeTree;
-    },
-    get widgetEntries() {
-      return discoveredWidgetEntries;
-    },
-    get elementEntries() {
-      return discoveredElementEntries;
     },
     get shell() {
       return shell;

@@ -11,7 +11,7 @@ import { resolve } from 'node:path';
 import { createEmrouteServer } from '../../server/emroute.server.ts';
 import { buildClientBundles } from '../../server/build.util.ts';
 import { UniversalFsRuntime } from '../../runtime/universal/fs/universal-fs.runtime.ts';
-import { WidgetRegistry } from '../../src/widget/widget.registry.ts';
+import { WidgetRegistry } from '../../core/widget/widget.registry.ts';
 import { externalWidget } from '../browser/fixtures/assets/external.widget.ts';
 import type { EmrouteServer } from '../../server/server-api.type.ts';
 import type { RuntimeConfig } from '../../runtime/abstract.runtime.ts';
@@ -76,23 +76,22 @@ describe('prod server', () => {
 
   test('setup - create servers for all modes', async () => {
     const server = await getServer('root');
-    expect(server.routeTree).toBeDefined();
-    expect(server.htmlRouter !== null).toBeTruthy();
-    expect(server.mdRouter !== null).toBeTruthy();
+    expect(server.htmlRenderer !== null).toBeTruthy();
+    expect(server.mdRenderer !== null).toBeTruthy();
   });
 
-  test('createEmrouteServer - only mode has null routers', async () => {
+  test('createEmrouteServer - only mode has null renderers', async () => {
     const server = await getServer('only');
-    expect(server.htmlRouter).toEqual(null);
-    expect(server.mdRouter).toEqual(null);
+    expect(server.htmlRenderer).toEqual(null);
+    expect(server.mdRenderer).toEqual(null);
   });
 
   // ── None mode ────────────────────────────────────────────────────────
 
   test('none mode - has SSR routers', async () => {
     const server = await getServer('none');
-    expect(server.htmlRouter).not.toEqual(null);
-    expect(server.mdRouter).not.toEqual(null);
+    expect(server.htmlRenderer).not.toEqual(null);
+    expect(server.mdRenderer).not.toEqual(null);
   });
 
   test('none mode - SSR HTML renders content', async () => {
@@ -121,13 +120,6 @@ describe('prod server', () => {
   });
 
   // ── Manifest resolution ─────────────────────────────────────────────
-
-  test('createEmrouteServer - exposes widgetEntries', async () => {
-    const server = await getServer('root');
-    expect(server.widgetEntries.length > 0).toBeTruthy();
-    expect(typeof server.widgetEntries[0].name).toEqual('string');
-    expect(typeof server.widgetEntries[0].tagName).toEqual('string');
-  });
 
   test('createEmrouteServer - exposes shell', async () => {
     const server = await getServer('root');

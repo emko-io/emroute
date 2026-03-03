@@ -1,36 +1,20 @@
 /**
  * Route Trie
  *
- * Segment-based trie implementing RouteResolver for O(depth) route matching.
+ * Default RouteResolver implementation. O(depth) route matching over
+ * the RouteNode tree.
  *
- * Each URL segment maps to a trie node. Nodes are tried in order:
+ * Walks the RouteNode tree directly — no conversion step, no internal state
+ * beyond the tree reference. Each URL segment is matched in order:
  * static → dynamic (:param) → wildcard (:rest*). Backtracking handles
  * cases where a dynamic path leads to a dead end but a wildcard at an
  * ancestor would match.
  *
  * Static segment matching is case-sensitive, per RFC 3986.
- *
- * Accepts a RouteNode tree (the JSON-serializable manifest from Runtime)
- * and converts it to an internal trie with Map-based static children for
- * O(1) segment lookup.
  */
 
 import type { RouteNode } from '../type/route-tree.type.ts';
-import type { RouteResolver, ResolvedRoute } from './route.resolver.ts';
-
-/** Internal trie node with Map for O(1) static child lookup. */
-interface TrieNode {
-  route?: RouteNode;
-  pattern?: string;
-  errorBoundary?: string;
-  static: Map<string, TrieNode>;
-  dynamic?: { param: string; node: TrieNode };
-  wildcard?: { param: string; node: TrieNode };
-}
-
-function createNode(): TrieNode {
-  return { static: new Map() };
-}
+import type { ResolvedRoute, RouteResolver } from './route.resolver.ts';
 
 function safeDecode(segment: string): string {
   try {
@@ -44,174 +28,146 @@ function splitSegments(pathname: string): string[] {
   return pathname.substring(1).split('/');
 }
 
-function convertNode(source: RouteNode, pattern: string): TrieNode {
-  const node = createNode();
-
-  if (source.files || source.redirect) {
-    node.route = source;
-    node.pattern = pattern;
+function normalizePath(pathname: string): string {
+  if (pathname.length > 1 && pathname.endsWith('/')) {
+    pathname = pathname.slice(0, -1);
   }
-
-  if (source.errorBoundary) {
-    node.errorBoundary = source.errorBoundary;
+  if (!pathname.startsWith('/')) {
+    pathname = '/' + pathname;
   }
-
-  if (source.children) {
-    for (const [segment, child] of Object.entries(source.children)) {
-      const childPattern = pattern === '/' ? `/${segment}` : `${pattern}/${segment}`;
-      node.static.set(segment, convertNode(child, childPattern));
-    }
-  }
-
-  if (source.dynamic) {
-    const { param, child } = source.dynamic;
-    const childPattern = pattern === '/' ? `/:${param}` : `${pattern}/:${param}`;
-    node.dynamic = { param, node: convertNode(child, childPattern) };
-  }
-
-  if (source.wildcard) {
-    const { param, child } = source.wildcard;
-    const childPattern = pattern === '/' ? `/:${param}*` : `${pattern}/:${param}*`;
-    node.wildcard = { param, node: convertNode(child, childPattern) };
-  }
-
-  return node;
+  return pathname;
 }
 
-export class RouteTrie implements RouteResolver {
-  private readonly root: TrieNode;
-
-  constructor(tree: RouteNode) {
-    this.root = convertNode(tree, '/');
+function walk(
+  node: RouteNode,
+  segments: string[],
+  index: number,
+  params: Record<string, string>,
+  pattern: string,
+): ResolvedRoute | undefined {
+  if (index === segments.length) {
+    if (node.files || node.redirect) {
+      return { node, pattern, params: { ...params } };
+    }
+    if (node.wildcard && (node.wildcard.child.files || node.wildcard.child.redirect)) {
+      const wp = pattern === '/' ? `/:${node.wildcard.param}*` : `${pattern}/:${node.wildcard.param}*`;
+      return {
+        node: node.wildcard.child,
+        pattern: wp,
+        params: { ...params, [node.wildcard.param]: '' },
+      };
+    }
+    return undefined;
   }
 
+  const segment = segments[index];
+
+  // Static
+  const staticChild = node.children?.[segment];
+  if (staticChild) {
+    const childPattern = pattern === '/' ? `/${segment}` : `${pattern}/${segment}`;
+    const result = walk(staticChild, segments, index + 1, params, childPattern);
+    if (result) return result;
+  }
+
+  // Dynamic
+  if (node.dynamic) {
+    const { param, child } = node.dynamic;
+    params[param] = safeDecode(segment);
+    const childPattern = pattern === '/' ? `/:${param}` : `${pattern}/:${param}`;
+    const result = walk(child, segments, index + 1, params, childPattern);
+    if (result) return result;
+    delete params[param];
+  }
+
+  // Wildcard
+  if (node.wildcard && (node.wildcard.child.files || node.wildcard.child.redirect)) {
+    const { param, child } = node.wildcard;
+    let rest = safeDecode(segments[index]);
+    for (let i = index + 1; i < segments.length; i++) {
+      rest += '/' + safeDecode(segments[i]);
+    }
+    const wp = pattern === '/' ? `/:${param}*` : `${pattern}/:${param}*`;
+    return {
+      node: child,
+      pattern: wp,
+      params: { ...params, [param]: rest },
+    };
+  }
+
+  return undefined;
+}
+
+function walkForBoundary(
+  node: RouteNode,
+  segments: string[],
+  index: number,
+  deepest: string | undefined,
+): string | undefined {
+  if (index === segments.length) {
+    return node.errorBoundary ?? deepest;
+  }
+
+  const segment = segments[index];
+
+  const staticChild = node.children?.[segment];
+  if (staticChild) {
+    return walkForBoundary(staticChild, segments, index + 1, staticChild.errorBoundary ?? deepest);
+  }
+
+  if (node.dynamic) {
+    return walkForBoundary(node.dynamic.child, segments, index + 1, node.dynamic.child.errorBoundary ?? deepest);
+  }
+
+  if (node.wildcard) {
+    return node.wildcard.child.errorBoundary ?? deepest;
+  }
+
+  return deepest;
+}
+
+/**
+ * Default RouteResolver implementation.
+ * Walks the RouteNode tree directly — no conversion, no Maps.
+ */
+export class RouteTrie implements RouteResolver {
+  constructor(private readonly tree: RouteNode) {}
+
   match(pathname: string): ResolvedRoute | undefined {
-    if (pathname.length > 1 && pathname.endsWith('/')) {
-      pathname = pathname.slice(0, -1);
-    }
-    if (!pathname.startsWith('/')) {
-      pathname = '/' + pathname;
-    }
+    pathname = normalizePath(pathname);
     if (pathname === '/') {
-      if (this.root.route) {
-        return { node: this.root.route, pattern: '/', params: {} };
+      if (this.tree.files || this.tree.redirect) {
+        return { node: this.tree, pattern: '/', params: {} };
       }
       return undefined;
     }
-    const segments = splitSegments(pathname);
-    return this.walk(this.root, segments, 0, {});
+    return walk(this.tree, splitSegments(pathname), 0, {}, '/');
   }
 
   findErrorBoundary(pathname: string): string | undefined {
-    if (pathname.length > 1 && pathname.endsWith('/')) {
-      pathname = pathname.slice(0, -1);
-    }
-    if (!pathname.startsWith('/')) {
-      pathname = '/' + pathname;
-    }
-    if (pathname === '/') return this.root.errorBoundary;
-    const segments = splitSegments(pathname);
-    return this.walkForBoundary(this.root, segments, 0, this.root.errorBoundary);
+    pathname = normalizePath(pathname);
+    if (pathname === '/') return this.tree.errorBoundary;
+    return walkForBoundary(this.tree, splitSegments(pathname), 0, this.tree.errorBoundary);
   }
 
   findRoute(pattern: string): RouteNode | undefined {
     if (pattern === '/') {
-      return this.root.route;
+      return (this.tree.files || this.tree.redirect) ? this.tree : undefined;
     }
     const segments = splitSegments(pattern);
-    let node = this.root;
+    let node = this.tree;
     for (const segment of segments) {
-      let child: TrieNode | undefined;
+      let child: RouteNode | undefined;
       if (segment.startsWith(':') && segment.endsWith('*')) {
-        child = node.wildcard?.node;
+        child = node.wildcard?.child;
       } else if (segment.startsWith(':')) {
-        child = node.dynamic?.node;
+        child = node.dynamic?.child;
       } else {
-        child = node.static.get(segment);
+        child = node.children?.[segment];
       }
       if (!child) return undefined;
       node = child;
     }
-    return node.route;
-  }
-
-  private walk(
-    node: TrieNode,
-    segments: string[],
-    index: number,
-    params: Record<string, string>,
-  ): ResolvedRoute | undefined {
-    if (index === segments.length) {
-      if (node.route) {
-        return { node: node.route, pattern: node.pattern!, params: { ...params } };
-      }
-      if (node.wildcard?.node.route) {
-        return {
-          node: node.wildcard.node.route,
-          pattern: node.wildcard.node.pattern!,
-          params: { ...params, [node.wildcard.param]: '' },
-        };
-      }
-      return undefined;
-    }
-
-    const segment = segments[index];
-
-    const staticChild = node.static.get(segment);
-    if (staticChild) {
-      const result = this.walk(staticChild, segments, index + 1, params);
-      if (result) return result;
-    }
-
-    if (node.dynamic) {
-      const { param, node: dynamicNode } = node.dynamic;
-      params[param] = safeDecode(segment);
-      const result = this.walk(dynamicNode, segments, index + 1, params);
-      if (result) return result;
-      delete params[param];
-    }
-
-    if (node.wildcard?.node.route) {
-      const { param, node: wildcardNode } = node.wildcard;
-      let rest = safeDecode(segments[index]);
-      for (let i = index + 1; i < segments.length; i++) {
-        rest += '/' + safeDecode(segments[i]);
-      }
-      return {
-        node: wildcardNode.route!,
-        pattern: wildcardNode.pattern!,
-        params: { ...params, [param]: rest },
-      };
-    }
-
-    return undefined;
-  }
-
-  private walkForBoundary(
-    node: TrieNode,
-    segments: string[],
-    index: number,
-    deepest: string | undefined,
-  ): string | undefined {
-    if (index === segments.length) {
-      return node.errorBoundary ?? deepest;
-    }
-
-    const segment = segments[index];
-
-    const staticChild = node.static.get(segment);
-    if (staticChild) {
-      return this.walkForBoundary(staticChild, segments, index + 1, staticChild.errorBoundary ?? deepest);
-    }
-
-    if (node.dynamic) {
-      return this.walkForBoundary(node.dynamic.node, segments, index + 1, node.dynamic.node.errorBoundary ?? deepest);
-    }
-
-    if (node.wildcard) {
-      return node.wildcard.node.errorBoundary ?? deepest;
-    }
-
-    return deepest;
+    return (node.files || node.redirect) ? node : undefined;
   }
 }

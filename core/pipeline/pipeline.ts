@@ -4,9 +4,9 @@
  * Orchestration layer between Router, Runtime, and Component.
  *
  * Owns:
- * - Route matching → RouteConfig conversion
- * - Module loading + caching
- * - Companion file reading + caching
+ * - Route matching (reads manifest from Runtime, walks RouteNode tree)
+ * - Module loading (delegates to Runtime)
+ * - Companion file reading (delegates to Runtime)
  * - ComponentContext building
  * - Route hierarchy construction
  *
@@ -17,10 +17,12 @@
  * - Navigation events (that's the browser adapter)
  */
 
-import type { RouteResolver, ResolvedRoute } from '../router/route.resolver.ts';
+import { RouteTrie } from '../router/route.trie.ts';
+import type { RouteNode } from '../type/route-tree.type.ts';
 import type { RouteConfig, MatchedRoute, RouteInfo } from '../type/route.type.ts';
 import type { ComponentContext, ContextProvider, FileContents } from '../type/component.type.ts';
 import type { Runtime } from '../runtime/abstract.runtime.ts';
+import { ROUTES_MANIFEST_PATH } from '../server/server.type.ts';
 
 /** Default root route — renders a slot for child routes. */
 export const DEFAULT_ROOT_ROUTE: RouteConfig = {
@@ -29,11 +31,10 @@ export const DEFAULT_ROOT_ROUTE: RouteConfig = {
   modulePath: '__default_root__',
 };
 
-/** Synthesize a RouteConfig from a ResolvedRoute. */
-function toRouteConfig(resolved: ResolvedRoute): RouteConfig {
-  const node = resolved.node;
+/** Synthesize a RouteConfig from matched route data. */
+function toRouteConfig(node: RouteNode, pattern: string): RouteConfig {
   return {
-    pattern: resolved.pattern,
+    pattern,
     type: node.redirect ? 'redirect' : 'page',
     modulePath: node.redirect ?? node.files?.ts ?? node.files?.js ?? node.files?.html ?? node.files?.md ?? '',
     ...(node.files ? { files: node.files } : {}),
@@ -43,33 +44,37 @@ function toRouteConfig(resolved: ResolvedRoute): RouteConfig {
 /** Pipeline configuration. */
 export interface PipelineOptions {
   runtime: Runtime;
-  resolver: RouteResolver;
   contextProvider?: ContextProvider;
   /** Pre-bundled module loaders (browser boot passes these). */
   moduleLoaders?: Record<string, () => Promise<unknown>>;
 }
 
 export class Pipeline {
-  private readonly resolver: RouteResolver;
   private readonly runtime: Runtime;
   readonly contextProvider: ContextProvider | undefined;
   private readonly moduleLoaders: Record<string, () => Promise<unknown>>;
-  private readonly moduleCache = new Map<string, unknown>();
-  private readonly fileCache = new Map<string, string>();
 
   constructor(options: PipelineOptions) {
-    this.resolver = options.resolver;
     this.runtime = options.runtime;
     this.contextProvider = options.contextProvider;
     this.moduleLoaders = options.moduleLoaders ?? {};
   }
 
-  // ── Matching (thin wrappers around RouteResolver) ──────────────────
+  // ── Route resolver (from Runtime) ───────────────────────────────────
 
-  match(url: URL): MatchedRoute | undefined {
-    const resolved = this.resolver.match(url.pathname);
+  private async getResolver(): Promise<RouteTrie> {
+    const response = await this.runtime.query(ROUTES_MANIFEST_PATH);
+    const tree: RouteNode = response.status === 404 ? {} : await response.json();
+    return new RouteTrie(tree);
+  }
+
+  // ── Matching ────────────────────────────────────────────────────────
+
+  async match(url: URL): Promise<MatchedRoute | undefined> {
+    const resolver = await this.getResolver();
+    const resolved = resolver.match(url.pathname);
     if (resolved) {
-      return { route: toRouteConfig(resolved), params: resolved.params };
+      return { route: toRouteConfig(resolved.node, resolved.pattern), params: resolved.params };
     }
     if (url.pathname === '/' || url.pathname === '') {
       return { route: DEFAULT_ROOT_ROUTE, params: {} };
@@ -77,36 +82,30 @@ export class Pipeline {
     return undefined;
   }
 
-  findRoute(pattern: string): RouteConfig | undefined {
-    const node = this.resolver.findRoute(pattern);
+  async findRoute(pattern: string): Promise<RouteConfig | undefined> {
+    const resolver = await this.getResolver();
+    const node = resolver.findRoute(pattern);
     if (!node) return undefined;
-    return {
-      pattern,
-      type: node.redirect ? 'redirect' : 'page',
-      modulePath: node.redirect ?? node.files?.ts ?? node.files?.js ?? node.files?.html ?? node.files?.md ?? '',
-      ...(node.files ? { files: node.files } : {}),
-    };
+    return toRouteConfig(node, pattern);
   }
 
-  findErrorBoundary(pathname: string): { pattern: string; modulePath: string } | undefined {
-    const modulePath = this.resolver.findErrorBoundary(pathname);
+  async findErrorBoundary(pathname: string): Promise<{ pattern: string; modulePath: string } | undefined> {
+    const resolver = await this.getResolver();
+    const modulePath = resolver.findErrorBoundary(pathname);
     if (!modulePath) return undefined;
     return { pattern: pathname, modulePath };
   }
 
-  getStatusPage(status: number): RouteConfig | undefined {
-    const node = this.resolver.findRoute(`/${status}`);
+  async getStatusPage(status: number): Promise<RouteConfig | undefined> {
+    const resolver = await this.getResolver();
+    const node = resolver.findRoute(`/${status}`);
     if (!node) return undefined;
-    return {
-      pattern: `/${status}`,
-      type: 'page',
-      modulePath: node.files?.ts ?? node.files?.js ?? node.files?.html ?? node.files?.md ?? '',
-      ...(node.files ? { files: node.files } : {}),
-    };
+    return toRouteConfig(node, `/${status}`);
   }
 
-  getErrorHandler(): RouteConfig | undefined {
-    const modulePath = this.resolver.findErrorBoundary('/');
+  async getErrorHandler(): Promise<RouteConfig | undefined> {
+    const resolver = await this.getResolver();
+    const modulePath = resolver.findErrorBoundary('/');
     if (!modulePath) return undefined;
     return { pattern: '/', type: 'error', modulePath };
   }
@@ -128,29 +127,20 @@ export class Pipeline {
   // ── Module loading ─────────────────────────────────────────────────
 
   async loadModule<T>(modulePath: string): Promise<T> {
-    const cached = this.moduleCache.get(modulePath);
-    if (cached !== undefined) return cached as T;
-
-    let mod: unknown;
     const loader = this.moduleLoaders[modulePath];
     if (loader) {
-      mod = await loader();
-    } else {
-      const abs = modulePath.startsWith('/') ? modulePath : '/' + modulePath;
-      mod = await this.runtime.loadModule(abs);
+      return await loader() as T;
     }
-
-    this.moduleCache.set(modulePath, mod);
-    return mod as T;
+    const abs = modulePath.startsWith('/') ? modulePath : '/' + modulePath;
+    return await this.runtime.loadModule(abs) as T;
   }
 
   /**
-   * Get inlined `__files` from a cached module (merged module pattern).
+   * Get inlined `__files` from a loaded module (merged module pattern).
    */
-  getModuleFiles(modulePath: string): FileContents | undefined {
-    const cached = this.moduleCache.get(modulePath);
-    if (!cached || typeof cached !== 'object') return undefined;
-    const files = (cached as Record<string, unknown>).__files;
+  getModuleFiles(mod: unknown): FileContents | undefined {
+    if (!mod || typeof mod !== 'object') return undefined;
+    const files = (mod as Record<string, unknown>).__files;
     if (!files || typeof files !== 'object') return undefined;
     return files as FileContents;
   }
@@ -162,12 +152,8 @@ export class Pipeline {
   ): Promise<FileContents> {
     const load = async (path: string): Promise<string | undefined> => {
       const abs = path.startsWith('/') ? path : '/' + path;
-      const cached = this.fileCache.get(abs);
-      if (cached !== undefined) return cached;
       try {
-        const content = await this.runtime.query(abs, { as: 'text' });
-        this.fileCache.set(abs, content);
-        return content;
+        return await this.runtime.query(abs, { as: 'text' });
       } catch (e) {
         console.warn(
           `[Pipeline] Failed to load file ${path}:`,
@@ -201,12 +187,12 @@ export class Pipeline {
     route: RouteConfig,
     signal?: AbortSignal,
     isLeaf?: boolean,
+    loadedModule?: unknown,
   ): Promise<ComponentContext> {
     const rf = route.files;
-    const modulePath = rf?.ts ?? rf?.js;
 
     // Try inlined __files from merged module first
-    const inlined = modulePath ? this.getModuleFiles(modulePath) : undefined;
+    const inlined = loadedModule ? this.getModuleFiles(loadedModule) : undefined;
 
     let files: FileContents;
     if (inlined) {

@@ -21,7 +21,7 @@ import type { ComponentContext } from '../../core/type/component.type.ts';
 import { WidgetRegistry } from '../../core/widget/widget.registry.ts';
 import { WidgetComponent } from '../../core/component/widget.component.ts';
 import { Runtime } from '../../core/runtime/abstract.runtime.ts';
-import { createResolver, url, type TestManifest } from './test.util.ts';
+import { writeManifest, url, type TestManifest } from './test.util.ts';
 
 // ============================================================================
 // Test Infrastructure
@@ -71,14 +71,13 @@ function createRenderer(
     extendContext?: (ctx: ComponentContext) => ComponentContext;
   },
 ): SsrMdRenderer {
-  const resolver = createResolver(manifest.routes ?? [], {
+  writeManifest(runtime, manifest.routes ?? [], {
     ...(manifest.errorBoundaries ? { errorBoundaries: manifest.errorBoundaries } : {}),
     ...(manifest.statusPages ? { statusPages: manifest.statusPages } : {}),
     ...(manifest.errorHandler ? { errorHandler: manifest.errorHandler } : {}),
   });
   const pipeline = new Pipeline({
     runtime,
-    resolver,
     ...(manifest.moduleLoaders ? { moduleLoaders: manifest.moduleLoaders } : {}),
     ...(options?.extendContext ? { contextProvider: options.extendContext } : {}),
   });

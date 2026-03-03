@@ -10,7 +10,7 @@
  */
 
 import type { Runtime } from '../runtime/abstract.runtime.ts';
-import { ROUTES_MANIFEST_PATH, WIDGETS_MANIFEST_PATH } from '../runtime/abstract.runtime.ts';
+import { ROUTES_MANIFEST_PATH, WIDGETS_MANIFEST_PATH } from '../core/server/server.type.ts';
 import { EMROUTE_VIRTUAL_NS } from './build.util.ts';
 
 /** Escape a string for use inside a single-quoted JS/TS string literal. */

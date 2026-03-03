@@ -8,19 +8,19 @@
  * link clicks, calls `htmlRouter.render()`, and injects the result.
  */
 
-import type { EmrouteServer } from '../../../server/server-api.type.ts';
-import { createEmrouteServer } from '../../../server/emroute.server.ts';
+import type { EmrouteServer } from '../../../core/server/server.type.ts';
+import { createEmrouteServer } from '../../../core/server/emroute.server.ts';
 import { FetchRuntime } from '../../../runtime/fetch.runtime.ts';
-import { ROUTES_MANIFEST_PATH, WIDGETS_MANIFEST_PATH, ELEMENTS_MANIFEST_PATH } from '../../../runtime/abstract.runtime.ts';
-import type { RouteNode } from '../../type/route-tree.type.ts';
-import type { NavigateOptions } from '../../type/route.type.ts';
-import type { WidgetManifestEntry } from '../../type/widget.type.ts';
-import type { ElementManifestEntry } from '../../type/element.type.ts';
-import { assertSafeRedirect, type BasePath, DEFAULT_BASE_PATH } from '../../route/route.core.ts';
-import { escapeHtml } from '../../util/html.util.ts';
+import { ROUTES_MANIFEST_PATH, WIDGETS_MANIFEST_PATH, ELEMENTS_MANIFEST_PATH } from '../../../core/server/server.type.ts';
+import type { RouteNode } from '../../../core/type/route-tree.type.ts';
+import type { NavigateOptions } from '../../../core/type/route.type.ts';
+import type { WidgetManifestEntry } from '../../../core/type/widget.type.ts';
+import type { ElementManifestEntry } from '../../../core/type/element.type.ts';
+import { type BasePath, DEFAULT_BASE_PATH } from '../../../core/server/server.type.ts';
+import { assertSafeRedirect, escapeHtml } from '../../../core/util/html.util.ts';
 import { ComponentElement } from '../../element/component.element.ts';
 import { MarkdownElement } from '../../element/markdown.element.ts';
-import { WidgetRegistry } from '../../widget/widget.registry.ts';
+import { WidgetRegistry } from '../../../core/widget/widget.registry.ts';
 
 /** Options for `createEmrouteApp`. */
 export interface EmrouteAppOptions {
@@ -114,13 +114,13 @@ export class EmrouteApp {
   }
 
   private async handleNavigation(url: URL, signal: AbortSignal): Promise<void> {
-    if (!this.slot || !this.server.htmlRouter) return;
+    if (!this.slot || !this.server.htmlRenderer) return;
 
     const routePath = this.stripAppBase(url.pathname);
     const routeUrl = new URL(routePath + url.search, url.origin);
 
     try {
-      const { content, title, redirect } = await this.server.htmlRouter.render(routeUrl, signal);
+      const { content, title, redirect } = await this.server.htmlRenderer.render(routeUrl, signal);
 
       if (signal.aborted) return;
 

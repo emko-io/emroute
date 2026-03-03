@@ -45,3 +45,31 @@ export interface ErrorBoundary {
   pattern: string;
   modulePath: string;
 }
+
+/** Router state for history management. */
+export interface RouterState {
+  pathname: string;
+  params: RouteParams;
+  scrollY?: number;
+}
+
+/** Navigation options. */
+export interface NavigateOptions {
+  replace?: boolean;
+  state?: RouterState;
+  hash?: string;
+}
+
+/** Router event types. */
+export type RouterEventType = 'navigate' | 'error' | 'load';
+
+/** Router event payload. */
+export interface RouterEvent {
+  type: RouterEventType;
+  pathname: string;
+  params: RouteParams;
+  error?: Error;
+}
+
+/** Router event listener. */
+export type RouterEventListener = (event: RouterEvent) => void;

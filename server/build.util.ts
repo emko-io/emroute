@@ -21,12 +21,12 @@ import {
   ROUTES_MANIFEST_PATH,
   WIDGETS_MANIFEST_PATH,
   ELEMENTS_MANIFEST_PATH,
-} from '../runtime/abstract.runtime.ts';
-import type { RouteNode } from '../src/type/route-tree.type.ts';
-import type { WidgetManifestEntry } from '../src/type/widget.type.ts';
-import type { ElementManifestEntry } from '../src/type/element.type.ts';
+} from '../core/server/server.type.ts';
+import type { RouteNode } from '../core/type/route-tree.type.ts';
+import type { WidgetManifestEntry } from '../core/type/widget.type.ts';
+import type { ElementManifestEntry } from '../core/type/element.type.ts';
 import { generateMainTs } from './codegen.util.ts';
-import type { SpaMode } from '../src/type/widget.type.ts';
+import type { SpaMode } from '../core/type/widget.type.ts';
 
 export const EMROUTE_EXTERNALS = [
   '@emkodev/emroute/spa',

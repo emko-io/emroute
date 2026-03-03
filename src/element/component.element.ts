@@ -9,12 +9,10 @@
  * - Loading/error states
  */
 
-import type {
-  Component,
-  ComponentContext,
-  ContextProvider,
-} from '../component/abstract.component.ts';
-import { HTMLElementBase, LAZY_ATTR, SSR_ATTR } from '../util/html.util.ts';
+import type { Component } from '../../core/component/abstract.component.ts';
+import type { ComponentContext, ContextProvider } from '../../core/type/component.type.ts';
+import { HTMLElementBase } from '../util/html.util.ts';
+import { LAZY_ATTR, SSR_ATTR } from '../../core/util/html.util.ts';
 
 type ComponentState = 'idle' | 'loading' | 'ready' | 'error';
 

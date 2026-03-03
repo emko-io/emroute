@@ -23,6 +23,7 @@
     "url": "https://github.com/emko-io/emroute.git"
   },
   "files": [
+    "core/",
     "src/",
     "server/*.ts",
     "runtime/",
@@ -47,14 +48,14 @@
       "default": "./dist/src/overlay/mod.js"
     },
     "./ssr/html": {
-      "bun": "./src/renderer/ssr/html.renderer.ts",
-      "types": "./dist/src/renderer/ssr/html.renderer.d.ts",
-      "default": "./dist/src/renderer/ssr/html.renderer.js"
+      "bun": "./core/renderer/html.renderer.ts",
+      "types": "./dist/core/renderer/html.renderer.d.ts",
+      "default": "./dist/core/renderer/html.renderer.js"
     },
     "./ssr/md": {
-      "bun": "./src/renderer/ssr/md.renderer.ts",
-      "types": "./dist/src/renderer/ssr/md.renderer.d.ts",
-      "default": "./dist/src/renderer/ssr/md.renderer.js"
+      "bun": "./core/renderer/md.renderer.ts",
+      "types": "./dist/core/renderer/md.renderer.d.ts",
+      "default": "./dist/core/renderer/md.renderer.js"
     },
     "./server": {
       "bun": "./server/emroute.server.ts",
@@ -101,7 +102,6 @@
     "@emkodev/emkoma": "^0.1.0",
     "@eslint/js": "^10.0.1",
     "@types/bun": "^1.3.9",
-    "esbuild": "^0.27.3",
     "eslint": "^10.0.2",
     "playwright": "^1.58.2",
     "typescript": "^5.9.3",

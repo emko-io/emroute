@@ -17,7 +17,6 @@ import type { RouteNode } from '../type/route-tree.type.ts';
 export function resolveTargetNode(node: RouteNode, name: string, isRoot: boolean): RouteNode {
   if (name === 'index') {
     if (isRoot) return node;
-    // Non-root index → wildcard catch-all
     node.wildcard ??= { param: 'rest', child: {} };
     return node.wildcard.child;
   }
@@ -28,7 +27,6 @@ export function resolveTargetNode(node: RouteNode, name: string, isRoot: boolean
     return node.dynamic.child;
   }
 
-  // Static segment
   node.children ??= {};
   node.children[name] ??= {};
   return node.children[name];

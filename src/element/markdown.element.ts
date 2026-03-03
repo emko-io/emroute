@@ -7,8 +7,9 @@
  * - Source attribute: <mark-down src="/path/to.md"></mark-down>
  */
 
-import { escapeHtml, HTMLElementBase } from '../util/html.util.ts';
-import type { MarkdownRenderer } from '../type/markdown.type.ts';
+import { HTMLElementBase } from '../util/html.util.ts';
+import { escapeHtml } from '../../core/util/html.util.ts';
+import type { MarkdownRenderer } from '../../core/type/markdown.type.ts';
 
 export class MarkdownElement extends HTMLElementBase {
   private static renderer: MarkdownRenderer | null = null;

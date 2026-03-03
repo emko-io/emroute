@@ -16,9 +16,9 @@ import type {
   RouteParams,
   RouterEvent,
   RouterEventListener,
-} from '../type/route.type.ts';
-import type { ComponentContext, ContextProvider, FileContents } from '../component/abstract.component.ts';
-import type { RouteResolver, ResolvedRoute } from './route.resolver.ts';
+} from '../../core/type/route.type.ts';
+import type { ComponentContext, ContextProvider, FileContents } from '../../core/type/component.type.ts';
+import type { RouteResolver, ResolvedRoute } from '../../core/router/route.resolver.ts';
 
 /** Base paths for the two SSR rendering endpoints. */
 export interface BasePath {

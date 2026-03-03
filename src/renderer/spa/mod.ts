@@ -10,22 +10,22 @@
 import { RouterSlot } from '../../element/slot.element.ts';
 import { MarkdownElement } from '../../element/markdown.element.ts';
 import { ComponentElement } from '../../element/component.element.ts';
-import { WidgetRegistry } from '../../widget/widget.registry.ts';
+import { WidgetRegistry } from '../../../core/widget/widget.registry.ts';
 
 export { bootEmrouteApp, createEmrouteApp, EmrouteApp, type BootOptions, type EmrouteAppOptions } from './thin-client.ts';
 export { ComponentElement, MarkdownElement, RouterSlot, WidgetRegistry };
-export type { SpaMode, WidgetsManifest } from '../../type/widget.type.ts';
+export type { SpaMode, WidgetsManifest } from '../../../core/type/widget.type.ts';
 
 // Re-export base classes and types for consumer code (pages, widgets)
-export { PageComponent } from '../../component/page.component.ts';
-export { WidgetComponent } from '../../component/widget.component.ts';
-export {
-  Component,
-  type ComponentContext,
-  type ComponentManifestEntry,
-  type ContextProvider,
-  type RenderContext,
-} from '../../component/abstract.component.ts';
+export { PageComponent } from '../../../core/component/page.component.ts';
+export { WidgetComponent } from '../../../core/component/widget.component.ts';
+export { Component } from '../../../core/component/abstract.component.ts';
+export type {
+  ComponentContext,
+  ComponentManifestEntry,
+  ContextProvider,
+  RenderContext,
+} from '../../../core/type/component.type.ts';
 export type {
   MatchedRoute,
   NavigateOptions,
@@ -33,13 +33,13 @@ export type {
   RouterEvent,
   RouterEventListener,
   RouterEventType,
-} from '../../type/route.type.ts';
-export type { RouteNode } from '../../type/route-tree.type.ts';
-export type { RouteResolver, ResolvedRoute } from '../../route/route.resolver.ts';
-export { RouteTrie } from '../../route/route.trie.ts';
-export type { MarkdownRenderer } from '../../type/markdown.type.ts';
-export { type BasePath, DEFAULT_BASE_PATH } from '../../route/route.core.ts';
-export { escapeHtml, scopeWidgetCss } from '../../util/html.util.ts';
+} from '../../../core/type/route.type.ts';
+export type { RouteNode } from '../../../core/type/route-tree.type.ts';
+export type { RouteResolver, ResolvedRoute } from '../../../core/router/route.resolver.ts';
+export { RouteTrie } from '../../../core/router/route.trie.ts';
+export type { MarkdownRenderer } from '../../../core/type/markdown.type.ts';
+export { type BasePath, DEFAULT_BASE_PATH } from '../../../core/server/server.type.ts';
+export { escapeHtml, scopeWidgetCss } from '../../../core/util/html.util.ts';
 export type {
   ErrorBoundary,
   RedirectConfig,
@@ -48,9 +48,9 @@ export type {
   RouteFileType,
   RouteInfo,
   RouterState,
-} from '../../type/route.type.ts';
-export type { ParsedWidgetBlock, WidgetManifestEntry } from '../../type/widget.type.ts';
-export { type Logger, setLogger } from '../../type/logger.type.ts';
+} from '../../../core/type/route.type.ts';
+export type { ParsedWidgetBlock, WidgetManifestEntry } from '../../../core/type/widget.type.ts';
+export { type Logger, setLogger } from '../../../core/type/logger.type.ts';
 
 // Register core custom elements in the browser
 if (globalThis.customElements) {

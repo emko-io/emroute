@@ -28,3 +28,12 @@ export type ContextProvider = (base: ComponentContext) => ComponentContext;
 
 /** Render context determines how components are rendered. */
 export type RenderContext = 'markdown' | 'html' | 'spa';
+
+/** Component manifest entry for code generation. */
+export interface ComponentManifestEntry {
+  name: string;
+  modulePath: string;
+  tagName: string;
+  type: 'page' | 'widget';
+  pattern?: string;
+}

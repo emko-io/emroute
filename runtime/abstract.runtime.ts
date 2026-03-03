@@ -1,7 +1,7 @@
-import type { RouteNode, RouteFiles } from '../src/type/route-tree.type.ts';
-import { resolveTargetNode } from '../src/route/route-tree.util.ts';
-import type { WidgetManifestEntry } from '../src/type/widget.type.ts';
-import type { ElementManifestEntry } from '../src/type/element.type.ts';
+import type { RouteNode, RouteFiles } from '../core/type/route-tree.type.ts';
+import { resolveTargetNode } from '../core/util/route-tree.util.ts';
+import type { WidgetManifestEntry } from '../core/type/widget.type.ts';
+import type { ElementManifestEntry } from '../core/type/element.type.ts';
 
 export const CONTENT_TYPES: Map<string, string> = new Map<string, string>([
   ['.html', 'text/html; charset=utf-8'],

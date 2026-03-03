@@ -5,10 +5,10 @@
  * for use with RouteTrie in tests.
  */
 
-import type { RouteNode } from '../../src/type/route-tree.type.ts';
-import type { RouteConfig, ErrorBoundary } from '../../src/type/route.type.ts';
-import { RouteTrie } from '../../src/route/route.trie.ts';
-import type { RouteResolver } from '../../src/route/route.resolver.ts';
+import type { RouteNode } from '../../core/type/route-tree.type.ts';
+import type { RouteConfig, ErrorBoundary } from '../../core/type/route.type.ts';
+import { RouteTrie } from '../../core/router/route.trie.ts';
+import type { RouteResolver } from '../../core/router/route.resolver.ts';
 
 /**
  * Old-style manifest shape for test compatibility.

@@ -8,9 +8,9 @@
 
 import { test, expect, describe } from 'bun:test';
 import { BunSqliteRuntime } from '../../runtime/bun/sqlite/bun-sqlite.runtime.ts';
-import type { RouteNode } from '../../src/type/route-tree.type.ts';
-import type { WidgetManifestEntry } from '../../src/type/widget.type.ts';
-import type { ElementManifestEntry } from '../../src/type/element.type.ts';
+import type { RouteNode } from '../../core/type/route-tree.type.ts';
+import type { WidgetManifestEntry } from '../../core/type/widget.type.ts';
+import type { ElementManifestEntry } from '../../core/type/element.type.ts';
 
 /** Helper: query manifest as typed JSON. */
 async function routeTree(runtime: BunSqliteRuntime): Promise<RouteNode> {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { rewriteMdLinks } from '../../src/util/md.util.ts';
+import { rewriteMdLinks } from '../../core/util/md.util.ts';
 
 const BASE = '/md';
 const SKIP = ['/md', '/html'];

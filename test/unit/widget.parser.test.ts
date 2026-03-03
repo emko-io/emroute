@@ -1,6 +1,6 @@
 import { test, expect } from 'bun:test';
-import { parseWidgetBlocks, replaceWidgetBlocks } from '../../src/widget/widget.parser.ts';
-import type { ParsedWidgetBlock } from '../../src/type/widget.type.ts';
+import { parseWidgetBlocks, replaceWidgetBlocks } from '../../core/widget/widget.parser.ts';
+import type { ParsedWidgetBlock } from '../../core/type/widget.type.ts';
 
 test('parseWidgetBlocks - single widget block', () => {
   const markdown = `Some text\n\`\`\`widget:test-widget\n{"key": "value"}\n\`\`\`\nMore text`;

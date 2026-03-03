@@ -12,8 +12,8 @@
  */
 
 import { test, expect, describe } from 'bun:test';
-import type { ComponentContext } from '../../src/component/abstract.component.ts';
-import { Component } from '../../src/component/abstract.component.ts';
+import type { ComponentContext } from '../../core/type/component.type.ts';
+import { Component } from '../../core/component/abstract.component.ts';
 
 // ============================================================================
 // Test Fixtures & Helpers

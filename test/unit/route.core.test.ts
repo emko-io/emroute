@@ -20,8 +20,8 @@ import {
   DEFAULT_ROOT_ROUTE,
   RouteCore,
 } from '../../src/route/route.core.ts';
-import type { RouteConfig, RouteInfo } from '../../src/type/route.type.ts';
-import type { ComponentContext } from '../../src/component/abstract.component.ts';
+import type { RouteConfig, RouteInfo } from '../../core/type/route.type.ts';
+import type { ComponentContext } from '../../core/type/component.type.ts';
 import { createResolver, url } from './test.util.ts';
 
 /**

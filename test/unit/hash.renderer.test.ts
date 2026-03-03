@@ -13,10 +13,10 @@
 
 import { test, expect, describe } from 'bun:test';
 import { RouteCore } from '../../src/route/route.core.ts';
-import { PageComponent } from '../../src/component/page.component.ts';
-import type { ComponentContext, ContextProvider } from '../../src/component/abstract.component.ts';
+import { PageComponent } from '../../core/component/page.component.ts';
+import type { ComponentContext, ContextProvider } from '../../core/type/component.type.ts';
 import { createResolver } from './test.util.ts';
-import type { RouteResolver } from '../../src/route/route.resolver.ts';
+import type { RouteResolver } from '../../core/router/route.resolver.ts';
 
 // deno-lint-ignore no-explicit-any
 const asAny = (v: unknown): any => v;

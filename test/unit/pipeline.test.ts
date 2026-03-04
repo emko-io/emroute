@@ -519,7 +519,7 @@ test('Pipeline.buildContext - uses inlined __files from loaded module when passe
 test('Pipeline.buildContext - returns empty files when route has no files property', async () => {
   const pipeline = new Pipeline({ runtime: new MockRuntime() });
 
-  const route = createTestRoute({ pattern: '/bare', files: undefined });
+  const route = createTestRoute({ pattern: '/bare' });
   const routeInfo = { url: url('/bare'), params: {} };
 
   const ctx = await pipeline.buildContext(routeInfo, route);

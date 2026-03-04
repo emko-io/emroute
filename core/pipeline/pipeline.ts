@@ -174,9 +174,9 @@ export class Pipeline {
     ]);
 
     const result: FileContents = {};
-    if (html != null) result.html = html;
-    if (md != null) result.md = md;
-    if (css != null) result.css = css;
+    if (html !== undefined) result.html = html;
+    if (md !== undefined) result.md = md;
+    if (css !== undefined) result.css = css;
     return result;
   }
 
@@ -217,7 +217,7 @@ export class Pipeline {
       searchParams: routeInfo.url.searchParams,
       files,
       ...(signal ? { signal } : {}),
-      ...(isLeaf != null ? { isLeaf } : {}),
+      ...(isLeaf !== undefined ? { isLeaf } : {}),
     };
     return this.contextProvider ? this.contextProvider(base) : base;
   }

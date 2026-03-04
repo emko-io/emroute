@@ -10,11 +10,11 @@ import { buildClientBundles } from '../../../server/build.util.ts';
 import { BunFsRuntime } from '../../../runtime/bun/fs/bun-fs.runtime.ts';
 import type { RuntimeConfig } from '../../../runtime/abstract.runtime.ts';
 
-import { WidgetRegistry } from '../../../src/widget/widget.registry.ts';
-import type { MarkdownRenderer } from '../../../src/type/markdown.type.ts';
+import { WidgetRegistry } from '../../../core/widget/widget.registry.ts';
+import type { MarkdownRenderer } from '../../../core/type/markdown.type.ts';
 import { renderMarkdown } from '@emkodev/emkoma/render';
 import { externalWidget } from '../fixtures/assets/external.widget.ts';
-import type { SpaMode } from '../../../src/type/widget.type.ts';
+import type { SpaMode } from '../../../core/type/widget.type.ts';
 
 import { resolve } from 'node:path';
 import { type Browser, chromium, type Page } from 'playwright';

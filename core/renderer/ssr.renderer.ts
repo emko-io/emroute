@@ -56,7 +56,7 @@ export abstract class SsrRenderer {
         try {
           const ri: RouteInfo = { url, params: {} };
           const result = await this.renderRouteContent(ri, statusPage, undefined, signal);
-          return { content: this.stripSlots(result.content), status: 404, ...(result.title != null ? { title: result.title } : {}) };
+          return { content: this.stripSlots(result.content), status: 404, ...(result.title !== undefined ? { title: result.title } : {}) };
         } catch (e) {
           this.logger.error(
             `[${this.label}] Failed to render 404 status page for ${url.pathname}`,
@@ -85,7 +85,7 @@ export abstract class SsrRenderer {
 
     try {
       const { content, title } = await this.renderPage(routeInfo, matched, signal);
-      return { content, status: 200, ...(title != null ? { title } : {}) };
+      return { content, status: 200, ...(title !== undefined ? { title } : {}) };
     } catch (error) {
       if (error instanceof Response) {
         const statusPage = await this.pipeline.getStatusPage(error.status);
@@ -96,7 +96,7 @@ export abstract class SsrRenderer {
             return {
               content: this.stripSlots(result.content),
               status: error.status,
-              ...(result.title != null ? { title: result.title } : {}),
+              ...(result.title !== undefined ? { title: result.title } : {}),
             };
           } catch (e) {
             this.logger.error(
@@ -189,7 +189,7 @@ export abstract class SsrRenderer {
 
     result = this.stripSlots(result);
 
-    return { content: result, ...(pageTitle != null ? { title: pageTitle } : {}) };
+    return { content: result, ...(pageTitle !== undefined ? { title: pageTitle } : {}) };
   }
 
   protected abstract renderRouteContent(
@@ -219,7 +219,7 @@ export abstract class SsrRenderer {
     const content = this.renderContent(component, { data, params: routeInfo.params, context });
     const title = component.getTitle({ data, params: routeInfo.params, context });
 
-    return { content, ...(title != null ? { title } : {}) };
+    return { content, ...(title !== undefined ? { title } : {}) };
   }
 
   protected abstract renderContent(

@@ -79,7 +79,7 @@ export class SsrHtmlRenderer extends SsrRenderer {
       );
     }
 
-    return { content, ...(title != null ? { title } : {}) };
+    return { content, ...(title !== undefined ? { title } : {}) };
   }
 
   protected override renderContent(

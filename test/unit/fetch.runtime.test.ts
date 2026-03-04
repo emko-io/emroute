@@ -16,14 +16,14 @@ function mockFetch(
       : input instanceof URL
         ? input.href
         : input.url;
-    calls.push({ url, init });
+    calls.push({ url, ...(init ? { init } : {}) });
 
     const match = responses[url];
     if (match) {
       return Promise.resolve(
         new Response(match.body ?? '', {
           status: match.status ?? 200,
-          headers: match.headers,
+          ...(match.headers ? { headers: match.headers } : {}),
         }),
       );
     }
@@ -31,7 +31,8 @@ function mockFetch(
     return Promise.resolve(new Response('Not Found', { status: 404 }));
   };
 
-  return { fn: fn as typeof globalThis.fetch, calls };
+  (fn as unknown as Record<string, unknown>).preconnect = () => {};
+  return { fn: fn as unknown as typeof globalThis.fetch, calls };
 }
 
 const ORIGIN = 'http://localhost:4100';
@@ -354,9 +355,15 @@ describe('FetchRuntime', () => {
   });
 
   describe('error handling', () => {
+    function failingFetch(message: string): typeof globalThis.fetch {
+      const fn = () => Promise.reject(new TypeError(message));
+      (fn as unknown as Record<string, unknown>).preconnect = () => {};
+      return fn as unknown as typeof globalThis.fetch;
+    }
+
     test('network failure propagates from handle', async () => {
       const original = globalThis.fetch;
-      globalThis.fetch = () => Promise.reject(new TypeError('Failed to fetch'));
+      globalThis.fetch = failingFetch('Failed to fetch');
       try {
         const runtime = new FetchRuntime(ORIGIN);
         await expect(runtime.handle('/any')).rejects.toThrow('Failed to fetch');
@@ -367,7 +374,7 @@ describe('FetchRuntime', () => {
 
     test('network failure propagates from query', async () => {
       const original = globalThis.fetch;
-      globalThis.fetch = () => Promise.reject(new TypeError('Network error'));
+      globalThis.fetch = failingFetch('Network error');
       try {
         const runtime = new FetchRuntime(ORIGIN);
         await expect(runtime.query('/any')).rejects.toThrow('Network error');
@@ -378,7 +385,7 @@ describe('FetchRuntime', () => {
 
     test('network failure propagates from query with as: "text"', async () => {
       const original = globalThis.fetch;
-      globalThis.fetch = () => Promise.reject(new TypeError('Offline'));
+      globalThis.fetch = failingFetch('Offline');
       try {
         const runtime = new FetchRuntime(ORIGIN);
         await expect(runtime.query('/any', { as: 'text' })).rejects.toThrow('Offline');
@@ -389,7 +396,7 @@ describe('FetchRuntime', () => {
 
     test('network failure propagates from command', async () => {
       const original = globalThis.fetch;
-      globalThis.fetch = () => Promise.reject(new TypeError('Connection refused'));
+      globalThis.fetch = failingFetch('Connection refused');
       try {
         const runtime = new FetchRuntime(ORIGIN);
         await expect(runtime.command('/file.txt', { body: 'x' })).rejects.toThrow('Connection refused');

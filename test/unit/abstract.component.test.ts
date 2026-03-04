@@ -138,8 +138,8 @@ class ContextAwareComponent extends Component<
   > {
     const context = args.context as AppContext;
     const result: { userId?: string; isAdmin?: boolean } = {};
-    if (context?.userId != null) result.userId = context.userId;
-    if (context?.isAdmin != null) result.isAdmin = context.isAdmin;
+    if (context?.userId !== undefined) result.userId = context.userId;
+    if (context?.isAdmin !== undefined) result.isAdmin = context.isAdmin;
     return Promise.resolve(result);
   }
 

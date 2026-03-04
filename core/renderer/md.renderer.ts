@@ -61,7 +61,7 @@ export class SsrMdRenderer extends SsrRenderer {
       content = await this.resolveWidgets(content, routeInfo);
     }
 
-    return { content, ...(title != null ? { title } : {}) };
+    return { content, ...(title !== undefined ? { title } : {}) };
   }
 
   protected override renderContent(

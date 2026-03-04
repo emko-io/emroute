@@ -279,21 +279,6 @@ test('SsrMdRenderer - stripSlots handles multiple slot blocks', async () => {
 // Widget Resolution in Markdown Tests
 // ============================================================================
 
-class TestWidget extends WidgetComponent<Record<string, unknown>, { value: string }> {
-  override readonly name = 'test-widget';
-
-  override getData(args: this['DataArgs']): Promise<{ value: string }> {
-    return Promise.resolve({ value: String(args.params.name ?? 'default') });
-  }
-
-  override renderHTML(args: this['RenderArgs']): string {
-    return `<span>Widget: ${args.data!.value}</span>`;
-  }
-
-  override renderMarkdown(args: this['RenderArgs']): string {
-    return `**Widget**: ${args.data!.value}`;
-  }
-}
 
 test('SsrMdRenderer - resolves and renders widgets in markdown content', async () => {
   const routes = [

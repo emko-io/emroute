@@ -3,7 +3,7 @@
 emroute uses `.page.md` files for markdown-driven routes. For these to render
 as HTML, you need a markdown renderer configured in two places:
 
-- **Server (SSR HTML)** — `markdownRenderer` option on `createEmrouteServer()`
+- **Server (SSR HTML)** — `markdownRenderer` option on `Emroute.create()`
   so `/html/*` routes render markdown server-side.
 - **Client (SPA)** — `MarkdownElement.setRenderer()` so the `<mark-down>`
   custom element can convert markdown to HTML in the browser.

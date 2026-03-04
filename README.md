@@ -145,7 +145,7 @@ Pick your runtime: [Bun](doc/01a-setup-bun.md) | [Node](doc/01b-setup-node.md) |
 - [Routing](doc/04-routing.md) — dynamic segments, catch-all, redirects
 - [Nesting](doc/05-nesting.md) — layouts, slots, passthrough pages, tips and tricks
 - [Widgets](doc/06-widgets.md) — interactive islands with data lifecycle
-- [Server](doc/07-server.md) — `createEmrouteServer`, composition, static files
+- [Server](doc/07-server.md) — `Emroute.create`, composition, static files
 - [Markdown renderers](doc/08-markdown-renderer.md) — pluggable parser interface and setup
 - [Runtime](doc/09-runtime.md) — abstract runtime, UniversalFsRuntime, BunFsRuntime, BunSqliteRuntime
 - [SPA modes](doc/10-spa-mode.md) — none, leaf, root, only

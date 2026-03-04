@@ -25,7 +25,7 @@ See [Markdown Renderers](./08-markdown-renderer.md) for full setup with
 ```ts
 // server.ts
 import { Hono } from 'hono';
-import { createEmrouteServer } from '@emkodev/emroute/server';
+import { Emroute } from '@emkodev/emroute/server';
 import { buildClientBundles } from '@emkodev/emroute/server/build';
 import { UniversalFsRuntime } from '@emkodev/emroute/runtime/universal/fs';
 import { render } from './renderer.ts';
@@ -38,7 +38,7 @@ const runtime = new UniversalFsRuntime(appRoot, {
 
 await buildClientBundles({ runtime, root: appRoot, spa: 'root' });
 
-const emroute = await createEmrouteServer({
+const emroute = await Emroute.create({
   spa: 'root',
   markdownRenderer: { render },
   title: 'emroute + hono',
@@ -62,7 +62,7 @@ export default app;
 Key points:
 
 - **`buildClientBundles()`** produces `emroute.js`, `app.js`, and `index.html`
-  for SPA mode. Call it before `createEmrouteServer()`. Skip for `spa: 'none'`
+  for SPA mode. Call it before `Emroute.create()`. Skip for `spa: 'none'`
 - **`c.req.raw`** gives Hono's underlying Web API `Request`, which emroute
   expects
 - **`handleRequest()`** returns `Response | null` — return it when matched, fall

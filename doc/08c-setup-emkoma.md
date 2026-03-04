@@ -16,7 +16,7 @@ bun add @emkodev/emkoma
 
 ```ts
 // server.ts
-import { createEmrouteServer } from '@emkodev/emroute/server';
+import { Emroute } from '@emkodev/emroute/server';
 import { BunFsRuntime } from '@emkodev/emroute/runtime/bun/fs';
 import { renderMarkdown } from '@emkodev/emkoma/render';
 
@@ -26,7 +26,7 @@ const runtime = new BunFsRuntime(appRoot, {
   routesDir: '/routes',
 });
 
-const emroute = await createEmrouteServer({
+const emroute = await Emroute.create({
   markdownRenderer: { render: renderMarkdown },
 }, runtime);
 

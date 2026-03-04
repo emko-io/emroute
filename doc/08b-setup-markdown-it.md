@@ -75,7 +75,7 @@ becomes `<router-slot>`, and ```` ```widget:counter ```` becomes
 
 ```ts
 // server.ts
-import { createEmrouteServer } from '@emkodev/emroute/server';
+import { Emroute } from '@emkodev/emroute/server';
 import { BunFsRuntime } from '@emkodev/emroute/runtime/bun/fs';
 import { render } from './renderer.ts';
 
@@ -85,7 +85,7 @@ const runtime = new BunFsRuntime(appRoot, {
   routesDir: '/routes',
 });
 
-const emroute = await createEmrouteServer({
+const emroute = await Emroute.create({
   markdownRenderer: { render },
 }, runtime);
 

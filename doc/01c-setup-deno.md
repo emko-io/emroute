@@ -93,7 +93,7 @@ This is my first page.
 Create `server.ts` in your project root:
 
 ```ts
-import { createEmrouteServer } from '@emkodev/emroute/server';
+import { Emroute } from '@emkodev/emroute/server';
 import { UniversalFsRuntime } from '@emkodev/emroute/runtime/universal/fs';
 
 const appRoot = import.meta.dirname!;
@@ -102,7 +102,7 @@ const runtime = new UniversalFsRuntime(appRoot, {
   routesDir: '/routes',
 });
 
-const emroute = await createEmrouteServer({
+const emroute = await Emroute.create({
   spa: 'none',
   title: 'My App',
 }, runtime);

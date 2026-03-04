@@ -16,7 +16,7 @@ const root = resolve(import.meta.dirname!, '..');
 // Virtual entry that re-exports the three browser-facing modules
 const entry = [
   `export * from './src/renderer/spa/mod.js';`,
-  `export { createEmrouteServer } from './server/emroute.server.js';`,
+  `export { Emroute } from './server/emroute.server.js';`,
   `export { FetchRuntime } from './runtime/fetch.runtime.js';`,
 ].join('\n');
 

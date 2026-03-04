@@ -3,7 +3,7 @@
  *
  * Standalone client build step — extracted from Runtime so that build is a
  * separate concern from storage. Call `buildClientBundles()` before
- * `createEmrouteServer()` to produce emroute.js + app.js.
+ * `Emroute.create()` to produce emroute.js + app.js.
  *
  * Route tree and widget manifest are fetched as JSON at boot time by
  * `bootEmrouteApp()` — no longer compiled into app.js.

@@ -3,13 +3,12 @@
 /**
  * Emroute App
  *
- * Browser entry point for `/app/` routes. Wraps an EmrouteServer instance
+ * Browser entry point for `/app/` routes. Wraps an Emroute instance
  * (same server, same pipeline) with Navigation API glue that intercepts
  * link clicks, calls `htmlRouter.render()`, and injects the result.
  */
 
-import type { EmrouteServer } from '../../../core/server/server.type.ts';
-import { createEmrouteServer } from '../../../core/server/emroute.server.ts';
+import { Emroute } from '../../../core/server/emroute.server.ts';
 import { FetchRuntime } from '../../../runtime/fetch.runtime.ts';
 import { ROUTES_MANIFEST_PATH, WIDGETS_MANIFEST_PATH, ELEMENTS_MANIFEST_PATH } from '../../../core/server/server.type.ts';
 import type { RouteNode } from '../../../core/type/route-tree.type.ts';
@@ -27,14 +26,14 @@ export interface EmrouteAppOptions {
   basePath?: BasePath;
 }
 
-/** Browser app — Navigation API wired to an EmrouteServer. */
+/** Browser app — Navigation API wired to an Emroute. */
 export class EmrouteApp {
-  private readonly server: EmrouteServer;
+  private readonly server: Emroute;
   private readonly appBase: string;
   private slot: Element | null = null;
   private abortController: AbortController | null = null;
 
-  constructor(server: EmrouteServer, options?: EmrouteAppOptions) {
+  constructor(server: Emroute, options?: EmrouteAppOptions) {
     const bp = options?.basePath ?? DEFAULT_BASE_PATH;
     this.server = server;
     this.appBase = bp.app;
@@ -159,7 +158,7 @@ export class EmrouteApp {
  * Stored on `globalThis.__emroute_app` for programmatic access.
  */
 export async function createEmrouteApp(
-  server: EmrouteServer,
+  server: Emroute,
   options?: EmrouteAppOptions,
 ): Promise<EmrouteApp> {
   const g = globalThis as Record<string, unknown>;
@@ -238,9 +237,9 @@ export async function bootEmrouteApp(options?: BootOptions): Promise<EmrouteApp>
     }
   }
 
-  // Create the server (reuses the same createEmrouteServer as SSR)
+  // Create Emroute instance (same class as SSR)
   const mdRenderer = MarkdownElement.getConfiguredRenderer();
-  const server = await createEmrouteServer({
+  const server = await Emroute.create({
     routeTree,
     widgets,
     moduleLoaders,

@@ -5,7 +5,7 @@
  * Each test file creates its own server instance with a specific SPA mode and port.
  */
 
-import { createEmrouteServer } from '../../../server/emroute.server.ts';
+import { Emroute } from '../../../server/emroute.server.ts';
 import { buildClientBundles } from '../../../server/build.util.ts';
 import { BunFsRuntime } from '../../../runtime/bun/fs/bun-fs.runtime.ts';
 import type { RuntimeConfig } from '../../../runtime/abstract.runtime.ts';
@@ -58,7 +58,7 @@ export async function createTestServer(options: {
   manualWidgets.add(externalWidget);
 
   // Create emroute server (reads manifests from runtime)
-  const emroute = await createEmrouteServer({
+  const emroute = await Emroute.create({
     widgets: manualWidgets,
     markdownRenderer,
     spa: mode,

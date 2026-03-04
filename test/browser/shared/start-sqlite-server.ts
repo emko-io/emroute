@@ -9,8 +9,7 @@
 
 import { BunSqliteRuntime } from '../../../runtime/bun/sqlite/bun-sqlite.runtime.ts';
 import { buildClientBundles } from '../../../server/build.util.ts';
-import { createEmrouteServer } from '../../../server/emroute.server.ts';
-import type { EmrouteServer } from '../../../server/server-api.type.ts';
+import { Emroute } from '../../../server/emroute.server.ts';
 
 const port = Number(process.env.TEST_PORT ?? 4102);
 const spaMode = (process.env.SPA_MODE ?? 'root') as 'none' | 'root';
@@ -106,10 +105,10 @@ if (spaMode !== 'none') {
 
 // ── Server ───────────────────────────────────────────────────────────
 
-let emroute: EmrouteServer;
+let emroute: Emroute;
 
 async function rebuildServer(): Promise<void> {
-  emroute = await createEmrouteServer({ spa: spaMode }, runtime);
+  emroute = await Emroute.create({ spa: spaMode }, runtime);
 }
 
 await rebuildServer();

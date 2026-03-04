@@ -1,10 +1,11 @@
 /**
  * Server API Types — re-exports from core/server.
  */
+export { Emroute } from '../core/server/emroute.server.ts';
+
 export type {
   BasePath,
-  EmrouteServer,
-  EmrouteServerConfig,
+  EmrouteConfig,
 } from '../core/server/server.type.ts';
 
 export {

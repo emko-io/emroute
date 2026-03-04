@@ -123,6 +123,8 @@ export class SsrMdRenderer extends SsrRenderer {
         }
       },
       replaceWidgetBlocks,
+      0,
+      this.logger,
     );
   }
 }

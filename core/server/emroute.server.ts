@@ -1,7 +1,7 @@
 /**
- * Emroute Server
+ * Emroute
  *
- * Runtime-agnostic HTTP layer. Reads manifests from Runtime,
+ * Framework entry point. Reads manifests from Runtime,
  * builds Pipeline + Renderers, handles Request → Response.
  */
 
@@ -18,236 +18,150 @@ import {
   DEFAULT_BASE_PATH,
   ROUTES_MANIFEST_PATH,
   WIDGETS_MANIFEST_PATH,
-  type EmrouteServer,
-  type EmrouteServerConfig,
+  type EmrouteConfig,
 } from './server.type.ts';
 
-// ── Widget helpers ─────────────────────────────────────────────────────
+export class Emroute {
+  readonly htmlRenderer: SsrHtmlRenderer | null;
+  readonly mdRenderer: SsrMdRenderer | null;
+  readonly shell: string;
 
-function extractWidgetExport(
-  mod: Record<string, unknown>,
-): WidgetComponent | null {
-  for (const value of Object.values(mod)) {
-    if (!value) continue;
-    if (typeof value === 'object' && 'getData' in value) {
-      return value as WidgetComponent;
-    }
-    if (typeof value === 'function' && value.prototype?.getData) {
-      return new (value as new () => WidgetComponent)();
-    }
+  private constructor(
+    htmlRenderer: SsrHtmlRenderer | null,
+    mdRenderer: SsrMdRenderer | null,
+    shell: string,
+    private readonly runtime: Runtime,
+    private readonly htmlBase: string,
+    private readonly mdBase: string,
+    private readonly appBase: string,
+    private readonly spa: string,
+    private readonly title: string,
+  ) {
+    this.htmlRenderer = htmlRenderer;
+    this.mdRenderer = mdRenderer;
+    this.shell = shell;
   }
-  return null;
-}
 
-async function importWidgets(
-  entries: WidgetManifestEntry[],
-  runtime: Runtime,
-  manual?: WidgetRegistry,
-): Promise<{
-  registry: WidgetRegistry;
-  widgetFiles: Record<string, { html?: string; md?: string; css?: string }>;
-}> {
-  const registry = new WidgetRegistry();
-  const widgetFiles: Record<string, { html?: string; md?: string; css?: string }> = {};
+  static async create(
+    config: EmrouteConfig,
+    runtime: Runtime,
+  ): Promise<Emroute> {
+    const { spa = 'root' } = config;
+    const { html: htmlBase, md: mdBase, app: appBase } = config.basePath ?? DEFAULT_BASE_PATH;
 
-  for (const entry of entries) {
-    try {
-      const runtimePath = entry.modulePath.startsWith('/')
-        ? entry.modulePath
-        : `/${entry.modulePath}`;
+    // ── Verify route manifest exists ──────────────────────────────────
 
-      const mod = await runtime.loadModule(runtimePath) as Record<string, unknown>;
-      const instance = extractWidgetExport(mod);
-      if (!instance) continue;
-      registry.add(instance);
+    const manifestResponse = await runtime.query(ROUTES_MANIFEST_PATH);
+    if (manifestResponse.status === 404 && !config.routeTree) {
+      throw new Error(
+        `[emroute] ${ROUTES_MANIFEST_PATH} not found in runtime. ` +
+          'Provide routeTree in config or ensure the runtime produces it.',
+      );
+    }
 
-      const inlined = mod.__files;
-      if (inlined && typeof inlined === 'object') {
-        widgetFiles[entry.name] = inlined as { html?: string; md?: string; css?: string };
-      } else if (entry.files) {
-        widgetFiles[entry.name] = entry.files;
+    if (config.routeTree && manifestResponse.status === 404) {
+      await runtime.command(ROUTES_MANIFEST_PATH, {
+        body: JSON.stringify(config.routeTree),
+      });
+    }
+
+    // ── Pipeline ──────────────────────────────────────────────────────
+
+    const pipeline = new Pipeline({
+      runtime,
+      ...(config.extendContext ? { contextProvider: config.extendContext } : {}),
+      ...(config.moduleLoaders ? { moduleLoaders: config.moduleLoaders } : {}),
+    });
+
+    // ── Widgets ───────────────────────────────────────────────────────
+
+    let widgets: WidgetRegistry | undefined = config.widgets;
+    let widgetFiles: Record<string, { html?: string; md?: string; css?: string }> = {};
+
+    const widgetsResponse = await runtime.query(WIDGETS_MANIFEST_PATH);
+    if (widgetsResponse.status !== 404) {
+      const entries: WidgetManifestEntry[] = await widgetsResponse.json();
+      if (config.widgets) {
+        widgets = config.widgets;
+        for (const entry of entries) {
+          if (entry.files) widgetFiles[entry.name] = entry.files;
+        }
+      } else {
+        const imported = await Emroute.importWidgets(entries, runtime);
+        widgets = imported.registry;
+        widgetFiles = imported.widgetFiles;
       }
-    } catch (e) {
-      console.error(`[emroute] Failed to load widget ${entry.modulePath}:`, e);
-      if (entry.files) widgetFiles[entry.name] = entry.files;
     }
-  }
 
-  if (manual) {
-    for (const widget of manual) {
-      registry.add(widget);
+    // ── Renderers ─────────────────────────────────────────────────────
+
+    let ssrHtmlRenderer: SsrHtmlRenderer | null = null;
+    let ssrMdRenderer: SsrMdRenderer | null = null;
+
+    if (spa !== 'only') {
+      ssrHtmlRenderer = new SsrHtmlRenderer(pipeline, {
+        ...(config.markdownRenderer ? { markdownRenderer: config.markdownRenderer } : {}),
+        ...(widgets ? { widgets } : {}),
+        widgetFiles,
+      });
+
+      ssrMdRenderer = new SsrMdRenderer(pipeline, {
+        ...(widgets ? { widgets } : {}),
+        widgetFiles,
+      });
     }
-  }
 
-  return { registry, widgetFiles };
-}
+    // ── HTML shell ────────────────────────────────────────────────────
 
-// ── HTML shell ─────────────────────────────────────────────────────────
+    const title = config.title ?? 'emroute';
+    const shellBase = (spa === 'root' || spa === 'only') ? appBase : htmlBase;
+    let shell = await Emroute.resolveShell(runtime, title, shellBase);
 
-function buildHtmlShell(title: string, htmlBase: string): string {
-  const baseTag = htmlBase ? `\n  <base href="${escapeHtml(htmlBase)}/">` : '';
-  return `<!DOCTYPE html>
-<html>
-<head>${baseTag}
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>${escapeHtml(title)}</title>
-  <style>@view-transition { navigation: auto; } router-slot { display: contents; }</style>
-</head>
-<body>
-  <router-slot></router-slot>
-</body>
-</html>`;
-}
+    if ((await runtime.query('/main.css')).status !== 404) {
+      shell = shell.replace('</head>', '  <link rel="stylesheet" href="/main.css">\n</head>');
+    }
 
-function injectSsrContent(
-  html: string,
-  content: string,
-  title: string | undefined,
-  ssrRoute?: string,
-): string {
-  const slotPattern = /<router-slot\b[^>]*>.*?<\/router-slot>/s;
-  if (!slotPattern.test(html)) return html;
-
-  const ssrAttr = ssrRoute ? ` data-ssr-route="${ssrRoute}"` : '';
-  html = html.replace(slotPattern, `<router-slot${ssrAttr}>${content}</router-slot>`);
-
-  if (title) {
-    html = html.replace(/<title>[^<]*<\/title>/, `<title>${escapeHtml(title)}</title>`);
-  }
-
-  return html;
-}
-
-async function resolveShell(
-  runtime: Runtime,
-  title: string,
-  htmlBase: string,
-): Promise<string> {
-  const response = await runtime.query('/index.html');
-  if (response.status !== 404) return await response.text();
-  return buildHtmlShell(title, htmlBase);
-}
-
-// ── createEmrouteServer ────────────────────────────────────────────────
-
-export async function createEmrouteServer(
-  config: EmrouteServerConfig,
-  runtime: Runtime,
-): Promise<EmrouteServer> {
-  const { spa = 'root' } = config;
-  const { html: htmlBase, md: mdBase, app: appBase } = config.basePath ?? DEFAULT_BASE_PATH;
-
-  // ── Verify route manifest exists ────────────────────────────────────
-
-  const manifestResponse = await runtime.query(ROUTES_MANIFEST_PATH);
-  if (manifestResponse.status === 404 && !config.routeTree) {
-    throw new Error(
-      `[emroute] ${ROUTES_MANIFEST_PATH} not found in runtime. ` +
-        'Provide routeTree in config or ensure the runtime produces it.',
+    return new Emroute(
+      ssrHtmlRenderer,
+      ssrMdRenderer,
+      shell,
+      runtime,
+      htmlBase,
+      mdBase,
+      appBase,
+      spa,
+      title,
     );
   }
 
-  // If a static routeTree was provided, write it into Runtime so Pipeline
-  // can read it from the single source of truth.
-  if (config.routeTree && manifestResponse.status === 404) {
-    await runtime.command(ROUTES_MANIFEST_PATH, {
-      body: JSON.stringify(config.routeTree),
-    });
-  }
+  // ── handleRequest ─────────────────────────────────────────────────
 
-  // ── Pipeline ────────────────────────────────────────────────────────
-
-  const pipeline = new Pipeline({
-    runtime,
-    ...(config.extendContext ? { contextProvider: config.extendContext } : {}),
-    ...(config.moduleLoaders ? { moduleLoaders: config.moduleLoaders } : {}),
-  });
-
-  // ── Widgets ─────────────────────────────────────────────────────────
-
-  let widgets: WidgetRegistry | undefined = config.widgets;
-  let widgetFiles: Record<string, { html?: string; md?: string; css?: string }> = {};
-
-  const widgetsResponse = await runtime.query(WIDGETS_MANIFEST_PATH);
-  if (widgetsResponse.status !== 404) {
-    const entries: WidgetManifestEntry[] = await widgetsResponse.json();
-    if (config.widgets) {
-      widgets = config.widgets;
-      for (const entry of entries) {
-        if (entry.files) widgetFiles[entry.name] = entry.files;
-      }
-    } else {
-      const imported = await importWidgets(entries, runtime);
-      widgets = imported.registry;
-      widgetFiles = imported.widgetFiles;
-    }
-  }
-
-  // ── Renderers ───────────────────────────────────────────────────────
-
-  let ssrHtmlRenderer: SsrHtmlRenderer | null = null;
-  let ssrMdRenderer: SsrMdRenderer | null = null;
-
-  function buildRenderers(): void {
-    if (spa === 'only') {
-      ssrHtmlRenderer = null;
-      ssrMdRenderer = null;
-      return;
-    }
-
-    ssrHtmlRenderer = new SsrHtmlRenderer(pipeline, {
-      ...(config.markdownRenderer ? { markdownRenderer: config.markdownRenderer } : {}),
-      ...(widgets ? { widgets } : {}),
-      widgetFiles,
-    });
-
-    ssrMdRenderer = new SsrMdRenderer(pipeline, {
-      ...(widgets ? { widgets } : {}),
-      widgetFiles,
-    });
-  }
-
-  buildRenderers();
-
-  // ── HTML shell ──────────────────────────────────────────────────────
-
-  const title = config.title ?? 'emroute';
-  const shellBase = (spa === 'root' || spa === 'only') ? appBase : htmlBase;
-  let shell = await resolveShell(runtime, title, shellBase);
-
-  if ((await runtime.query('/main.css')).status !== 404) {
-    shell = shell.replace('</head>', '  <link rel="stylesheet" href="/main.css">\n</head>');
-  }
-
-  // ── handleRequest ───────────────────────────────────────────────────
-
-  async function handleRequest(req: Request): Promise<Response | null> {
+  async handleRequest(req: Request): Promise<Response | null> {
     const url = new URL(req.url);
     const pathname = url.pathname;
 
-    const mdPrefix = mdBase + '/';
-    const htmlPrefix = htmlBase + '/';
-    const appPrefix = appBase + '/';
+    const mdPrefix = this.mdBase + '/';
+    const htmlPrefix = this.htmlBase + '/';
+    const appPrefix = this.appBase + '/';
 
     // SSR Markdown: /md/*
     if (
-      ssrMdRenderer &&
-      (pathname.startsWith(mdPrefix) || pathname === mdBase)
+      this.mdRenderer &&
+      (pathname.startsWith(mdPrefix) || pathname === this.mdBase)
     ) {
-      const routePath = pathname === mdBase ? '/' : pathname.slice(mdBase.length);
+      const routePath = pathname === this.mdBase ? '/' : pathname.slice(this.mdBase.length);
       if (routePath.length > 1 && routePath.endsWith('/')) {
-        const canonical = mdBase + routePath.slice(0, -1) + (url.search || '');
+        const canonical = this.mdBase + routePath.slice(0, -1) + (url.search || '');
         return Response.redirect(new URL(canonical, url.origin), 301);
       }
       try {
         const routeUrl = new URL(routePath + url.search, url.origin);
-        const { content, status, redirect } = await ssrMdRenderer.render(routeUrl, req.signal);
+        const { content, status, redirect } = await this.mdRenderer.render(routeUrl, req.signal);
         if (redirect) {
-          const target = redirect.startsWith('/') ? mdBase + redirect : redirect;
+          const target = redirect.startsWith('/') ? this.mdBase + redirect : redirect;
           return Response.redirect(new URL(target, url.origin), status);
         }
-        return new Response(rewriteMdLinks(content, mdBase, [mdBase, htmlBase]), {
+        return new Response(rewriteMdLinks(content, this.mdBase, [this.mdBase, this.htmlBase]), {
           status,
           headers: { 'Content-Type': 'text/markdown; charset=utf-8; variant=CommonMark' },
         });
@@ -259,23 +173,23 @@ export async function createEmrouteServer(
 
     // SSR HTML: /html/*
     if (
-      ssrHtmlRenderer &&
-      (pathname.startsWith(htmlPrefix) || pathname === htmlBase)
+      this.htmlRenderer &&
+      (pathname.startsWith(htmlPrefix) || pathname === this.htmlBase)
     ) {
-      const routePath = pathname === htmlBase ? '/' : pathname.slice(htmlBase.length);
+      const routePath = pathname === this.htmlBase ? '/' : pathname.slice(this.htmlBase.length);
       if (routePath.length > 1 && routePath.endsWith('/')) {
-        const canonical = htmlBase + routePath.slice(0, -1) + (url.search || '');
+        const canonical = this.htmlBase + routePath.slice(0, -1) + (url.search || '');
         return Response.redirect(new URL(canonical, url.origin), 301);
       }
       try {
         const routeUrl = new URL(routePath + url.search, url.origin);
-        const result = await ssrHtmlRenderer.render(routeUrl, req.signal);
+        const result = await this.htmlRenderer.render(routeUrl, req.signal);
         if (result.redirect) {
-          const target = result.redirect.startsWith('/') ? htmlBase + result.redirect : result.redirect;
+          const target = result.redirect.startsWith('/') ? this.htmlBase + result.redirect : result.redirect;
           return Response.redirect(new URL(target, url.origin), result.status);
         }
-        const ssrTitle = result.title ?? title;
-        const html = injectSsrContent(shell, result.content, ssrTitle, pathname);
+        const ssrTitle = result.title ?? this.title;
+        const html = Emroute.injectSsrContent(this.shell, result.content, ssrTitle, pathname);
         return new Response(html, {
           status: result.status,
           headers: { 'Content-Type': 'text/html; charset=utf-8' },
@@ -287,8 +201,8 @@ export async function createEmrouteServer(
     }
 
     // /app/*
-    if (pathname.startsWith(appPrefix) || pathname === appBase) {
-      return new Response(shell, {
+    if (pathname.startsWith(appPrefix) || pathname === this.appBase) {
+      return new Response(this.shell, {
         status: 200,
         headers: { 'Content-Type': 'text/html; charset=utf-8' },
       });
@@ -296,10 +210,10 @@ export async function createEmrouteServer(
 
     // Unhandled SSR paths in 'only' mode — serve shell
     if (
-      pathname.startsWith(htmlPrefix) || pathname === htmlBase ||
-      pathname.startsWith(mdPrefix) || pathname === mdBase
+      pathname.startsWith(htmlPrefix) || pathname === this.htmlBase ||
+      pathname.startsWith(mdPrefix) || pathname === this.mdBase
     ) {
-      return new Response(shell, {
+      return new Response(this.shell, {
         status: 200,
         headers: { 'Content-Type': 'text/html; charset=utf-8' },
       });
@@ -308,29 +222,112 @@ export async function createEmrouteServer(
     // Static files
     const lastSegment = pathname.split('/').pop() ?? '';
     if (lastSegment.includes('.')) {
-      const fileResponse = await runtime.handle(pathname);
+      const fileResponse = await this.runtime.handle(pathname);
       if (fileResponse.status === 200) return fileResponse;
       return null;
     }
 
     // Bare paths → redirect
-    const base = (spa === 'root' || spa === 'only') ? appBase : htmlBase;
+    const base = (this.spa === 'root' || this.spa === 'only') ? this.appBase : this.htmlBase;
     const bare = pathname === '/' ? '' : pathname.slice(1).replace(/\/$/, '');
     return Response.redirect(new URL(`${base}/${bare}`, url.origin), 302);
   }
 
-  // ── Return ──────────────────────────────────────────────────────────
+  // ── Private static helpers ────────────────────────────────────────
 
-  return {
-    handleRequest,
-    get htmlRenderer() {
-      return ssrHtmlRenderer;
-    },
-    get mdRenderer() {
-      return ssrMdRenderer;
-    },
-    get shell() {
-      return shell;
-    },
-  };
+  private static extractWidgetExport(
+    mod: Record<string, unknown>,
+  ): WidgetComponent | null {
+    for (const value of Object.values(mod)) {
+      if (!value) continue;
+      if (typeof value === 'object' && 'getData' in value) {
+        return value as WidgetComponent;
+      }
+      if (typeof value === 'function' && value.prototype?.getData) {
+        return new (value as new () => WidgetComponent)();
+      }
+    }
+    return null;
+  }
+
+  private static async importWidgets(
+    entries: WidgetManifestEntry[],
+    runtime: Runtime,
+  ): Promise<{
+    registry: WidgetRegistry;
+    widgetFiles: Record<string, { html?: string; md?: string; css?: string }>;
+  }> {
+    const registry = new WidgetRegistry();
+    const widgetFiles: Record<string, { html?: string; md?: string; css?: string }> = {};
+
+    for (const entry of entries) {
+      try {
+        const runtimePath = entry.modulePath.startsWith('/')
+          ? entry.modulePath
+          : `/${entry.modulePath}`;
+
+        const mod = await runtime.loadModule(runtimePath) as Record<string, unknown>;
+        const instance = Emroute.extractWidgetExport(mod);
+        if (!instance) continue;
+        registry.add(instance);
+
+        const inlined = mod.__files;
+        if (inlined && typeof inlined === 'object') {
+          widgetFiles[entry.name] = inlined as { html?: string; md?: string; css?: string };
+        } else if (entry.files) {
+          widgetFiles[entry.name] = entry.files;
+        }
+      } catch (e) {
+        console.error(`[emroute] Failed to load widget ${entry.modulePath}:`, e);
+        if (entry.files) widgetFiles[entry.name] = entry.files;
+      }
+    }
+
+    return { registry, widgetFiles };
+  }
+
+  private static buildHtmlShell(title: string, htmlBase: string): string {
+    const baseTag = htmlBase ? `\n  <base href="${escapeHtml(htmlBase)}/">` : '';
+    return `<!DOCTYPE html>
+<html>
+<head>${baseTag}
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${escapeHtml(title)}</title>
+  <style>@view-transition { navigation: auto; } router-slot { display: contents; }</style>
+</head>
+<body>
+  <router-slot></router-slot>
+</body>
+</html>`;
+  }
+
+  private static injectSsrContent(
+    html: string,
+    content: string,
+    title: string | undefined,
+    ssrRoute?: string,
+  ): string {
+    const slotPattern = /<router-slot\b[^>]*>.*?<\/router-slot>/s;
+    if (!slotPattern.test(html)) return html;
+
+    const ssrAttr = ssrRoute ? ` data-ssr-route="${ssrRoute}"` : '';
+    html = html.replace(slotPattern, `<router-slot${ssrAttr}>${content}</router-slot>`);
+
+    if (title) {
+      html = html.replace(/<title>[^<]*<\/title>/, `<title>${escapeHtml(title)}</title>`);
+    }
+
+    return html;
+  }
+
+  private static async resolveShell(
+    runtime: Runtime,
+    title: string,
+    htmlBase: string,
+  ): Promise<string> {
+    const response = await runtime.query('/index.html');
+    if (response.status !== 404) return await response.text();
+    return Emroute.buildHtmlShell(title, htmlBase);
+  }
 }

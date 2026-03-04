@@ -1,4 +1,4 @@
 /**
- * Emroute Server — re-exports from core/server.
+ * Emroute — re-exports from core/server.
  */
-export { createEmrouteServer } from '../core/server/emroute.server.ts';
+export { Emroute } from '../core/server/emroute.server.ts';

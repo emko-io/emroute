@@ -1,19 +1,18 @@
 /**
  * Emroute Server Tests
  *
- * Smoke tests for createEmrouteServer using the browser test fixtures.
+ * Smoke tests for Emroute using the browser test fixtures.
  * Verifies the full pipeline: route discovery → manifest resolution →
  * bundling → SSR rendering → handleRequest.
  */
 
 import { test, expect, describe, beforeAll } from 'bun:test';
 import { resolve } from 'node:path';
-import { createEmrouteServer } from '../../server/emroute.server.ts';
+import { Emroute } from '../../server/emroute.server.ts';
 import { buildClientBundles } from '../../server/build.util.ts';
 import { UniversalFsRuntime } from '../../runtime/universal/fs/universal-fs.runtime.ts';
 import { WidgetRegistry } from '../../core/widget/widget.registry.ts';
 import { externalWidget } from '../browser/fixtures/assets/external.widget.ts';
-import type { EmrouteServer } from '../../server/server-api.type.ts';
 import type { RuntimeConfig } from '../../runtime/abstract.runtime.ts';
 
 const FIXTURES_DIR = 'test/browser/fixtures';
@@ -24,9 +23,9 @@ function req(path: string): Request {
 }
 
 /** Create emroute server with test fixtures. */
-async function createTestEmrouteServer(
+async function createTestEmroute(
   spa: 'none' | 'leaf' | 'root' | 'only' = 'root',
-): Promise<EmrouteServer> {
+): Promise<Emroute> {
   const manualWidgets = new WidgetRegistry();
   manualWidgets.add(externalWidget);
 
@@ -46,7 +45,7 @@ async function createTestEmrouteServer(
     });
   }
 
-  return await createEmrouteServer({
+  return await Emroute.create({
     widgets: manualWidgets,
     spa,
     title: 'Test App',
@@ -54,10 +53,10 @@ async function createTestEmrouteServer(
 }
 
 // Shared server instances — created once in setup, reused across all tests.
-const serverCache: Partial<Record<string, EmrouteServer>> = {};
+const serverCache: Partial<Record<string, Emroute>> = {};
 let ready: Promise<void>;
 
-async function getServer(mode: 'none' | 'leaf' | 'root' | 'only' = 'root'): Promise<EmrouteServer> {
+async function getServer(mode: 'none' | 'leaf' | 'root' | 'only' = 'root'): Promise<Emroute> {
   await ready;
   return serverCache[mode]!;
 }
@@ -68,7 +67,7 @@ describe('prod server', () => {
   beforeAll(async () => {
     ready = (async () => {
       for (const mode of ['none', 'leaf', 'root', 'only'] as const) {
-        serverCache[mode] = await createTestEmrouteServer(mode);
+        serverCache[mode] = await createTestEmroute(mode);
       }
     })();
     await ready;
@@ -80,7 +79,7 @@ describe('prod server', () => {
     expect(server.mdRenderer !== null).toBeTruthy();
   });
 
-  test('createEmrouteServer - only mode has null renderers', async () => {
+  test('createEmroute - only mode has null renderers', async () => {
     const server = await getServer('only');
     expect(server.htmlRenderer).toEqual(null);
     expect(server.mdRenderer).toEqual(null);
@@ -121,7 +120,7 @@ describe('prod server', () => {
 
   // ── Manifest resolution ─────────────────────────────────────────────
 
-  test('createEmrouteServer - exposes shell', async () => {
+  test('createEmroute - exposes shell', async () => {
     const server = await getServer('root');
     expect(server.shell).toContain('<!DOCTYPE html>');
     expect(server.shell).toContain('<router-slot>');

@@ -23,6 +23,7 @@ import type { RouteConfig, MatchedRoute, RouteInfo } from '../type/route.type.ts
 import type { ComponentContext, ContextProvider, FileContents } from '../type/component.type.ts';
 import type { Runtime } from '../runtime/abstract.runtime.ts';
 import { ROUTES_MANIFEST_PATH } from '../server/server.type.ts';
+import { type Logger, defaultLogger } from '../type/logger.type.ts';
 
 /** Default root route — renders a slot for child routes. */
 export const DEFAULT_ROOT_ROUTE: RouteConfig = {
@@ -47,16 +48,19 @@ export interface PipelineOptions {
   contextProvider?: ContextProvider;
   /** Pre-bundled module loaders (browser boot passes these). */
   moduleLoaders?: Record<string, () => Promise<unknown>>;
+  logger?: Logger;
 }
 
 export class Pipeline {
   private readonly runtime: Runtime;
   readonly contextProvider: ContextProvider | undefined;
+  readonly logger: Logger;
   private readonly moduleLoaders: Record<string, () => Promise<unknown>>;
 
   constructor(options: PipelineOptions) {
     this.runtime = options.runtime;
     this.contextProvider = options.contextProvider;
+    this.logger = options.logger ?? defaultLogger;
     this.moduleLoaders = options.moduleLoaders ?? {};
   }
 

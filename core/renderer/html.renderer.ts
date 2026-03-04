@@ -75,6 +75,7 @@ export class SsrHtmlRenderer extends SsrRenderer {
           return files ? this.pipeline.loadFiles(files) : Promise.resolve({});
         },
         this.pipeline.contextProvider,
+        this.logger,
       );
     }
 

@@ -7,7 +7,7 @@
 
 import type { Component } from '../component/abstract.component.ts';
 import type { ComponentContext, ContextProvider } from '../type/component.type.ts';
-import { logger } from '../type/logger.type.ts';
+import { type Logger, defaultLogger } from '../type/logger.type.ts';
 import type { RouteInfo } from '../type/route.type.ts';
 import { LAZY_ATTR, SSR_ATTR } from './html.util.ts';
 
@@ -23,6 +23,7 @@ export async function resolveRecursively<T>(
   resolve: (widget: T) => Promise<string>,
   replace: (content: string, replacements: Map<T, string>) => string,
   depth = 0,
+  logger: Logger = defaultLogger,
 ): Promise<string> {
   if (depth >= MAX_WIDGET_DEPTH) {
     logger.warn(
@@ -39,7 +40,7 @@ export async function resolveRecursively<T>(
   await Promise.all(
     widgets.map(async (widget) => {
       let rendered = await resolve(widget);
-      rendered = await resolveRecursively(rendered, parse, resolve, replace, depth + 1);
+      rendered = await resolveRecursively(rendered, parse, resolve, replace, depth + 1, logger);
       replacements.set(widget, rendered);
     }),
   );
@@ -59,6 +60,7 @@ export function resolveWidgetTags(
     declaredFiles?: { html?: string; md?: string; css?: string },
   ) => Promise<{ html?: string; md?: string; css?: string }>,
   contextProvider?: ContextProvider,
+  logger: Logger = defaultLogger,
 ): Promise<string> {
   const tagPattern =
     /<widget-(?<name>[a-z][a-z0-9-]*)(?<attrs>\s[^>]*)?>(?<content>.*?)<\/widget-\k<name>>/gis;
@@ -132,7 +134,7 @@ export function resolveWidgetTags(
     return result;
   };
 
-  return resolveRecursively(html, parse, resolve, replace);
+  return resolveRecursively(html, parse, resolve, replace, 0, logger);
 }
 
 /** Parse HTML attribute string into params object. */

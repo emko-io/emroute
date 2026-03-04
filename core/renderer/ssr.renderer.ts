@@ -11,7 +11,7 @@ import type {
   RouteInfo,
 } from '../type/route.type.ts';
 import type { ComponentContext } from '../type/component.type.ts';
-import { logger } from '../type/logger.type.ts';
+import type { Logger } from '../type/logger.type.ts';
 import defaultPageComponent, { type PageComponent } from '../component/page.component.ts';
 import { DEFAULT_ROOT_ROUTE, type Pipeline } from '../pipeline/pipeline.ts';
 import { assertSafeRedirect } from '../util/html.util.ts';
@@ -32,8 +32,11 @@ export abstract class SsrRenderer {
   protected widgetFiles: Record<string, { html?: string; md?: string; css?: string }>;
   protected abstract readonly label: string;
 
+  protected readonly logger: Logger;
+
   constructor(pipeline: Pipeline, options: SsrRendererOptions = {}) {
     this.pipeline = pipeline;
+    this.logger = pipeline.logger;
     this.widgets = options.widgets ?? null;
     this.widgetFiles = options.widgetFiles ?? {};
   }
@@ -55,7 +58,7 @@ export abstract class SsrRenderer {
           const result = await this.renderRouteContent(ri, statusPage, undefined, signal);
           return { content: this.stripSlots(result.content), status: 404, ...(result.title != null ? { title: result.title } : {}) };
         } catch (e) {
-          logger.error(
+          this.logger.error(
             `[${this.label}] Failed to render 404 status page for ${url.pathname}`,
             e instanceof Error ? e : undefined,
           );
@@ -96,7 +99,7 @@ export abstract class SsrRenderer {
               ...(result.title != null ? { title: result.title } : {}),
             };
           } catch (e) {
-            logger.error(
+            this.logger.error(
               `[${this.label}] Failed to render ${error.status} status page for ${url.pathname}`,
               e instanceof Error ? e : undefined,
             );
@@ -104,7 +107,7 @@ export abstract class SsrRenderer {
         }
         return { content: this.renderStatusPage(error.status, url), status: error.status };
       }
-      logger.error(
+      this.logger.error(
         `[${this.label}] Error rendering ${url.pathname}:`,
         error instanceof Error ? error : undefined,
       );
@@ -172,7 +175,7 @@ export abstract class SsrRenderer {
       } else {
         const injected = this.injectSlot(result, content, lastRenderedPattern);
         if (injected === result) {
-          logger.warn(
+          this.logger.warn(
             `[${this.label}] Route "${lastRenderedPattern}" has no <router-slot> ` +
               `for child route "${hierarchy[i]}" to render into. ` +
               `Add <router-slot></router-slot> to the parent template.`,
@@ -252,7 +255,7 @@ export abstract class SsrRenderer {
       const content = this.renderComponent(component, data, minCtx);
       return { content, status: 500 };
     } catch (e) {
-      logger.error(
+      this.logger.error(
         `[${this.label}] Error ${kind} failed for ${url.pathname}`,
         e instanceof Error ? e : undefined,
       );

@@ -12,8 +12,8 @@
  */
 
 import { test, expect, describe } from 'bun:test';
-import type { ComponentContext } from '../../src/component/abstract.component.ts';
-import { Component } from '../../src/component/abstract.component.ts';
+import type { ComponentContext } from '../../core/type/component.type.ts';
+import { Component } from '../../core/component/abstract.component.ts';
 
 // ============================================================================
 // Test Fixtures & Helpers
@@ -138,8 +138,8 @@ class ContextAwareComponent extends Component<
   > {
     const context = args.context as AppContext;
     const result: { userId?: string; isAdmin?: boolean } = {};
-    if (context?.userId != null) result.userId = context.userId;
-    if (context?.isAdmin != null) result.isAdmin = context.isAdmin;
+    if (context?.userId !== undefined) result.userId = context.userId;
+    if (context?.isAdmin !== undefined) result.isAdmin = context.isAdmin;
     return Promise.resolve(result);
   }
 

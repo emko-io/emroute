@@ -1,6 +1,6 @@
 import { test, expect, describe } from 'bun:test';
 import { BunSqliteRuntime } from '../../runtime/bun/sqlite/bun-sqlite.runtime.ts';
-import { createEmrouteServer } from '../../server/emroute.server.ts';
+import { Emroute } from '../../server/emroute.server.ts';
 
 describe('BunSqliteRuntime', () => {
   describe('basic operations', () => {
@@ -158,12 +158,12 @@ describe('BunSqliteRuntime', () => {
     });
   });
 
-  describe('createEmrouteServer integration', () => {
+  describe('Emroute integration', () => {
     test('SSR renders markdown route', async () => {
       const runtime = new BunSqliteRuntime();
       await runtime.command('/routes/index.page.md', { body: '# SQLite Works' });
 
-      const emroute = await createEmrouteServer({
+      const emroute = await Emroute.create({
         spa: 'none',
       }, runtime);
 
@@ -187,7 +187,7 @@ describe('BunSqliteRuntime', () => {
 };`,
       });
 
-      const emroute = await createEmrouteServer({
+      const emroute = await Emroute.create({
         spa: 'none',
       }, runtime);
 
@@ -205,7 +205,7 @@ describe('BunSqliteRuntime', () => {
       await runtime.command('/routes/index.page.md', { body: '# Home' });
       await runtime.command('/routes/about.page.md', { body: '# About Us' });
 
-      const emroute = await createEmrouteServer({
+      const emroute = await Emroute.create({
         spa: 'none',
       }, runtime);
 

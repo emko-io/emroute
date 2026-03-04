@@ -1,7 +1,7 @@
 /**
  * SSR Markdown Renderer Tests
  *
- * Comprehensive unit tests for SsrMdRouter class covering:
+ * Unit tests for SsrMdRenderer (core/renderer/md.renderer.ts):
  * - Slot injection (```router-slot\n``` replacement)
  * - Nested slot injection (multi-level route hierarchy)
  * - Widget resolution in markdown mode
@@ -13,36 +13,82 @@
  * - URL normalization (/md/ prefix stripping)
  */
 
-import { test, expect, describe } from 'bun:test';
-import { SsrMdRouter } from '../../src/renderer/ssr/md.renderer.ts';
-import type { RouteConfig } from '../../src/type/route.type.ts';
-import { WidgetRegistry } from '../../src/widget/widget.registry.ts';
-import type { WidgetComponent } from '../../src/component/widget.component.ts';
-import type { ComponentContext } from '../../src/component/abstract.component.ts';
-import { createResolver, url, type TestManifest } from './test.util.ts';
+import { test, expect } from 'bun:test';
+import { SsrMdRenderer, type SsrMdRendererOptions } from '../../core/renderer/md.renderer.ts';
+import { Pipeline } from '../../core/pipeline/pipeline.ts';
+import type { RouteConfig } from '../../core/type/route.type.ts';
+import type { ComponentContext } from '../../core/type/component.type.ts';
+import { WidgetRegistry } from '../../core/widget/widget.registry.ts';
+import { WidgetComponent } from '../../core/component/widget.component.ts';
+import { Runtime } from '../../core/runtime/abstract.runtime.ts';
+import { writeManifest, url, type TestManifest } from './test.util.ts';
+
+// ============================================================================
+// Test Infrastructure
+// ============================================================================
+
+/** In-memory Runtime for testing — stores files as strings. */
+class MockRuntime extends Runtime {
+  private files = new Map<string, string>();
+
+  set(path: string, content: string): void {
+    const abs = path.startsWith('/') ? path : '/' + path;
+    this.files.set(abs, content);
+  }
+
+  handle(): ReturnType<typeof fetch> {
+    throw new Error('Not implemented');
+  }
+
+  query(resource: Parameters<typeof fetch>[0], options?: Record<string, unknown>): Promise<Response>;
+  query(resource: Parameters<typeof fetch>[0], options: Record<string, unknown> & { as: 'text' }): Promise<string>;
+  query(resource: Parameters<typeof fetch>[0], options?: Record<string, unknown>): Promise<Response | string> {
+    const path = typeof resource === 'string' ? resource : resource instanceof URL ? resource.pathname : resource.url;
+    const content = this.files.get(path);
+    if (content === undefined) {
+      if (options && 'as' in options && options.as === 'text') {
+        return Promise.reject(new Error(`Not found: ${path}`));
+      }
+      return Promise.resolve(new Response('Not Found', { status: 404 }));
+    }
+    if (options && 'as' in options && options.as === 'text') {
+      return Promise.resolve(content);
+    }
+    return Promise.resolve(new Response(content, { status: 200 }));
+  }
+
+  command(): ReturnType<typeof fetch> {
+    throw new Error('Not implemented');
+  }
+}
+
+/** Build an SsrMdRenderer from the old manifest shape. */
+function createRenderer(
+  manifest: TestManifest,
+  runtime: MockRuntime,
+  options?: Omit<SsrMdRendererOptions, 'widgets'> & {
+    widgets?: WidgetRegistry;
+    extendContext?: (ctx: ComponentContext) => ComponentContext;
+  },
+): SsrMdRenderer {
+  writeManifest(runtime, manifest.routes ?? [], {
+    ...(manifest.errorBoundaries ? { errorBoundaries: manifest.errorBoundaries } : {}),
+    ...(manifest.statusPages ? { statusPages: manifest.statusPages } : {}),
+    ...(manifest.errorHandler ? { errorHandler: manifest.errorHandler } : {}),
+  });
+  const pipeline = new Pipeline({
+    runtime,
+    ...(manifest.moduleLoaders ? { moduleLoaders: manifest.moduleLoaders } : {}),
+    ...(options?.extendContext ? { contextProvider: options.extendContext } : {}),
+  });
+  const { extendContext: _, ...rendererOptions } = options ?? {};
+  return new SsrMdRenderer(pipeline, rendererOptions);
+}
 
 function createTestManifest(overrides?: TestManifest): TestManifest {
   return { routes: [], ...overrides };
 }
 
-function createRouter(
-  manifest: TestManifest,
-  options?: ConstructorParameters<typeof SsrMdRouter>[1],
-): SsrMdRouter {
-  const resolver = createResolver(manifest.routes ?? [], {
-    ...(manifest.errorBoundaries ? { errorBoundaries: manifest.errorBoundaries } : {}),
-    ...(manifest.statusPages ? { statusPages: manifest.statusPages } : {}),
-    ...(manifest.errorHandler ? { errorHandler: manifest.errorHandler } : {}),
-  });
-  return new SsrMdRouter(resolver, {
-    ...(manifest.moduleLoaders ? { moduleLoaders: manifest.moduleLoaders } : {}),
-    ...options,
-  });
-}
-
-/**
- * Create a test route
- */
 function createTestRoute(overrides?: Partial<RouteConfig>): RouteConfig {
   return {
     pattern: '/test',
@@ -53,673 +99,452 @@ function createTestRoute(overrides?: Partial<RouteConfig>): RouteConfig {
   };
 }
 
-/**
- * Mock fetch helper
- */
-function mockFetch(responses: Record<string, string>) {
-  const originalFetch = globalThis.fetch;
-
-  globalThis.fetch = ((url: string | Request | URL) => {
-    const key = typeof url === 'string' ? url : url.toString();
-    if (key in responses) {
-      return Promise.resolve(
-        new Response(responses[key], { status: 200 }),
-      );
-    }
-    return Promise.reject(new Error(`Not mocked: ${key}`));
-  }) as typeof globalThis.fetch;
-
-  return () => {
-    globalThis.fetch = originalFetch;
-  };
-}
-
-/**
- * Create a mock widget component
- */
-function createMockWidget(
-  name: string,
-  renderMarkdownFn?: (args: unknown) => string,
-): WidgetComponent {
+function stubComponent(overrides: {
+  name?: string;
+  getData?: () => Promise<unknown>;
+  renderHTML?: (args: unknown) => string;
+  renderMarkdown?: (args: unknown) => string;
+  getTitle?: (args: unknown) => string | undefined;
+} = {}) {
   return {
-    name,
-    files: undefined,
-    getData: () => Promise.resolve({ test: true }),
-    renderHTML: () => '<div>widget</div>',
-    renderMarkdown: renderMarkdownFn ?? (() => `**${name}**`),
-    getTitle: () => undefined,
+    name: overrides.name ?? 'stub',
+    getData: overrides.getData ?? (() => Promise.resolve(null)),
+    renderHTML: overrides.renderHTML ?? (() => '<p>stub</p>'),
+    renderMarkdown: overrides.renderMarkdown ?? (() => 'stub'),
+    getTitle: overrides.getTitle ?? (() => undefined),
     renderError: () => '<div>error</div>',
-    renderMarkdownError: (e: unknown) =>
-      `> **Error** (\`${name}\`): ${e instanceof Error ? e.message : String(e)}`,
-  } as unknown as WidgetComponent;
+    renderMarkdownError: () => '> error',
+  };
 }
 
 // ============================================================================
 // Constructor Tests
 // ============================================================================
 
-test('SsrMdRouter - constructor initializes successfully', () => {
-  const manifest = createTestManifest();
-  const router = createRouter(manifest);
-
-  expect(router).toBeDefined();
+test('SsrMdRenderer - constructor initializes successfully', () => {
+  const runtime = new MockRuntime();
+  const renderer = createRenderer(createTestManifest(), runtime);
+  expect(renderer).toBeDefined();
 });
 
-test('SsrMdRouter - createSsrMdRouter factory function creates instance', () => {
-  const router = createRouter(createTestManifest());
-  expect(router instanceof SsrMdRouter).toEqual(true);
+test('SsrMdRenderer - constructor creates correct instance', () => {
+  const runtime = new MockRuntime();
+  const renderer = createRenderer(createTestManifest(), runtime);
+  expect(renderer instanceof SsrMdRenderer).toEqual(true);
 });
 
-test('SsrMdRouter - constructor with options accepts widget registry', () => {
-  const manifest = createTestManifest();
+test('SsrMdRenderer - constructor with options accepts widget registry', () => {
   const widgets = new WidgetRegistry();
-  const router = createRouter(manifest, { widgets });
-
-  expect(router).toBeDefined();
+  const runtime = new MockRuntime();
+  const renderer = createRenderer(createTestManifest(), runtime, { widgets });
+  expect(renderer).toBeDefined();
 });
 
 // ============================================================================
 // Slot Injection Tests
 // ============================================================================
 
-test('SsrMdRouter - injectSlot replaces ```router-slot\\n``` block', async () => {
-  const restore = mockFetch({
-    '/parent.md': '# Parent\n\n```router-slot\n```\n\nFooter',
-    '/parent/child.md': '## Child Content',
-  });
+test('SsrMdRenderer - injectSlot replaces ```router-slot\\n``` block', async () => {
+  const routes = [
+    createTestRoute({ pattern: '/parent', modulePath: '/parent.page.ts', files: { md: '/parent.md' } }),
+    createTestRoute({ pattern: '/parent/child', modulePath: '/parent/child.page.ts', files: { md: '/parent/child.md' } }),
+  ];
+  const runtime = new MockRuntime();
+  runtime.set('/parent.md', '# Parent\n\n```router-slot\n```\n\nFooter');
+  runtime.set('/parent/child.md', '## Child Content');
 
-  try {
-    const routes = [
-      createTestRoute({
-        pattern: '/parent',
-        modulePath: '/parent.page.ts',
-        files: { md: '/parent.md' },
-      }),
-      createTestRoute({
-        pattern: '/parent/child',
-        modulePath: '/parent/child.page.ts',
-        files: { md: '/parent/child.md' },
-      }),
-    ];
+  const renderer = createRenderer(createTestManifest({ routes }), runtime);
+  const result = await renderer.render(url('/parent/child'));
 
-    const manifest = createTestManifest({ routes });
-    const router = createRouter(manifest);
-
-    const result = await router.render(url('/parent/child'));
-
-    expect(result.status).toEqual(200);
-    expect(result.content).toContain('Parent');
-    expect(result.content).toContain('Child Content');
-    expect(result.content).toContain('Footer');
-  } finally {
-    restore();
-  }
+  expect(result.status).toEqual(200);
+  expect(result.content).toContain('Parent');
+  expect(result.content).toContain('Child Content');
+  expect(result.content).toContain('Footer');
 });
 
-test('SsrMdRouter - slot block is exactly ```router-slot\\n```', async () => {
-  const restore = mockFetch({
-    '/test.md': 'Content with ```router-slot\n``` marker',
-  });
+test('SsrMdRenderer - slot block is exactly ```router-slot\\n```', async () => {
+  const routes = [
+    createTestRoute({ pattern: '/test', modulePath: '/test.page.ts', files: { md: '/test.md' } }),
+  ];
+  const runtime = new MockRuntime();
+  runtime.set('/test.md', 'Content with ```router-slot\n``` marker');
 
-  try {
-    const routes = [
-      createTestRoute({
-        pattern: '/test',
-        modulePath: '/test.page.ts',
-        files: { md: '/test.md' },
-      }),
-    ];
+  const renderer = createRenderer(createTestManifest({ routes }), runtime);
+  const result = await renderer.render(url('/test'));
 
-    const manifest = createTestManifest({ routes });
-    const router = createRouter(manifest);
-
-    const result = await router.render(url('/test'));
-
-    expect(result.status).toEqual(200);
-    expect(result.content).toContain('Content with');
-  } finally {
-    restore();
-  }
+  expect(result.status).toEqual(200);
+  expect(result.content).toContain('Content with');
 });
 
 // ============================================================================
 // Nested Slot Injection Tests
 // ============================================================================
 
-test('SsrMdRouter - nested slots inject at multiple levels', async () => {
-  const restore = mockFetch({
-    '/a.md': '# Level A\n\n```router-slot\n```',
-    '/a/b.md': '## Level B\n\n```router-slot\n```',
-    '/a/b/c.md': '### Level C',
-  });
+test('SsrMdRenderer - nested slots inject at multiple levels', async () => {
+  const routes = [
+    createTestRoute({ pattern: '/a', modulePath: '/a.page.ts', files: { md: '/a.md' } }),
+    createTestRoute({ pattern: '/a/b', modulePath: '/a/b.page.ts', files: { md: '/a/b.md' } }),
+    createTestRoute({ pattern: '/a/b/c', modulePath: '/a/b/c.page.ts', files: { md: '/a/b/c.md' } }),
+  ];
+  const runtime = new MockRuntime();
+  runtime.set('/a.md', '# Level A\n\n```router-slot\n```');
+  runtime.set('/a/b.md', '## Level B\n\n```router-slot\n```');
+  runtime.set('/a/b/c.md', '### Level C');
 
-  try {
-    const routes = [
-      createTestRoute({
-        pattern: '/a',
-        modulePath: '/a.page.ts',
-        files: { md: '/a.md' },
-      }),
-      createTestRoute({
-        pattern: '/a/b',
-        modulePath: '/a/b.page.ts',
-        files: { md: '/a/b.md' },
-      }),
-      createTestRoute({
-        pattern: '/a/b/c',
-        modulePath: '/a/b/c.page.ts',
-        files: { md: '/a/b/c.md' },
-      }),
-    ];
+  const renderer = createRenderer(createTestManifest({ routes }), runtime);
+  const result = await renderer.render(url('/a/b/c'));
 
-    const manifest = createTestManifest({ routes });
-    const router = createRouter(manifest);
-
-    const result = await router.render(url('/a/b/c'));
-
-    expect(result.status).toEqual(200);
-    expect(result.content).toContain('Level A');
-    expect(result.content).toContain('Level B');
-    expect(result.content).toContain('Level C');
-  } finally {
-    restore();
-  }
+  expect(result.status).toEqual(200);
+  expect(result.content).toContain('Level A');
+  expect(result.content).toContain('Level B');
+  expect(result.content).toContain('Level C');
 });
 
-test('SsrMdRouter - deeply nested routes compose correctly', async () => {
-  const restore = mockFetch({
-    '/l1.md': 'L1\n\n```router-slot\n```',
-    '/l1/l2.md': 'L2\n\n```router-slot\n```',
-    '/l1/l2/l3.md': 'L3\n\n```router-slot\n```',
-    '/l1/l2/l3/l4.md': 'L4\n\n```router-slot\n```',
-    '/l1/l2/l3/l4/l5.md': 'L5',
-  });
+test('SsrMdRenderer - deeply nested routes compose correctly', async () => {
+  const routes = [
+    createTestRoute({ pattern: '/l1', modulePath: '/l1.page.ts', files: { md: '/l1.md' } }),
+    createTestRoute({ pattern: '/l1/l2', modulePath: '/l1/l2.page.ts', files: { md: '/l1/l2.md' } }),
+    createTestRoute({ pattern: '/l1/l2/l3', modulePath: '/l1/l2/l3.page.ts', files: { md: '/l1/l2/l3.md' } }),
+    createTestRoute({ pattern: '/l1/l2/l3/l4', modulePath: '/l1/l2/l3/l4.page.ts', files: { md: '/l1/l2/l3/l4.md' } }),
+    createTestRoute({ pattern: '/l1/l2/l3/l4/l5', modulePath: '/l1/l2/l3/l4/l5.page.ts', files: { md: '/l1/l2/l3/l4/l5.md' } }),
+  ];
+  const runtime = new MockRuntime();
+  runtime.set('/l1.md', 'L1\n\n```router-slot\n```');
+  runtime.set('/l1/l2.md', 'L2\n\n```router-slot\n```');
+  runtime.set('/l1/l2/l3.md', 'L3\n\n```router-slot\n```');
+  runtime.set('/l1/l2/l3/l4.md', 'L4\n\n```router-slot\n```');
+  runtime.set('/l1/l2/l3/l4/l5.md', 'L5');
 
-  try {
-    const routes = [
-      createTestRoute({ pattern: '/l1', modulePath: '/l1.page.ts', files: { md: '/l1.md' } }),
-      createTestRoute({
-        pattern: '/l1/l2',
-        modulePath: '/l1/l2.page.ts',
-        files: { md: '/l1/l2.md' },
-      }),
-      createTestRoute({
-        pattern: '/l1/l2/l3',
-        modulePath: '/l1/l2/l3.page.ts',
-        files: { md: '/l1/l2/l3.md' },
-      }),
-      createTestRoute({
-        pattern: '/l1/l2/l3/l4',
-        modulePath: '/l1/l2/l3/l4.page.ts',
-        files: { md: '/l1/l2/l3/l4.md' },
-      }),
-      createTestRoute({
-        pattern: '/l1/l2/l3/l4/l5',
-        modulePath: '/l1/l2/l3/l4/l5.page.ts',
-        files: { md: '/l1/l2/l3/l4/l5.md' },
-      }),
-    ];
+  const renderer = createRenderer(createTestManifest({ routes }), runtime);
+  const result = await renderer.render(url('/l1/l2/l3/l4/l5'));
 
-    const manifest = createTestManifest({ routes });
-    const router = createRouter(manifest);
-
-    const result = await router.render(url('/l1/l2/l3/l4/l5'));
-
-    expect(result.status).toEqual(200);
-    expect(result.content).toContain('L1');
-    expect(result.content).toContain('L2');
-    expect(result.content).toContain('L3');
-    expect(result.content).toContain('L4');
-    expect(result.content).toContain('L5');
-  } finally {
-    restore();
-  }
+  expect(result.status).toEqual(200);
+  expect(result.content).toContain('L1');
+  expect(result.content).toContain('L2');
+  expect(result.content).toContain('L3');
+  expect(result.content).toContain('L4');
+  expect(result.content).toContain('L5');
 });
 
 // ============================================================================
 // stripSlots Utility Tests
 // ============================================================================
 
-test('SsrMdRouter - stripSlots removes unconsumed router-slot blocks', async () => {
-  const restore = mockFetch({
-    '/page.md': 'Content\n\n```router-slot\n```',
-  });
+test('SsrMdRenderer - stripSlots removes unconsumed router-slot blocks', async () => {
+  const routes = [
+    createTestRoute({ pattern: '/page', modulePath: '/page.page.ts', files: { md: '/page.md' } }),
+  ];
+  const runtime = new MockRuntime();
+  runtime.set('/page.md', 'Content\n\n```router-slot\n```');
 
-  try {
-    const routes = [
-      createTestRoute({
-        pattern: '/page',
-        modulePath: '/page.page.ts',
-        files: { md: '/page.md' },
-      }),
-    ];
+  const renderer = createRenderer(createTestManifest({ routes }), runtime);
+  const result = await renderer.render(url('/page'));
 
-    const manifest = createTestManifest({ routes });
-    const router = createRouter(manifest);
-
-    const result = await router.render(url('/page'));
-
-    expect(result.status).toEqual(200);
-    expect(result.content.includes('```router-slot\n```')).toEqual(false);
-    expect(result.content).toContain('Content');
-  } finally {
-    restore();
-  }
+  expect(result.status).toEqual(200);
+  expect(result.content.includes('```router-slot\n```')).toEqual(false);
+  expect(result.content).toContain('Content');
 });
 
-test('SsrMdRouter - stripSlots trims whitespace after removal', async () => {
-  const restore = mockFetch({
-    '/page.md': 'Content\n\n```router-slot\n```\n\n',
-  });
+test('SsrMdRenderer - stripSlots trims whitespace after removal', async () => {
+  const routes = [
+    createTestRoute({ pattern: '/page', modulePath: '/page.page.ts', files: { md: '/page.md' } }),
+  ];
+  const runtime = new MockRuntime();
+  runtime.set('/page.md', 'Content\n\n```router-slot\n```\n\n');
 
-  try {
-    const routes = [
-      createTestRoute({
-        pattern: '/page',
-        modulePath: '/page.page.ts',
-        files: { md: '/page.md' },
-      }),
-    ];
+  const renderer = createRenderer(createTestManifest({ routes }), runtime);
+  const result = await renderer.render(url('/page'));
 
-    const manifest = createTestManifest({ routes });
-    const router = createRouter(manifest);
-
-    const result = await router.render(url('/page'));
-
-    expect(result.status).toEqual(200);
-    expect(result.content).toEqual('Content');
-  } finally {
-    restore();
-  }
+  expect(result.status).toEqual(200);
+  expect(result.content).toEqual('Content');
 });
 
-test('SsrMdRouter - stripSlots handles multiple slot blocks', async () => {
-  const restore = mockFetch({
-    '/page.md': 'Start\n\n```router-slot\n```\n\nMiddle\n\n```router-slot\n```\n\nEnd',
-  });
+test('SsrMdRenderer - stripSlots handles multiple slot blocks', async () => {
+  const routes = [
+    createTestRoute({ pattern: '/page', modulePath: '/page.page.ts', files: { md: '/page.md' } }),
+  ];
+  const runtime = new MockRuntime();
+  runtime.set('/page.md', 'Start\n\n```router-slot\n```\n\nMiddle\n\n```router-slot\n```\n\nEnd');
 
-  try {
-    const routes = [
-      createTestRoute({
-        pattern: '/page',
-        modulePath: '/page.page.ts',
-        files: { md: '/page.md' },
-      }),
-    ];
+  const renderer = createRenderer(createTestManifest({ routes }), runtime);
+  const result = await renderer.render(url('/page'));
 
-    const manifest = createTestManifest({ routes });
-    const router = createRouter(manifest);
-
-    const result = await router.render(url('/page'));
-
-    expect(result.status).toEqual(200);
-    // stripSlots removes all slot blocks and trims, but the extra newlines remain
-    expect(result.content).toContain('Start');
-    expect(result.content).toContain('Middle');
-    expect(result.content).toContain('End');
-  } finally {
-    restore();
-  }
+  expect(result.status).toEqual(200);
+  expect(result.content).toContain('Start');
+  expect(result.content).toContain('Middle');
+  expect(result.content).toContain('End');
 });
 
 // ============================================================================
 // Widget Resolution in Markdown Tests
 // ============================================================================
 
-test('SsrMdRouter - resolves and renders widgets in markdown content', async () => {
-  const restore = mockFetch({
-    '/page.md': 'Page content\n\n```widget:greeting\n{}\n```\n\nMore content',
-  });
 
-  try {
-    const routes = [
-      createTestRoute({
-        pattern: '/page',
-        modulePath: '/page.page.ts',
-        files: { md: '/page.md' },
-      }),
-    ];
+test('SsrMdRenderer - resolves and renders widgets in markdown content', async () => {
+  const routes = [
+    createTestRoute({ pattern: '/page', modulePath: '/page.page.ts', files: { md: '/page.md' } }),
+  ];
+  const runtime = new MockRuntime();
+  runtime.set('/page.md', 'Page content\n\n```widget:greeting\n{}\n```\n\nMore content');
 
-    const widgets = new WidgetRegistry();
-    const greetingWidget = createMockWidget('greeting', () => '**Hello World**');
-    widgets.add(greetingWidget as WidgetComponent);
+  const widgets = new WidgetRegistry();
+  const greetingWidget = new (class extends WidgetComponent {
+    override readonly name = 'greeting';
+    override getData() { return Promise.resolve(null); }
+    override renderHTML() { return '<div>greeting</div>'; }
+    override renderMarkdown() { return '**Hello World**'; }
+  })();
+  widgets.add(greetingWidget);
 
-    const manifest = createTestManifest({ routes });
-    const router = createRouter(manifest, { widgets });
+  const renderer = createRenderer(createTestManifest({ routes }), runtime, { widgets });
+  const result = await renderer.render(url('/page'));
 
-    const result = await router.render(url('/page'));
-
-    expect(result.status).toEqual(200);
-    expect(result.content).toContain('Page content');
-    expect(result.content).toContain('Hello World');
-    expect(result.content).toContain('More content');
-  } finally {
-    restore();
-  }
+  expect(result.status).toEqual(200);
+  expect(result.content).toContain('Page content');
+  expect(result.content).toContain('Hello World');
+  expect(result.content).toContain('More content');
 });
 
-test('SsrMdRouter - passes widget params to renderMarkdown', async () => {
-  const restore = mockFetch({
-    '/page.md': '```widget:counter\n{"start": 5}\n```',
-  });
+test('SsrMdRenderer - passes widget params to renderMarkdown', async () => {
+  const routes = [
+    createTestRoute({ pattern: '/page', modulePath: '/page.page.ts', files: { md: '/page.md' } }),
+  ];
+  const runtime = new MockRuntime();
+  runtime.set('/page.md', '```widget:counter\n{"start": 5}\n```');
 
-  try {
-    const routes = [
-      createTestRoute({
-        pattern: '/page',
-        modulePath: '/page.page.ts',
-        files: { md: '/page.md' },
-      }),
-    ];
+  const widgets = new WidgetRegistry();
+  const counterWidget = new (class extends WidgetComponent {
+    override readonly name = 'counter';
+    override getData() { return Promise.resolve(null); }
+    override renderHTML() { return ''; }
+    override renderMarkdown(args: this['RenderArgs']) {
+      return `Counter starts at: ${(args.params as Record<string, unknown>)?.start ?? 0}`;
+    }
+  })();
+  widgets.add(counterWidget);
 
-    const widgets = new WidgetRegistry();
-    const counterWidget: WidgetComponent = {
-      name: 'counter',
-      files: undefined,
-      getData: () => Promise.resolve(null),
-      renderHTML: () => '',
-      renderMarkdown: (args: { params?: { start?: number } }) =>
-        `Counter starts at: ${args.params?.start ?? 0}`,
-      getTitle: () => undefined,
-      renderError: () => '',
-      renderMarkdownError: () => '',
-    } as unknown as WidgetComponent;
-    widgets.add(counterWidget);
+  const renderer = createRenderer(createTestManifest({ routes }), runtime, { widgets });
+  const result = await renderer.render(url('/page'));
 
-    const manifest = createTestManifest({ routes });
-    const router = createRouter(manifest, { widgets });
-
-    const result = await router.render(url('/page'));
-
-    expect(result.status).toEqual(200);
-    expect(result.content).toContain('Counter starts at: 5');
-  } finally {
-    restore();
-  }
+  expect(result.status).toEqual(200);
+  expect(result.content).toContain('Counter starts at: 5');
 });
 
-test('SsrMdRouter - handles widget with invalid JSON params', async () => {
-  const restore = mockFetch({
-    '/page.md': '```widget:bad-json\n{invalid json}\n```',
-  });
+test('SsrMdRenderer - handles widget with invalid JSON params', async () => {
+  const routes = [
+    createTestRoute({ pattern: '/page', modulePath: '/page.page.ts', files: { md: '/page.md' } }),
+  ];
+  const runtime = new MockRuntime();
+  runtime.set('/page.md', '```widget:bad-json\n{invalid json}\n```');
 
-  try {
-    const routes = [
-      createTestRoute({
-        pattern: '/page',
-        modulePath: '/page.page.ts',
-        files: { md: '/page.md' },
-      }),
-    ];
+  const widgets = new WidgetRegistry();
+  const badJsonWidget = new (class extends WidgetComponent {
+    override readonly name = 'bad-json';
+    override getData() { return Promise.resolve(null); }
+    override renderHTML() { return ''; }
+    override renderMarkdown() { return '**bad-json**'; }
+    override renderMarkdownError(e: unknown) {
+      return `> **Error** (\`bad-json\`): ${e instanceof Error ? e.message : String(e)}`;
+    }
+  })();
+  widgets.add(badJsonWidget);
 
-    const widgets = new WidgetRegistry();
-    widgets.add(createMockWidget('bad-json') as WidgetComponent);
+  const renderer = createRenderer(createTestManifest({ routes }), runtime, { widgets });
+  const result = await renderer.render(url('/page'));
 
-    const manifest = createTestManifest({ routes });
-    const router = createRouter(manifest, { widgets });
-
-    const result = await router.render(url('/page'));
-
-    expect(result.status).toEqual(200);
-    expect(result.content).toContain('Error');
-  } finally {
-    restore();
-  }
+  expect(result.status).toEqual(200);
+  expect(result.content).toContain('Error');
 });
 
-test('SsrMdRouter - handles unknown widget name', async () => {
-  const restore = mockFetch({
-    '/page.md': '```widget:nonexistent\n{}\n```',
-  });
+test('SsrMdRenderer - handles unknown widget name', async () => {
+  const routes = [
+    createTestRoute({ pattern: '/page', modulePath: '/page.page.ts', files: { md: '/page.md' } }),
+  ];
+  const runtime = new MockRuntime();
+  runtime.set('/page.md', '```widget:nonexistent\n{}\n```');
 
-  try {
-    const routes = [
-      createTestRoute({
-        pattern: '/page',
-        modulePath: '/page.page.ts',
-        files: { md: '/page.md' },
-      }),
-    ];
+  const widgets = new WidgetRegistry();
+  const renderer = createRenderer(createTestManifest({ routes }), runtime, { widgets });
+  const result = await renderer.render(url('/page'));
 
-    const widgets = new WidgetRegistry();
-    const manifest = createTestManifest({ routes });
-    const router = createRouter(manifest, { widgets });
-
-    const result = await router.render(url('/page'));
-
-    expect(result.status).toEqual(200);
-    expect(result.content).toContain('Unknown widget');
-  } finally {
-    restore();
-  }
+  expect(result.status).toEqual(200);
+  expect(result.content).toContain('Unknown widget');
 });
 
-test('SsrMdRouter - widget error is rendered as markdown quote', async () => {
-  const restore = mockFetch({
-    '/page.md': '```widget:failing\n{}\n```',
-  });
+test('SsrMdRenderer - widget error is rendered as markdown quote', async () => {
+  const routes = [
+    createTestRoute({ pattern: '/page', modulePath: '/page.page.ts', files: { md: '/page.md' } }),
+  ];
+  const runtime = new MockRuntime();
+  runtime.set('/page.md', '```widget:failing\n{}\n```');
 
-  try {
-    const routes = [
-      createTestRoute({
-        pattern: '/page',
-        modulePath: '/page.page.ts',
-        files: { md: '/page.md' },
-      }),
-    ];
+  const widgets = new WidgetRegistry();
+  const failingWidget = new (class extends WidgetComponent {
+    override readonly name = 'failing';
+    override getData() { return Promise.reject(new Error('Widget crashed')); }
+    override renderHTML() { return ''; }
+    override renderMarkdown() { return ''; }
+    override renderMarkdownError(e: unknown) {
+      return `> **Widget Error**: ${e instanceof Error ? e.message : String(e)}`;
+    }
+  })();
+  widgets.add(failingWidget);
 
-    const widgets = new WidgetRegistry();
-    const failingWidget: WidgetComponent = {
-      name: 'failing',
-      files: undefined,
-      getData: () => Promise.reject(new Error('Widget crashed')),
-      renderHTML: () => '',
-      renderMarkdown: () => '',
-      getTitle: () => undefined,
-      renderError: () => '',
-      renderMarkdownError: (e: unknown) =>
-        `> **Widget Error**: ${e instanceof Error ? e.message : String(e)}`,
-    } as unknown as WidgetComponent;
-    widgets.add(failingWidget);
+  const renderer = createRenderer(createTestManifest({ routes }), runtime, { widgets });
+  const result = await renderer.render(url('/page'));
 
-    const manifest = createTestManifest({ routes });
-    const router = createRouter(manifest, { widgets });
-
-    const result = await router.render(url('/page'));
-
-    expect(result.status).toEqual(200);
-    expect(result.content).toContain('Widget Error');
-    expect(result.content).toContain('crashed');
-  } finally {
-    restore();
-  }
+  expect(result.status).toEqual(200);
+  expect(result.content).toContain('Widget Error');
+  expect(result.content).toContain('crashed');
 });
 
-test('SsrMdRouter - multiple widgets in same page are all resolved', async () => {
-  const restore = mockFetch({
-    '/page.md': 'Start\n\n```widget:w1\n{}\n```\n\nMiddle\n\n```widget:w2\n{}\n```\n\nEnd',
-  });
+test('SsrMdRenderer - multiple widgets in same page are all resolved', async () => {
+  const routes = [
+    createTestRoute({ pattern: '/page', modulePath: '/page.page.ts', files: { md: '/page.md' } }),
+  ];
+  const runtime = new MockRuntime();
+  runtime.set('/page.md', 'Start\n\n```widget:w1\n{}\n```\n\nMiddle\n\n```widget:w2\n{}\n```\n\nEnd');
 
-  try {
-    const routes = [
-      createTestRoute({
-        pattern: '/page',
-        modulePath: '/page.page.ts',
-        files: { md: '/page.md' },
-      }),
-    ];
+  const widgets = new WidgetRegistry();
+  widgets.add(new (class extends WidgetComponent {
+    override readonly name = 'w1';
+    override getData() { return Promise.resolve(null); }
+    override renderHTML() { return ''; }
+    override renderMarkdown() { return '**Widget 1**'; }
+  })());
+  widgets.add(new (class extends WidgetComponent {
+    override readonly name = 'w2';
+    override getData() { return Promise.resolve(null); }
+    override renderHTML() { return ''; }
+    override renderMarkdown() { return '**Widget 2**'; }
+  })());
 
-    const widgets = new WidgetRegistry();
-    widgets.add(createMockWidget('w1', () => '**Widget 1**') as WidgetComponent);
-    widgets.add(createMockWidget('w2', () => '**Widget 2**') as WidgetComponent);
+  const renderer = createRenderer(createTestManifest({ routes }), runtime, { widgets });
+  const result = await renderer.render(url('/page'));
 
-    const manifest = createTestManifest({ routes });
-    const router = createRouter(manifest, { widgets });
-
-    const result = await router.render(url('/page'));
-
-    expect(result.status).toEqual(200);
-    expect(result.content).toContain('Widget 1');
-    expect(result.content).toContain('Widget 2');
-  } finally {
-    restore();
-  }
+  expect(result.status).toEqual(200);
+  expect(result.content).toContain('Widget 1');
+  expect(result.content).toContain('Widget 2');
 });
 
 // ============================================================================
 // Status Page Rendering Tests
 // ============================================================================
 
-test('SsrMdRouter - 404 status page renders markdown format', async () => {
-  const manifest = createTestManifest();
-  const router = createRouter(manifest);
-
-  const result = await router.render(url('/nonexistent'));
+test('SsrMdRenderer - 404 status page renders markdown format', async () => {
+  const runtime = new MockRuntime();
+  const renderer = createRenderer(createTestManifest(), runtime);
+  const result = await renderer.render(url('/nonexistent'));
 
   expect(result.status).toEqual(404);
   expect(result.content).toContain('# Not Found');
   expect(result.content).toContain('/nonexistent');
 });
 
-test('SsrMdRouter - 404 markdown includes path in code block', async () => {
-  const manifest = createTestManifest();
-  const router = createRouter(manifest);
-
-  const result = await router.render(url('/missing/route'));
+test('SsrMdRenderer - 404 markdown includes path in code block', async () => {
+  const runtime = new MockRuntime();
+  const renderer = createRenderer(createTestManifest(), runtime);
+  const result = await renderer.render(url('/missing/route'));
 
   expect(result.status).toEqual(404);
   expect(result.content).toContain('`/missing/route`');
 });
 
-test('SsrMdRouter - 500 status page renders markdown format', async () => {
+test('SsrMdRenderer - 500 status page renders markdown format', async () => {
   const routes = [
-    createTestRoute({
-      pattern: '/error',
-      modulePath: '/error.ts',
-      files: { ts: '/error.ts' },
-    }),
+    createTestRoute({ pattern: '/error', modulePath: '/error.ts', files: { ts: '/error.ts' } }),
   ];
-
-  const manifest = createTestManifest({ routes });
-  const router = createRouter(manifest);
-
-  const result = await router.render(url('/error'));
+  const runtime = new MockRuntime();
+  const renderer = createRenderer(createTestManifest({ routes }), runtime);
+  const result = await renderer.render(url('/error'));
 
   expect(result.status).toEqual(500);
   expect(result.content).toContain('Error');
 });
 
-test('SsrMdRouter - custom markdown status page is used when available', async () => {
-  const restore = mockFetch({
-    '/custom-404.md': '# Oops!\n\nPage not found here.',
+test('SsrMdRenderer - custom markdown status page is used when available', async () => {
+  const statusPage: RouteConfig = {
+    pattern: '/404',
+    type: 'error',
+    modulePath: '/404.page.ts',
+    files: { md: '/custom-404.md' },
+  };
+
+  const runtime = new MockRuntime();
+  runtime.set('/custom-404.md', '# Oops!\n\nPage not found here.');
+
+  const routes = [
+    createTestRoute({ pattern: '/about', modulePath: '/about.page.ts' }),
+  ];
+
+  const manifest = createTestManifest({
+    routes,
+    statusPages: new Map([[404, statusPage]]),
   });
+  const renderer = createRenderer(manifest, runtime);
+  const result = await renderer.render(url('/missing'));
 
-  try {
-    const statusPage: RouteConfig = {
-      pattern: '/404',
-      type: 'error',
-      modulePath: '/404.page.ts',
-      files: { md: '/custom-404.md' },
-    };
-
-    const routes = [
-      createTestRoute({ pattern: '/about', modulePath: '/about.page.ts' }),
-    ];
-
-    const manifest = createTestManifest({
-      routes,
-      statusPages: new Map([[404, statusPage]]),
-    });
-    const router = createRouter(manifest);
-
-    const result = await router.render(url('/missing'));
-
-    expect(result.status).toEqual(404);
-    expect(result.content).toContain('Oops!');
-    expect(result.content).toContain('Page not found here.');
-  } finally {
-    restore();
-  }
+  expect(result.status).toEqual(404);
+  expect(result.content).toContain('Oops!');
+  expect(result.content).toContain('Page not found here.');
 });
 
-test('SsrMdRouter - status page markdown has router-slot stripped', async () => {
-  const restore = mockFetch({
-    '/404.md': '# Not Found\n\n```router-slot\n```',
+test('SsrMdRenderer - status page markdown has router-slot stripped', async () => {
+  const statusPage: RouteConfig = {
+    pattern: '/404',
+    type: 'error',
+    modulePath: '/404.page.ts',
+    files: { md: '/404.md' },
+  };
+
+  const runtime = new MockRuntime();
+  runtime.set('/404.md', '# Not Found\n\n```router-slot\n```');
+
+  const manifest = createTestManifest({
+    statusPages: new Map([[404, statusPage]]),
   });
+  const renderer = createRenderer(manifest, runtime);
+  const result = await renderer.render(url('/missing'));
 
-  try {
-    const statusPage: RouteConfig = {
-      pattern: '/404',
-      type: 'error',
-      modulePath: '/404.page.ts',
-      files: { md: '/404.md' },
-    };
-
-    const manifest = createTestManifest({
-      statusPages: new Map([[404, statusPage]]),
-    });
-    const router = createRouter(manifest);
-
-    const result = await router.render(url('/missing'));
-
-    expect(result.status).toEqual(404);
-    expect(result.content.includes('```router-slot\n```')).toEqual(false);
-  } finally {
-    restore();
-  }
+  expect(result.status).toEqual(404);
+  expect(result.content.includes('```router-slot\n```')).toEqual(false);
 });
 
 // ============================================================================
 // Redirect Handling Tests
 // ============================================================================
 
-test('SsrMdRouter - redirect renders plain text output', async () => {
+test('SsrMdRenderer - redirect renders plain text output', async () => {
   const manifest: TestManifest = {
-    routes: [
-      {
-        pattern: '/old',
-        type: 'redirect',
-        modulePath: '/old.redirect.ts',
-      },
-    ],
+    routes: [{ pattern: '/old', type: 'redirect', modulePath: '/old.redirect.ts' }],
     errorBoundaries: [],
     statusPages: new Map(),
     moduleLoaders: {
-      '/old.redirect.ts': () =>
-        Promise.resolve({
-          default: { to: '/new', status: 301 },
-        }),
+      '/old.redirect.ts': () => Promise.resolve({ default: { to: '/new', status: 301 } }),
     },
   };
 
-  const router = createRouter(manifest);
-  const result = await router.render(url('/old'));
+  const runtime = new MockRuntime();
+  const renderer = createRenderer(manifest, runtime);
+  const result = await renderer.render(url('/old'));
 
   expect(result.status).toEqual(301);
   expect(result.content).toContain('Redirect to: /new');
 });
 
-test('SsrMdRouter - redirect with 302 status', async () => {
+test('SsrMdRenderer - redirect with 302 status', async () => {
   const manifest: TestManifest = {
-    routes: [
-      {
-        pattern: '/temp',
-        type: 'redirect',
-        modulePath: '/temp.redirect.ts',
-      },
-    ],
+    routes: [{ pattern: '/temp', type: 'redirect', modulePath: '/temp.redirect.ts' }],
     errorBoundaries: [],
     statusPages: new Map(),
     moduleLoaders: {
-      '/temp.redirect.ts': () =>
-        Promise.resolve({
-          default: { to: '/permanent', status: 302 },
-        }),
+      '/temp.redirect.ts': () => Promise.resolve({ default: { to: '/permanent', status: 302 } }),
     },
   };
 
-  const router = createRouter(manifest);
-  const result = await router.render(url('/temp'));
+  const runtime = new MockRuntime();
+  const renderer = createRenderer(manifest, runtime);
+  const result = await renderer.render(url('/temp'));
 
   expect(result.status).toEqual(302);
   expect(result.content).toContain('Redirect to: /permanent');
@@ -729,181 +554,108 @@ test('SsrMdRouter - redirect with 302 status', async () => {
 // Route Hierarchy Composition Tests
 // ============================================================================
 
-test('SsrMdRouter - composes full hierarchy for nested route', async () => {
-  const restore = mockFetch({
-    '/docs.md': '# Documentation\n\n```router-slot\n```',
-    '/docs/guide.md': '## Getting Started\n\n```router-slot\n```',
-    '/docs/guide/setup.md': '### Setup Steps',
-  });
+test('SsrMdRenderer - composes full hierarchy for nested route', async () => {
+  const routes = [
+    createTestRoute({ pattern: '/docs', modulePath: '/docs.page.ts', files: { md: '/docs.md' } }),
+    createTestRoute({ pattern: '/docs/guide', modulePath: '/docs/guide.page.ts', files: { md: '/docs/guide.md' } }),
+    createTestRoute({ pattern: '/docs/guide/setup', modulePath: '/docs/guide/setup.page.ts', files: { md: '/docs/guide/setup.md' } }),
+  ];
+  const runtime = new MockRuntime();
+  runtime.set('/docs.md', '# Documentation\n\n```router-slot\n```');
+  runtime.set('/docs/guide.md', '## Getting Started\n\n```router-slot\n```');
+  runtime.set('/docs/guide/setup.md', '### Setup Steps');
 
-  try {
-    const routes = [
-      createTestRoute({
-        pattern: '/docs',
-        modulePath: '/docs.page.ts',
-        files: { md: '/docs.md' },
-      }),
-      createTestRoute({
-        pattern: '/docs/guide',
-        modulePath: '/docs/guide.page.ts',
-        files: { md: '/docs/guide.md' },
-      }),
-      createTestRoute({
-        pattern: '/docs/guide/setup',
-        modulePath: '/docs/guide/setup.page.ts',
-        files: { md: '/docs/guide/setup.md' },
-      }),
-    ];
+  const renderer = createRenderer(createTestManifest({ routes }), runtime);
+  const result = await renderer.render(url('/docs/guide/setup'));
 
-    const manifest = createTestManifest({ routes });
-    const router = createRouter(manifest);
-
-    const result = await router.render(url('/docs/guide/setup'));
-
-    expect(result.status).toEqual(200);
-    expect(result.content).toContain('Documentation');
-    expect(result.content).toContain('Getting Started');
-    expect(result.content).toContain('Setup Steps');
-  } finally {
-    restore();
-  }
+  expect(result.status).toEqual(200);
+  expect(result.content).toContain('Documentation');
+  expect(result.content).toContain('Getting Started');
+  expect(result.content).toContain('Setup Steps');
 });
 
-test('SsrMdRouter - respects slot positions in hierarchy', async () => {
-  const restore = mockFetch({
-    '/a.md': 'A-before\n\n```router-slot\n```\n\nA-after',
-    '/a/b.md': 'B-before\n\n```router-slot\n```\n\nB-after',
-    '/a/b/c.md': 'C-content',
-  });
+test('SsrMdRenderer - respects slot positions in hierarchy', async () => {
+  const routes = [
+    createTestRoute({ pattern: '/a', modulePath: '/a.page.ts', files: { md: '/a.md' } }),
+    createTestRoute({ pattern: '/a/b', modulePath: '/a/b.page.ts', files: { md: '/a/b.md' } }),
+    createTestRoute({ pattern: '/a/b/c', modulePath: '/a/b/c.page.ts', files: { md: '/a/b/c.md' } }),
+  ];
+  const runtime = new MockRuntime();
+  runtime.set('/a.md', 'A-before\n\n```router-slot\n```\n\nA-after');
+  runtime.set('/a/b.md', 'B-before\n\n```router-slot\n```\n\nB-after');
+  runtime.set('/a/b/c.md', 'C-content');
 
-  try {
-    const routes = [
-      createTestRoute({ pattern: '/a', modulePath: '/a.page.ts', files: { md: '/a.md' } }),
-      createTestRoute({ pattern: '/a/b', modulePath: '/a/b.page.ts', files: { md: '/a/b.md' } }),
-      createTestRoute({
-        pattern: '/a/b/c',
-        modulePath: '/a/b/c.page.ts',
-        files: { md: '/a/b/c.md' },
-      }),
-    ];
+  const renderer = createRenderer(createTestManifest({ routes }), runtime);
+  const result = await renderer.render(url('/a/b/c'));
 
-    const manifest = createTestManifest({ routes });
-    const router = createRouter(manifest);
+  expect(result.status).toEqual(200);
+  const content = result.content;
+  const aBeforeIdx = content.indexOf('A-before');
+  const bBeforeIdx = content.indexOf('B-before');
+  const cIdx = content.indexOf('C-content');
+  const bAfterIdx = content.indexOf('B-after');
+  const aAfterIdx = content.indexOf('A-after');
 
-    const result = await router.render(url('/a/b/c'));
-
-    expect(result.status).toEqual(200);
-    // Verify order: A-before, B-before, C, B-after, A-after
-    const content = result.content;
-    const aBeforeIdx = content.indexOf('A-before');
-    const bBeforeIdx = content.indexOf('B-before');
-    const cIdx = content.indexOf('C-content');
-    const bAfterIdx = content.indexOf('B-after');
-    const aAfterIdx = content.indexOf('A-after');
-
-    expect(aBeforeIdx < bBeforeIdx).toEqual(true);
-    expect(bBeforeIdx < cIdx).toEqual(true);
-    expect(cIdx < bAfterIdx).toEqual(true);
-    expect(bAfterIdx < aAfterIdx).toEqual(true);
-  } finally {
-    restore();
-  }
+  expect(aBeforeIdx < bBeforeIdx).toEqual(true);
+  expect(bBeforeIdx < cIdx).toEqual(true);
+  expect(cIdx < bAfterIdx).toEqual(true);
+  expect(bAfterIdx < aAfterIdx).toEqual(true);
 });
 
-test('SsrMdRouter - skips routes without content in hierarchy', async () => {
-  const restore = mockFetch({
-    '/docs.md': '# Docs\n\n```router-slot\n```',
-    '/docs/api.md': '## API',
-  });
+test('SsrMdRenderer - skips routes without content in hierarchy', async () => {
+  const routes = [
+    createTestRoute({ pattern: '/docs', modulePath: '/docs.page.ts', files: { md: '/docs.md' } }),
+    createTestRoute({ pattern: '/docs/api', modulePath: '/docs/api.page.ts', files: { md: '/docs/api.md' } }),
+  ];
+  const runtime = new MockRuntime();
+  runtime.set('/docs.md', '# Docs\n\n```router-slot\n```');
+  runtime.set('/docs/api.md', '## API');
 
-  try {
-    const routes = [
-      createTestRoute({
-        pattern: '/docs',
-        modulePath: '/docs.page.ts',
-        files: { md: '/docs.md' },
-      }),
-      createTestRoute({
-        pattern: '/docs/api',
-        modulePath: '/docs/api.page.ts',
-        files: { md: '/docs/api.md' },
-      }),
-    ];
+  const renderer = createRenderer(createTestManifest({ routes }), runtime);
+  const result = await renderer.render(url('/docs/api'));
 
-    const manifest = createTestManifest({ routes });
-    const router = createRouter(manifest);
-
-    const result = await router.render(url('/docs/api'));
-
-    expect(result.status).toEqual(200);
-    expect(result.content).toContain('Docs');
-    expect(result.content).toContain('API');
-  } finally {
-    restore();
-  }
+  expect(result.status).toEqual(200);
+  expect(result.content).toContain('Docs');
+  expect(result.content).toContain('API');
 });
 
 // ============================================================================
 // URL Normalization Tests
 // ============================================================================
 
-test('SsrMdRouter - renders unprefixed routes (server strips /md/ prefix)', async () => {
-  const restore = mockFetch({
-    '/page.md': 'Page content',
-  });
+test('SsrMdRenderer - renders unprefixed routes (server strips /md/ prefix)', async () => {
+  const routes = [
+    createTestRoute({ pattern: '/page', modulePath: '/page.page.ts', files: { md: '/page.md' } }),
+  ];
+  const runtime = new MockRuntime();
+  runtime.set('/page.md', 'Page content');
 
-  try {
-    const routes = [
-      createTestRoute({
-        pattern: '/page',
-        modulePath: '/page.page.ts',
-        files: { md: '/page.md' },
-      }),
-    ];
+  const renderer = createRenderer(createTestManifest({ routes }), runtime);
+  const result = await renderer.render(url('/page'));
 
-    const manifest = createTestManifest({ routes });
-    const router = createRouter(manifest);
-
-    const result = await router.render(url('/page'));
-
-    expect(result.status).toEqual(200);
-    expect(result.content).toContain('Page content');
-  } finally {
-    restore();
-  }
+  expect(result.status).toEqual(200);
+  expect(result.content).toContain('Page content');
 });
 
-test('SsrMdRouter - renders unprefixed nested path', async () => {
-  const restore = mockFetch({
-    '/docs/guide.md': 'Guide',
-  });
+test('SsrMdRenderer - renders unprefixed nested path', async () => {
+  const routes = [
+    createTestRoute({ pattern: '/docs/guide', modulePath: '/docs/guide.page.ts', files: { md: '/docs/guide.md' } }),
+  ];
+  const runtime = new MockRuntime();
+  runtime.set('/docs/guide.md', 'Guide');
 
-  try {
-    const routes = [
-      createTestRoute({
-        pattern: '/docs/guide',
-        modulePath: '/docs/guide.page.ts',
-        files: { md: '/docs/guide.md' },
-      }),
-    ];
+  const renderer = createRenderer(createTestManifest({ routes }), runtime);
+  const result = await renderer.render(url('/docs/guide'));
 
-    const manifest = createTestManifest({ routes });
-    const router = createRouter(manifest);
-
-    const result = await router.render(url('/docs/guide'));
-
-    expect(result.status).toEqual(200);
-    expect(result.content).toContain('Guide');
-  } finally {
-    restore();
-  }
+  expect(result.status).toEqual(200);
+  expect(result.content).toContain('Guide');
 });
 
-test('SsrMdRouter - renders root path', async () => {
-  const manifest = createTestManifest({ routes: [] });
-  const router = createRouter(manifest);
+test('SsrMdRenderer - renders root path', async () => {
+  const runtime = new MockRuntime();
+  const renderer = createRenderer(createTestManifest({ routes: [] }), runtime);
+  const result = await renderer.render(url('/'));
 
-  const result = await router.render(url('/'));
   expect(result.status).toEqual(200);
 });
 
@@ -911,403 +663,239 @@ test('SsrMdRouter - renders root path', async () => {
 // Page Component Rendering Tests
 // ============================================================================
 
-test('SsrMdRouter - resolves widget blocks and calls renderMarkdown', async () => {
-  // This test verifies widget resolution in markdown content
-  const restore = mockFetch({
-    '/page.md': 'Start\n\n```widget:demo\n{}\n```\n\nEnd',
-  });
+test('SsrMdRenderer - resolves widget blocks and calls renderMarkdown', async () => {
+  const routes = [
+    createTestRoute({ pattern: '/page', modulePath: '/page.page.ts', files: { md: '/page.md' } }),
+  ];
+  const runtime = new MockRuntime();
+  runtime.set('/page.md', 'Start\n\n```widget:demo\n{}\n```\n\nEnd');
 
-  try {
-    const routes = [
-      createTestRoute({
-        pattern: '/page',
-        modulePath: '/page.page.ts',
-        files: { md: '/page.md' },
-      }),
-    ];
+  const widgets = new WidgetRegistry();
+  const demoWidget = new (class extends WidgetComponent {
+    override readonly name = 'demo';
+    override getData() { return Promise.resolve(null); }
+    override renderHTML() { return '<div>demo</div>'; }
+    override renderMarkdown() { return 'Widget rendered in markdown'; }
+  })();
+  widgets.add(demoWidget);
 
-    const widgets = new WidgetRegistry();
-    const customWidget: WidgetComponent = {
-      name: 'demo',
-      files: undefined,
-      getData: () => Promise.resolve(null),
-      renderHTML: () => '<div>demo</div>',
-      renderMarkdown: () => 'Widget rendered in markdown',
-      getTitle: () => undefined,
-      renderError: () => '',
-      renderMarkdownError: () => '',
-    } as unknown as WidgetComponent;
-    widgets.add(customWidget);
+  const renderer = createRenderer(createTestManifest({ routes }), runtime, { widgets });
+  const result = await renderer.render(url('/page'));
 
-    const manifest = createTestManifest({ routes });
-    const router = createRouter(manifest, { widgets });
-
-    const result = await router.render(url('/page'));
-
-    expect(result.status).toEqual(200);
-    expect(result.content).toContain('Start');
-    expect(result.content).toContain('Widget rendered in markdown');
-    expect(result.content).toContain('End');
-  } finally {
-    restore();
-  }
+  expect(result.status).toEqual(200);
+  expect(result.content).toContain('Start');
+  expect(result.content).toContain('Widget rendered in markdown');
+  expect(result.content).toContain('End');
 });
 
 // ============================================================================
 // Default Root Route Tests
 // ============================================================================
 
-test('SsrMdRouter - default root route returns slot placeholder', async () => {
+test('SsrMdRenderer - default root route returns slot placeholder', async () => {
   const routes = [
-    {
-      pattern: '/',
-      type: 'page' as const,
-      modulePath: '__default_root__',
-    },
+    { pattern: '/', type: 'page' as const, modulePath: '__default_root__' },
   ];
-
-  const manifest = createTestManifest({ routes });
-  const router = createRouter(manifest);
-
-  const result = await router.render(url('/'));
+  const runtime = new MockRuntime();
+  const renderer = createRenderer(createTestManifest({ routes }), runtime);
+  const result = await renderer.render(url('/'));
 
   expect(result.status).toEqual(200);
 });
 
-test('SsrMdRouter - default root route injects child content correctly', async () => {
-  const restore = mockFetch({
-    '/child.md': 'Child content',
-  });
+test('SsrMdRenderer - default root route injects child content correctly', async () => {
+  const routes = [
+    { pattern: '/', type: 'page' as const, modulePath: '__default_root__' },
+    createTestRoute({ pattern: '/child', modulePath: '/child.page.ts', files: { md: '/child.md' } }),
+  ];
+  const runtime = new MockRuntime();
+  runtime.set('/child.md', 'Child content');
 
-  try {
-    const routes = [
-      {
-        pattern: '/',
-        type: 'page' as const,
-        modulePath: '__default_root__',
-      },
-      createTestRoute({
-        pattern: '/child',
-        modulePath: '/child.page.ts',
-        files: { md: '/child.md' },
-      }),
-    ];
+  const renderer = createRenderer(createTestManifest({ routes }), runtime);
+  const result = await renderer.render(url('/child'));
 
-    const manifest = createTestManifest({ routes });
-    const router = createRouter(manifest);
-
-    const result = await router.render(url('/child'));
-
-    expect(result.status).toEqual(200);
-    expect(result.content).toContain('Child content');
-  } finally {
-    restore();
-  }
+  expect(result.status).toEqual(200);
+  expect(result.content).toContain('Child content');
 });
 
 // ============================================================================
 // Error Boundary Tests
 // ============================================================================
 
-test('SsrMdRouter - renders error boundary when available for errors', async () => {
-  // This test verifies the error boundary mechanism when a route error occurs.
-  // The error boundary should render for pages under its pattern.
+test('SsrMdRenderer - renders error boundary when available for errors', async () => {
   const routes = [
-    createTestRoute({
-      pattern: '/projects/:id',
-      modulePath: '/projects/[id].page.ts',
-    }),
+    createTestRoute({ pattern: '/projects/:id', modulePath: '/projects/[id].page.ts' }),
   ];
 
-  const restore = mockFetch({
-    '/error.md': '# Project Error',
-  });
+  const manifest: TestManifest = {
+    routes,
+    errorBoundaries: [{ pattern: '/projects', modulePath: '/projects/error.ts' }],
+    statusPages: new Map(),
+    moduleLoaders: {
+      '/projects/error.ts': () => Promise.resolve({
+        default: stubComponent({ renderMarkdown: () => '# Project Error' }),
+      }),
+    },
+  };
 
-  try {
-    const manifest: TestManifest = {
-      routes,
-      errorBoundaries: [
-        { pattern: '/projects', modulePath: '/projects/error.ts' },
-      ],
-      statusPages: new Map(),
-      moduleLoaders: {
-        '/projects/error.ts': () =>
-          Promise.resolve({
-            default: {
-              name: 'error',
-              getData: () => Promise.resolve(null),
-              renderHTML: () => '',
-              renderMarkdown: () => '# Project Error',
-              getTitle: () => undefined,
-              renderError: () => '',
-              renderMarkdownError: () => '',
-            },
-          }),
-      },
-    };
+  const runtime = new MockRuntime();
+  const renderer = createRenderer(manifest, runtime);
+  const result = await renderer.render(url('/projects/123'));
 
-    const router = createRouter(manifest);
-    const result = await router.render(url('/projects/123'));
-
-    // Error boundary patterns are recognized
-    expect(result.status === 200 || result.status === 500).toEqual(true);
-  } finally {
-    restore();
-  }
+  expect(result.status === 200 || result.status === 500).toEqual(true);
 });
 
 // ============================================================================
 // Title Extraction Tests
 // ============================================================================
 
-test('SsrMdRouter - render result has title property', async () => {
-  // The render() method returns an object with content, status, and optional title
-  const restore = mockFetch({
-    '/page.md': 'Page Content',
-  });
+test('SsrMdRenderer - render result has title property', async () => {
+  const routes = [
+    createTestRoute({ pattern: '/page', modulePath: '/page.page.ts', files: { md: '/page.md' } }),
+  ];
+  const runtime = new MockRuntime();
+  runtime.set('/page.md', 'Page Content');
 
-  try {
-    const routes = [
-      createTestRoute({
-        pattern: '/page',
-        modulePath: '/page.page.ts',
-        files: { md: '/page.md' },
-      }),
-    ];
+  const renderer = createRenderer(createTestManifest({ routes }), runtime);
+  const result = await renderer.render(url('/page'));
 
-    const manifest = createTestManifest({ routes });
-    const router = createRouter(manifest);
-
-    const result = await router.render(url('/page'));
-
-    expect(result.status).toEqual(200);
-    // Result object has these properties
-    expect(typeof result.content).toEqual('string');
-    expect(typeof result.status).toEqual('number');
-    expect(result.content).toContain('Page Content');
-  } finally {
-    restore();
-  }
+  expect(result.status).toEqual(200);
+  expect(typeof result.content).toEqual('string');
+  expect(typeof result.status).toEqual('number');
+  expect(result.content).toContain('Page Content');
 });
 
 // ============================================================================
 // Edge Cases
 // ============================================================================
 
-test('SsrMdRouter - handles empty markdown file', async () => {
-  const restore = mockFetch({
-    '/empty.md': '',
-  });
+test('SsrMdRenderer - handles empty markdown file', async () => {
+  const routes = [
+    createTestRoute({ pattern: '/empty', modulePath: '/empty.page.ts', files: { md: '/empty.md' } }),
+  ];
+  const runtime = new MockRuntime();
+  runtime.set('/empty.md', '');
 
-  try {
-    const routes = [
-      createTestRoute({
-        pattern: '/empty',
-        modulePath: '/empty.page.ts',
-        files: { md: '/empty.md' },
-      }),
-    ];
+  const renderer = createRenderer(createTestManifest({ routes }), runtime);
+  const result = await renderer.render(url('/empty'));
 
-    const manifest = createTestManifest({ routes });
-    const router = createRouter(manifest);
-
-    const result = await router.render(url('/empty'));
-
-    expect(result.status).toEqual(200);
-    expect(result.content).toEqual('');
-  } finally {
-    restore();
-  }
+  expect(result.status).toEqual(200);
+  expect(result.content).toEqual('');
 });
 
-test('SsrMdRouter - handles markdown with no slots', async () => {
-  const restore = mockFetch({
-    '/page.md': '# Page\n\nNo slots here',
-  });
+test('SsrMdRenderer - handles markdown with no slots', async () => {
+  const routes = [
+    createTestRoute({ pattern: '/page', modulePath: '/page.page.ts', files: { md: '/page.md' } }),
+  ];
+  const runtime = new MockRuntime();
+  runtime.set('/page.md', '# Page\n\nNo slots here');
 
-  try {
-    const routes = [
-      createTestRoute({
-        pattern: '/page',
-        modulePath: '/page.page.ts',
-        files: { md: '/page.md' },
-      }),
-    ];
+  const renderer = createRenderer(createTestManifest({ routes }), runtime);
+  const result = await renderer.render(url('/page'));
 
-    const manifest = createTestManifest({ routes });
-    const router = createRouter(manifest);
-
-    const result = await router.render(url('/page'));
-
-    expect(result.status).toEqual(200);
-    expect(result.content).toContain('No slots here');
-  } finally {
-    restore();
-  }
+  expect(result.status).toEqual(200);
+  expect(result.content).toContain('No slots here');
 });
 
-test('SsrMdRouter - handles route with query parameters', async () => {
-  const restore = mockFetch({
-    '/search.md': 'Search results',
-  });
+test('SsrMdRenderer - handles route with query parameters', async () => {
+  const routes = [
+    createTestRoute({ pattern: '/search', modulePath: '/search.page.ts', files: { md: '/search.md' } }),
+  ];
+  const runtime = new MockRuntime();
+  runtime.set('/search.md', 'Search results');
 
-  try {
-    const routes = [
-      createTestRoute({
-        pattern: '/search',
-        modulePath: '/search.page.ts',
-        files: { md: '/search.md' },
-      }),
-    ];
+  const renderer = createRenderer(createTestManifest({ routes }), runtime);
+  const result = await renderer.render(url('/search?q=test&limit=10'));
 
-    const manifest = createTestManifest({ routes });
-    const router = createRouter(manifest);
-
-    const result = await router.render(url('/search?q=test&limit=10'));
-
-    expect(result.status).toEqual(200);
-    expect(result.content).toContain('Search results');
-  } finally {
-    restore();
-  }
+  expect(result.status).toEqual(200);
+  expect(result.content).toContain('Search results');
 });
 
-test('SsrMdRouter - handles route with fragment', async () => {
-  const restore = mockFetch({
-    '/docs.md': 'Documentation',
-  });
+test('SsrMdRenderer - handles route with fragment', async () => {
+  const routes = [
+    createTestRoute({ pattern: '/docs', modulePath: '/docs.page.ts', files: { md: '/docs.md' } }),
+  ];
+  const runtime = new MockRuntime();
+  runtime.set('/docs.md', 'Documentation');
 
-  try {
-    const routes = [
-      createTestRoute({
-        pattern: '/docs',
-        modulePath: '/docs.page.ts',
-        files: { md: '/docs.md' },
-      }),
-    ];
+  const renderer = createRenderer(createTestManifest({ routes }), runtime);
+  const result = await renderer.render(url('/docs#section'));
 
-    const manifest = createTestManifest({ routes });
-    const router = createRouter(manifest);
-
-    const result = await router.render(url('/docs#section'));
-
-    expect(result.status).toEqual(200);
-    expect(result.content).toContain('Documentation');
-  } finally {
-    restore();
-  }
+  expect(result.status).toEqual(200);
+  expect(result.content).toContain('Documentation');
 });
 
-test('SsrMdRouter - handles route with dynamic parameters', async () => {
-  const restore = mockFetch({
-    '/post.md': 'Post ID: :id',
-  });
+test('SsrMdRenderer - handles route with dynamic parameters', async () => {
+  const routes = [
+    createTestRoute({ pattern: '/posts/:id', modulePath: '/posts/[id].page.ts', files: { md: '/post.md' } }),
+  ];
+  const runtime = new MockRuntime();
+  runtime.set('/post.md', 'Post ID: :id');
 
-  try {
-    const routes = [
-      createTestRoute({
-        pattern: '/posts/:id',
-        modulePath: '/posts/[id].page.ts',
-        files: { md: '/post.md' },
-      }),
-    ];
+  const renderer = createRenderer(createTestManifest({ routes }), runtime);
+  const result = await renderer.render(url('/posts/123'));
 
-    const manifest = createTestManifest({ routes });
-    const router = createRouter(manifest);
-
-    const result = await router.render(url('/posts/123'));
-
-    expect(result.status).toEqual(200);
-  } finally {
-    restore();
-  }
+  expect(result.status).toEqual(200);
 });
 
 // ============================================================================
 // Widget File Resolution Tests
 // ============================================================================
 
-test('SsrMdRouter - uses discovered widget files when available', async () => {
-  const restore = mockFetch({
-    '/page.md': '```widget:info\n{}\n```',
-  });
+test('SsrMdRenderer - uses discovered widget files when available', async () => {
+  const routes = [
+    createTestRoute({ pattern: '/page', modulePath: '/page.page.ts', files: { md: '/page.md' } }),
+  ];
+  const runtime = new MockRuntime();
+  runtime.set('/page.md', '```widget:info\n{}\n```');
 
-  try {
-    const routes = [
-      createTestRoute({
-        pattern: '/page',
-        modulePath: '/page.page.ts',
-        files: { md: '/page.md' },
-      }),
-    ];
+  const widgets = new WidgetRegistry();
+  const infoWidget = new (class extends WidgetComponent {
+    override readonly name = 'info';
+    override getData() { return Promise.resolve(null); }
+    override renderHTML() { return ''; }
+    override renderMarkdown() { return 'From discovered files'; }
+  })();
+  widgets.add(infoWidget);
 
-    const widgets = new WidgetRegistry();
-    const infoWidget = createMockWidget('info', () => 'From discovered files');
-    widgets.add(infoWidget as WidgetComponent);
+  const widgetFiles = { 'info': { md: '/info.discovered.md' } };
+  const renderer = createRenderer(createTestManifest({ routes }), runtime, { widgets, widgetFiles });
+  const result = await renderer.render(url('/page'));
 
-    const widgetFiles = {
-      'info': { md: '/info.discovered.md' },
-    };
-
-    const manifest = createTestManifest({ routes });
-    const router = createRouter(manifest, { widgets, widgetFiles });
-
-    const result = await router.render(url('/page'));
-
-    expect(result.status).toEqual(200);
-    expect(result.content).toContain('From discovered files');
-  } finally {
-    restore();
-  }
+  expect(result.status).toEqual(200);
+  expect(result.content).toContain('From discovered files');
 });
 
 // ============================================================================
 // Context Provider Tests
 // ============================================================================
 
-test('SsrMdRouter - passes context to widget getData', async () => {
-  const restore = mockFetch({
-    '/page.md': '```widget:ctx-aware\n{}\n```',
-  });
+test('SsrMdRenderer - passes context to widget getData', async () => {
+  const routes = [
+    createTestRoute({ pattern: '/page', modulePath: '/page.page.ts', files: { md: '/page.md' } }),
+  ];
+  const runtime = new MockRuntime();
+  runtime.set('/page.md', '```widget:ctx-aware\n{}\n```');
 
-  try {
-    const routes = [
-      createTestRoute({
-        pattern: '/page',
-        modulePath: '/page.page.ts',
-        files: { md: '/page.md' },
-      }),
-    ];
+  const widgets = new WidgetRegistry();
+  let capturedContext: ComponentContext | undefined;
 
-    const widgets = new WidgetRegistry();
-    let capturedContext: ComponentContext | undefined;
+  const ctxWidget = new (class extends WidgetComponent {
+    override readonly name = 'ctx-aware';
+    override getData(args: this['DataArgs']) {
+      capturedContext = args.context;
+      return Promise.resolve({ ok: true });
+    }
+    override renderHTML() { return ''; }
+    override renderMarkdown() { return 'Context passed'; }
+  })();
+  widgets.add(ctxWidget);
 
-    const ctxWidget: WidgetComponent = {
-      name: 'ctx-aware',
-      files: undefined,
-      getData: (args: { context: ComponentContext }) => {
-        capturedContext = args.context;
-        return Promise.resolve({ ok: true });
-      },
-      renderHTML: () => '',
-      renderMarkdown: () => 'Context passed',
-      getTitle: () => undefined,
-      renderError: () => '',
-      renderMarkdownError: () => '',
-    } as unknown as WidgetComponent;
-    widgets.add(ctxWidget);
+  const extendContext = (baseCtx: ComponentContext) => ({ ...baseCtx, custom: true });
+  const renderer = createRenderer(createTestManifest({ routes }), runtime, { widgets, extendContext });
+  const result = await renderer.render(url('/page'));
 
-    const extendContext = (baseCtx: ComponentContext) => ({ ...baseCtx, custom: true });
-
-    const manifest = createTestManifest({ routes });
-    const router = createRouter(manifest, { widgets, extendContext });
-
-    const result = await router.render(url('/page'));
-
-    expect(result.status).toEqual(200);
-    expect(result.content).toContain('Context passed');
-    expect((capturedContext as ComponentContext & { custom?: boolean })?.custom).toEqual(true);
-  } finally {
-    restore();
-  }
+  expect(result.status).toEqual(200);
+  expect(result.content).toContain('Context passed');
+  expect((capturedContext as ComponentContext & { custom?: boolean })?.custom).toEqual(true);
 });

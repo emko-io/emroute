@@ -7,7 +7,7 @@
  * Set SPA_MODE env var to test different modes: SPA_MODE=leaf bun ...
  */
 
-import type { SpaMode } from '../../../src/type/widget.type.ts';
+import type { SpaMode } from '../../../core/type/widget.type.ts';
 import { createTestServer } from './setup.ts';
 
 const spaMode = (process.env.SPA_MODE ?? 'only') as SpaMode;

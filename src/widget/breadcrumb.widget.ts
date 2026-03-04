@@ -14,9 +14,9 @@
  *   ```
  */
 
-import { WidgetComponent } from '../component/widget.component.ts';
-import { escapeHtml } from '../util/html.util.ts';
-import type { ComponentContext } from '../component/abstract.component.ts';
+import { WidgetComponent } from '../../core/component/widget.component.ts';
+import { escapeHtml } from '../../core/util/html.util.ts';
+import type { ComponentContext } from '../../core/type/component.type.ts';
 
 const DEFAULT_HTML_SEPARATOR = ' \u203A ';
 const DEFAULT_MD_SEPARATOR = ' > ';

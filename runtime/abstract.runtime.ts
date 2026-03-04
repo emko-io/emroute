@@ -1,7 +1,7 @@
-import type { RouteNode, RouteFiles } from '../src/type/route-tree.type.ts';
-import { resolveTargetNode } from '../src/route/route-tree.util.ts';
-import type { WidgetManifestEntry } from '../src/type/widget.type.ts';
-import type { ElementManifestEntry } from '../src/type/element.type.ts';
+import type { RouteNode, RouteFiles } from '../core/type/route-tree.type.ts';
+import { resolveTargetNode } from '../core/util/route-tree.util.ts';
+import type { WidgetManifestEntry } from '../core/type/widget.type.ts';
+import type { ElementManifestEntry } from '../core/type/element.type.ts';
 
 export const CONTENT_TYPES: Map<string, string> = new Map<string, string>([
   ['.html', 'text/html; charset=utf-8'],
@@ -33,9 +33,12 @@ export type FetchReturn = ReturnType<typeof fetch>;
 export const DEFAULT_ROUTES_DIR = '/routes';
 export const DEFAULT_WIDGETS_DIR = '/widgets';
 export const DEFAULT_ELEMENTS_DIR = '/elements';
-export const ROUTES_MANIFEST_PATH = '/routes.manifest.json';
-export const WIDGETS_MANIFEST_PATH = '/widgets.manifest.json';
-export const ELEMENTS_MANIFEST_PATH = '/elements.manifest.json';
+import {
+  ROUTES_MANIFEST_PATH,
+  WIDGETS_MANIFEST_PATH,
+  ELEMENTS_MANIFEST_PATH,
+} from '../core/runtime/abstract.runtime.ts';
+export { ROUTES_MANIFEST_PATH, WIDGETS_MANIFEST_PATH, ELEMENTS_MANIFEST_PATH };
 
 export interface RuntimeConfig {
   routesDir?: string;

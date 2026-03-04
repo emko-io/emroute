@@ -2,17 +2,18 @@
  * Test Utilities
  *
  * Helpers for converting old-style RouteConfig arrays into RouteNode trees
- * for use with RouteTrie in tests.
+ * and writing them into a mock Runtime for Pipeline tests.
  */
 
-import type { RouteNode } from '../../src/type/route-tree.type.ts';
-import type { RouteConfig, ErrorBoundary } from '../../src/type/route.type.ts';
-import { RouteTrie } from '../../src/route/route.trie.ts';
-import type { RouteResolver } from '../../src/route/route.resolver.ts';
+import type { RouteNode } from '../../core/type/route-tree.type.ts';
+import type { RouteConfig, ErrorBoundary } from '../../core/type/route.type.ts';
+import { RouteTrie } from '../../core/router/route.trie.ts';
+import { ROUTES_MANIFEST_PATH } from '../../core/runtime/abstract.runtime.ts';
+import { Runtime } from '../../core/runtime/abstract.runtime.ts';
 
 /**
  * Old-style manifest shape for test compatibility.
- * Tests define routes in this shape, then convert via createResolver().
+ * Tests define routes in this shape, then convert via routesToTree().
  */
 export interface TestManifest {
   routes?: RouteConfig[];
@@ -111,15 +112,38 @@ function resolveNode(root: RouteNode, pattern: string): RouteNode {
   return node;
 }
 
-/**
- * Build a RouteTrie from a flat list of RouteConfig.
- * Drop-in replacement for old RoutesManifest in tests.
- */
 /** Shorthand for tests: string → URL (defaults to http://test base). */
 export function url(path: string): URL {
   return new URL(path, 'http://test');
 }
 
+/**
+ * Write a route manifest into a Runtime so Pipeline can read it.
+ * Accepts the same shape as the old createResolver() for easy migration.
+ */
+export function writeManifest(
+  runtime: Runtime,
+  routes: RouteConfig[],
+  options?: {
+    errorBoundaries?: ErrorBoundary[];
+    statusPages?: Map<number, RouteConfig>;
+    errorHandler?: RouteConfig;
+  },
+): RouteNode {
+  const tree = routesToTree(routes, options);
+  const json = JSON.stringify(tree);
+  if ('set' in runtime && typeof (runtime as Record<string, unknown>).set === 'function') {
+    (runtime as Runtime & { set(path: string, content: string): void }).set(
+      ROUTES_MANIFEST_PATH,
+      json,
+    );
+  }
+  return tree;
+}
+
+/**
+ * Create a RouteTrie from route configs.
+ */
 export function createResolver(
   routes: RouteConfig[],
   options?: {
@@ -127,7 +151,6 @@ export function createResolver(
     statusPages?: Map<number, RouteConfig>;
     errorHandler?: RouteConfig;
   },
-): RouteResolver {
+): RouteTrie {
   return new RouteTrie(routesToTree(routes, options));
 }
-

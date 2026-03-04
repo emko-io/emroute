@@ -3,11 +3,11 @@
 ## What is SPA mode?
 
 SPA mode controls what the server bundles and serves to the browser. It's a
-single configuration option on `createEmrouteServer` that determines whether
+single configuration option on `Emroute.create` that determines whether
 your app ships JavaScript, and if so, how much.
 
 ```typescript
-const emroute = await createEmrouteServer({
+const emroute = await Emroute.create({
   spa: 'root',  // 'none' | 'leaf' | 'root' | 'only'
 }, runtime);
 ```
@@ -121,7 +121,7 @@ This is progressive enhancement — the same links and URLs work in every mode.
 ### Basic setup
 
 ```typescript
-import { createEmrouteServer } from '@emkodev/emroute/server';
+import { Emroute } from '@emkodev/emroute/server';
 import { buildClientBundles } from '@emkodev/emroute/server/build';
 import { BunFsRuntime } from '@emkodev/emroute/runtime/bun/fs';
 
@@ -137,7 +137,7 @@ await buildClientBundles({
   spa: 'root',
 });
 
-const emroute = await createEmrouteServer({
+const emroute = await Emroute.create({
   spa: 'root',
 }, runtime);
 ```
@@ -151,7 +151,7 @@ const runtime = new BunFsRuntime('my-app', {
   routesDir: '/routes',
 });
 
-const emroute = await createEmrouteServer({
+const emroute = await Emroute.create({
   spa: 'none',
 }, runtime);
 ```

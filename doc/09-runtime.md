@@ -80,7 +80,7 @@ this method.
 ### Building client bundles
 
 Bundling is a separate step from the runtime. Call `buildClientBundles()` before
-`createEmrouteServer()`:
+`Emroute.create()`:
 
 ```typescript
 import { buildClientBundles } from '@emkodev/emroute/server/build';

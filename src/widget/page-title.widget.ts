@@ -8,7 +8,7 @@
  *   <widget-page-title title="About Us"></widget-page-title>
  */
 
-import { WidgetComponent } from '../component/widget.component.ts';
+import { WidgetComponent } from '../../core/component/widget.component.ts';
 
 interface PageTitleParams {
   title: string;

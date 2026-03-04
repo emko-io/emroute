@@ -21,8 +21,8 @@
  */
 
 import { test, expect } from 'bun:test';
-import type { ComponentContext } from '../../src/component/abstract.component.ts';
-import { PageComponent } from '../../src/component/page.component.ts';
+import type { ComponentContext } from '../../core/type/component.type.ts';
+import { PageComponent } from '../../core/component/page.component.ts';
 
 // ============================================================================
 // Test Fixtures & Helpers
@@ -579,7 +579,7 @@ test('Edge case - CSS + markdown with <mark-down> placeholder in HTML', () => {
 test('Default instance - exported default is PageComponent instance', async () => {
   // Import the default export
   const { default: defaultInstance } = await import(
-    '../../src/component/page.component.ts'
+    '../../core/component/page.component.ts'
   );
 
   expect(defaultInstance instanceof PageComponent).toEqual(true);

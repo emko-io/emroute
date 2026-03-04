@@ -1,6 +1,6 @@
 import { test, expect, describe } from 'bun:test';
 import { generateSitemap } from '../../runtime/sitemap.generator.ts';
-import type { RouteNode } from '../../src/type/route-tree.type.ts';
+import type { RouteNode } from '../../core/type/route-tree.type.ts';
 
 /** Build a RouteNode tree from pattern/type pairs for testing. */
 function createManifest(

@@ -22,7 +22,7 @@ setup and SPA initialization.
 ### Before (1.6)
 
 ```ts
-import { createEmrouteServer } from '@emkodev/emroute/server';
+import { Emroute } from '@emkodev/emroute/server';
 import { BunFsRuntime } from '@emkodev/emroute/runtime/bun/fs';
 
 const runtime = new BunFsRuntime('.', {
@@ -31,7 +31,7 @@ const runtime = new BunFsRuntime('.', {
   entryPoint: '/main.ts',   // bundling config lived on runtime
 });
 
-const emroute = await createEmrouteServer({
+const emroute = await Emroute.create({
   spa: 'root',
   markdownRenderer: { render },
 }, runtime);
@@ -42,7 +42,7 @@ Bun.serve({ fetch: (req) => emroute.handleRequest(req) ?? new Response('Not Foun
 ### After (1.7)
 
 ```ts
-import { createEmrouteServer } from '@emkodev/emroute/server';
+import { Emroute } from '@emkodev/emroute/server';
 import { buildClientBundles } from '@emkodev/emroute/server/build';
 import { BunFsRuntime } from '@emkodev/emroute/runtime/bun/fs';
 
@@ -60,7 +60,7 @@ await buildClientBundles({
   // entryPoint: '/main.ts',  // optional, defaults to '/main.ts'
 });
 
-const emroute = await createEmrouteServer({
+const emroute = await Emroute.create({
   spa: 'root',
   markdownRenderer: { render },
 }, runtime);
@@ -70,7 +70,7 @@ Bun.serve({ fetch: (req) => emroute.handleRequest(req) ?? new Response('Not Foun
 
 Key changes:
 1. `entryPoint` moves from `RuntimeConfig` to `buildClientBundles()`
-2. Call `buildClientBundles()` **before** `createEmrouteServer()`
+2. Call `buildClientBundles()` **before** `Emroute.create()`
 3. The build step transpiles `.ts` modules to `.js`, inlines companion files,
    and updates manifests — the server reads the processed `.js` files
 
@@ -111,7 +111,7 @@ Key changes:
 ## Route format
 
 The route manifest changed from a flat array to a tree. If you only use
-`createEmrouteServer()` and let it read manifests from the runtime, this is
+`Emroute.create()` and let it read manifests from the runtime, this is
 transparent — the runtime produces the new format automatically.
 
 If you construct manifests programmatically:
@@ -128,7 +128,7 @@ const manifest: RoutesManifest = {
   errorBoundaries: [{ pattern: '/', modulePath: '/routes/index.error.ts' }],
 };
 
-const emroute = await createEmrouteServer({ routesManifest: manifest }, runtime);
+const emroute = await Emroute.create({ routesManifest: manifest }, runtime);
 ```
 
 ### After (1.7)
@@ -146,7 +146,7 @@ const routeTree: RouteNode = {
   },
 };
 
-const emroute = await createEmrouteServer({ routeTree }, runtime);
+const emroute = await Emroute.create({ routeTree }, runtime);
 ```
 
 ## Base paths
@@ -156,7 +156,7 @@ const emroute = await createEmrouteServer({ routeTree }, runtime);
 ### Before (1.6)
 
 ```ts
-const emroute = await createEmrouteServer({
+const emroute = await Emroute.create({
   basePath: { html: '/html', md: '/md' },
 }, runtime);
 ```
@@ -164,7 +164,7 @@ const emroute = await createEmrouteServer({
 ### After (1.7)
 
 ```ts
-const emroute = await createEmrouteServer({
+const emroute = await Emroute.create({
   basePath: { html: '/html', md: '/md', app: '/app' },
 }, runtime);
 ```

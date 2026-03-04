@@ -16,7 +16,7 @@ Three base paths, three audiences:
 - `/md/` — markdown for machines (curl, LLMs)
 - `/app/` — PWA/SPA for browsers with JS (`root`/`only` modes)
 
-`createEmrouteApp` = `createEmrouteServer` running in browser + Navigation
+`createEmrouteApp` = `Emroute.create` running in browser + Navigation
 API glue (~20 lines). Same server, same trie, same SSR renderers. The
 Navigation API intercepts `/app/` link clicks, strips prefix, calls
 `htmlRouter.render()`, injects content into `<router-slot>`.
@@ -77,8 +77,8 @@ Proven in `spike/merge-module.spike.ts`:
 - `SpaHtmlRouter` removed. Replaced by `createEmrouteApp`.
 - `HashRouter` removed. Can be recovered from git.
 - `base.renderer.ts` removed. DOM-based rendering pipeline gone.
-- `root` mode: client runs `createEmrouteServer` + `FetchRuntime` locally.
-- `only` mode: client runs `createEmrouteServer` + `UniversalBrowserRuntime`.
+- `root` mode: client runs `Emroute.create` + `FetchRuntime` locally.
+- `only` mode: client runs `Emroute.create` + `UniversalBrowserRuntime`.
 - `none` and `leaf` modes: unaffected.
 - Bare path redirects: `/about` → `/app/about` (was `/html/about`) in root/only.
 
@@ -98,7 +98,7 @@ Runtime interface simplifies: remove `bundle()`, `transpile()`.
 
 Already spiked on `experimental/pwa-thin-client`:
 - `runtime/fetch.runtime.ts` — fetches from remote server
-- `src/renderer/spa/thin-client.ts` — `EmrouteApp` + `createEmrouteApp`
+- `src/renderer/spa/emroute.app.ts` — `EmrouteApp` + `createEmrouteApp`
 - Server serves shell at `/app/*`, redirects bare paths to `/app/`
 
 Remaining: wire `loadModule()` to load merged `.js` (no `.ts`), adapt
@@ -114,7 +114,7 @@ Composes online (FetchRuntime) + offline (IDB/Cache) runtimes:
 
 ### Phase 4: Service Worker shell (only mode, optional)
 
-`sw.ts` — runs `createEmrouteServer` + `UniversalBrowserRuntime`:
+`sw.ts` — runs `Emroute.create` + `UniversalBrowserRuntime`:
 - `install`: populate offline storage from manifests
 - `fetch`: `handleRequest()` for navigation, offline storage for static
 - Same server code, same rendering, same widget resolution

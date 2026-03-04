@@ -12,11 +12,11 @@
  */
 
 import { test, expect, describe } from 'bun:test';
-import { parseAttrsToParams, resolveWidgetTags } from '../../src/util/widget-resolve.util.ts';
-import { WidgetComponent } from '../../src/component/widget.component.ts';
-import { Component } from '../../src/component/abstract.component.ts';
-import type { ComponentContext, ContextProvider } from '../../src/component/abstract.component.ts';
-import type { RouteInfo } from '../../src/type/route.type.ts';
+import { parseAttrsToParams, resolveWidgetTags } from '../../core/util/widget-resolve.util.ts';
+import { WidgetComponent } from '../../core/component/widget.component.ts';
+import { Component } from '../../core/component/abstract.component.ts';
+import type { ComponentContext, ContextProvider } from '../../core/type/component.type.ts';
+import type { RouteInfo } from '../../core/type/route.type.ts';
 
 /**
  * Test Helpers

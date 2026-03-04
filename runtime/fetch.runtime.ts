@@ -2,9 +2,9 @@
  * Fetch Runtime
  *
  * Browser-compatible Runtime that delegates all reads to a remote server
- * via `fetch()`. Used by the thin client in `root` mode — same
- * `createEmrouteServer` runs in the browser, but the Runtime fetches
- * files from the real server instead of reading from disk.
+ * via `fetch()`. Used by EmrouteApp in `root` mode — same Emroute
+ * instance runs in the browser, but the Runtime fetches files from the
+ * real server instead of reading from disk.
  *
  * No bundling, no transpiling, no filesystem access.
  * No directory scanning — the remote server already has manifests.

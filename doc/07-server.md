@@ -7,7 +7,7 @@ that handles requests and renders pages.
 ## Minimal server
 
 ```ts
-import { createEmrouteServer } from '@emkodev/emroute/server';
+import { Emroute } from '@emkodev/emroute/server';
 import { UniversalFsRuntime } from '@emkodev/emroute/runtime/universal/fs';
 import { render } from './renderer.ts';
 
@@ -17,7 +17,7 @@ const runtime = new UniversalFsRuntime(appRoot, {
   routesDir: '/routes',
 });
 
-const emroute = await createEmrouteServer({
+const emroute = await Emroute.create({
   spa: 'none',
   markdownRenderer: { render },
 }, runtime);
@@ -38,7 +38,7 @@ When using any SPA mode except `'none'`, call `buildClientBundles()` before
 creating the server:
 
 ```ts
-import { createEmrouteServer } from '@emkodev/emroute/server';
+import { Emroute } from '@emkodev/emroute/server';
 import { buildClientBundles } from '@emkodev/emroute/server/build';
 import { BunFsRuntime } from '@emkodev/emroute/runtime/bun/fs';
 import { render } from './renderer.ts';
@@ -57,7 +57,7 @@ await buildClientBundles({
   // entryPoint: '/main.ts',  // optional, defaults to '/main.ts'
 });
 
-const emroute = await createEmrouteServer({
+const emroute = await Emroute.create({
   spa: 'root',
   markdownRenderer: { render },
 }, runtime);
@@ -94,7 +94,7 @@ All paths are relative to `appRoot` and start with `/`.
 
 ## Server config
 
-`createEmrouteServer()` accepts:
+`Emroute.create()` accepts:
 
 | Option             | Type                                | Default        | Description |
 |--------------------|-------------------------------------|----------------|-------------|
@@ -178,7 +178,7 @@ Inject app-level services (RPC clients, auth, feature flags) so every component
 can access them:
 
 ```ts
-const emroute = await createEmrouteServer({
+const emroute = await Emroute.create({
   // ...
   extendContext: (base) => ({
     ...base,

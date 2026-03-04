@@ -6,7 +6,7 @@
  * fetching manifests, creating the runtime, and wiring navigation.
  */
 
-import type { SpaMode } from '../src/type/widget.type.ts';
+import type { SpaMode } from '../core/type/widget.type.ts';
 
 /**
  * Generate a minimal main.ts entry point.

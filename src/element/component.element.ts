@@ -5,16 +5,14 @@
  * Handles:
  * - SSR hydration (ssr attribute)
  * - Client-side data fetching with AbortSignal
- * - Companion file loading (html, md, css) with caching
+ * - Companion file loading (html, md, css)
  * - Loading/error states
  */
 
-import type {
-  Component,
-  ComponentContext,
-  ContextProvider,
-} from '../component/abstract.component.ts';
-import { HTMLElementBase, LAZY_ATTR, SSR_ATTR } from '../util/html.util.ts';
+import type { Component } from '../../core/component/abstract.component.ts';
+import type { ComponentContext, ContextProvider } from '../../core/type/component.type.ts';
+import { HTMLElementBase } from '../util/html.util.ts';
+import { LAZY_ATTR, SSR_ATTR } from '../../core/util/html.util.ts';
 
 type ComponentState = 'idle' | 'loading' | 'ready' | 'error';
 
@@ -35,14 +33,8 @@ type WidgetFiles = { html?: string; md?: string; css?: string };
  * Custom element that renders a Component in the browser.
  */
 export class ComponentElement<TParams, TData> extends HTMLElementBase {
-  /** Shared file content cache — deduplicates fetches across all widget instances. */
-  private static fileCache = new Map<string, Promise<string | undefined>>();
-
   /** Lazy module loaders keyed by tag name — set by registerLazy(). */
   private static lazyLoaders = new Map<string, () => Promise<unknown>>();
-
-  /** Cached module promises for lazy-loaded widgets — avoids re-fetching. */
-  private static lazyModules = new Map<string, Promise<unknown>>();
 
   /** App-level context provider set once during router initialization. */
   private static extendContext: ContextProvider | undefined;
@@ -182,12 +174,7 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
     const lazyLoader = ComponentElement.lazyLoaders.get(tagName);
     if (lazyLoader) {
       try {
-        let modulePromise = ComponentElement.lazyModules.get(tagName);
-        if (!modulePromise) {
-          modulePromise = lazyLoader();
-          ComponentElement.lazyModules.set(tagName, modulePromise);
-        }
-        const mod = await modulePromise as Record<string, unknown>;
+        const mod = await lazyLoader() as Record<string, unknown>;
         for (const exp of Object.values(mod)) {
           if (exp && typeof exp === 'object' && 'getData' in exp) {
             const WidgetClass = exp.constructor as new () => Component<TParams, TData>;
@@ -328,24 +315,18 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
   }
 
   /**
-   * Fetch a single file by path, with caching.
+   * Fetch a single file by path.
    * Absolute URLs (http/https) pass through; relative paths get '/' prefix.
    */
   private static loadFile(path: string): Promise<string | undefined> {
-    const cached = ComponentElement.fileCache.get(path);
-    if (cached) return cached;
-
     const url = path.startsWith('http://') || path.startsWith('https://')
       ? path
       : (path.startsWith('/') ? path : '/' + path);
 
-    const promise = fetch(url).then(
+    return fetch(url).then(
       (res) => res.ok ? res.text() : undefined,
       () => undefined,
     );
-
-    ComponentElement.fileCache.set(path, promise);
-    return promise;
   }
 
   /**

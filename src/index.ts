@@ -42,7 +42,7 @@ export type {
 
 export type { ElementManifestEntry } from '../core/type/element.type.ts';
 export type { MarkdownRenderer } from '../core/type/markdown.type.ts';
-export type { Logger } from '../core/type/logger.type.ts';
+export { setLogger, type Logger } from '../core/type/logger.type.ts';
 
 // Components
 export {

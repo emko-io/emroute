@@ -50,7 +50,7 @@ export type {
   RouterState,
 } from '../../../core/type/route.type.ts';
 export type { ParsedWidgetBlock, WidgetManifestEntry } from '../../../core/type/widget.type.ts';
-export type { Logger } from '../../../core/type/logger.type.ts';
+export { setLogger, type Logger } from '../../../core/type/logger.type.ts';
 
 // Register core custom elements in the browser
 if (globalThis.customElements) {

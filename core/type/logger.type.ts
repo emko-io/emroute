@@ -13,3 +13,8 @@ const noop = () => {};
 
 /** Default no-op logger. */
 export const defaultLogger: Logger = { error: noop, warn: noop };
+
+/** @deprecated Pass `logger` in Emroute.create() config instead. This function is a no-op. */
+export function setLogger(_logger: Logger): void {
+  console.warn('[emroute] setLogger() is deprecated. Pass `logger` in Emroute.create() config instead.');
+}

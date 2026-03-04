@@ -5,6 +5,45 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0-beta.1] - 2026-03-04
+
+### Changed
+
+- **`core/` layer extraction**: platform-agnostic framework internals moved to
+  `core/` — types, pipeline, renderers, router, widget system. `src/` retains
+  only browser-specific code (custom elements, SPA entry, overlay).
+
+- **`Emroute` class** replaces `createEmrouteServer()` factory. Use
+  `Emroute.create(config, runtime)` instead. The old function and `EmrouteServer`
+  type are preserved as deprecated aliases.
+
+- **Logger DI**: `setLogger()` removed (deprecated no-op alias retained). Pass
+  `logger` in the `Emroute.create()` config instead.
+
+- **`RouteTrie`**: standalone helper functions inlined as private methods.
+
+- **`BasePath` and `DEFAULT_BASE_PATH`** moved from `server.type.ts` into
+  `emroute.server.ts`. `BasePath` type derived via
+  `Record<keyof typeof DEFAULT_BASE_PATH, string>`.
+
+- **Manifest constants** (`ROUTES_MANIFEST_PATH`, `WIDGETS_MANIFEST_PATH`,
+  `ELEMENTS_MANIFEST_PATH`) canonical source is now
+  `core/runtime/abstract.runtime.ts`.
+
+- **`thin-client.ts`** renamed to `emroute.app.ts`.
+
+### Removed
+
+- `server/server-api.type.ts` (dead re-exports)
+- `server/esbuild-manifest.plugin.ts`, `runtime/bun/esbuild-runtime-loader.plugin.ts` (esbuild replaced by Bun bundler)
+- Duplicated `src/` files that now live in `core/`
+
+### Deprecated
+
+- `createEmrouteServer()` — use `Emroute.create()`
+- `EmrouteServer` type — use `Emroute`
+- `setLogger()` — pass `logger` in config
+
 ## [1.7.3] - 2026-02-27
 
 ### Added

@@ -8,7 +8,7 @@
 import type { RouteNode } from '../../core/type/route-tree.type.ts';
 import type { RouteConfig, ErrorBoundary } from '../../core/type/route.type.ts';
 import { RouteTrie } from '../../core/router/route.trie.ts';
-import { ROUTES_MANIFEST_PATH } from '../../core/server/server.type.ts';
+import { ROUTES_MANIFEST_PATH } from '../../core/runtime/abstract.runtime.ts';
 import { Runtime } from '../../core/runtime/abstract.runtime.ts';
 
 /**

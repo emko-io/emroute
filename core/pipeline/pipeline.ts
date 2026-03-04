@@ -22,7 +22,7 @@ import type { RouteNode } from '../type/route-tree.type.ts';
 import type { RouteConfig, MatchedRoute, RouteInfo } from '../type/route.type.ts';
 import type { ComponentContext, ContextProvider, FileContents } from '../type/component.type.ts';
 import type { Runtime } from '../runtime/abstract.runtime.ts';
-import { ROUTES_MANIFEST_PATH } from '../server/server.type.ts';
+import { ROUTES_MANIFEST_PATH } from '../runtime/abstract.runtime.ts';
 import { type Logger, defaultLogger } from '../type/logger.type.ts';
 
 /** Default root route — renders a slot for child routes. */

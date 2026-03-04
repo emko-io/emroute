@@ -33,9 +33,12 @@ export type FetchReturn = ReturnType<typeof fetch>;
 export const DEFAULT_ROUTES_DIR = '/routes';
 export const DEFAULT_WIDGETS_DIR = '/widgets';
 export const DEFAULT_ELEMENTS_DIR = '/elements';
-export const ROUTES_MANIFEST_PATH = '/routes.manifest.json';
-export const WIDGETS_MANIFEST_PATH = '/widgets.manifest.json';
-export const ELEMENTS_MANIFEST_PATH = '/elements.manifest.json';
+import {
+  ROUTES_MANIFEST_PATH,
+  WIDGETS_MANIFEST_PATH,
+  ELEMENTS_MANIFEST_PATH,
+} from '../core/runtime/abstract.runtime.ts';
+export { ROUTES_MANIFEST_PATH, WIDGETS_MANIFEST_PATH, ELEMENTS_MANIFEST_PATH };
 
 export interface RuntimeConfig {
   routesDir?: string;

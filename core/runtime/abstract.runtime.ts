@@ -13,6 +13,11 @@
 export type FetchParams = Parameters<typeof fetch>;
 export type FetchReturn = ReturnType<typeof fetch>;
 
+/** Well-known manifest paths (convention between Runtime and consumers). */
+export const ROUTES_MANIFEST_PATH = '/routes.manifest.json';
+export const WIDGETS_MANIFEST_PATH = '/widgets.manifest.json';
+export const ELEMENTS_MANIFEST_PATH = '/elements.manifest.json';
+
 export abstract class Runtime {
   /** Raw passthrough — same signature as fetch(). */
   abstract handle(resource: FetchParams[0], init?: FetchParams[1]): FetchReturn;

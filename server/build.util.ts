@@ -21,7 +21,7 @@ import {
   ROUTES_MANIFEST_PATH,
   WIDGETS_MANIFEST_PATH,
   ELEMENTS_MANIFEST_PATH,
-} from '../core/server/server.type.ts';
+} from '../core/runtime/abstract.runtime.ts';
 import type { RouteNode } from '../core/type/route-tree.type.ts';
 import type { WidgetManifestEntry } from '../core/type/widget.type.ts';
 import type { ElementManifestEntry } from '../core/type/element.type.ts';

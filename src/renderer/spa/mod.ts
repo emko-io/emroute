@@ -12,7 +12,7 @@ import { MarkdownElement } from '../../element/markdown.element.ts';
 import { ComponentElement } from '../../element/component.element.ts';
 import { WidgetRegistry } from '../../../core/widget/widget.registry.ts';
 
-export { bootEmrouteApp, createEmrouteApp, EmrouteApp, type BootOptions, type EmrouteAppOptions } from './thin-client.ts';
+export { bootEmrouteApp, createEmrouteApp, EmrouteApp, type BootOptions, type EmrouteAppOptions } from './emroute.app.ts';
 export { ComponentElement, MarkdownElement, RouterSlot, WidgetRegistry };
 export type { SpaMode, WidgetsManifest } from '../../../core/type/widget.type.ts';
 
@@ -38,7 +38,7 @@ export type { RouteNode } from '../../../core/type/route-tree.type.ts';
 export type { RouteResolver, ResolvedRoute } from '../../../core/router/route.resolver.ts';
 export { RouteTrie } from '../../../core/router/route.trie.ts';
 export type { MarkdownRenderer } from '../../../core/type/markdown.type.ts';
-export { type BasePath, DEFAULT_BASE_PATH } from '../../../core/server/server.type.ts';
+export { type BasePath, DEFAULT_BASE_PATH } from '../../../core/server/emroute.server.ts';
 export { escapeHtml, scopeWidgetCss } from '../../../core/util/html.util.ts';
 export type {
   ErrorBoundary,

@@ -62,7 +62,7 @@ export { WidgetComponent } from '../core/component/widget.component.ts';
 export { WidgetRegistry } from '../core/widget/widget.registry.ts';
 
 // Route config
-export { type BasePath, DEFAULT_BASE_PATH } from '../core/server/server.type.ts';
+export { type BasePath, DEFAULT_BASE_PATH } from '../core/server/emroute.server.ts';
 
 // Utils
 export { escapeHtml, scopeWidgetCss } from '../core/util/html.util.ts';

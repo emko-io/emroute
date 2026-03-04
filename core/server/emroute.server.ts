@@ -14,12 +14,16 @@ import { SsrMdRenderer } from '../renderer/md.renderer.ts';
 import { WidgetRegistry } from '../widget/widget.registry.ts';
 import { escapeHtml } from '../util/html.util.ts';
 import { rewriteMdLinks } from '../util/md.util.ts';
+import type { RouteNode } from '../type/route-tree.type.ts';
+import type { MarkdownRenderer } from '../type/markdown.type.ts';
+import type { SpaMode } from '../type/widget.type.ts';
+import type { ContextProvider } from '../type/component.type.ts';
 import {
-  DEFAULT_BASE_PATH,
   ROUTES_MANIFEST_PATH,
   WIDGETS_MANIFEST_PATH,
-  type EmrouteConfig,
-} from './server.type.ts';
+} from '../runtime/abstract.runtime.ts';
+export const DEFAULT_BASE_PATH = { html: '/html', md: '/md', app: '/app' };
+export type BasePath = Record<keyof typeof DEFAULT_BASE_PATH, string>;
 
 export class Emroute {
   readonly htmlRenderer: SsrHtmlRenderer | null;
@@ -43,7 +47,16 @@ export class Emroute {
   }
 
   static async create(
-    config: EmrouteConfig,
+    config: {
+      routeTree?: RouteNode;
+      widgets?: WidgetRegistry;
+      spa?: SpaMode;
+      basePath?: BasePath;
+      title?: string;
+      markdownRenderer?: MarkdownRenderer;
+      extendContext?: ContextProvider;
+      moduleLoaders?: Record<string, () => Promise<unknown>>;
+    },
     runtime: Runtime,
   ): Promise<Emroute> {
     const { spa = 'root' } = config;

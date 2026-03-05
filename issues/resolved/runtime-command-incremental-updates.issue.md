@@ -108,3 +108,7 @@ Use BunSqliteRuntime (in-memory, no filesystem, fully isolated).
 - CMS writing pages via BunSqliteRuntime
 - Dev server with file watching
 - Any runtime where files change after initial `createEmrouteServer()`
+
+## Resolution
+
+Fully implemented in 1.8.0. `command()` handles all three directories (routes, widgets, elements) — creation, deletion, content changes, companion file detection, manifest updates, and retranspilation. Resolved 2026-03-05.

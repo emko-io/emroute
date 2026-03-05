@@ -38,3 +38,7 @@ or explicitly indicate that JS is required.
 2. Widgets that require JS should use `<noscript>` with a clear message
 3. Document the pattern in the consumer guide
 4. Consider a `static` flag or convention for widgets that are pure SSR
+
+## Resolution
+
+Test fixture maintenance, not a framework issue. Widget authors are responsible for their own SSR output. Resolved 2026-03-05.

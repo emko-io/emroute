@@ -21,3 +21,7 @@ JS-enhanced tabs (smoother transitions, ARIA management) can layer on top in
 ## Affected Modes
 
 `none` — tabs work but violate the zero-JS contract.
+
+## Resolution
+
+Content issue, not framework. Tab interactivity is the consumer's responsibility — use <details>/<summary> or :target CSS. Resolved 2026-03-06.

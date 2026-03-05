@@ -37,3 +37,7 @@ shadow trees.
 Option 3 (GET form) is the most aligned with emroute's progressive enhancement
 philosophy. It works without JS (`none` mode), degrades gracefully, and the URL
 becomes shareable (e.g. `/html/articles?q=triple`).
+
+## Resolution
+
+By design. Shadow DOM encapsulation prevents cross-boundary queries intentionally. A widget querying another widget's internals is a misuse — widgets should be self-contained. Resolved 2026-03-05.

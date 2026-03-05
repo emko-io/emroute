@@ -46,3 +46,7 @@ override getData({ params, context }) {
 - URL is shareable (`/html/articles?q=triple`)
 - Progressive enhancement done right
 - Good pattern to document for consumers
+
+## Resolution
+
+Not a framework issue. GET form pattern is a standard HTML approach consumers can use directly. No framework changes needed — getData already receives context.searchParams. Resolved 2026-03-06.

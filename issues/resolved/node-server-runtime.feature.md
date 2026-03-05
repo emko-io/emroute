@@ -101,3 +101,7 @@ difference is the runtime adapter and default bundler (deno bundle vs esbuild).
 - Bun-specific runtime — Bun is Node-compatible enough that `server.node.ts`
   should work as-is. No separate `server.bun.ts` unless compatibility issues
   surface.
+
+## Resolution
+
+Obsolete. Node support is available via UniversalFsRuntime or custom Runtime implementation. The Deno monorepo / npm CLI approach was superseded by the current Bun project structure. Resolved 2026-03-05.

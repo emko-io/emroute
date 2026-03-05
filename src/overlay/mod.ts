@@ -6,5 +6,5 @@
  * dismissAll() closes both programmatic and declarative overlays.
  */
 
-export type { ModalOptions, OverlayService, PopoverOptions, ToastOptions } from './overlay.type.ts';
+export type { ModalOptions, OverlayService, PopoverOptions, ToastHandle, ToastOptions } from './overlay.type.ts';
 export { createOverlayService } from './overlay.service.ts';

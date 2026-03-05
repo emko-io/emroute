@@ -129,3 +129,7 @@ superior.
 Done. `render(url, signal?)` → `renderPage` → `renderRouteContent` →
 `loadRouteContent` → `buildComponentContext(signal)` + `getData({ signal })`.
 Server passes `req.signal` at both `/html/` and `/md/` entry points.
+
+## Resolution
+
+Streaming requires a fundamentally different rendering model. Renderers return complete strings — shell + slots + widgets resolved all at once. There are no partials to stream incrementally. Not viable without a full rewrite of the rendering pipeline. Resolved 2026-03-06.

@@ -113,3 +113,7 @@ Could layer on top of `render(data)` — if `exposeSsrData` is set,
 - NOT a global state manager (no cross-widget reactivity)
 - No persistence across page navigations (state lives in the DOM element)
 - No schema validation — consumer is responsible for type safety
+
+## Resolution
+
+Not needed. Widget authors can call `this.renderHTML()` + set shadow root directly from `hydrate()`. The proposed `render(data)` wrapper saves two lines — not worth a framework API. Layer 2 (light DOM persistence) has too many caveats. Resolved 2026-03-05.

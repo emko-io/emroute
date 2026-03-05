@@ -11,7 +11,7 @@
  * via DOM queries.
  */
 
-import type { ModalOptions, OverlayService, PopoverOptions, ToastOptions } from './overlay.type.ts';
+import type { ModalOptions, OverlayService, PopoverOptions, ToastFunction, ToastHandle, ToastOptions } from './overlay.type.ts';
 import { overlayCSS } from './overlay.css.ts';
 
 const ANIMATION_SAFETY_TIMEOUT = 300;
@@ -33,6 +33,86 @@ function animateDismiss(el: HTMLElement, onDone: () => void): void {
 
   el.addEventListener('transitionend', finish, { once: true });
   setTimeout(finish, ANIMATION_SAFETY_TIMEOUT);
+}
+
+/**
+ * Populate a toast element from a cloned template.
+ * Sets `[data-toast-message]` textContent, `data-toast-type` attribute,
+ * and unhides confirm/reject buttons when labels are provided.
+ */
+function fillTemplate(
+  el: HTMLElement,
+  options: ToastOptions,
+  onConfirm?: () => void,
+  onReject?: () => void,
+): void {
+  const msgEl = el.querySelector('[data-toast-message]');
+  if (msgEl && options.message) {
+    msgEl.textContent = options.message;
+  }
+
+  if (options.type) {
+    el.setAttribute('data-toast-type', options.type);
+  }
+
+  const confirmBtn = el.querySelector('[data-toast-confirm]') as HTMLElement | null;
+  if (confirmBtn) {
+    if (options.confirm) {
+      confirmBtn.textContent = options.confirm;
+      confirmBtn.hidden = false;
+      if (onConfirm) confirmBtn.addEventListener('click', onConfirm, { once: true });
+    } else {
+      confirmBtn.hidden = true;
+    }
+  }
+
+  const rejectBtn = el.querySelector('[data-toast-reject]') as HTMLElement | null;
+  if (rejectBtn) {
+    if (options.reject) {
+      rejectBtn.textContent = options.reject;
+      rejectBtn.hidden = false;
+      if (onReject) rejectBtn.addEventListener('click', onReject, { once: true });
+    } else {
+      rejectBtn.hidden = true;
+    }
+  }
+}
+
+/**
+ * Build toast inner content when no `<template id="overlay-toast">` exists.
+ * Creates a `<span>` with the message text, plus confirm/reject buttons
+ * if labels are provided.
+ */
+function buildFallback(
+  el: HTMLElement,
+  options: ToastOptions,
+  onConfirm?: () => void,
+  onReject?: () => void,
+): void {
+  if (options.type) {
+    el.setAttribute('data-toast-type', options.type);
+  }
+
+  const span = document.createElement('span');
+  span.setAttribute('data-toast-message', '');
+  span.textContent = options.message ?? '';
+  el.appendChild(span);
+
+  if (options.confirm) {
+    const btn = document.createElement('button');
+    btn.setAttribute('data-toast-confirm', '');
+    btn.textContent = options.confirm;
+    if (onConfirm) btn.addEventListener('click', onConfirm, { once: true });
+    el.appendChild(btn);
+  }
+
+  if (options.reject) {
+    const btn = document.createElement('button');
+    btn.setAttribute('data-toast-reject', '');
+    btn.textContent = options.reject;
+    if (onReject) btn.addEventListener('click', onReject, { once: true });
+    el.appendChild(btn);
+  }
 }
 
 export function createOverlayService(): OverlayService {
@@ -167,7 +247,7 @@ export function createOverlayService(): OverlayService {
     }
   }
 
-  function toast(options: ToastOptions): { dismiss(): void } {
+  function toast(options: ToastOptions): ToastHandle {
     const container = ensureToastContainer();
 
     // Clean up dead toasts before adding a new one
@@ -176,25 +256,95 @@ export function createOverlayService(): OverlayService {
     const el = document.createElement('div');
     el.setAttribute('data-overlay-toast', '');
 
-    const timeout = options.timeout ?? 0;
+    const isConfirmation = !!(options.confirm || options.reject);
+    const timeout = isConfirmation ? 0 : (options.timeout ?? 0);
     if (timeout === 0) {
       el.setAttribute('data-toast-manual', '');
     } else {
       el.style.setProperty('--overlay-toast-duration', `${timeout}ms`);
     }
 
-    options.render(el);
+    // Confirmation promise plumbing
+    let confirmResolve: ((value: boolean) => void) | undefined;
+    let confirmPromise: Promise<boolean> | undefined;
+    if (isConfirmation) {
+      const resolvers = Promise.withResolvers<boolean>();
+      confirmResolve = resolvers.resolve;
+      confirmPromise = resolvers.promise;
+    }
+
+    const onConfirm = confirmResolve
+      ? () => { confirmResolve!(true); dismiss(); }
+      : undefined;
+    const onReject = confirmResolve
+      ? () => { confirmResolve!(false); dismiss(); }
+      : undefined;
+
+    // Render content
+    if (options.render) {
+      // Escape hatch: caller takes full control
+      options.render(el);
+    } else {
+      // Template-based or fallback
+      const template = document.querySelector<HTMLTemplateElement>('#overlay-toast');
+      if (template) {
+        const clone = template.content.cloneNode(true) as DocumentFragment;
+        el.appendChild(clone);
+        fillTemplate(el, options, onConfirm, onReject);
+      } else {
+        buildFallback(el, options, onConfirm, onReject);
+      }
+    }
+
     container.appendChild(el);
 
+    const id = performance.now();
     let dismissed = false;
-    const dismiss = () => {
+
+    function dismiss(): void {
       if (dismissed) return;
       dismissed = true;
       el.setAttribute('data-dismissing', '');
-    };
+    }
 
-    return { dismiss };
+    function update(opts: { message?: string; type?: string; timeout?: number }): void {
+      if (opts.message !== undefined) {
+        const msgEl = el.querySelector('[data-toast-message]');
+        if (msgEl) msgEl.textContent = opts.message;
+      }
+      if (opts.type !== undefined) {
+        el.setAttribute('data-toast-type', opts.type);
+      }
+      if (opts.timeout !== undefined) {
+        el.style.setProperty('--overlay-toast-duration', `${opts.timeout}ms`);
+        // Restart animation by removing and re-adding the manual flag
+        if (opts.timeout === 0) {
+          el.setAttribute('data-toast-manual', '');
+        } else {
+          el.removeAttribute('data-toast-manual');
+        }
+      }
+    }
+
+    const handle: ToastHandle = { id, dismiss, update };
+
+    // For confirmation toasts, return a handle that is also PromiseLike<boolean>
+    if (confirmPromise) {
+      (handle as ToastHandle & PromiseLike<boolean>).then = confirmPromise.then.bind(confirmPromise);
+    }
+
+    return handle;
   }
+
+  // Attach convenience methods
+  toast.success = (message: string, timeout?: number): ToastHandle =>
+    toast({ message, type: 'success', timeout: timeout ?? 5000 });
+  toast.error = (message: string, timeout?: number): ToastHandle =>
+    toast({ message, type: 'error', timeout: timeout ?? 5000 });
+  toast.warning = (message: string, timeout?: number): ToastHandle =>
+    toast({ message, type: 'warning', timeout: timeout ?? 5000 });
+  toast.info = (message: string, timeout?: number): ToastHandle =>
+    toast({ message, type: 'info', timeout: timeout ?? 5000 });
 
   // --- Popover ---
 
@@ -340,7 +490,7 @@ export function createOverlayService(): OverlayService {
   return {
     modal,
     closeModal,
-    toast,
+    toast: toast as ToastFunction,
     popover,
     closePopover,
     dismissAll,

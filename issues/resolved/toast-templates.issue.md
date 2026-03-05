@@ -152,3 +152,7 @@ Main thread DOM adapter (thin)
 ## Depends on
 
 Overlay service with CSS-driven toast lifecycle (completed).
+
+## Resolution
+
+Implemented in 1.8.0. Toast service now supports template cloning via <template id="overlay-toast">, convenience methods (success/error/warning/info), ToastHandle with update() and dismiss(), and confirmation toasts with Promise<boolean>. Resolved 2026-03-05.

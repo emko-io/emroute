@@ -35,3 +35,7 @@ const data = await component.getData({ params, signal: dataSignal, context });
 - `AbortSignal.timeout()` — Baseline March 2023
 
 Both available in all modern browsers and Deno.
+
+## Resolution
+
+Not worth framework support. `AbortSignal.any([signal, AbortSignal.timeout(5000)])` is one line — not enough boilerplate to justify a config option, per-route overrides, and threading through renderers and ComponentElement. Resolved 2026-03-05.

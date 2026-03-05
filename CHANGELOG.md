@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-03-05
+
+### Added
+
+- **`experimentalUseTemplate()`** on `Component` base class. Parse a template
+  from companion HTML (`<template id>` + `<slot name>`) or markdown
+  (`` ```template:id `` + `slot:name`) and get a reusable fill function. DOM
+  overload for `hydrate()` returns `DocumentFragment` via native `cloneNode`.
+  Throws on missing template id.
+
+- **Server/client independence** documented in `doc/10-spa-mode.md`.
+  `buildClientBundles()` is a standalone build step — not part of server init.
+  Consumers own `index.html` and `main.ts`.
+
+### Fixed
+
+- **Widget file loading unified with page path**: removed `widgetFiles`
+  indirection. Widgets now use `pipeline.loadModule()` →
+  `pipeline.getModuleFiles()`, same as pages. `WidgetRegistry` stores
+  `modulePath` alongside the widget component.
+
+- **`noUncheckedIndexedAccess` enabled**: all 216 type errors fixed across
+  source and test files. Array/record indexing now returns `T | undefined`.
+
+### Changed
+
+- **Version bump to 1.8.0** (from 1.8.0-beta.2).
+
 ## [1.8.0-beta.1] - 2026-03-04
 
 ### Changed

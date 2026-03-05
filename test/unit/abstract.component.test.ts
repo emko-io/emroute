@@ -914,6 +914,201 @@ test('Component - subclasses can have different TData types', () => {
   expect(postMd).toContain('My Post');
 });
 
+// ============================================================================
+// experimentalUseTemplate() Tests
+// ============================================================================
+
+test('experimentalUseTemplate - extracts template by id and returns fill function', () => {
+  const component = new TestComponent();
+  const html = '<p>Content</p><template id="card"><div><slot name="title"></slot></div></template>';
+  const fill = component.experimentalUseTemplate(html, 'card');
+
+  expect(fill({ title: 'Hello' })).toBe('<div>Hello</div>');
+});
+
+test('experimentalUseTemplate - throws for missing HTML template', () => {
+  const component = new TestComponent();
+
+  expect(() => component.experimentalUseTemplate('<p>No templates</p>', 'missing'))
+    .toThrow('Template "missing" not found in source');
+});
+
+test('experimentalUseTemplate - fills default slot', () => {
+  const component = new TestComponent();
+  const html = '<template id="wrap"><article><slot></slot></article></template>';
+  const fill = component.experimentalUseTemplate(html, 'wrap');
+
+  expect(fill({ default: '<p>Body</p>' })).toBe('<article><p>Body</p></article>');
+});
+
+test('experimentalUseTemplate - fills multiple named slots', () => {
+  const component = new TestComponent();
+  const html = '<template id="layout"><h1><slot name="title"></slot></h1><p><slot name="body"></slot></p></template>';
+  const fill = component.experimentalUseTemplate(html, 'layout');
+
+  const result = fill({ title: 'Hello', body: 'World' });
+  expect(result).toBe('<h1>Hello</h1><p>World</p>');
+});
+
+test('experimentalUseTemplate - preserves unfilled slots with fallback content', () => {
+  const component = new TestComponent();
+  const html = '<template id="t"><slot name="a">fallback</slot><slot name="b">keep</slot></template>';
+  const fill = component.experimentalUseTemplate(html, 't');
+
+  expect(fill({ a: 'filled' })).toBe('filled<slot name="b">keep</slot>');
+});
+
+test('experimentalUseTemplate - returns skeleton when called without slots', () => {
+  const component = new TestComponent();
+  const html = '<template id="t"><div class="static">No slots here</div></template>';
+  const fill = component.experimentalUseTemplate(html, 't');
+
+  expect(fill()).toBe('<div class="static">No slots here</div>');
+});
+
+test('experimentalUseTemplate - reusable fill function for lists (.map)', () => {
+  const component = new TestComponent();
+  const html = '<template id="item"><li><slot name="title"></slot></li></template>';
+  const item = component.experimentalUseTemplate(html, 'item');
+
+  const entries: Record<string, string>[] = [
+    { title: 'One' },
+    { title: 'Two' },
+    { title: 'Three' },
+  ];
+
+  const result = entries.map(item).join('');
+  expect(result).toBe('<li>One</li><li>Two</li><li>Three</li>');
+});
+
+test('experimentalUseTemplate - selects correct template when multiple exist', () => {
+  const component = new TestComponent();
+  const html = `
+    <template id="a"><span>A: <slot name="v"></slot></span></template>
+    <template id="b"><strong>B: <slot name="v"></slot></strong></template>
+  `;
+
+  const fillA = component.experimentalUseTemplate(html, 'a');
+  const fillB = component.experimentalUseTemplate(html, 'b');
+
+  expect(fillA({ v: 'x' })).toContain('<span>A: x</span>');
+  expect(fillB({ v: 'y' })).toContain('<strong>B: y</strong>');
+});
+
+test('experimentalUseTemplate - works in renderHTML with data list', () => {
+  class ListPage extends Component<unknown, { items: string[] }> {
+    override readonly name = 'list-page';
+    override getData(): Promise<{ items: string[] } | null> {
+      return Promise.resolve({ items: ['a', 'b'] });
+    }
+    override renderMarkdown(): string { return ''; }
+    override renderHTML(args: this['RenderArgs']): string {
+      const html = '<template id="row"><tr><td><slot name="value"></slot></td></tr></template>';
+      const row = this.experimentalUseTemplate(html, 'row');
+      return `<table>${args.data!.items.map(v => row({ value: v })).join('')}</table>`;
+    }
+  }
+
+  const page = new ListPage();
+  const result = page.renderHTML({
+    data: { items: ['alpha', 'beta'] },
+    params: {},
+    context: createMockContext(),
+  });
+
+  expect(result).toBe('<table><tr><td>alpha</td></tr><tr><td>beta</td></tr></table>');
+});
+
+// ============================================================================
+// experimentalUseTemplate() — Markdown Templates
+// ============================================================================
+
+test('experimentalUseTemplate - extracts markdown template by id', () => {
+  const component = new TestComponent();
+  const md = '# Page\n\n```template:card\n## slot:title\n\nslot:body\n```\n';
+  const fill = component.experimentalUseTemplate(md, 'card');
+
+  expect(fill({ title: 'Hello', body: 'World' })).toBe('## Hello\n\nWorld\n');
+});
+
+test('experimentalUseTemplate - throws for missing markdown template', () => {
+  const component = new TestComponent();
+
+  expect(() => component.experimentalUseTemplate('# Just markdown', 'missing'))
+    .toThrow('Template "missing" not found in source');
+});
+
+test('experimentalUseTemplate - markdown template fills multiple slots', () => {
+  const component = new TestComponent();
+  const md = '```template:row\n| slot:name | slot:price |\n```\n';
+  const fill = component.experimentalUseTemplate(md, 'row');
+
+  expect(fill({ name: 'Widget', price: '$10' })).toBe('| Widget | $10 |\n');
+});
+
+test('experimentalUseTemplate - markdown template reusable for lists (.map)', () => {
+  const component = new TestComponent();
+  const md = '```template:item\n- **slot:title**: slot:desc\n```\n';
+  const item = component.experimentalUseTemplate(md, 'item');
+
+  const entries: Record<string, string>[] = [
+    { title: 'One', desc: 'First' },
+    { title: 'Two', desc: 'Second' },
+  ];
+
+  const result = entries.map(item).join('');
+  expect(result).toBe('- **One**: First\n- **Two**: Second\n');
+});
+
+test('experimentalUseTemplate - markdown template returns skeleton without slots', () => {
+  const component = new TestComponent();
+  const md = '```template:static\n> A static quote\n```\n';
+  const fill = component.experimentalUseTemplate(md, 'static');
+
+  expect(fill()).toBe('> A static quote\n');
+});
+
+test('experimentalUseTemplate - markdown template selects correct one when multiple exist', () => {
+  const component = new TestComponent();
+  const md = '```template:a\nA: slot:v\n```\n\n```template:b\nB: slot:v\n```\n';
+
+  const fillA = component.experimentalUseTemplate(md, 'a');
+  const fillB = component.experimentalUseTemplate(md, 'b');
+
+  expect(fillA({ v: 'x' })).toBe('A: x\n');
+  expect(fillB({ v: 'y' })).toBe('B: y\n');
+});
+
+test('experimentalUseTemplate - markdown template works in renderMarkdown', () => {
+  class ListComponent extends Component<unknown, { items: { name: string; desc: string }[] }> {
+    override readonly name = 'list';
+    override getData(): Promise<null> { return Promise.resolve(null); }
+    override renderMarkdown(args: this['RenderArgs']): string {
+      const md = '```template:item\n### slot:name\n\nslot:desc\n\n```\n';
+      const item = this.experimentalUseTemplate(md, 'item');
+      return args.data!.items.map(item).join('');
+    }
+  }
+
+  const component = new ListComponent();
+  const result = component.renderMarkdown({
+    data: { items: [{ name: 'Alpha', desc: 'First' }, { name: 'Beta', desc: 'Second' }] },
+    params: {},
+    context: createMockContext(),
+  });
+
+  expect(result).toBe('### Alpha\n\nFirst\n\n### Beta\n\nSecond\n\n');
+});
+
+test('experimentalUseTemplate - prefers markdown template over HTML when source has both', () => {
+  const component = new TestComponent();
+  // Markdown template should match first
+  const source = '```template:t\nslot:v\n```\n<template id="t"><slot name="v"></slot></template>';
+  const fill = component.experimentalUseTemplate(source, 't');
+
+  expect(fill({ v: 'md-wins' })).toBe('md-wins\n');
+});
+
 test('Component - subclasses can extend ComponentContext with custom properties', () => {
   interface CustomContext extends ComponentContext {
     readonly userId: string;

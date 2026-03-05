@@ -57,7 +57,6 @@ export function resolveWidgetTags(
   routeInfo: RouteInfo,
   loadFiles?: (
     widgetName: string,
-    declaredFiles?: { html?: string; md?: string; css?: string },
   ) => Promise<{ html?: string; md?: string; css?: string }>,
   contextProvider?: ContextProvider,
   logger: Logger = defaultLogger,
@@ -88,7 +87,7 @@ export function resolveWidgetTags(
     try {
       let files: { html?: string; md?: string; css?: string } | undefined;
       if (loadFiles) {
-        files = await loadFiles(widgetName, widget.files);
+        files = await loadFiles(widgetName);
       }
 
       const baseContext: ComponentContext = {

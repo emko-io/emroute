@@ -25,7 +25,6 @@ import type { RouteInfo } from '../../core/type/route.type.ts';
 /** File loader type for widget file loading */
 type WidgetFileLoader = (
   widgetName: string,
-  declaredFiles?: { html?: string; md?: string; css?: string },
 ) => Promise<{ html?: string; md?: string; css?: string }>;
 
 /** Create a test RouteInfo for widget resolution */
@@ -536,20 +535,20 @@ test('resolveWidgetTags - file loader is called if supplied', async () => {
   expect(result).toContain('File content');
 });
 
-test('resolveWidgetTags - file loader receives declared files', async () => {
+test('resolveWidgetTags - file loader receives widget name', async () => {
   const html = '<widget-file-widget></widget-file-widget>';
   const fileWidget = new FileWidget();
   const registry = new MockRegistry(fileWidget);
   const routeInfo = createTestRouteInfo();
 
-  let declaredFiles: { html?: string; md?: string; css?: string } | undefined;
-  const fileLoader: WidgetFileLoader = (_widgetName: string, declared) => {
-    declaredFiles = declared;
+  let receivedName: string | undefined;
+  const fileLoader: WidgetFileLoader = (widgetName: string) => {
+    receivedName = widgetName;
     return Promise.resolve({ html: '<div>Loaded</div>' });
   };
 
   await resolveWidgetTags(html, registry, routeInfo, fileLoader);
-  expect(declaredFiles).toEqual(fileWidget.files);
+  expect(receivedName).toEqual('file-widget');
 });
 
 /**

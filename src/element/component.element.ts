@@ -128,7 +128,6 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
    */
   static registerLazy(
     name: string,
-    files: WidgetFiles | undefined,
     loader: () => Promise<unknown>,
   ): void {
     const tagName = `widget-${name}`;
@@ -149,7 +148,7 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
 
     const BoundElement = class extends ComponentElement<unknown, unknown> {
       constructor() {
-        super(placeholder, files);
+        super(placeholder);
       }
     };
 
@@ -175,6 +174,9 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
     if (lazyLoader) {
       try {
         const mod = await lazyLoader() as Record<string, unknown>;
+        if (mod.__files && typeof mod.__files === 'object') {
+          this.effectiveFiles = mod.__files as WidgetFiles;
+        }
         for (const exp of Object.values(mod)) {
           if (exp && typeof exp === 'object' && 'getData' in exp) {
             const WidgetClass = exp.constructor as new () => Component<TParams, TData>;
@@ -316,35 +318,11 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
   }
 
   /**
-   * Fetch a single file by path.
-   * Absolute URLs (http/https) pass through; relative paths get '/' prefix.
-   */
-  private static loadFile(path: string): Promise<string | undefined> {
-    const url = path.startsWith('http://') || path.startsWith('https://')
-      ? path
-      : (path.startsWith('/') ? path : '/' + path);
-
-    return fetch(url).then(
-      (res) => res.ok ? res.text() : undefined,
-      () => undefined,
-    );
-  }
-
-  /**
-   * Load all companion files for this widget instance.
-   * Uses effectiveFiles (from registration) falling back to component.files.
+   * Get companion files for this widget instance.
+   * Returns inlined content from __files (set during lazy module load) directly.
    */
   private async loadFiles(): Promise<{ html?: string; md?: string; css?: string }> {
-    const filePaths = this.effectiveFiles ?? this.component.files;
-    if (!filePaths) return {};
-
-    const [html, md, css] = await Promise.all([
-      filePaths.html ? ComponentElement.loadFile(filePaths.html) : undefined,
-      filePaths.md ? ComponentElement.loadFile(filePaths.md) : undefined,
-      filePaths.css ? ComponentElement.loadFile(filePaths.css) : undefined,
-    ]);
-
-    return filterUndefined({ html, md, css }) ?? {};
+    return this.effectiveFiles ?? {};
   }
 
   private async loadData(): Promise<void> {

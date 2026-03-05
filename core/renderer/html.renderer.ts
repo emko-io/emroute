@@ -70,9 +70,14 @@ export class SsrHtmlRenderer extends SsrRenderer {
         content,
         this.widgets,
         routeInfo,
-        (name, declared) => {
-          const files = this.widgetFiles[name] ?? declared;
-          return files ? this.pipeline.loadFiles(files) : Promise.resolve({});
+        async (name) => {
+          const modulePath = this.widgets!.getModulePath(name);
+          if (modulePath) {
+            const mod = await this.pipeline.loadModule(modulePath);
+            const inlined = this.pipeline.getModuleFiles(mod);
+            if (inlined) return inlined;
+          }
+          return {};
         },
         this.pipeline.contextProvider,
         this.logger,

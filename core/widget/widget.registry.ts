@@ -7,18 +7,30 @@
 
 import type { WidgetComponent } from '../component/widget.component.ts';
 
-export class WidgetRegistry {
-  private widgets = new Map<string, WidgetComponent>();
+interface RegistryEntry {
+  widget: WidgetComponent;
+  modulePath?: string | undefined;
+}
 
-  add(widget: WidgetComponent): void {
-    this.widgets.set(widget.name, widget);
+export class WidgetRegistry {
+  private entries = new Map<string, RegistryEntry>();
+
+  add(widget: WidgetComponent, modulePath?: string): void {
+    this.entries.set(widget.name, { widget, modulePath });
   }
 
   get(name: string): WidgetComponent | undefined {
-    return this.widgets.get(name);
+    return this.entries.get(name)?.widget;
+  }
+
+  getModulePath(name: string): string | undefined {
+    return this.entries.get(name)?.modulePath;
   }
 
   [Symbol.iterator](): IterableIterator<WidgetComponent> {
-    return this.widgets.values();
+    const entries = this.entries.values();
+    return (function* () {
+      for (const entry of entries) yield entry.widget;
+    })();
   }
 }

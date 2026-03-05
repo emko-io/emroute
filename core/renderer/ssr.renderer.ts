@@ -20,7 +20,6 @@ import type { WidgetRegistry } from '../widget/widget.registry.ts';
 /** Options for SSR renderers. */
 export interface SsrRendererOptions {
   widgets?: WidgetRegistry;
-  widgetFiles?: Record<string, { html?: string; md?: string; css?: string }>;
 }
 
 /**
@@ -29,7 +28,6 @@ export interface SsrRendererOptions {
 export abstract class SsrRenderer {
   protected readonly pipeline: Pipeline;
   protected widgets: WidgetRegistry | null;
-  protected widgetFiles: Record<string, { html?: string; md?: string; css?: string }>;
   protected abstract readonly label: string;
 
   protected readonly logger: Logger;
@@ -38,7 +36,6 @@ export abstract class SsrRenderer {
     this.pipeline = pipeline;
     this.logger = pipeline.logger;
     this.widgets = options.widgets ?? null;
-    this.widgetFiles = options.widgetFiles ?? {};
   }
 
   /**

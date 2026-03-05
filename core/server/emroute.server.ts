@@ -89,20 +89,12 @@ export class Emroute {
     // ── Widgets ───────────────────────────────────────────────────────
 
     let widgets: WidgetRegistry | undefined = config.widgets;
-    let widgetFiles: Record<string, { html?: string; md?: string; css?: string }> = {};
 
     const widgetsResponse = await runtime.query(WIDGETS_MANIFEST_PATH);
     if (widgetsResponse.status !== 404) {
       const entries: WidgetManifestEntry[] = await widgetsResponse.json();
-      if (config.widgets) {
-        widgets = config.widgets;
-        for (const entry of entries) {
-          if (entry.files) widgetFiles[entry.name] = entry.files;
-        }
-      } else {
-        const imported = await Emroute.importWidgets(entries, runtime);
-        widgets = imported.registry;
-        widgetFiles = imported.widgetFiles;
+      if (!config.widgets) {
+        widgets = await Emroute.importWidgets(entries, runtime);
       }
     }
 
@@ -115,12 +107,10 @@ export class Emroute {
       ssrHtmlRenderer = new SsrHtmlRenderer(pipeline, {
         ...(config.markdownRenderer ? { markdownRenderer: config.markdownRenderer } : {}),
         ...(widgets ? { widgets } : {}),
-        widgetFiles,
       });
 
       ssrMdRenderer = new SsrMdRenderer(pipeline, {
         ...(widgets ? { widgets } : {}),
-        widgetFiles,
       });
     }
 
@@ -266,12 +256,8 @@ export class Emroute {
   private static async importWidgets(
     entries: WidgetManifestEntry[],
     runtime: Runtime,
-  ): Promise<{
-    registry: WidgetRegistry;
-    widgetFiles: Record<string, { html?: string; md?: string; css?: string }>;
-  }> {
+  ): Promise<WidgetRegistry> {
     const registry = new WidgetRegistry();
-    const widgetFiles: Record<string, { html?: string; md?: string; css?: string }> = {};
 
     for (const entry of entries) {
       try {
@@ -282,21 +268,13 @@ export class Emroute {
         const mod = await runtime.loadModule(runtimePath) as Record<string, unknown>;
         const instance = Emroute.extractWidgetExport(mod);
         if (!instance) continue;
-        registry.add(instance);
-
-        const inlined = mod.__files;
-        if (inlined && typeof inlined === 'object') {
-          widgetFiles[entry.name] = inlined as { html?: string; md?: string; css?: string };
-        } else if (entry.files) {
-          widgetFiles[entry.name] = entry.files;
-        }
+        registry.add(instance, runtimePath);
       } catch (e) {
         console.error(`[emroute] Failed to load widget ${entry.modulePath}:`, e);
-        if (entry.files) widgetFiles[entry.name] = entry.files;
       }
     }
 
-    return { registry, widgetFiles };
+    return registry;
   }
 
   private static buildHtmlShell(title: string, htmlBase: string): string {

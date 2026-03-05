@@ -842,24 +842,32 @@ test('SsrMdRenderer - handles route with dynamic parameters', async () => {
 // Widget File Resolution Tests
 // ============================================================================
 
-test('SsrMdRenderer - uses discovered widget files when available', async () => {
+test('SsrMdRenderer - uses __files from widget module when available', async () => {
   const routes = [
     createTestRoute({ pattern: '/page', modulePath: '/page.page.ts', files: { md: '/page.md' } }),
   ];
   const runtime = new MockRuntime();
   runtime.set('/page.md', '```widget:info\n{}\n```');
 
-  const widgets = new WidgetRegistry();
-  const infoWidget = new (class extends WidgetComponent {
+  const InfoWidget = class extends WidgetComponent {
     override readonly name = 'info';
     override getData() { return Promise.resolve(null); }
     override renderHTML() { return ''; }
     override renderMarkdown() { return 'From discovered files'; }
-  })();
-  widgets.add(infoWidget);
+  };
 
-  const widgetFiles = { 'info': { md: '/info.discovered.md' } };
-  const renderer = createRenderer(createTestManifest({ routes }), runtime, { widgets, widgetFiles });
+  const widgets = new WidgetRegistry();
+  widgets.add(new InfoWidget(), '/widgets/info.widget.js');
+
+  const renderer = createRenderer(createTestManifest({
+    routes,
+    moduleLoaders: {
+      '/widgets/info.widget.js': () => Promise.resolve({
+        default: InfoWidget,
+        __files: { md: 'discovered md content' },
+      }),
+    },
+  }), runtime, { widgets });
   const result = await renderer.render(url('/page'));
 
   expect(result.status).toEqual(200);

@@ -102,9 +102,10 @@ export class SsrMdRenderer extends SsrRenderer {
 
         try {
           let files: { html?: string; md?: string } | undefined;
-          const filePaths = this.widgetFiles[block.widgetName] ?? widget.files;
-          if (filePaths) {
-            files = await this.pipeline.loadFiles(filePaths);
+          const modulePath = this.widgets!.getModulePath(block.widgetName);
+          if (modulePath) {
+            const mod = await this.pipeline.loadModule(modulePath);
+            files = this.pipeline.getModuleFiles(mod);
           }
 
           const baseContext: ComponentContext = {

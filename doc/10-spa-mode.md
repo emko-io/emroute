@@ -72,6 +72,31 @@ router fetches page data and renders in the browser.
 **Use when:** dashboard-style apps behind authentication where SEO doesn't
 matter, rapid prototyping, apps where you want full client-side control.
 
+## Server and client are independent
+
+The SSR server and the SPA client are two separate applications that share
+the same content. The server reads routes, widgets, and companion files from
+a Runtime and renders HTML. The SPA client does the same — it fetches the
+route tree and widget manifest as JSON, loads `.js` modules on demand via
+`FetchRuntime`, and renders in the browser.
+
+Neither depends on the other at runtime. The server does not build the client.
+The client does not require the server to be aware of it.
+
+This means:
+
+- **`buildClientBundles()` is a standalone build step**, not part of server
+  init. Call it from a build script, CI pipeline, or CLI — not from your
+  server's startup code.
+- **The consumer owns `index.html` and `main.ts`.** If you provide your own,
+  emroute uses them as-is. The generated defaults are just a convenience.
+- **Frameworks wrapping emroute (like emkoord) don't need to know about
+  client bundles.** The wrapper sets up SSR. The client is a separate concern
+  the consumer handles directly.
+- **The SPA is just another Runtime consumer.** It points `FetchRuntime` at
+  the same server and reads the same files. Swapping the runtime (e.g. to
+  `UniversalBrowserRuntime` for offline) changes nothing about the server.
+
 ## How it works
 
 ### Server behavior by mode
@@ -118,10 +143,31 @@ This is progressive enhancement — the same links and URLs work in every mode.
 
 ## Configuration
 
-### Basic setup
+### Server setup
+
+The server doesn't need to know about client bundles:
 
 ```typescript
 import { Emroute } from '@emkodev/emroute/server';
+import { BunFsRuntime } from '@emkodev/emroute/runtime/bun/fs';
+
+const runtime = new BunFsRuntime('my-app', {
+  routesDir: '/routes',
+  widgetsDir: '/widgets',
+});
+
+const emroute = await Emroute.create({
+  spa: 'root',
+}, runtime);
+```
+
+### Build step (separate)
+
+For `leaf`, `root`, or `only` modes, run the build step before starting the
+server — from a build script, not from server init:
+
+```typescript
+// build.ts — run separately, e.g. `bun run build.ts`
 import { buildClientBundles } from '@emkodev/emroute/server/build';
 import { BunFsRuntime } from '@emkodev/emroute/runtime/bun/fs';
 
@@ -130,31 +176,14 @@ const runtime = new BunFsRuntime('my-app', {
   widgetsDir: '/widgets',
 });
 
-// Build client bundles (required for leaf/root/only)
 await buildClientBundles({
   runtime,
   root: 'my-app',
   spa: 'root',
 });
-
-const emroute = await Emroute.create({
-  spa: 'root',
-}, runtime);
 ```
 
-### Without bundling
-
-For `none` mode, no build step is needed:
-
-```typescript
-const runtime = new BunFsRuntime('my-app', {
-  routesDir: '/routes',
-});
-
-const emroute = await Emroute.create({
-  spa: 'none',
-}, runtime);
-```
+For `none` mode, no build step is needed.
 
 ### Custom main.ts
 

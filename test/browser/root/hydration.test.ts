@@ -336,7 +336,7 @@ describe('SSR to SPA hydration — comprehensive', () => {
     const res = await fetch(baseUrl('/html/hydration'));
     const ssrHtml = await res.text();
     const ssrMatch = ssrHtml.match(/Timestamp: (\d+)/);
-    const ssrTimestamp = ssrMatch ? parseInt(ssrMatch[1]) : 0;
+    const ssrTimestamp = ssrMatch ? parseInt(ssrMatch[1]!) : 0;
 
     // Navigate in browser (triggers SPA hydration)
     await page.goto(baseUrl('/html/hydration'));
@@ -348,7 +348,7 @@ describe('SSR to SPA hydration — comprehensive', () => {
       const shadow = widget?.shadowRoot;
       const el = shadow?.querySelector('#timestamp');
       const match = el?.textContent?.match(/Timestamp: (\d+)/);
-      return match ? parseInt(match[1]) : 0;
+      return match ? parseInt(match[1]!) : 0;
     });
 
     // Timestamps should be very close (within ~1 second for server processing)

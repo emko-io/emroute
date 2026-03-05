@@ -95,7 +95,7 @@ describe('resolveTargetNode', () => {
       const result = resolveTargetNode(node, 'about', false);
       expect(node.children).toBeDefined();
       expect(node.children!['about']).toBeDefined();
-      expect(result).toBe(node.children!['about']);
+      expect(result).toBe(node.children!['about']!);
     });
 
     test('returns existing child on repeated calls', () => {
@@ -125,7 +125,7 @@ describe('resolveTargetNode', () => {
       const node = emptyNode();
       const result = resolveTargetNode(node, 'contact', true);
       expect(node.children!['contact']).toBeDefined();
-      expect(result).toBe(node.children!['contact']);
+      expect(result).toBe(node.children!['contact']!);
     });
   });
 

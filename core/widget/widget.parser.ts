@@ -19,12 +19,12 @@ export function parseWidgetBlocks(markdown: string): ParsedWidgetBlock[] {
   for (const match of markdown.matchAll(WIDGET_PATTERN)) {
     const fullMatch = match[0];
     const { name: widgetName, params: paramsRaw } = match.groups!;
-    const paramsJson = paramsRaw.trim();
+    const paramsJson = paramsRaw!.trim();
     const startIndex = match.index;
 
     const block: ParsedWidgetBlock = {
       fullMatch,
-      widgetName,
+      widgetName: widgetName!,
       params: null,
       startIndex,
       endIndex: startIndex + fullMatch.length,

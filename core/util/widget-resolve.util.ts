@@ -77,7 +77,7 @@ export function resolveWidgetTags(
   };
 
   const resolve = async (match: RegExpExecArray): Promise<string> => {
-    const widgetName = match.groups!.name;
+    const widgetName = match.groups!.name!;
     const attrsString = match.groups!.attrs?.trim() ?? '';
     const widget = registry.get(widgetName);
 
@@ -146,7 +146,7 @@ export function parseAttrsToParams(attrsString: string): Record<string, unknown>
     /(?<attr>[a-z][a-z0-9-]*)(?:="(?<dq>[^"]*)"|='(?<sq>[^']*)'|=(?<uq>[^\s>]+))?/gi;
   for (const match of attrsString.matchAll(attrPattern)) {
     const { attr: attrName, dq, sq, uq } = match.groups!;
-    if (attrName === SSR_ATTR || attrName === LAZY_ATTR) continue;
+    if (!attrName || attrName === SSR_ATTR || attrName === LAZY_ATTR) continue;
     const key = attrName.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
     const rawValue = dq ?? sq ?? uq;
     if (rawValue === undefined) {

@@ -42,7 +42,7 @@ class NavWidget extends WidgetComponent<Record<string, unknown>, NavData> {
         (link.href !== '/' && pathname.startsWith(link.href));
     }
     // Special case: Home is active only for exact match
-    links[0].active = pathname === '/';
+    links[0]!.active = pathname === '/';
 
     return Promise.resolve({ links });
   }

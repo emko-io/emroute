@@ -219,7 +219,7 @@ export async function bootEmrouteApp(options?: BootOptions): Promise<EmrouteApp>
   // Register widgets eagerly (tag defined immediately, module loads on connectedCallback)
   const widgets = new WidgetRegistry();
   for (const entry of widgetEntries) {
-    ComponentElement.registerLazy(entry.name, entry.files, moduleLoaders[entry.modulePath]);
+    ComponentElement.registerLazy(entry.name, entry.files, moduleLoaders[entry.modulePath]!);
   }
 
   // Register custom elements — import all modules, define when loaded

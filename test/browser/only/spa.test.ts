@@ -150,7 +150,7 @@ describe('SPA renderer', () => {
               string,
               { navigate(url: string): Promise<void> }
             >
-          ).__emroute_router.navigate('/html/about'),
+          ).__emroute_router!.navigate('/html/about'),
       );
       await page.waitForFunction(
         () => {
@@ -183,7 +183,7 @@ describe('SPA renderer', () => {
               string,
               { navigate(url: string): Promise<void> }
             >
-          ).__emroute_router.navigate('/html/about'),
+          ).__emroute_router!.navigate('/html/about'),
       );
       await page.waitForFunction(
         () => {
@@ -227,7 +227,7 @@ describe('SPA renderer', () => {
               string,
               { navigate(url: string): Promise<void> }
             >
-          ).__emroute_router.navigate('/html/about'),
+          ).__emroute_router!.navigate('/html/about'),
       );
       await page.waitForFunction(
         () => {
@@ -485,7 +485,7 @@ describe('SPA renderer', () => {
             string,
             { getParams(): Record<string, string> }
           >
-        ).__emroute_router.getParams()
+        ).__emroute_router!.getParams()
       );
       expect(params.id).toEqual('42');
     },
@@ -505,7 +505,7 @@ describe('SPA renderer', () => {
             globalThis as unknown as {
               __emroute_router: { navigate: (path: string) => Promise<void> };
             }
-          ).__emroute_router.navigate('/html/projects/99'),
+          ).__emroute_router!.navigate('/html/projects/99'),
       );
       await page.waitForFunction(
         () => {
@@ -529,7 +529,7 @@ describe('SPA renderer', () => {
             string,
             { getParams(): Record<string, string> }
           >
-        ).__emroute_router.getParams()
+        ).__emroute_router!.getParams()
       );
       expect(params.id).toEqual('99');
     },
@@ -555,7 +555,7 @@ describe('SPA renderer', () => {
             string,
             { getParams(): Record<string, string> }
           >
-        ).__emroute_router.getParams()
+        ).__emroute_router!.getParams()
       );
       expect(params.id).toEqual('42');
     },
@@ -915,7 +915,7 @@ describe('SPA renderer', () => {
               string,
               { navigate(url: string): Promise<void> }
             >
-          ).__emroute_router.navigate('/html/old'),
+          ).__emroute_router!.navigate('/html/old'),
       );
       await page.waitForFunction(
         () => {

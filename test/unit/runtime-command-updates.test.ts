@@ -38,7 +38,7 @@ describe('runtime command() incremental updates', () => {
 
       const tree = await routeTree(runtime);
       expect(tree.children?.about).toBeDefined();
-      expect(tree.children!.about.files?.ts).toEqual('/routes/about.page.ts');
+      expect(tree.children!.about!.files?.ts).toEqual('/routes/about.page.ts');
       runtime.close();
     });
 
@@ -57,8 +57,8 @@ describe('runtime command() incremental updates', () => {
 
       const tree = await routeTree(runtime);
       expect(tree.children?.projects).toBeDefined();
-      expect(tree.children!.projects.dynamic).toBeDefined();
-      expect(tree.children!.projects.dynamic!.param).toEqual('id');
+      expect(tree.children!.projects!.dynamic).toBeDefined();
+      expect(tree.children!.projects!.dynamic!.param).toEqual('id');
       runtime.close();
     });
 
@@ -104,9 +104,9 @@ describe('runtime command() incremental updates', () => {
 
       const entries = await widgetEntries(runtime);
       expect(entries.length).toEqual(1);
-      expect(entries[0].name).toEqual('counter');
-      expect(entries[0].tagName).toEqual('widget-counter');
-      expect(entries[0].modulePath).toContain('counter.widget.ts');
+      expect(entries[0]!.name).toEqual('counter');
+      expect(entries[0]!.tagName).toEqual('widget-counter');
+      expect(entries[0]!.modulePath).toContain('counter.widget.ts');
       runtime.close();
     });
 
@@ -123,8 +123,8 @@ describe('runtime command() incremental updates', () => {
 
       const entries = await widgetEntries(runtime);
       expect(entries.length).toEqual(2);
-      expect(entries[0].name).toEqual('counter');
-      expect(entries[1].name).toEqual('timer');
+      expect(entries[0]!.name).toEqual('counter');
+      expect(entries[1]!.name).toEqual('timer');
       runtime.close();
     });
 
@@ -139,7 +139,7 @@ describe('runtime command() incremental updates', () => {
 
       const entries = await widgetEntries(runtime);
       expect(entries.length).toEqual(1);
-      expect(entries[0].files?.css).toContain('counter.widget.css');
+      expect(entries[0]!.files?.css).toContain('counter.widget.css');
       runtime.close();
     });
 
@@ -159,8 +159,8 @@ describe('runtime command() incremental updates', () => {
 
       const entries = await widgetEntries(runtime);
       expect(entries.length).toEqual(2);
-      expect(entries[0].name).toEqual('alpha');
-      expect(entries[1].name).toEqual('zebra');
+      expect(entries[0]!.name).toEqual('alpha');
+      expect(entries[1]!.name).toEqual('zebra');
       runtime.close();
     });
   });
@@ -176,9 +176,9 @@ describe('runtime command() incremental updates', () => {
 
       const entries = await elementEntries(runtime);
       expect(entries.length).toEqual(1);
-      expect(entries[0].name).toEqual('code-editor');
-      expect(entries[0].tagName).toEqual('code-editor');
-      expect(entries[0].modulePath).toContain('code-editor.element.ts');
+      expect(entries[0]!.name).toEqual('code-editor');
+      expect(entries[0]!.tagName).toEqual('code-editor');
+      expect(entries[0]!.modulePath).toContain('code-editor.element.ts');
       runtime.close();
     });
 
@@ -204,8 +204,8 @@ describe('runtime command() incremental updates', () => {
 
       const entries = await elementEntries(runtime);
       expect(entries.length).toEqual(2);
-      expect(entries[0].name).toEqual('code-editor');
-      expect(entries[1].name).toEqual('my-tabs');
+      expect(entries[0]!.name).toEqual('code-editor');
+      expect(entries[1]!.name).toEqual('my-tabs');
       runtime.close();
     });
 
@@ -217,7 +217,7 @@ describe('runtime command() incremental updates', () => {
 
       const entries = await elementEntries(runtime);
       expect(entries.length).toEqual(1);
-      expect(entries[0].modulePath).toContain('my-tabs.element.js');
+      expect(entries[0]!.modulePath).toContain('my-tabs.element.js');
       runtime.close();
     });
 
@@ -228,8 +228,8 @@ describe('runtime command() incremental updates', () => {
 
       const entries = await elementEntries(runtime);
       expect(entries.length).toEqual(2);
-      expect(entries[0].name).toEqual('a-thing');
-      expect(entries[1].name).toEqual('z-widget');
+      expect(entries[0]!.name).toEqual('a-thing');
+      expect(entries[1]!.name).toEqual('z-widget');
       runtime.close();
     });
   });
@@ -255,8 +255,8 @@ describe('runtime command() incremental updates', () => {
 
       const tree = await routeTree(runtime);
       expect(tree.children?.about).toBeDefined();
-      expect(tree.children!.about.files?.ts).toBeUndefined();
-      expect(tree.children!.about.files?.md).toEqual('/routes/about.page.md');
+      expect(tree.children!.about!.files?.ts).toBeUndefined();
+      expect(tree.children!.about!.files?.md).toEqual('/routes/about.page.md');
       runtime.close();
     });
 
@@ -322,7 +322,7 @@ describe('runtime command() incremental updates', () => {
 
       const entries = await widgetEntries(runtime);
       expect(entries.length).toEqual(1);
-      expect(entries[0].files).toBeUndefined();
+      expect(entries[0]!.files).toBeUndefined();
       runtime.close();
     });
 
@@ -334,7 +334,7 @@ describe('runtime command() incremental updates', () => {
 
       const entries = await widgetEntries(runtime);
       expect(entries.length).toEqual(1);
-      expect(entries[0].name).toEqual('timer');
+      expect(entries[0]!.name).toEqual('timer');
       runtime.close();
     });
   });
@@ -358,7 +358,7 @@ describe('runtime command() incremental updates', () => {
 
       const entries = await elementEntries(runtime);
       expect(entries.length).toEqual(1);
-      expect(entries[0].name).toEqual('my-tabs');
+      expect(entries[0]!.name).toEqual('my-tabs');
       runtime.close();
     });
   });

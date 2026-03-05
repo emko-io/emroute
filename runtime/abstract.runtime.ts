@@ -137,13 +137,15 @@ export abstract class Runtime {
   ): Promise<void> {
     const relativePath = filePath.slice(routesDir.length + 1);
     const parts = relativePath.split('/');
-    const filename = parts[parts.length - 1];
+    const filename = parts[parts.length - 1]!;
     const dirSegments = parts.slice(0, -1);
 
     const match = filename.match(/^(.+?)\.(page|error|redirect)\.(ts|js|html|md|css)$/);
     if (!match) return;
 
-    const [, name, kind, ext] = match;
+    const name = match[1]!;
+    const kind = match[2]!;
+    const ext = match[3]!;
 
     // Read current manifest (or start fresh)
     const response = await this.handle(ROUTES_MANIFEST_PATH);
@@ -161,7 +163,7 @@ export abstract class Runtime {
       } else {
         node.children ??= {};
         node.children[dir] ??= {};
-        node = node.children[dir];
+        node = node.children[dir]!;
       }
     }
 
@@ -197,13 +199,15 @@ export abstract class Runtime {
   ): Promise<void> {
     const relativePath = filePath.slice(routesDir.length + 1);
     const parts = relativePath.split('/');
-    const filename = parts[parts.length - 1];
+    const filename = parts[parts.length - 1]!;
     const dirSegments = parts.slice(0, -1);
 
     const match = filename.match(/^(.+?)\.(page|error|redirect)\.(ts|js|html|md|css)$/);
     if (!match) return;
 
-    const [, name, kind, ext] = match;
+    const name = match[1]!;
+    const kind = match[2]!;
+    const ext = match[3]! as keyof RouteFiles;
 
     const response = await this.handle(ROUTES_MANIFEST_PATH);
     if (response.status === 404) return;
@@ -220,7 +224,7 @@ export abstract class Runtime {
       } else {
         if (!node.children?.[dir]) return;
         ancestors.push({ node, key: dir, via: 'children' });
-        node = node.children[dir];
+        node = node.children[dir]!;
       }
     }
 
@@ -235,8 +239,8 @@ export abstract class Runtime {
       if (kind === 'redirect') {
         if (target.redirect === filePath) delete target.redirect;
       } else {
-        if (target.files?.[ext as keyof RouteFiles] === filePath) {
-          delete target.files[ext as keyof RouteFiles];
+        if (target.files?.[ext] === filePath) {
+          delete target.files[ext];
           if (Object.keys(target.files).length === 0) delete target.files;
         }
       }
@@ -256,7 +260,7 @@ export abstract class Runtime {
 
     // Prune empty ancestors bottom-up
     for (let i = ancestors.length - 1; i >= 0; i--) {
-      const { node: parent, key, via } = ancestors[i];
+      const { node: parent, key, via } = ancestors[i]!;
       const child = via === 'dynamic' ? parent.dynamic?.child : parent.children?.[key];
       if (child && this.isEmptyNode(child)) {
         if (via === 'dynamic') {
@@ -308,11 +312,12 @@ export abstract class Runtime {
     const parts = relativePath.split('/');
     if (parts.length !== 2) return;
 
-    const [dirName, filename] = parts;
+    const [dirName, filename] = parts as [string, string];
     const match = filename.match(/^(.+?)\.widget\.(ts|js|html|md|css)$/);
     if (!match) return;
 
-    const [, name, ext] = match;
+    const name = match[1]!;
+    const ext = match[2]!;
     if (name !== dirName) return;
 
     const response = await this.handle(WIDGETS_MANIFEST_PATH);
@@ -350,11 +355,11 @@ export abstract class Runtime {
     const parts = relativePath.split('/');
     if (parts.length !== 2) return;
 
-    const [dirName, filename] = parts;
+    const [dirName, filename] = parts as [string, string];
     const match = filename.match(/^(.+?)\.element\.(ts|js)$/);
     if (!match) return;
 
-    const [, name] = match;
+    const name = match[1]!;
     if (name !== dirName) return;
 
     const response = await this.handle(ELEMENTS_MANIFEST_PATH);
@@ -389,24 +394,24 @@ export abstract class Runtime {
 
     const relativePath = filePath.slice(dir.length + 1);
     const parts = relativePath.split('/');
-    const filename = parts[parts.length - 1];
+    const filename = parts[parts.length - 1]!;
 
     // Determine the module base name and the .js output path
     let jsPath: string;
     if (kind === 'route') {
       const match = filename.match(/^(.+?)\.(page)\.(ts|html|md|css)$/);
       if (!match) return;
-      const [, name] = match;
+      const name = match[1]!;
       jsPath = `${dir}/${parts.slice(0, -1).join('/')}${parts.length > 1 ? '/' : ''}${name}.page.js`;
     } else if (kind === 'widget') {
       const match = filename.match(/^(.+?)\.(widget)\.(ts|html|md|css)$/);
       if (!match) return;
-      const [, name] = match;
+      const name = match[1]!;
       jsPath = `${dir}/${name}/${name}.widget.js`;
     } else {
       const match = filename.match(/^(.+?)\.(element)\.ts$/);
       if (!match) return;
-      const [, name] = match;
+      const name = match[1]!;
       jsPath = `${dir}/${name}/${name}.element.js`;
     }
 
@@ -482,13 +487,14 @@ export abstract class Runtime {
     const parts = relativePath.split('/');
     if (parts.length !== 2) return; // must be widgets/{name}/{file}
 
-    const [dirName, filename] = parts;
+    const [dirName, filename] = parts as [string, string];
 
     // Only act on .widget.{ts,js,html,md,css} files
     const match = filename.match(/^(.+?)\.widget\.(ts|js|html|md|css)$/);
     if (!match) return;
 
-    const [, name, ext] = match;
+    const name = match[1]!;
+    const ext = match[2]!;
     if (name !== dirName) return; // filename must match directory
 
     const response = await this.handle(WIDGETS_MANIFEST_PATH);
@@ -539,12 +545,12 @@ export abstract class Runtime {
     const parts = relativePath.split('/');
     if (parts.length !== 2) return;
 
-    const [dirName, filename] = parts;
+    const [dirName, filename] = parts as [string, string];
 
     const match = filename.match(/^(.+?)\.element\.(ts|js)$/);
     if (!match) return;
 
-    const [, name] = match;
+    const name = match[1]!;
     if (name !== dirName) return;
 
     // Custom element names must contain a hyphen
@@ -680,14 +686,16 @@ export abstract class Runtime {
     for (const filePath of allFiles) {
       const relativePath = filePath.replace(`${routesDir}/`, '');
       const parts = relativePath.split('/');
-      const filename = parts[parts.length - 1];
+      const filename = parts[parts.length - 1]!;
       const dirSegments = parts.slice(0, -1);
 
       // Parse filename: name.kind.ext (e.g. "about.page.ts", "[id].page.html", "index.error.ts")
       const match = filename.match(/^(.+?)\.(page|error|redirect)\.(ts|js|html|md|css)$/);
       if (!match) continue;
 
-      const [, name, kind, ext] = match;
+      const name = match[1]!;
+      const kind = match[2]!;
+      const ext = match[3]! as keyof RouteFiles;
 
       // Walk directory segments to reach the parent node
       let node = root;
@@ -699,7 +707,7 @@ export abstract class Runtime {
         } else {
           node.children ??= {};
           node.children[dir] ??= {};
-          node = node.children[dir];
+          node = node.children[dir]!;
         }
       }
 
@@ -713,7 +721,7 @@ export abstract class Runtime {
       }
 
       // For page and redirect files, the name determines the final node
-      const target = resolveTargetNode(node, name, dirSegments.length === 0);
+      const target = resolveTargetNode(node, name!, dirSegments.length === 0);
 
       if (kind === 'redirect') {
         target.redirect = filePath;

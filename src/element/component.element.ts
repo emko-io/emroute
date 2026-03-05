@@ -271,7 +271,8 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
 
     // Lazy: defer loadData until element is visible
     if (this.hasAttribute(LAZY_ATTR)) {
-      this.intersectionObserver = new IntersectionObserver(([entry]) => {
+      this.intersectionObserver = new IntersectionObserver((entries) => {
+        const entry = entries[0]!;
         if (entry.isIntersecting) {
           this.intersectionObserver?.disconnect();
           this.intersectionObserver = null;

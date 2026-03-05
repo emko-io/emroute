@@ -107,7 +107,7 @@ export class RouteTrie implements RouteResolver {
       return undefined;
     }
 
-    const segment = segments[index];
+    const segment = segments[index]!;
 
     // Static
     const staticChild = node.children?.[segment];
@@ -130,9 +130,9 @@ export class RouteTrie implements RouteResolver {
     // Wildcard
     if (node.wildcard && (node.wildcard.child.files || node.wildcard.child.redirect)) {
       const { param, child } = node.wildcard;
-      let rest = this.safeDecode(segments[index]);
+      let rest = this.safeDecode(segment);
       for (let i = index + 1; i < segments.length; i++) {
-        rest += '/' + this.safeDecode(segments[i]);
+        rest += '/' + this.safeDecode(segments[i]!);
       }
       const wp = pattern === '/' ? `/:${param}*` : `${pattern}/:${param}*`;
       return {
@@ -155,7 +155,7 @@ export class RouteTrie implements RouteResolver {
       return node.errorBoundary ?? deepest;
     }
 
-    const segment = segments[index];
+    const segment = segments[index]!;
 
     const staticChild = node.children?.[segment];
     if (staticChild) {

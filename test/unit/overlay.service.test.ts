@@ -581,7 +581,7 @@ test('OverlayService - toast appended to container', () => {
   const container = mockDoc.querySelector('[data-overlay-toast-container]');
   expect(container).toBeDefined();
   expect(container!.children.length).toEqual(1);
-  expect(container!.children[0].textContent).toEqual('Toast 1');
+  expect(container!.children[0]!.textContent).toEqual('Toast 1');
 
   teardownMocks();
 });
@@ -606,8 +606,8 @@ test('OverlayService - multiple toasts stack correctly', () => {
 
   const container = mockDoc.querySelector('[data-overlay-toast-container]');
   expect(container!.children.length).toEqual(2);
-  expect(container!.children[0].textContent).toEqual('Toast 1');
-  expect(container!.children[1].textContent).toEqual('Toast 2');
+  expect(container!.children[0]!.textContent).toEqual('Toast 1');
+  expect(container!.children[1]!.textContent).toEqual('Toast 2');
 
   teardownMocks();
 });
@@ -626,7 +626,7 @@ test('OverlayService - toast dismiss sets data-dismissing', () => {
   const container = mockDoc.querySelector('[data-overlay-toast-container]');
   expect(container!.children.length).toEqual(1);
 
-  const toast = container!.children[0];
+  const toast = container!.children[0]!;
   expect(!toast.hasAttribute('data-dismissing')).toBeTruthy();
 
   dismiss();
@@ -1054,11 +1054,11 @@ test('OverlayService - multiple toasts can be dismissed independently', () => {
   expect(container.children.length).toEqual(2);
 
   dismiss1();
-  expect(container.children[0].hasAttribute('data-dismissing')).toBeTruthy();
-  expect(!container.children[1].hasAttribute('data-dismissing')).toBeTruthy();
+  expect(container.children[0]!.hasAttribute('data-dismissing')).toBeTruthy();
+  expect(!container.children[1]!.hasAttribute('data-dismissing')).toBeTruthy();
 
   dismiss2();
-  expect(container.children[1].hasAttribute('data-dismissing')).toBeTruthy();
+  expect(container.children[1]!.hasAttribute('data-dismissing')).toBeTruthy();
 
   teardownMocks();
 });

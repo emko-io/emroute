@@ -15,14 +15,14 @@ export function rewriteMdLinks(markdown: string, base: string, skipPrefixes: str
   let inCodeBlock = false;
 
   for (let i = 0; i < lines.length; i++) {
-    if (lines[i].startsWith('```')) {
+    if (lines[i]!.startsWith('```')) {
       inCodeBlock = !inCodeBlock;
       continue;
     }
     if (inCodeBlock) continue;
 
-    lines[i] = lines[i].replaceAll(inlineRe, `](${prefix}`);
-    lines[i] = lines[i].replaceAll(refRe, `$1${prefix}`);
+    lines[i] = lines[i]!.replaceAll(inlineRe, `](${prefix}`);
+    lines[i] = lines[i]!.replaceAll(refRe, `$1${prefix}`);
   }
 
   return lines.join('\n');

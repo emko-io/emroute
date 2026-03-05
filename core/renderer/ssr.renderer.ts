@@ -140,7 +140,7 @@ export abstract class SsrRenderer {
 
     const segments: { route: RouteConfig; isLeaf: boolean }[] = [];
     for (let i = 0; i < hierarchy.length; i++) {
-      const routePattern = hierarchy[i];
+      const routePattern = hierarchy[i]!;
       let route = await this.pipeline.findRoute(routePattern);
 
       if (!route && routePattern === '/') {
@@ -164,7 +164,7 @@ export abstract class SsrRenderer {
     let lastRenderedPattern = '';
 
     for (let i = 0; i < segments.length; i++) {
-      const { content, title } = results[i];
+      const { content, title } = results[i]!;
 
       if (title) {
         pageTitle = title;
@@ -184,7 +184,7 @@ export abstract class SsrRenderer {
         result = injected;
       }
 
-      lastRenderedPattern = segments[i].route.pattern;
+      lastRenderedPattern = segments[i]!.route.pattern;
     }
 
     result = this.stripSlots(result);

@@ -49,7 +49,7 @@ describe('FetchRuntime', () => {
       globalThis.fetch = mock.fn;
       try {
         runtime.query('/test.txt', { as: 'text' });
-        expect(mock.calls[0].url).toBe('http://localhost:4100/test.txt');
+        expect(mock.calls[0]!.url).toBe('http://localhost:4100/test.txt');
       } finally {
         globalThis.fetch = original;
       }
@@ -64,7 +64,7 @@ describe('FetchRuntime', () => {
       globalThis.fetch = mock.fn;
       try {
         runtime.query('/file.js', { as: 'text' });
-        expect(mock.calls[0].url).toBe('http://localhost:4100/file.js');
+        expect(mock.calls[0]!.url).toBe('http://localhost:4100/file.js');
       } finally {
         globalThis.fetch = original;
       }
@@ -93,7 +93,7 @@ describe('FetchRuntime', () => {
         const response = await runtime.handle('/routes/index.page.ts');
         expect(response.status).toBe(200);
         expect(await response.text()).toBe('export default {}');
-        expect(mock.calls[0].url).toBe(`${ORIGIN}/routes/index.page.ts`);
+        expect(mock.calls[0]!.url).toBe(`${ORIGIN}/routes/index.page.ts`);
       } finally {
         globalThis.fetch = original;
       }
@@ -108,7 +108,7 @@ describe('FetchRuntime', () => {
       try {
         const runtime = new FetchRuntime(ORIGIN);
         await runtime.handle('/data', { method: 'PUT', body: 'content' });
-        expect(mock.calls[0].init).toEqual({ method: 'PUT', body: 'content' });
+        expect(mock.calls[0]!.init).toEqual({ method: 'PUT', body: 'content' });
       } finally {
         globalThis.fetch = original;
       }
@@ -124,7 +124,7 @@ describe('FetchRuntime', () => {
         const runtime = new FetchRuntime(ORIGIN);
         const response = await runtime.handle(new URL('http://any-host/some/path'));
         expect(await response.text()).toBe('found');
-        expect(mock.calls[0].url).toBe(`${ORIGIN}/some/path`);
+        expect(mock.calls[0]!.url).toBe(`${ORIGIN}/some/path`);
       } finally {
         globalThis.fetch = original;
       }
@@ -140,7 +140,7 @@ describe('FetchRuntime', () => {
         const runtime = new FetchRuntime(ORIGIN);
         const response = await runtime.handle(new URL('http://any/api?q=test'));
         expect(await response.text()).toBe('{"results":[]}');
-        expect(mock.calls[0].url).toBe(`${ORIGIN}/api?q=test`);
+        expect(mock.calls[0]!.url).toBe(`${ORIGIN}/api?q=test`);
       } finally {
         globalThis.fetch = original;
       }
@@ -157,7 +157,7 @@ describe('FetchRuntime', () => {
         const request = new Request('http://example.com/resource');
         const response = await runtime.handle(request);
         expect(await response.text()).toBe('data');
-        expect(mock.calls[0].url).toBe(`${ORIGIN}/resource`);
+        expect(mock.calls[0]!.url).toBe(`${ORIGIN}/resource`);
       } finally {
         globalThis.fetch = original;
       }
@@ -226,7 +226,7 @@ describe('FetchRuntime', () => {
         });
         expect(text).toBe('{"a":1}');
         // as: "text" path only passes URL, no init
-        expect(mock.calls[0].init).toBeUndefined();
+        expect(mock.calls[0]!.init).toBeUndefined();
       } finally {
         globalThis.fetch = original;
       }
@@ -243,7 +243,7 @@ describe('FetchRuntime', () => {
         const response = await runtime.query('/style.css', { headers: { Accept: 'text/css' } });
         expect(response.status).toBe(200);
         // handle passes init through to fetch
-        expect(mock.calls[0].init).toEqual({ headers: { Accept: 'text/css' } });
+        expect(mock.calls[0]!.init).toEqual({ headers: { Accept: 'text/css' } });
       } finally {
         globalThis.fetch = original;
       }
@@ -260,7 +260,7 @@ describe('FetchRuntime', () => {
       try {
         const runtime = new FetchRuntime(ORIGIN);
         await runtime.command('/file.txt', { body: 'content' });
-        expect(mock.calls[0].init?.method).toBe('PUT');
+        expect(mock.calls[0]!.init?.method).toBe('PUT');
       } finally {
         globalThis.fetch = original;
       }
@@ -275,7 +275,7 @@ describe('FetchRuntime', () => {
       try {
         const runtime = new FetchRuntime(ORIGIN);
         await runtime.command('/file.txt', { method: 'DELETE' });
-        expect(mock.calls[0].init?.method).toBe('DELETE');
+        expect(mock.calls[0]!.init?.method).toBe('DELETE');
       } finally {
         globalThis.fetch = original;
       }
@@ -291,7 +291,7 @@ describe('FetchRuntime', () => {
         const runtime = new FetchRuntime(ORIGIN);
         const response = await runtime.command('/data.json', { body: '{"key":"value"}' });
         expect(response.status).toBe(200);
-        expect(mock.calls[0].init?.body).toBe('{"key":"value"}');
+        expect(mock.calls[0]!.init?.body).toBe('{"key":"value"}');
       } finally {
         globalThis.fetch = original;
       }
@@ -347,7 +347,7 @@ describe('FetchRuntime', () => {
         // loadModule fetches, creates a blob URL, and dynamic-imports it
         const mod = await runtime.loadModule('/routes/index.page.js') as { name: string };
         expect(mod.name).toBe('test');
-        expect(mock.calls[0].url).toBe(`${ORIGIN}/routes/index.page.js`);
+        expect(mock.calls[0]!.url).toBe(`${ORIGIN}/routes/index.page.js`);
       } finally {
         globalThis.fetch = original;
       }
@@ -432,7 +432,7 @@ describe('FetchRuntime', () => {
       try {
         const runtime = new FetchRuntime(ORIGIN);
         await runtime.handle('/a/b/c');
-        expect(mock.calls[0].url).toBe(`${ORIGIN}/a/b/c`);
+        expect(mock.calls[0]!.url).toBe(`${ORIGIN}/a/b/c`);
       } finally {
         globalThis.fetch = original;
       }
@@ -447,7 +447,7 @@ describe('FetchRuntime', () => {
       try {
         const runtime = new FetchRuntime(ORIGIN);
         await runtime.handle(new URL('https://other-origin.com/path?key=val'));
-        expect(mock.calls[0].url).toBe(`${ORIGIN}/path?key=val`);
+        expect(mock.calls[0]!.url).toBe(`${ORIGIN}/path?key=val`);
       } finally {
         globalThis.fetch = original;
       }
@@ -462,7 +462,7 @@ describe('FetchRuntime', () => {
       try {
         const runtime = new FetchRuntime(ORIGIN);
         await runtime.handle(new Request('https://example.com/api/data'));
-        expect(mock.calls[0].url).toBe(`${ORIGIN}/api/data`);
+        expect(mock.calls[0]!.url).toBe(`${ORIGIN}/api/data`);
       } finally {
         globalThis.fetch = original;
       }
@@ -477,7 +477,7 @@ describe('FetchRuntime', () => {
       try {
         const runtime = new FetchRuntime('http://example.com/');
         await runtime.handle('/test');
-        expect(mock.calls[0].url).toBe('http://example.com/test');
+        expect(mock.calls[0]!.url).toBe('http://example.com/test');
       } finally {
         globalThis.fetch = original;
       }

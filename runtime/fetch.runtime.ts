@@ -59,7 +59,12 @@ export class FetchRuntime extends Runtime {
     const response = await fetch(url);
     const js = await response.text();
     const blob = new Blob([js], { type: 'application/javascript' });
-    return import(URL.createObjectURL(blob));
+    const objectUrl = URL.createObjectURL(blob);
+    try {
+      return await import(objectUrl);
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
   }
 
   private toUrl(resource: FetchParams[0]): string {

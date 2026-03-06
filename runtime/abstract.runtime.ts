@@ -769,11 +769,17 @@ export abstract class Runtime {
 
       const files: { html?: string; md?: string; css?: string } = {};
       let hasFiles = false;
-      for (const ext of COMPANION_EXTENSIONS) {
-        const companionFile = `${name}.widget.${ext}`;
-        const companionPath = `${trailingDir}${name}/${companionFile}`;
-        if ((await this.query(companionPath)).status !== 404) {
-          files[ext] = `${prefix}${name}/${companionFile}`;
+      const companionResults = await Promise.all(
+        COMPANION_EXTENSIONS.map(async (ext) => {
+          const companionFile = `${name}.widget.${ext}`;
+          const companionPath = `${trailingDir}${name}/${companionFile}`;
+          const exists = (await this.query(companionPath)).status !== 404;
+          return { ext, exists, path: `${prefix}${name}/${companionFile}` };
+        }),
+      );
+      for (const { ext, exists, path } of companionResults) {
+        if (exists) {
+          files[ext] = path;
           hasFiles = true;
         }
       }

@@ -180,19 +180,19 @@ describe('SSR to SPA hydration — comprehensive', () => {
     async () => {
       // Navigate away via router API
       await page.evaluate(() => {
-        const router = (globalThis as Record<string, unknown>).__emroute_router as {
+        const router = (globalThis as Record<string, unknown>).__emroute_app as {
           navigate: (url: string) => Promise<void>;
         };
-        return router.navigate('/html/');
+        return router.navigate('/app/');
       });
       await page.waitForSelector('h1', { timeout: 5000 });
 
       // Navigate back to hydration page via SPA
       await page.evaluate(() => {
-        const router = (globalThis as Record<string, unknown>).__emroute_router as {
+        const router = (globalThis as Record<string, unknown>).__emroute_app as {
           navigate: (url: string) => Promise<void>;
         };
-        return router.navigate('/html/hydration');
+        return router.navigate('/app/hydration');
       });
       await page.waitForSelector('widget-hydration-test', { timeout: 5000 });
 
@@ -373,9 +373,9 @@ describe('SSR to SPA hydration — comprehensive', () => {
 
     // SPA navigate to hydration page
     await page.evaluate(() => {
-      const router = (globalThis as Record<string, unknown>).__emroute_router;
+      const router = (globalThis as Record<string, unknown>).__emroute_app;
       if (router && typeof router === 'object' && 'navigate' in router) {
-        (router.navigate as (url: string) => Promise<void>)('/html/hydration');
+        (router.navigate as (url: string) => Promise<void>)('/app/hydration');
       }
     });
     await page.waitForSelector('#hydration-content', { timeout: 5000 });
@@ -385,9 +385,9 @@ describe('SSR to SPA hydration — comprehensive', () => {
 
     // Navigate back
     await page.evaluate(() => {
-      const router = (globalThis as Record<string, unknown>).__emroute_router;
+      const router = (globalThis as Record<string, unknown>).__emroute_app;
       if (router && typeof router === 'object' && 'navigate' in router) {
-        (router.navigate as (url: string) => Promise<void>)('/html/');
+        (router.navigate as (url: string) => Promise<void>)('/app/');
       }
     });
     await page.waitForSelector('h1', { timeout: 5000 });
@@ -405,8 +405,8 @@ describe('SSR to SPA hydration — comprehensive', () => {
       fullLoadFired = true;
     });
 
-    // Click a link (fixtures use /html/ prefix for progressive enhancement)
-    await page.click('a[href="/html/about"]');
+    // Click a link (fixtures use relative paths, resolved by <base> to /app/)
+    await page.click('a[href="about"]');
     await page.waitForFunction(
       () => {
         const h1 = document.querySelector('h1');
@@ -417,7 +417,7 @@ describe('SSR to SPA hydration — comprehensive', () => {
     );
 
     expect(fullLoadFired).toBe(false);
-    expect(new URL(page.url()).pathname).toEqual('/html/about');
+    expect(new URL(page.url()).pathname).toEqual('/app/about');
   });
 
   test('browser back/forward works after hydration', async () => {
@@ -426,9 +426,9 @@ describe('SSR to SPA hydration — comprehensive', () => {
 
     // Navigate to another page
     await page.evaluate(() => {
-      const router = (globalThis as Record<string, unknown>).__emroute_router;
+      const router = (globalThis as Record<string, unknown>).__emroute_app;
       if (router && typeof router === 'object' && 'navigate' in router) {
-        (router.navigate as (url: string) => Promise<void>)('/html/about');
+        (router.navigate as (url: string) => Promise<void>)('/app/about');
       }
     });
     await page.waitForSelector('h1', { timeout: 5000 });
@@ -470,9 +470,9 @@ describe('SSR to SPA hydration — comprehensive', () => {
 
     // Navigate to a broken project page that triggers error boundary
     await page.evaluate(() => {
-      const router = (globalThis as Record<string, unknown>).__emroute_router;
+      const router = (globalThis as Record<string, unknown>).__emroute_app;
       if (router && typeof router === 'object' && 'navigate' in router) {
-        (router.navigate as (url: string) => Promise<void>)('/html/projects/broken');
+        (router.navigate as (url: string) => Promise<void>)('/app/projects/broken');
       }
     });
     await page.waitForTimeout(1000);

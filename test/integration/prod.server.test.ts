@@ -10,7 +10,7 @@ import { test, expect, describe, beforeAll } from 'bun:test';
 import { resolve } from 'node:path';
 import { Emroute } from '../../server/emroute.server.ts';
 import { buildClientBundles } from '../../server/build.util.ts';
-import { UniversalFsRuntime } from '../../runtime/universal/fs/universal-fs.runtime.ts';
+import { BunFsRuntime } from '../../runtime/bun/fs/bun-fs.runtime.ts';
 import { WidgetRegistry } from '../../core/widget/widget.registry.ts';
 import { externalWidget } from '../browser/fixtures/assets/external.widget.ts';
 import type { RuntimeConfig } from '../../runtime/abstract.runtime.ts';
@@ -22,6 +22,11 @@ function req(path: string): Request {
   return new Request(`http://localhost${path}`);
 }
 
+const runtimeConfig: RuntimeConfig = {
+  routesDir: '/routes',
+  widgetsDir: '/widgets',
+};
+
 /** Create emroute server with test fixtures. */
 async function createTestEmroute(
   spa: 'none' | 'leaf' | 'root' | 'only' = 'root',
@@ -29,12 +34,7 @@ async function createTestEmroute(
   const manualWidgets = new WidgetRegistry();
   manualWidgets.add(externalWidget);
 
-  const runtimeConfig: RuntimeConfig = {
-    routesDir: '/routes',
-    widgetsDir: '/widgets',
-  };
-
-  const runtime = new UniversalFsRuntime(FIXTURES_DIR, runtimeConfig);
+  const runtime = new BunFsRuntime(FIXTURES_DIR, runtimeConfig);
 
   // Build client bundles for modes that need them
   if (spa === 'root' || spa === 'only' || spa === 'leaf') {
@@ -104,18 +104,18 @@ describe('prod server', () => {
 
   // ── Only mode — no SSR ──────────────────────────────────────────────
 
-  test('only mode - /html/* serves shell, not SSR content', async () => {
+  test('only mode - /html/* redirects to /app/*', async () => {
     const server = await getServer('only');
     const response = await server.handleRequest(req('/html/about'));
-    const html = await response!.text();
-    expect(html).not.toContain('data-ssr-route');
+    expect(response!.status).toEqual(302);
+    expect(response!.headers.get('Location') ?? '').toContain('/app/about');
   });
 
-  test('only mode - /md/* serves shell, not markdown', async () => {
+  test('only mode - /md/* redirects to /app/*', async () => {
     const server = await getServer('only');
     const response = await server.handleRequest(req('/md'));
-    expect(response!.status).toEqual(200);
-    expect(response!.headers.get('Content-Type')).toEqual('text/html; charset=utf-8');
+    expect(response!.status).toEqual(302);
+    expect(response!.headers.get('Location') ?? '').toContain('/app/');
   });
 
   // ── Manifest resolution ─────────────────────────────────────────────
@@ -134,7 +134,7 @@ describe('prod server', () => {
 
   test('shell contains user importmap.json entries', async () => {
     const server = await getServer('root');
-    expect(server.shell).toContain('https://esm.sh/@emkodev/emkoma/');
+    expect(server.shell).toContain('@emkodev/emkoma/');
     expect(server.shell).toContain('test-lib');
     expect(server.shell).toContain('/vendor/test-lib.js');
   });
@@ -285,9 +285,9 @@ describe('prod server', () => {
 
   // ── Only mode ──────────────────────────────────────────────────────────
 
-  test('handleRequest - only mode serves shell for /html/*', async () => {
+  test('handleRequest - only mode serves shell for /app/*', async () => {
     const server = await getServer('only');
-    const response = await server.handleRequest(req('/html/about'));
+    const response = await server.handleRequest(req('/app/about'));
 
     expect(response !== null).toBeTruthy();
     expect(response!.status).toEqual(200);

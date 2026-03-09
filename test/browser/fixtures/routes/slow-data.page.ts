@@ -17,7 +17,7 @@ class SlowDataPage extends PageComponent<Record<string, string>, SlowData> {
     globalThis.__slow_data_entered?.(signal);
 
     await new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => resolve(), 5000);
+      const timer = setTimeout(() => resolve(), 500);
       signal?.addEventListener('abort', () => {
         clearTimeout(timer);
         reject(signal.reason);

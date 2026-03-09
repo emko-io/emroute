@@ -34,9 +34,15 @@ export class EmrouteApp {
   private abortController: AbortController | null = null;
 
   constructor(server: Emroute, options?: EmrouteAppOptions) {
-    const bp = options?.basePath ?? DEFAULT_BASE_PATH;
     this.server = server;
-    this.appBase = bp.app;
+    if (options?.basePath) {
+      this.appBase = options.basePath.app;
+    } else if (typeof document !== 'undefined') {
+      const base = document.querySelector('base')?.getAttribute('href');
+      this.appBase = base ? base.replace(/\/$/, '') : DEFAULT_BASE_PATH.app;
+    } else {
+      this.appBase = DEFAULT_BASE_PATH.app;
+    }
   }
 
   async initialize(slotSelector = 'router-slot'): Promise<void> {

@@ -88,14 +88,17 @@ export class Emroute {
 
     // ── Widgets ───────────────────────────────────────────────────────
 
-    let widgets: WidgetRegistry | undefined = config.widgets;
+    let widgets: WidgetRegistry | undefined;
 
     const widgetsResponse = await runtime.query(WIDGETS_MANIFEST_PATH);
     if (widgetsResponse.status !== 404) {
       const entries: WidgetManifestEntry[] = await widgetsResponse.json();
-      if (!config.widgets) {
-        widgets = await Emroute.importWidgets(entries, runtime);
-      }
+      widgets = await Emroute.importWidgets(entries, runtime);
+    }
+
+    if (config.widgets) {
+      if (!widgets) widgets = new WidgetRegistry();
+      for (const w of config.widgets) widgets.add(w);
     }
 
     // ── Renderers ─────────────────────────────────────────────────────
@@ -118,11 +121,7 @@ export class Emroute {
 
     const title = config.title ?? 'emroute';
     const shellBase = (spa === 'root' || spa === 'only') ? appBase : htmlBase;
-    let shell = await Emroute.resolveShell(runtime, title, shellBase);
-
-    if ((await runtime.query('/main.css')).status !== 404) {
-      shell = shell.replace('</head>', '  <link rel="stylesheet" href="/main.css">\n</head>');
-    }
+    const shell = await Emroute.resolveShell(runtime, title, shellBase, spa);
 
     return new Emroute(
       ssrHtmlRenderer,
@@ -211,15 +210,18 @@ export class Emroute {
       });
     }
 
-    // Unhandled SSR paths in 'only' mode — serve shell
+    // Unhandled SSR paths in 'only' mode — redirect to /app/
     if (
       pathname.startsWith(htmlPrefix) || pathname === this.htmlBase ||
       pathname.startsWith(mdPrefix) || pathname === this.mdBase
     ) {
-      return new Response(this.shell, {
-        status: 200,
-        headers: { 'Content-Type': 'text/html; charset=utf-8' },
-      });
+      const routePath = pathname.startsWith(htmlPrefix) ? pathname.slice(this.htmlBase.length)
+        : pathname.startsWith(mdPrefix) ? pathname.slice(this.mdBase.length)
+        : '/';
+      return Response.redirect(
+        new URL(this.appBase + routePath + (url.search || ''), url.origin),
+        302,
+      );
     }
 
     // Static files
@@ -277,18 +279,45 @@ export class Emroute {
     return registry;
   }
 
-  private static buildHtmlShell(title: string, htmlBase: string): string {
-    const baseTag = htmlBase ? `\n  <base href="${escapeHtml(htmlBase)}/">` : '';
+  private static async buildHtmlShell(
+    runtime: Runtime,
+    title: string,
+    basePath: string,
+    spa: SpaMode,
+  ): Promise<string> {
+    const baseTag = basePath ? `\n  <base href="${escapeHtml(basePath)}/">` : '';
+
+    let cssTag = '';
+    if ((await runtime.query('/main.css')).status !== 404) {
+      cssTag = '\n  <link rel="stylesheet" href="/main.css">';
+    }
+
+    const needsJs = spa !== 'none';
+
+    let importMapHtml = '';
+    if (needsJs) {
+      const mapResponse = await runtime.query('/importmap.json');
+      if (mapResponse.status !== 404) {
+        const importMap = await mapResponse.text();
+        importMapHtml = `\n  <script type="importmap">\n${importMap}\n  </script>`;
+      }
+    }
+
+    let scriptHtml = '';
+    if (needsJs && (await runtime.query('/app.js')).status !== 404) {
+      scriptHtml = '\n  <script type="module" src="/app.js"></script>';
+    }
+
     return `<!DOCTYPE html>
 <html>
 <head>${baseTag}
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${escapeHtml(title)}</title>
-  <style>@view-transition { navigation: auto; } router-slot { display: contents; }</style>
+  <style>@view-transition { navigation: auto; } router-slot { display: contents; }</style>${cssTag}
 </head>
 <body>
-  <router-slot></router-slot>
+  <router-slot></router-slot>${importMapHtml}${scriptHtml}
 </body>
 </html>`;
   }
@@ -315,10 +344,11 @@ export class Emroute {
   private static async resolveShell(
     runtime: Runtime,
     title: string,
-    htmlBase: string,
+    basePath: string,
+    spa: SpaMode,
   ): Promise<string> {
     const response = await runtime.query('/index.html');
     if (response.status !== 404) return await response.text();
-    return Emroute.buildHtmlShell(title, htmlBase);
+    return Emroute.buildHtmlShell(runtime, title, basePath, spa);
   }
 }

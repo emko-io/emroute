@@ -1,6 +1,11 @@
 {
   "imports": {
-    "@emkodev/emkoma/": "https://esm.sh/@emkodev/emkoma/",
+    "@emkodev/emroute/spa": "/emroute.js",
+    "@emkodev/emroute/overlay": "/emroute.js",
+    "@emkodev/emroute": "/emroute.js",
+    "@emkodev/emroute/server": "/emroute.js",
+    "@emkodev/emroute/runtime/fetch": "/emroute.js",
+    "@emkodev/emkoma/": "/vendor/emkoma/",
     "test-lib": "/vendor/test-lib.js"
   }
 }

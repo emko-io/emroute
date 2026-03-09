@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.2] - 2026-03-09
+
+### Fixed
+
+- **Widget registry merging**: `Emroute.create()` now always auto-discovers
+  widgets from the manifest, then merges manually provided widgets on top.
+  Previously, providing `config.widgets` skipped auto-discovery entirely.
+
+- **`mergeModules` runs for all SPA modes**: `buildClientBundles()` now
+  transpiles `.ts` → `.js` modules before the `spa === 'none'` early return,
+  ensuring manifests reference `.js` paths regardless of mode.
+
+- **Shell generation moved to server**: `buildClientBundles()` now writes
+  `importmap.json` instead of `index.html`. The server generates the HTML shell
+  at request time via `buildHtmlShell()`, including `<base>`, import map,
+  `<script>`, and `main.css` link based on the active SPA mode.
+
+- **SPA base path from `<base>` tag**: `EmrouteApp` reads `<base href>` from
+  the document to determine its app prefix, instead of requiring explicit
+  `basePath` configuration.
+
+- **`only` mode redirects SSR paths**: Unhandled `/html/*` and `/md/*` requests
+  in `only` mode now 302-redirect to `/app/*` instead of serving the SPA shell
+  at the wrong path.
+
 ## [1.8.1] - 2026-03-06
 
 ### Fixed

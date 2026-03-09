@@ -58,7 +58,7 @@ class NavWidget extends WidgetComponent<Record<string, unknown>, NavData> {
     const items = data.links
       .map((link) => {
         const cls = link.active ? ' class="active"' : '';
-        return `<a href="/html${link.href}"${cls}>${link.label}</a>`;
+        return `<a href="${link.href.slice(1) || '.'}"${cls}>${link.label}</a>`;
       })
       .join('\n      ');
 
@@ -70,7 +70,7 @@ class NavWidget extends WidgetComponent<Record<string, unknown>, NavData> {
   override renderMarkdown({ data }: this['RenderArgs']): string {
     if (!data) return '';
     return data.links
-      .map((l) => l.active ? `**${l.label}**` : `[${l.label}](/html${l.href})`)
+      .map((l) => l.active ? `**${l.label}**` : `[${l.label}](${l.href})`)
       .join(' | ');
   }
 }

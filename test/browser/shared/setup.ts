@@ -16,10 +16,43 @@ import { renderMarkdown } from '@emkodev/emkoma/render';
 import { externalWidget } from '../fixtures/assets/external.widget.ts';
 import type { SpaMode } from '../../../core/type/widget.type.ts';
 
-import { resolve } from 'node:path';
+import { resolve, join } from 'node:path';
+import { unlink, cp } from 'node:fs/promises';
 import { type Browser, chromium, type Page } from 'playwright';
 
 const FIXTURES_DIR = 'test/browser/fixtures';
+
+const runtimeConfig: RuntimeConfig = {
+  routesDir: '/routes',
+  widgetsDir: '/widgets',
+};
+
+/** One-time setup: clean manifests, copy vendor deps, run initial build. */
+let setupPromise: Promise<void> | null = null;
+
+function ensureSetup(): Promise<void> {
+  if (!setupPromise) {
+    setupPromise = (async () => {
+      // Remove stale manifests so the runtime re-scans from .ts sources
+      const manifests = ['routes.manifest.json', 'widgets.manifest.json', 'elements.manifest.json'];
+      await Promise.all(manifests.map((f) => unlink(`${FIXTURES_DIR}/${f}`).catch(() => {})));
+
+      // Copy emkoma dist into fixtures so browser import map resolves locally
+      const emkomaDistSrc = join('node_modules', '@emkodev', 'emkoma', 'dist');
+      const emkomaDest = join(FIXTURES_DIR, 'vendor', 'emkoma');
+      await cp(emkomaDistSrc, emkomaDest, { recursive: true, force: true });
+
+      // Initial build to create .js modules and manifests
+      const runtime = new BunFsRuntime(FIXTURES_DIR, runtimeConfig);
+      await buildClientBundles({
+        runtime,
+        root: resolve(FIXTURES_DIR),
+        spa: 'only',
+      });
+    })();
+  }
+  return setupPromise;
+}
 
 export interface TestServer {
   server: { stop(): void };
@@ -33,22 +66,17 @@ export async function createTestServer(options: {
 }): Promise<TestServer> {
   const { mode, port } = options;
 
-  const runtimeConfig: RuntimeConfig = {
-    routesDir: '/routes',
-    widgetsDir: '/widgets',
-  };
+  await ensureSetup();
 
-  // Create runtime with config (auto-discovers routes + widgets manifests)
+  // Create runtime with config (reads already-built manifests)
   const runtime = new BunFsRuntime(FIXTURES_DIR, runtimeConfig);
 
-  // Build client bundles for modes that need them
-  if (mode === 'root' || mode === 'only' || mode === 'leaf') {
-    await buildClientBundles({
-      runtime,
-      root: resolve(FIXTURES_DIR),
-      spa: mode,
-    });
-  }
+  // Build mode-specific bundles (emroute.js, app.js, import map)
+  await buildClientBundles({
+    runtime,
+    root: resolve(FIXTURES_DIR),
+    spa: mode,
+  });
 
   // Server-side markdown renderer via emkoma
   const markdownRenderer: MarkdownRenderer = { render: renderMarkdown };

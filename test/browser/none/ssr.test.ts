@@ -480,7 +480,7 @@ describe('SSR Markdown renderer', () => {
     );
     const md = await res.text();
     expect(md).toContain('# emroute');
-    expect(md).toContain('[About](/html/about)');
+    expect(md).toContain('[About](about)');
   });
 
   // --- .page.html ---

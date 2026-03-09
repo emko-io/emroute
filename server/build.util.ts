@@ -60,16 +60,16 @@ const DEFAULT_BUNDLE_PATHS = { emroute: '/emroute.js', app: '/app.js' };
  * - Updated manifests — route tree and widget manifest reference .js paths
  * - emroute.js — pre-built from dist/ (copied into runtime)
  * - app.js — consumer entry point (transpiled from .ts, no bundler)
- * - index.html — shell with import map + script tags (if not already present)
+ * - importmap.json — merged import map (emroute externals + consumer entries)
  */
 export async function buildClientBundles(options: BuildOptions): Promise<void> {
   const { runtime, root, spa, entryPoint } = options;
-  if (spa === 'none') return;
-
   const paths = options.bundlePaths ?? DEFAULT_BUNDLE_PATHS;
 
   // Merge .ts modules → .js with inlined companions, update manifests
   await mergeModules(runtime);
+
+  if (spa === 'none') return;
 
   // Copy pre-built emroute.js from the package dist/
   const consumerRequire = createRequire(root + '/');
@@ -100,8 +100,8 @@ export async function buildClientBundles(options: BuildOptions): Promise<void> {
     } catch { /* no main.css on disk — fine */ }
   }
 
-  // Write shell (index.html) if not already present
-  await writeShell(runtime, paths);
+  // Write merged import map — server reads this when generating the shell
+  await writeImportMap(runtime, paths);
 }
 
 /**
@@ -122,15 +122,12 @@ function resolvePrebuiltBundle(require: NodeRequire): string {
   return resolve(process.cwd(), 'dist/emroute.js');
 }
 
-// ── Shell generation ──────────────────────────────────────────────────
+// ── Import map ───────────────────────────────────────────────────────
 
-async function writeShell(
+async function writeImportMap(
   runtime: Runtime,
   paths: { emroute: string; app: string },
 ): Promise<void> {
-  if ((await runtime.query('/index.html')).status !== 404) return;
-
-  // Base emroute imports
   const imports: Record<string, string> = {};
   for (const pkg of EMROUTE_EXTERNALS) {
     imports[pkg] = paths.emroute;
@@ -147,26 +144,9 @@ async function writeShell(
     }
   }
 
-  const importMap = JSON.stringify({ imports }, null, 2);
-
-  const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>emroute</title>
-  <style>@view-transition { navigation: auto; } router-slot { display: contents; }</style>
-</head>
-<body>
-  <router-slot></router-slot>
-  <script type="importmap">
-${importMap}
-  </script>
-  <script type="module" src="${paths.app}"></script>
-</body>
-</html>`;
-
-  await runtime.command('/index.html', { body: html });
+  await runtime.command('/importmap.json', {
+    body: JSON.stringify({ imports }, null, 2),
+  });
 }
 
 // ── Module merging ───────────────────────────────────────────────────

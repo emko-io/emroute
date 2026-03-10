@@ -67,6 +67,11 @@ export type {
   ToastOptions,
 } from '../../overlay/overlay.type.ts';
 
+// Service Worker (tree-shakeable — only bundled if imported)
+export { createEmrouteSW, type EmrouteSWOptions } from '../../service-worker/emroute.sw.ts';
+export { CacheRuntime } from '../../../runtime/cache.runtime.ts';
+export { IdbRuntime } from '../../../runtime/idb.runtime.ts';
+
 // Optional: Built-in widgets (tree-shakeable - only bundled if imported)
 export { PageTitleWidget } from '../../widget/page-title.widget.ts';
 export { BreadcrumbWidget } from '../../widget/breadcrumb.widget.ts';

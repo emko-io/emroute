@@ -250,6 +250,11 @@ export class Emroute {
   ): Promise<string> {
     const baseTag = basePath ? `\n  <base href="${escapeHtml(basePath)}/">` : '';
 
+    let manifestTag = '';
+    if ((await runtime.query('/manifest.json')).status !== 404) {
+      manifestTag = '\n  <link rel="manifest" href="/manifest.json">';
+    }
+
     let cssTag = '';
     if ((await runtime.query('/main.css')).status !== 404) {
       cssTag = '\n  <link rel="stylesheet" href="/main.css">';
@@ -277,7 +282,7 @@ export class Emroute {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${escapeHtml(title)}</title>
-  <style>@view-transition { navigation: auto; } router-slot { display: contents; }</style>${cssTag}
+  <style>@view-transition { navigation: auto; } router-slot { display: contents; }</style>${manifestTag}${cssTag}
 </head>
 <body>
   <router-slot></router-slot>${importMapHtml}${scriptHtml}

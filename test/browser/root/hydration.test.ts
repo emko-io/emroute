@@ -75,6 +75,33 @@ describe("SPA mode 'root' — HTTP behavior", () => {
     expect(res.headers.get('content-type')?.includes('text/markdown')).toBeTruthy();
     await res.text(); // consume body
   });
+
+  test('HTML shell includes <script> tags', async () => {
+    const res = await fetch(baseUrl('/app/'));
+    const html = await res.text();
+    expect(html).toContain('<script');
+  });
+
+  test('<base> tag points to /app/ (not /html/)', async () => {
+    const res = await fetch(baseUrl('/app/'));
+    const html = await res.text();
+    expect(html).toContain('href="/app/"');
+    expect(html).not.toContain('href="/html/"');
+  });
+
+  test('/html/ serves SSR content with data-ssr-route', async () => {
+    const res = await fetch(baseUrl('/html/'));
+    const html = await res.text();
+    expect(html).toContain('data-ssr-route');
+  });
+
+  test('bare path redirects to /app/ (not /html/)', async () => {
+    const res = await fetch(baseUrl('/about'), { redirect: 'manual' });
+    expect(res.status).toEqual(302);
+    const location = res.headers.get('location');
+    expect(location).toContain('/app/');
+    expect(location).not.toContain('/html/');
+  });
 });
 
 // ── SSR-to-SPA Hydration ────────────────────────────────────────────

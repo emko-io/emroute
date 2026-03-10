@@ -68,6 +68,18 @@ describe("SPA mode 'none' — SSR behavior", () => {
     expect(md).toContain('About');
     expect(res.headers.get('content-type')?.includes('text/markdown')).toBeTruthy();
   });
+
+  test('HTML shell has no <script> tags (no JS in none mode)', async () => {
+    const res = await fetch(baseUrl('/html/'));
+    const html = await res.text();
+    expect(html).not.toContain('<script');
+  });
+
+  test('/html/ serves SSR content with data-ssr-route', async () => {
+    const res = await fetch(baseUrl('/html/'));
+    const html = await res.text();
+    expect(html).toContain('data-ssr-route');
+  });
 });
 
 // ── SSR HTML ─────────────────────────────────────────────────────────

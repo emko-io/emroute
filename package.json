@@ -1,6 +1,6 @@
 {
   "name": "@emkodev/emroute",
-  "version": "1.8.2-beta.2",
+  "version": "1.9.0",
   "description": "File-based (but storage-agnostic) router with triple rendering (SPA, SSR HTML, SSR Markdown). Zero dependencies.",
   "license": "BSD-3-Clause",
   "author": "emko.dev",
@@ -96,6 +96,21 @@
       "bun": "./runtime/fetch.runtime.ts",
       "types": "./dist/runtime/fetch.runtime.d.ts",
       "default": "./dist/runtime/fetch.runtime.js"
+    },
+    "./runtime/cache": {
+      "bun": "./runtime/cache.runtime.ts",
+      "types": "./dist/runtime/cache.runtime.d.ts",
+      "default": "./dist/runtime/cache.runtime.js"
+    },
+    "./runtime/idb": {
+      "bun": "./runtime/idb.runtime.ts",
+      "types": "./dist/runtime/idb.runtime.d.ts",
+      "default": "./dist/runtime/idb.runtime.js"
+    },
+    "./sw": {
+      "bun": "./src/service-worker/mod.ts",
+      "types": "./dist/src/service-worker/mod.d.ts",
+      "default": "./dist/src/service-worker/mod.js"
     }
   },
   "devDependencies": {

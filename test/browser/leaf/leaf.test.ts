@@ -51,4 +51,23 @@ describe("SPA mode 'leaf'", () => {
     expect(res.headers.get('content-type')?.includes('text/markdown')).toBeTruthy();
     await res.text(); // consume body
   });
+
+  test('HTML shell includes <script> tags (JS bundles served)', async () => {
+    const res = await fetch(baseUrl('/html/'));
+    const html = await res.text();
+    expect(html).toContain('<script');
+  });
+
+  test('<base> tag points to /html/ (not /app/)', async () => {
+    const res = await fetch(baseUrl('/html/'));
+    const html = await res.text();
+    expect(html).toContain('href="/html/"');
+    expect(html).not.toContain('href="/app/"');
+  });
+
+  test('/html/ serves SSR content with data-ssr-route', async () => {
+    const res = await fetch(baseUrl('/html/'));
+    const html = await res.text();
+    expect(html).toContain('data-ssr-route');
+  });
 });

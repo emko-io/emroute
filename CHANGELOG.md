@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-03-10
+
+### Added
+
+- **ServiceWorker runtime (`createEmrouteSW`)**: New `@emkodev/emroute/sw` entry
+  point that wires Emroute into a ServiceWorker. Intercepts fetch events and
+  serves pages offline using the same server code. Consumer bundles their own
+  `sw.ts` with `createEmrouteSW({ cacheName, precache, content })`.
+
+- **Split storage in SW**: Framework assets (JS bundles, CSS, import maps) are
+  precached into the **Cache API**, while user content (pages, widgets,
+  manifests) is stored in **IndexedDB**. The composite `SwRuntime` reads from
+  both — Cache first, IDB fallback — and writes go to IDB.
+
+- **`CacheRuntime`**: New browser Runtime backed by the Cache API. Uses a
+  synthetic `https://emroute-cache` origin for consistent keys. Supports full
+  CRUD via `handle()`/`query()`/`loadModule()`. Export: `@emkodev/emroute/runtime/cache`.
+
+- **`IdbRuntime`**: New browser Runtime backed by IndexedDB. Single object store
+  keyed by path, values as `Uint8Array`. Supports directory listing via
+  `IDBKeyRange` prefix scans. Export: `@emkodev/emroute/runtime/idb`.
+
+- **`manifest.json` support**: `buildHtmlShell()` probes for `/manifest.json`
+  in the Runtime and emits `<link rel="manifest" href="/manifest.json">` when
+  found.
+
+- **Mode-distinguishing browser tests**: Each SPA mode now has tests verifying
+  its unique HTTP-level behavior — `<script>` presence, `<base>` href target,
+  `data-ssr-route` in SSR responses, redirect targets for bare and SSR paths.
+
+### Changed
+
+- **`EmrouteSWOptions.content`**: New option for paths to precache into IDB
+  (user content), separate from `precache` (framework assets → Cache API).
+
+- **`EmrouteSWOptions.dbName`**: Optional IDB database name, defaults to
+  `'emroute-content'`.
+
 ## [1.8.2] - 2026-03-10
 
 ### Added

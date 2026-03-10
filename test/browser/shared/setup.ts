@@ -17,7 +17,7 @@ import { externalWidget } from '../fixtures/assets/external.widget.ts';
 import type { SpaMode } from '../../../core/type/widget.type.ts';
 
 import { resolve, join } from 'node:path';
-import { unlink, cp } from 'node:fs/promises';
+import { unlink, cp, writeFile } from 'node:fs/promises';
 import { type Browser, chromium, type Page } from 'playwright';
 
 const FIXTURES_DIR = 'test/browser/fixtures';
@@ -106,6 +106,52 @@ export async function createTestServer(options: {
       return `http://localhost:${port}${path}`;
     },
   };
+}
+
+/**
+ * Bun.build plugin that resolves `@emkodev/emroute/*` via package.json exports.
+ * Needed because Bun.build doesn't support self-referencing package exports.
+ */
+function selfReferencePlugin(): import('bun').BunPlugin {
+  const root = resolve(FIXTURES_DIR, '../../..');
+  // Read exports map once
+  const pkg = require(resolve(root, 'package.json')) as {
+    exports: Record<string, { bun?: string }>;
+  };
+  return {
+    name: 'self-reference',
+    setup(build) {
+      build.onResolve({ filter: /^@emkodev\/emroute(\/|$)/ }, (args) => {
+        const subpath = args.path === '@emkodev/emroute'
+          ? '.'
+          : './' + args.path.slice('@emkodev/emroute/'.length);
+        const entry = pkg.exports[subpath];
+        if (entry?.bun) {
+          return { path: resolve(root, entry.bun) };
+        }
+        return undefined;
+      });
+    },
+  };
+}
+
+/**
+ * Bundle the ServiceWorker fixture into a self-contained sw.js.
+ * The SW can't use import maps, so all dependencies must be inlined.
+ */
+export async function buildTestSW(): Promise<void> {
+  const result = await Bun.build({
+    entrypoints: [resolve(FIXTURES_DIR, 'sw.ts')],
+    outdir: resolve(FIXTURES_DIR),
+    naming: 'sw.[ext]',
+    format: 'esm',
+    plugins: [selfReferencePlugin()],
+  });
+  if (!result.success) {
+    console.error('SW bundle failed:');
+    for (const log of result.logs) console.error(log);
+    throw new Error('Failed to bundle sw.js');
+  }
 }
 
 export interface TestBrowser {

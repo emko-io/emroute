@@ -82,6 +82,26 @@ describe("SPA mode 'only' — HTTP behavior", () => {
       await res.text(); // consume body
     },
   );
+
+  test('/html/ path 302-redirects to /app/ (no SSR renderer)', async () => {
+    const res = await fetch(baseUrl('/html/about'), { redirect: 'manual' });
+    expect(res.status).toEqual(302);
+    const location = res.headers.get('location');
+    expect(location).toContain('/app/about');
+  });
+
+  test('/md/ path 302-redirects to /app/ (no SSR renderer)', async () => {
+    const res = await fetch(baseUrl('/md/about'), { redirect: 'manual' });
+    expect(res.status).toEqual(302);
+    const location = res.headers.get('location');
+    expect(location).toContain('/app/about');
+  });
+
+  test('<base> tag points to /app/', async () => {
+    const res = await fetch(baseUrl('/app/'));
+    const html = await res.text();
+    expect(html).toContain('href="/app/"');
+  });
 });
 
 // ── SPA Renderer ────────────────────────────────────────────────────

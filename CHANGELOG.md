@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.8.2] - 2026-03-10
 
+### Added
+
+- **`BootOptions.extendContext`**: `bootEmrouteApp({ extendContext })` wires the
+  context provider to both the Pipeline (page `getData()` during SPA navigation)
+  and `ComponentElement` (widget `hydrate()` / `getData()`). Replaces the manual
+  `ComponentElement.setContextProvider()` workaround.
+
 ### Changed
 
 - **Lazy widget loading**: `Emroute.create()` no longer eagerly imports all
@@ -22,6 +29,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`extractWidgetExport` moved to `widget.registry.ts`**: Extracted from
   `Emroute` private static method to a shared export, used by both
   `SsrRenderer.resolveWidget()` and browser-side `ComponentElement`.
+
+### Deprecated
+
+- **`ComponentElement.setContextProvider()`**: Use `bootEmrouteApp({ extendContext })`
+  instead.
 
 ### Fixed
 

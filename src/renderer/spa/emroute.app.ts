@@ -15,6 +15,7 @@ import type { RouteNode } from '../../../core/type/route-tree.type.ts';
 import type { NavigateOptions } from '../../../core/type/route.type.ts';
 import type { WidgetManifestEntry } from '../../../core/type/widget.type.ts';
 import type { ElementManifestEntry } from '../../../core/type/element.type.ts';
+import type { ContextProvider } from '../../../core/type/component.type.ts';
 import { type BasePath, DEFAULT_BASE_PATH } from '../../../core/server/emroute.server.ts';
 import { assertSafeRedirect, escapeHtml } from '../../../core/util/html.util.ts';
 import { ComponentElement } from '../../element/component.element.ts';
@@ -184,6 +185,8 @@ export async function createEmrouteApp(
 export interface BootOptions extends EmrouteAppOptions {
   /** Override the server origin (defaults to `location.origin`). */
   origin?: string;
+  /** Context provider — enriches every ComponentContext (pages and widgets). */
+  extendContext?: ContextProvider;
 }
 
 /**
@@ -245,6 +248,11 @@ export async function bootEmrouteApp(options?: BootOptions): Promise<EmrouteApp>
     }
   }
 
+  // Wire context provider for both pages (Pipeline) and widgets (ComponentElement)
+  if (options?.extendContext) {
+    ComponentElement.setContextProvider(options.extendContext);
+  }
+
   // Create Emroute instance (same class as SSR)
   const mdRenderer = MarkdownElement.getConfiguredRenderer();
   const server = await Emroute.create({
@@ -252,6 +260,7 @@ export async function bootEmrouteApp(options?: BootOptions): Promise<EmrouteApp>
     widgets,
     moduleLoaders,
     ...(mdRenderer ? { markdownRenderer: mdRenderer } : {}),
+    ...(options?.extendContext ? { extendContext: options.extendContext } : {}),
   }, runtime);
 
   return createEmrouteApp(server, options);

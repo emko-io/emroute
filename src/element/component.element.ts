@@ -39,7 +39,10 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
   /** App-level context provider set once during router initialization. */
   private static extendContext: ContextProvider | undefined;
 
-  /** Register (or clear) the context provider that enriches every widget's ComponentContext. */
+  /**
+   * Register (or clear) the context provider that enriches every widget's ComponentContext.
+   * @deprecated Use `bootEmrouteApp({ extendContext })` instead — it wires both pages and widgets.
+   */
   static setContextProvider(provider: ContextProvider | undefined): void {
     ComponentElement.extendContext = provider;
   }

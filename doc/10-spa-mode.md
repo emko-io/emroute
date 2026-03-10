@@ -119,7 +119,8 @@ When SPA mode is not `none`, `buildClientBundles()` produces:
   `bootEmrouteApp`)
 - **`app.js`** — your `main.ts` entry point (esbuild only touches consumer code)
 
-These are connected via browser import maps in the generated `index.html` shell.
+These are connected via browser import maps. The build step writes
+`importmap.json`; the server inlines it into the HTML shell at request time.
 Route tree and widget manifest are fetched as JSON at boot time by
 `bootEmrouteApp()` — they are not compiled into `app.js`.
 

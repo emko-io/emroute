@@ -95,7 +95,7 @@ export class SsrMdRenderer extends SsrRenderer {
           return `> **Error** (\`${block.widgetName}\`): ${block.parseError}`;
         }
 
-        const widget = this.widgets!.get(block.widgetName);
+        const widget = await this.resolveWidget(block.widgetName);
         if (!widget) {
           return `> **Error**: Unknown widget \`${block.widgetName}\``;
         }

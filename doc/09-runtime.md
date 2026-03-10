@@ -97,8 +97,8 @@ The build step:
 1. Transpiles each `.ts` page/widget module to `.js` via `runtime.transpile()`
 2. Inlines companion files (`.html`, `.md`, `.css`) as `export const __files`
 3. Updates manifests to reference `.js` paths
-4. Bundles the consumer's `main.ts` (esbuild only touches consumer code)
-5. Writes `emroute.js`, `app.js`, and `index.html` into the runtime
+4. Transpiles the consumer's `main.ts` to `app.js`
+5. Writes `emroute.js`, `app.js`, and `importmap.json` into the runtime
 
 ### Manifest resolution
 

@@ -5,7 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.8.2] - 2026-03-09
+## [1.8.2] - 2026-03-10
+
+### Changed
+
+- **Lazy widget loading**: `Emroute.create()` no longer eagerly imports all
+  widget modules at startup. Widgets are registered as lazy entries (name +
+  module path) and loaded on demand when a renderer encounters a `<widget-*>`
+  tag. Reduces server startup cost and eliminates redundant module fetches in
+  the browser.
+
+- **`resolveWidgetTags` accepts async getter**: Signature changed from
+  synchronous registry lookup to `(name: string) => Promise<Component | undefined>`,
+  enabling on-demand widget resolution through Pipeline → Runtime.
+
+- **`extractWidgetExport` moved to `widget.registry.ts`**: Extracted from
+  `Emroute` private static method to a shared export, used by both
+  `SsrRenderer.resolveWidget()` and browser-side `ComponentElement`.
 
 ### Fixed
 

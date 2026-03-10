@@ -156,7 +156,12 @@ describe('SSR to SPA hydration — comprehensive', () => {
   });
 
   test('data-ssr-route attribute is removed after adoption', async () => {
-    // After SPA hydration, data-ssr-route should be removed
+    // Wait for SPA to boot (removes data-ssr-route during adoption)
+    await page.waitForFunction(
+      () => (globalThis as Record<string, unknown>).__emroute_app !== undefined,
+      undefined,
+      { timeout: 5000 },
+    );
     const ssrRouteAttr = await page.evaluate(() => {
       return document.querySelector('router-slot')?.getAttribute('data-ssr-route');
     });
@@ -178,6 +183,12 @@ describe('SSR to SPA hydration — comprehensive', () => {
   test(
     'subsequent SPA navigation DOES call getData (proving counter works)',
     async () => {
+      // Ensure SPA is booted before navigating
+      await page.waitForFunction(
+        () => (globalThis as Record<string, unknown>).__emroute_app !== undefined,
+        undefined,
+        { timeout: 5000 },
+      );
       // Navigate away via router API
       await page.evaluate(() => {
         const router = (globalThis as Record<string, unknown>).__emroute_app as {
@@ -367,9 +378,13 @@ describe('SSR to SPA hydration — comprehensive', () => {
   // ── Subsequent SPA Navigation ─────────────────────────────────────
 
   test('subsequent SPA navigation works after hydration', async () => {
-    // Start with SSR
+    // Start with SSR, wait for SPA to boot
     await page.goto(baseUrl('/html/'));
-    await page.waitForSelector('h1', { timeout: 5000 });
+    await page.waitForFunction(
+      () => (globalThis as Record<string, unknown>).__emroute_app !== undefined,
+      undefined,
+      { timeout: 5000 },
+    );
 
     // SPA navigate to hydration page
     await page.evaluate(() => {
@@ -398,7 +413,11 @@ describe('SSR to SPA hydration — comprehensive', () => {
 
   test('link clicks trigger SPA navigation after hydration', async () => {
     await page.goto(baseUrl('/html/'));
-    await page.waitForSelector('h1', { timeout: 5000 });
+    await page.waitForFunction(
+      () => (globalThis as Record<string, unknown>).__emroute_app !== undefined,
+      undefined,
+      { timeout: 5000 },
+    );
 
     let fullLoadFired = false;
     page.on('load', () => {
@@ -422,7 +441,11 @@ describe('SSR to SPA hydration — comprehensive', () => {
 
   test('browser back/forward works after hydration', async () => {
     await page.goto(baseUrl('/html/'));
-    await page.waitForSelector('h1', { timeout: 5000 });
+    await page.waitForFunction(
+      () => (globalThis as Record<string, unknown>).__emroute_app !== undefined,
+      undefined,
+      { timeout: 5000 },
+    );
 
     // Navigate to another page
     await page.evaluate(() => {
@@ -466,7 +489,11 @@ describe('SSR to SPA hydration — comprehensive', () => {
   test('error boundaries are adopted during hydration', async () => {
     // Project 42 has an error boundary
     await page.goto(baseUrl('/html/projects/42'));
-    await page.waitForSelector('h1', { timeout: 5000 });
+    await page.waitForFunction(
+      () => (globalThis as Record<string, unknown>).__emroute_app !== undefined,
+      undefined,
+      { timeout: 5000 },
+    );
 
     // Navigate to a broken project page that triggers error boundary
     await page.evaluate(() => {

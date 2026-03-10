@@ -68,7 +68,7 @@ export class SsrHtmlRenderer extends SsrRenderer {
     if (this.widgets) {
       content = await resolveWidgetTags(
         content,
-        this.widgets,
+        (name) => this.resolveWidget(name),
         routeInfo,
         async (name) => {
           const modulePath = this.widgets!.getModulePath(name);

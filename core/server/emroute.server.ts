@@ -6,7 +6,6 @@
  */
 
 import type { WidgetManifestEntry } from '../type/widget.type.ts';
-import type { WidgetComponent } from '../component/widget.component.ts';
 import type { Runtime } from '../runtime/abstract.runtime.ts';
 import { Pipeline } from '../pipeline/pipeline.ts';
 import { SsrHtmlRenderer } from '../renderer/html.renderer.ts';
@@ -93,7 +92,10 @@ export class Emroute {
     const widgetsResponse = await runtime.query(WIDGETS_MANIFEST_PATH);
     if (widgetsResponse.status !== 404) {
       const entries: WidgetManifestEntry[] = await widgetsResponse.json();
-      widgets = await Emroute.importWidgets(entries, runtime);
+      widgets = new WidgetRegistry();
+      for (const entry of entries) {
+        widgets.addLazy(entry.name, entry.modulePath);
+      }
     }
 
     if (config.widgets) {
@@ -239,45 +241,6 @@ export class Emroute {
   }
 
   // ── Private static helpers ────────────────────────────────────────
-
-  private static extractWidgetExport(
-    mod: Record<string, unknown>,
-  ): WidgetComponent | null {
-    for (const value of Object.values(mod)) {
-      if (!value) continue;
-      if (typeof value === 'object' && 'getData' in value) {
-        return value as WidgetComponent;
-      }
-      if (typeof value === 'function' && value.prototype?.getData) {
-        return new (value as new () => WidgetComponent)();
-      }
-    }
-    return null;
-  }
-
-  private static async importWidgets(
-    entries: WidgetManifestEntry[],
-    runtime: Runtime,
-  ): Promise<WidgetRegistry> {
-    const registry = new WidgetRegistry();
-
-    for (const entry of entries) {
-      try {
-        const runtimePath = entry.modulePath.startsWith('/')
-          ? entry.modulePath
-          : `/${entry.modulePath}`;
-
-        const mod = await runtime.loadModule(runtimePath) as Record<string, unknown>;
-        const instance = Emroute.extractWidgetExport(mod);
-        if (!instance) continue;
-        registry.add(instance, runtimePath);
-      } catch (e) {
-        console.error(`[emroute] Failed to load widget ${entry.modulePath}:`, e);
-      }
-    }
-
-    return registry;
-  }
 
   private static async buildHtmlShell(
     runtime: Runtime,

@@ -114,7 +114,7 @@ export default new ProjectPage();
 - **Configurable base paths** — `/html/` and `/md/` prefixes are configurable via `BasePath`
 - **SPA modes** — `'root'` (default), `'leaf'`, `'none'`, or `'only'` to control how the server handles non-file requests and SSR endpoints
 - **Sitemap generation** — opt-in `sitemap.xml` from the routes manifest with support for dynamic route enumerators
-- **Dev server** — zero-config: auto-generates `main.ts`, `index.html`, and route/widget manifests. File watcher with hot reload and bundle serving
+- **Dev server** — zero-config: auto-generates `main.ts` and route/widget manifests. File watcher with hot reload and bundle serving
 
 ## Runtimes
 

@@ -61,7 +61,7 @@ export default app;
 
 Key points:
 
-- **`buildClientBundles()`** produces `emroute.js`, `app.js`, and `index.html`
+- **`buildClientBundles()`** produces `emroute.js`, `app.js`, and `importmap.json`
   for SPA mode. Call it before `Emroute.create()`. Skip for `spa: 'none'`
 - **`c.req.raw`** gives Hono's underlying Web API `Request`, which emroute
   expects

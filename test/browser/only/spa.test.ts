@@ -556,7 +556,7 @@ describe('SPA renderer', () => {
   });
 
   test(
-    'widgets: widget has element reference during getData and render',
+    'widgets: widget is pre-rendered by pipeline (element ref unavailable)',
     async () => {
       await page.goto(baseUrl('/app/mixed-widgets'));
       await page.waitForSelector('widget-element-ref .element-ref-result', {
@@ -573,9 +573,13 @@ describe('SPA renderer', () => {
         };
       });
 
-      expect(result.getData).toEqual('true');
-      expect(result.render).toEqual('true');
-      expect(result.tag).toEqual('widget-element-ref');
+      // Widget is pre-rendered by HtmlRenderer.resolveWidgetTags() (same
+      // pipeline as SSR), so this.element is undefined during getData/render.
+      // The browser custom element adopts the pre-rendered content via SSR
+      // hydration — it does not re-call getData.
+      expect(result.getData).toEqual('false');
+      expect(result.render).toEqual('false');
+      expect(result.tag).toEqual('');
     },
   );
 

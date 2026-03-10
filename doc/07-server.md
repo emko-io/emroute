@@ -73,11 +73,12 @@ Bun.serve({
 ```
 
 The build step:
-1. Transpiles each `.ts` page/widget to `.js` with companion files inlined
+1. Merges each `.ts` page/widget to `.js` with companion files inlined
 2. Updates manifests to reference `.js` paths
-3. Bundles the consumer's `main.ts` (esbuild only touches consumer code)
-4. Copies `emroute.js` (pre-built framework bundle)
-5. Generates `index.html` shell with import map
+3. Copies `emroute.js` (pre-built framework bundle)
+4. Transpiles the consumer's `main.ts` to `app.js`
+5. Copies `main.css` if present
+6. Writes merged `importmap.json` (server generates the HTML shell at request time)
 
 ## Runtime config
 
@@ -104,7 +105,7 @@ All paths are relative to `appRoot` and start with `/`.
 | `extendContext`    | `(base: ComponentContext) => ComponentContext` | — | Inject services into every component's context |
 | `basePath`         | `{ html: string, md: string, app: string }` | `{ html: '/html', md: '/md', app: '/app' }` | URL prefixes for SSR and SPA endpoints |
 | `routeTree`        | `RouteNode`                         | —              | Pre-built route tree (skips runtime scanning) |
-| `widgets`          | `WidgetRegistry`                    | —              | Manually registered widgets |
+| `widgets`          | `WidgetRegistry`                    | —              | Additional widgets (merged with auto-discovered) |
 | `moduleLoaders`    | `Record<string, () => Promise<unknown>>` | — | Pre-built module loaders (used in browser) |
 
 ## `handleRequest` composability
@@ -160,7 +161,7 @@ The `spa` option controls how the server handles requests:
 | `'none'` | 302 → `/html`        | 302 → `/html/about`  | SSR HTML   | SSR MD    |
 | `'leaf'` | 302 → `/html`        | 302 → `/html/about`  | SSR HTML + JS | SSR MD |
 | `'root'` | 302 → `/app`         | 302 → `/app/about`   | SSR HTML + JS + SPA router | SSR MD |
-| `'only'` | 302 → `/app`         | 302 → `/app/about`   | SPA shell  | SPA shell |
+| `'only'` | 302 → `/app`         | 302 → `/app/about`   | 302 → `/app/*` | 302 → `/app/*` |
 
 In `root` and `only` modes, bare paths redirect to `/app/*` (the SPA
 endpoint). In `none` and `leaf` modes, they redirect to `/html/*`.

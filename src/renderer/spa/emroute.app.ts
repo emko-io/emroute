@@ -222,9 +222,11 @@ export async function bootEmrouteApp(options?: BootOptions): Promise<EmrouteApp>
   // Build lazy module loaders for all route + widget + element modules
   const moduleLoaders = buildLazyLoaders(routeTree, widgetEntries, elementEntries, runtime);
 
-  // Register widgets eagerly (tag defined immediately, module loads on connectedCallback)
+  // Register widgets: lazy in registry (loaded on demand during render),
+  // lazy in DOM (module loads on connectedCallback for hydration).
   const widgets = new WidgetRegistry();
   for (const entry of widgetEntries) {
+    widgets.addLazy(entry.name, entry.modulePath);
     ComponentElement.registerLazy(entry.name, moduleLoaders[entry.modulePath]!);
   }
 

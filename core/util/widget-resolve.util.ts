@@ -53,7 +53,7 @@ export async function resolveRecursively<T>(
  */
 export function resolveWidgetTags(
   html: string,
-  registry: { get(name: string): Component | undefined },
+  getWidget: (name: string) => Promise<Component | undefined>,
   routeInfo: RouteInfo,
   loadFiles?: (
     widgetName: string,
@@ -78,7 +78,7 @@ export function resolveWidgetTags(
   const resolve = async (match: RegExpExecArray): Promise<string> => {
     const widgetName = match.groups!.name!;
     const attrsString = match.groups!.attrs?.trim() ?? '';
-    const widget = registry.get(widgetName);
+    const widget = await getWidget(widgetName);
 
     if (!widget) return match[0];
 

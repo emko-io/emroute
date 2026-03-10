@@ -198,6 +198,10 @@ class MockRegistry {
   get(name: string): Component | undefined {
     return this.widgets.get(name);
   }
+
+  /** Async getter matching the `resolveWidgetTags` signature. */
+  getWidget = (name: string): Promise<Component | undefined> =>
+    Promise.resolve(this.widgets.get(name));
 }
 
 /**
@@ -327,7 +331,7 @@ test('resolveWidgetTags - no widgets in HTML', async () => {
   const registry = new MockRegistry();
   const routeInfo = createTestRouteInfo();
 
-  const result = await resolveWidgetTags(html, registry, routeInfo);
+  const result = await resolveWidgetTags(html, registry.getWidget, routeInfo);
   expect(result).toEqual(html);
 });
 
@@ -336,7 +340,7 @@ test('resolveWidgetTags - single widget resolution', async () => {
   const registry = new MockRegistry(new SimpleWidget());
   const routeInfo = createTestRouteInfo();
 
-  const result = await resolveWidgetTags(html, registry, routeInfo);
+  const result = await resolveWidgetTags(html, registry.getWidget, routeInfo);
   expect(result).toContain('<widget-simple');
   expect(result).toContain('Hello Widget');
   expect(result).toContain('</widget-simple>');
@@ -347,7 +351,7 @@ test('resolveWidgetTags - multiple widgets in HTML', async () => {
   const registry = new MockRegistry(new SimpleWidget());
   const routeInfo = createTestRouteInfo();
 
-  const result = await resolveWidgetTags(html, registry, routeInfo);
+  const result = await resolveWidgetTags(html, registry.getWidget, routeInfo);
   const matches = result.match(/<widget-simple/g);
   expect(matches?.length).toEqual(2);
 });
@@ -357,7 +361,7 @@ test('resolveWidgetTags - widget not in registry returns unchanged', async () =>
   const registry = new MockRegistry();
   const routeInfo = createTestRouteInfo();
 
-  const result = await resolveWidgetTags(html, registry, routeInfo);
+  const result = await resolveWidgetTags(html, registry.getWidget, routeInfo);
   expect(result).toEqual(html);
 });
 
@@ -366,7 +370,7 @@ test('resolveWidgetTags - mixed registered and unregistered widgets', async () =
   const registry = new MockRegistry(new SimpleWidget());
   const routeInfo = createTestRouteInfo();
 
-  const result = await resolveWidgetTags(html, registry, routeInfo);
+  const result = await resolveWidgetTags(html, registry.getWidget, routeInfo);
   expect(result).toContain('Hello Widget');
   expect(result).toContain('<widget-unknown></widget-unknown>');
 });
@@ -380,7 +384,7 @@ test('resolveWidgetTags - widget with single attribute', async () => {
   const registry = new MockRegistry(new ParamWidget());
   const routeInfo = createTestRouteInfo();
 
-  const result = await resolveWidgetTags(html, registry, routeInfo);
+  const result = await resolveWidgetTags(html, registry.getWidget, routeInfo);
   expect(result).toContain('Anonymous: 5');
 });
 
@@ -389,7 +393,7 @@ test('resolveWidgetTags - widget with multiple attributes', async () => {
   const registry = new MockRegistry(new ParamWidget());
   const routeInfo = createTestRouteInfo();
 
-  const result = await resolveWidgetTags(html, registry, routeInfo);
+  const result = await resolveWidgetTags(html, registry.getWidget, routeInfo);
   expect(result).toContain('Alice: 10');
 });
 
@@ -407,7 +411,7 @@ test('resolveWidgetTags - widget with kebab-case attributes', async () => {
   );
   const routeInfo = createTestRouteInfo();
 
-  const result = await resolveWidgetTags(html, registry, routeInfo);
+  const result = await resolveWidgetTags(html, registry.getWidget, routeInfo);
   expect(result).toContain('Bob: 15');
 });
 
@@ -416,7 +420,7 @@ test('resolveWidgetTags - lazy attribute is preserved in output', async () => {
   const registry = new MockRegistry(new SimpleWidget());
   const routeInfo = createTestRouteInfo();
 
-  const result = await resolveWidgetTags(html, registry, routeInfo);
+  const result = await resolveWidgetTags(html, registry.getWidget, routeInfo);
   expect(result).toContain('lazy');
 });
 
@@ -429,7 +433,7 @@ test('resolveWidgetTags - injects boolean ssr attribute', async () => {
   const registry = new MockRegistry(new SimpleWidget());
   const routeInfo = createTestRouteInfo();
 
-  const result = await resolveWidgetTags(html, registry, routeInfo);
+  const result = await resolveWidgetTags(html, registry.getWidget, routeInfo);
   expect(result.includes(' ssr ') || result.includes(' ssr>')).toBeTruthy();
 });
 
@@ -438,7 +442,7 @@ test('resolveWidgetTags - default widget has no light DOM data', async () => {
   const registry = new MockRegistry(new SimpleWidget());
   const routeInfo = createTestRouteInfo();
 
-  const result = await resolveWidgetTags(html, registry, routeInfo);
+  const result = await resolveWidgetTags(html, registry.getWidget, routeInfo);
   // Without exposeSsrData, no JSON data in light DOM
   expect(result).toContain('</template></widget-simple>');
 });
@@ -452,7 +456,7 @@ test('resolveWidgetTags - exposeSsrData serializes data into light DOM', async (
   );
   const routeInfo = createTestRouteInfo();
 
-  const result = await resolveWidgetTags(html, registry, routeInfo);
+  const result = await resolveWidgetTags(html, registry.getWidget, routeInfo);
   // Data should appear as light DOM text after </template>
   expect(result).toContain('</template>');
   expect(result).toContain('Hello Widget');
@@ -471,7 +475,7 @@ test('resolveWidgetTags - escapes ampersands in light DOM data', async () => {
   );
   const routeInfo = createTestRouteInfo();
 
-  const result = await resolveWidgetTags(html, registry, routeInfo);
+  const result = await resolveWidgetTags(html, registry.getWidget, routeInfo);
   expect(result).toContain('&amp;');
 });
 
@@ -487,7 +491,7 @@ test('resolveWidgetTags - escapes single quotes in light DOM data', async () => 
   );
   const routeInfo = createTestRouteInfo();
 
-  const result = await resolveWidgetTags(html, registry, routeInfo);
+  const result = await resolveWidgetTags(html, registry.getWidget, routeInfo);
   expect(result).toContain('&#39;');
 });
 
@@ -500,7 +504,7 @@ test('resolveWidgetTags - passes route info to widget context', async () => {
   const registry = new MockRegistry(new ContextWidget());
   const routeInfo = createTestRouteInfo('/test/path', '/test/:id');
 
-  const result = await resolveWidgetTags(html, registry, routeInfo);
+  const result = await resolveWidgetTags(html, registry.getWidget, routeInfo);
   expect(result).toContain('/test/path');
 });
 
@@ -514,7 +518,7 @@ test('resolveWidgetTags - uses context provider if supplied', async () => {
     customProp: 'custom-value',
   });
 
-  const result = await resolveWidgetTags(html, registry, routeInfo, undefined, contextProvider);
+  const result = await resolveWidgetTags(html, registry.getWidget, routeInfo, undefined, contextProvider);
   expect(result).toContain('Hello Widget');
 });
 
@@ -530,7 +534,7 @@ test('resolveWidgetTags - file loader is called if supplied', async () => {
     return Promise.resolve({ html: '<div>Loaded from file</div>' });
   };
 
-  const result = await resolveWidgetTags(html, registry, routeInfo, fileLoader);
+  const result = await resolveWidgetTags(html, registry.getWidget, routeInfo, fileLoader);
   expect(fileLoaderCalled).toEqual(true);
   expect(result).toContain('File content');
 });
@@ -547,7 +551,7 @@ test('resolveWidgetTags - file loader receives widget name', async () => {
     return Promise.resolve({ html: '<div>Loaded</div>' });
   };
 
-  await resolveWidgetTags(html, registry, routeInfo, fileLoader);
+  await resolveWidgetTags(html, registry.getWidget, routeInfo, fileLoader);
   expect(receivedName).toEqual('file-widget');
 });
 
@@ -560,7 +564,7 @@ test('resolveWidgetTags - widget getData error leaves tag unchanged', async () =
   const registry = new MockRegistry(new ErrorWidget());
   const routeInfo = createTestRouteInfo();
 
-  const result = await resolveWidgetTags(html, registry, routeInfo);
+  const result = await resolveWidgetTags(html, registry.getWidget, routeInfo);
   expect(result).toEqual(html);
 });
 
@@ -569,7 +573,7 @@ test('resolveWidgetTags - widget render error leaves tag unchanged', async () =>
   const registry = new MockRegistry(new RenderErrorWidget());
   const routeInfo = createTestRouteInfo();
 
-  const result = await resolveWidgetTags(html, registry, routeInfo);
+  const result = await resolveWidgetTags(html, registry.getWidget, routeInfo);
   expect(result).toEqual(html);
 });
 
@@ -579,7 +583,7 @@ test('resolveWidgetTags - error in one widget does not break others', async () =
   const registry = new MockRegistry(new SimpleWidget(), new ErrorWidget());
   const routeInfo = createTestRouteInfo();
 
-  const result = await resolveWidgetTags(html, registry, routeInfo);
+  const result = await resolveWidgetTags(html, registry.getWidget, routeInfo);
   expect(result).toContain('Hello Widget');
   expect(result).toContain('<widget-error-widget></widget-error-widget>');
 });
@@ -593,7 +597,7 @@ test('resolveWidgetTags - file loader error leaves tag unchanged', async () => {
     throw new Error('File load failed');
   };
 
-  const result = await resolveWidgetTags(html, registry, routeInfo, fileLoader);
+  const result = await resolveWidgetTags(html, registry.getWidget, routeInfo, fileLoader);
   expect(result).toEqual(html);
 });
 
@@ -606,7 +610,7 @@ test('resolveWidgetTags - captures widget name with hyphens', async () => {
   const registry = new MockRegistry(new ParamWidget());
   const routeInfo = createTestRouteInfo();
 
-  const result = await resolveWidgetTags(html, registry, routeInfo);
+  const result = await resolveWidgetTags(html, registry.getWidget, routeInfo);
   expect(result).toContain('<widget-param-widget');
 });
 
@@ -615,7 +619,7 @@ test('resolveWidgetTags - preserves original attributes in output', async () => 
   const registry = new MockRegistry(new SimpleWidget());
   const routeInfo = createTestRouteInfo();
 
-  const result = await resolveWidgetTags(html, registry, routeInfo);
+  const result = await resolveWidgetTags(html, registry.getWidget, routeInfo);
   expect(result).toContain('id="my-widget"');
   expect(result).toContain('class="styled"');
 });
@@ -625,7 +629,7 @@ test('resolveWidgetTags - handles nested angle brackets in content', async () =>
   const registry = new MockRegistry(new SimpleWidget());
   const routeInfo = createTestRouteInfo();
 
-  const result = await resolveWidgetTags(html, registry, routeInfo);
+  const result = await resolveWidgetTags(html, registry.getWidget, routeInfo);
   expect(result.startsWith('<div>')).toEqual(true);
   expect(result.endsWith('</div>')).toEqual(true);
 });
@@ -635,7 +639,7 @@ test('resolveWidgetTags - replaces widgets from end to preserve indices', async 
   const registry = new MockRegistry(new SimpleWidget());
   const routeInfo = createTestRouteInfo();
 
-  const result = await resolveWidgetTags(html, registry, routeInfo);
+  const result = await resolveWidgetTags(html, registry.getWidget, routeInfo);
   expect(result).toContain('TEXT');
   const matches = result.match(/<widget-simple/g);
   expect(matches?.length).toEqual(2);
@@ -650,7 +654,7 @@ test('resolveWidgetTags - widget names must start with lowercase letter', async 
   const registry = new MockRegistry();
   const routeInfo = createTestRouteInfo();
 
-  const result = await resolveWidgetTags(html, registry, routeInfo);
+  const result = await resolveWidgetTags(html, registry.getWidget, routeInfo);
   expect(result).toEqual(html);
 });
 
@@ -659,7 +663,7 @@ test('resolveWidgetTags - widget names can contain numbers after first char', as
   const registry = new MockRegistry(new Widget2());
   const routeInfo = createTestRouteInfo();
 
-  const result = await resolveWidgetTags(html, registry, routeInfo);
+  const result = await resolveWidgetTags(html, registry.getWidget, routeInfo);
   expect(result).toContain('Hello Widget');
 });
 
@@ -672,7 +676,7 @@ test('resolveWidgetTags - empty attribute value', async () => {
   const registry = new MockRegistry(new SimpleWidget());
   const routeInfo = createTestRouteInfo();
 
-  const result = await resolveWidgetTags(html, registry, routeInfo);
+  const result = await resolveWidgetTags(html, registry.getWidget, routeInfo);
   expect(result).toContain('attr=""');
 });
 
@@ -681,7 +685,7 @@ test('resolveWidgetTags - attribute with only spaces', async () => {
   const registry = new MockRegistry(new SimpleWidget());
   const routeInfo = createTestRouteInfo();
 
-  const result = await resolveWidgetTags(html, registry, routeInfo);
+  const result = await resolveWidgetTags(html, registry.getWidget, routeInfo);
   expect(result).toContain('attr=');
 });
 
@@ -690,7 +694,7 @@ test('resolveWidgetTags - self-closing widget tag syntax not matched', async () 
   const registry = new MockRegistry(new SimpleWidget());
   const routeInfo = createTestRouteInfo();
 
-  const result = await resolveWidgetTags(html, registry, routeInfo);
+  const result = await resolveWidgetTags(html, registry.getWidget, routeInfo);
   expect(result).toEqual(html);
 });
 
@@ -704,7 +708,7 @@ test('resolveWidgetTags - concurrent widget resolution', async () => {
   const registry = new MockRegistry(new SimpleWidget(), new ParamWidget());
   const routeInfo = createTestRouteInfo();
 
-  const result = await resolveWidgetTags(html, registry, routeInfo);
+  const result = await resolveWidgetTags(html, registry.getWidget, routeInfo);
   expect(result).toContain('Hello Widget');
   expect(result).toContain('Anonymous: 5');
 });
@@ -724,7 +728,7 @@ test('resolveWidgetTags - widget with all attribute quote styles', async () => {
   const registry = new MockRegistry(customWidget);
   const routeInfo = createTestRouteInfo();
 
-  const result = await resolveWidgetTags(html, registry, routeInfo);
+  const result = await resolveWidgetTags(html, registry.getWidget, routeInfo);
   expect(result).toContain('sum: 18');
 });
 
@@ -733,7 +737,7 @@ test('resolveWidgetTags - very long HTML document with multiple widgets', async 
   const registry = new MockRegistry(new SimpleWidget());
   const routeInfo = createTestRouteInfo();
 
-  const result = await resolveWidgetTags(long, registry, routeInfo);
+  const result = await resolveWidgetTags(long, registry.getWidget, routeInfo);
   const matches = result.match(/<widget-simple/g);
   expect(matches?.length).toEqual(10);
   expect(result).toContain('Hello Widget');
@@ -747,7 +751,7 @@ test('resolveWidgetTags - whitespace around widget tags', async () => {
   const registry = new MockRegistry(new SimpleWidget(), new ParamWidget());
   const routeInfo = createTestRouteInfo();
 
-  const result = await resolveWidgetTags(html, registry, routeInfo);
+  const result = await resolveWidgetTags(html, registry.getWidget, routeInfo);
   expect(result).toContain('Hello Widget');
   expect(result).toContain('Anonymous: 5');
 });
@@ -787,7 +791,7 @@ test('resolveWidgetTags - nested widgets are resolved', async () => {
   const registry = new MockRegistry(new OuterWidget(), new InnerWidget());
   const routeInfo = createTestRouteInfo();
 
-  const result = await resolveWidgetTags(html, registry, routeInfo);
+  const result = await resolveWidgetTags(html, registry.getWidget, routeInfo);
 
   // Both outer and inner should be resolved
   expect(result).toContain('Outer:');
@@ -843,7 +847,7 @@ test('resolveWidgetTags - deeply nested widgets (3 levels)', async () => {
   );
   const routeInfo = createTestRouteInfo();
 
-  const result = await resolveWidgetTags(html, registry, routeInfo);
+  const result = await resolveWidgetTags(html, registry.getWidget, routeInfo);
 
   // All three levels should be resolved
   expect(result).toContain('Level 1:');
@@ -884,7 +888,7 @@ test('resolveWidgetTags - nested widgets with params', async () => {
   const registry = new MockRegistry(new CardWidget(), new CounterWidget());
   const routeInfo = createTestRouteInfo();
 
-  const result = await resolveWidgetTags(html, registry, routeInfo);
+  const result = await resolveWidgetTags(html, registry.getWidget, routeInfo);
 
   expect(result).toContain('Card');
   expect(result).toContain('Count: 42');
@@ -909,7 +913,7 @@ test('resolveWidgetTags - max depth limit prevents infinite loops', async () => 
   const registry = new MockRegistry(new RecursiveWidget());
   const routeInfo = createTestRouteInfo();
 
-  const result = await resolveWidgetTags(html, registry, routeInfo);
+  const result = await resolveWidgetTags(html, registry.getWidget, routeInfo);
 
   // Should stop after max depth and still return valid HTML
   expect(result).toBeDefined();

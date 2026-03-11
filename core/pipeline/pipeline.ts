@@ -24,6 +24,7 @@ import type { ComponentContext, ContextProvider, FileContents } from '../type/co
 import type { Runtime } from '../runtime/abstract.runtime.ts';
 import { ROUTES_MANIFEST_PATH, WIDGETS_MANIFEST_PATH } from '../runtime/abstract.runtime.ts';
 import type { WidgetManifestEntry } from '../type/widget.type.ts';
+import type { WidgetComponent } from '../component/widget.component.ts';
 import { type Logger, defaultLogger } from '../type/logger.type.ts';
 
 /** Default root route — renders a slot for child routes. */
@@ -136,6 +137,28 @@ export class Pipeline {
     if (response.status === 404) return undefined;
     const entries: WidgetManifestEntry[] = await response.json();
     return entries.find((e) => e.name === name)?.modulePath;
+  }
+
+  /** Load a widget by name — manifest lookup → module load → extract component. */
+  async loadWidget(name: string): Promise<WidgetComponent | undefined> {
+    const path = await this.findWidgetModulePath(name);
+    if (!path) return undefined;
+    const mod = await this.loadModule<Record<string, unknown>>(path);
+    return this.extractWidgetComponent(mod);
+  }
+
+  /** Extract a WidgetComponent from a loaded module's exports. */
+  private extractWidgetComponent(mod: Record<string, unknown>): WidgetComponent | undefined {
+    for (const value of Object.values(mod)) {
+      if (!value) continue;
+      if (typeof value === 'object' && 'getData' in value) {
+        return value as WidgetComponent;
+      }
+      if (typeof value === 'function' && value.prototype?.getData) {
+        return new (value as new () => WidgetComponent)();
+      }
+    }
+    return undefined;
   }
 
   // ── Module loading ─────────────────────────────────────────────────

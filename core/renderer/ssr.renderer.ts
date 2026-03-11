@@ -15,7 +15,6 @@ import type { Logger } from '../type/logger.type.ts';
 import defaultPageComponent, { type PageComponent } from '../component/page.component.ts';
 import { DEFAULT_ROOT_ROUTE, type Pipeline } from '../pipeline/pipeline.ts';
 import { assertSafeRedirect } from '../util/html.util.ts';
-import { extractWidgetExport } from '../widget/widget.registry.ts';
 import type { WidgetComponent } from '../component/widget.component.ts';
 
 /** Options for SSR renderers. */
@@ -40,11 +39,8 @@ export abstract class SsrRenderer {
 
   /** Resolve a widget by name — queries manifest from Runtime on demand. */
   protected async resolveWidget(name: string): Promise<WidgetComponent | undefined> {
-    const path = await this.pipeline.findWidgetModulePath(name);
-    if (!path) return undefined;
     try {
-      const mod = await this.pipeline.loadModule<Record<string, unknown>>(path);
-      return extractWidgetExport(mod) ?? undefined;
+      return await this.pipeline.loadWidget(name);
     } catch (e) {
       this.logger.error(
         `[${this.label}] Failed to load widget "${name}"`,

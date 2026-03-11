@@ -59,7 +59,6 @@ export type {
 
 export { PageComponent } from '../core/component/page.component.ts';
 export { WidgetComponent } from '../core/component/widget.component.ts';
-export { WidgetRegistry } from '../core/widget/widget.registry.ts';
 
 // Route config
 export { type BasePath, DEFAULT_BASE_PATH } from '../core/server/emroute.server.ts';

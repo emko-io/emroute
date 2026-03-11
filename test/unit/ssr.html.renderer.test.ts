@@ -20,7 +20,6 @@ import { SsrHtmlRenderer, type SsrHtmlRendererOptions } from '../../core/rendere
 import { Pipeline } from '../../core/pipeline/pipeline.ts';
 import type { RouteConfig } from '../../core/type/route.type.ts';
 import type { MarkdownRenderer } from '../../core/type/markdown.type.ts';
-import { WidgetRegistry } from '../../core/widget/widget.registry.ts';
 import { WidgetComponent } from '../../core/component/widget.component.ts';
 import { Runtime } from '../../core/runtime/abstract.runtime.ts';
 import { writeManifest, url, type TestManifest } from './test.util.ts';
@@ -68,12 +67,13 @@ class MockRuntime extends Runtime {
 function createRenderer(
   manifest: TestManifest,
   runtime: MockRuntime,
-  options?: Omit<SsrHtmlRendererOptions, 'widgets'> & { widgets?: WidgetRegistry },
+  options?: SsrHtmlRendererOptions,
 ): SsrHtmlRenderer {
   writeManifest(runtime, manifest.routes ?? [], {
     ...(manifest.errorBoundaries ? { errorBoundaries: manifest.errorBoundaries } : {}),
     ...(manifest.statusPages ? { statusPages: manifest.statusPages } : {}),
     ...(manifest.errorHandler ? { errorHandler: manifest.errorHandler } : {}),
+    ...(manifest.widgetEntries ? { widgetEntries: manifest.widgetEntries } : {}),
   });
   const pipeline = new Pipeline({
     runtime,
@@ -127,13 +127,6 @@ test('SsrHtmlRenderer - constructor initializes with markdown renderer', () => {
   const markdownRenderer: MarkdownRenderer = { render: (md) => `<p>${md}</p>` };
   const runtime = new MockRuntime();
   const renderer = createRenderer(createTestManifest(), runtime, { markdownRenderer });
-  expect(renderer instanceof SsrHtmlRenderer).toEqual(true);
-});
-
-test('SsrHtmlRenderer - constructor with widget registry', () => {
-  const registry = new WidgetRegistry();
-  const runtime = new MockRuntime();
-  const renderer = createRenderer(createTestManifest(), runtime, { widgets: registry });
   expect(renderer instanceof SsrHtmlRenderer).toEqual(true);
 });
 
@@ -252,10 +245,11 @@ test('SsrHtmlRenderer - widget resolution calls getData and renderHTML', async (
   const runtime = new MockRuntime();
   runtime.set('/widgets.page.html', '<div><widget-test-widget name="hello"></widget-test-widget></div>');
 
-  const registry = new WidgetRegistry();
-  registry.add(new TestWidget());
-
-  const renderer = createRenderer(createTestManifest({ routes }), runtime, { widgets: registry });
+  const renderer = createRenderer(createTestManifest({
+    routes,
+    widgetEntries: [{ name: 'test-widget', modulePath: '/widgets/test-widget.js' }],
+    moduleLoaders: { '/widgets/test-widget.js': () => Promise.resolve({ default: new TestWidget() }) },
+  }), runtime);
   const result = await renderer.render(url('http://localhost/widgets'));
 
   expect(result.status).toEqual(200);
@@ -269,10 +263,11 @@ test('SsrHtmlRenderer - widget renders with SSR data attribute', async () => {
   const runtime = new MockRuntime();
   runtime.set('/widgets.page.html', '<widget-test-widget name="ssr"></widget-test-widget>');
 
-  const registry = new WidgetRegistry();
-  registry.add(new TestWidget());
-
-  const renderer = createRenderer(createTestManifest({ routes }), runtime, { widgets: registry });
+  const renderer = createRenderer(createTestManifest({
+    routes,
+    widgetEntries: [{ name: 'test-widget', modulePath: '/widgets/test-widget.js' }],
+    moduleLoaders: { '/widgets/test-widget.js': () => Promise.resolve({ default: new TestWidget() }) },
+  }), runtime);
   const result = await renderer.render(url('http://localhost/widgets'));
 
   expect(result.status).toEqual(200);
@@ -292,10 +287,11 @@ test('SsrHtmlRenderer - multiple widgets on same page resolve concurrently', asy
     </div>
   `);
 
-  const registry = new WidgetRegistry();
-  registry.add(new TestWidget());
-
-  const renderer = createRenderer(createTestManifest({ routes }), runtime, { widgets: registry });
+  const renderer = createRenderer(createTestManifest({
+    routes,
+    widgetEntries: [{ name: 'test-widget', modulePath: '/widgets/test-widget.js' }],
+    moduleLoaders: { '/widgets/test-widget.js': () => Promise.resolve({ default: new TestWidget() }) },
+  }), runtime);
   const result = await renderer.render(url('http://localhost/multi-widgets'));
 
   expect(result.status).toEqual(200);
@@ -721,10 +717,11 @@ test('SsrHtmlRenderer - widget with no params uses default values', async () => 
   const runtime = new MockRuntime();
   runtime.set('/widget-default.page.html', '<widget-test-widget></widget-test-widget>');
 
-  const registry = new WidgetRegistry();
-  registry.add(new TestWidget());
-
-  const renderer = createRenderer(createTestManifest({ routes }), runtime, { widgets: registry });
+  const renderer = createRenderer(createTestManifest({
+    routes,
+    widgetEntries: [{ name: 'test-widget', modulePath: '/widgets/test-widget.js' }],
+    moduleLoaders: { '/widgets/test-widget.js': () => Promise.resolve({ default: new TestWidget() }) },
+  }), runtime);
   const result = await renderer.render(url('http://localhost/widget-default'));
 
   expect(result.status).toEqual(200);
@@ -738,8 +735,7 @@ test('SsrHtmlRenderer - unknown widget tag is left unchanged', async () => {
   const runtime = new MockRuntime();
   runtime.set('/unknown-widget.page.html', '<widget-unknown></widget-unknown>');
 
-  const registry = new WidgetRegistry();
-  const renderer = createRenderer(createTestManifest({ routes }), runtime, { widgets: registry });
+  const renderer = createRenderer(createTestManifest({ routes }), runtime);
   const result = await renderer.render(url('http://localhost/unknown-widget'));
 
   expect(result.status).toEqual(200);

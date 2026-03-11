@@ -65,24 +65,22 @@ export class SsrHtmlRenderer extends SsrRenderer {
     content = this.attributeSlots(content, route.pattern);
 
     // Resolve <widget-*> tags
-    if (this.widgets) {
-      content = await resolveWidgetTags(
-        content,
-        (name) => this.resolveWidget(name),
-        routeInfo,
-        async (name) => {
-          const modulePath = this.widgets!.getModulePath(name);
-          if (modulePath) {
-            const mod = await this.pipeline.loadModule(modulePath);
-            const inlined = this.pipeline.getModuleFiles(mod);
-            if (inlined) return inlined;
-          }
-          return {};
-        },
-        this.pipeline.contextProvider,
-        this.logger,
-      );
-    }
+    content = await resolveWidgetTags(
+      content,
+      (name) => this.resolveWidget(name),
+      routeInfo,
+      async (name) => {
+        const modulePath = await this.pipeline.findWidgetModulePath(name);
+        if (modulePath) {
+          const mod = await this.pipeline.loadModule(modulePath);
+          const inlined = this.pipeline.getModuleFiles(mod);
+          if (inlined) return inlined;
+        }
+        return {};
+      },
+      this.pipeline.contextProvider,
+      this.logger,
+    );
 
     return { content, ...(title !== undefined ? { title } : {}) };
   }

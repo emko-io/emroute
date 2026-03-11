@@ -57,9 +57,7 @@ export class SsrMdRenderer extends SsrRenderer {
     content = content.replaceAll(BARE_SLOT_BLOCK, routerSlotBlock(route.pattern));
 
     // Resolve fenced widget blocks
-    if (this.widgets) {
-      content = await this.resolveWidgets(content, routeInfo);
-    }
+    content = await this.resolveWidgets(content, routeInfo);
 
     return { content, ...(title !== undefined ? { title } : {}) };
   }
@@ -102,7 +100,7 @@ export class SsrMdRenderer extends SsrRenderer {
 
         try {
           let files: { html?: string; md?: string } | undefined;
-          const modulePath = this.widgets!.getModulePath(block.widgetName);
+          const modulePath = await this.pipeline.findWidgetModulePath(block.widgetName);
           if (modulePath) {
             const mod = await this.pipeline.loadModule(modulePath);
             files = this.pipeline.getModuleFiles(mod);

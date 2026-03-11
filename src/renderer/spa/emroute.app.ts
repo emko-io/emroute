@@ -20,7 +20,7 @@ import { type BasePath, DEFAULT_BASE_PATH } from '../../../core/server/emroute.s
 import { assertSafeRedirect, escapeHtml } from '../../../core/util/html.util.ts';
 import { ComponentElement } from '../../element/component.element.ts';
 import { MarkdownElement } from '../../element/markdown.element.ts';
-import { WidgetRegistry } from '../../../core/widget/widget.registry.ts';
+
 
 /** Options for `createEmrouteApp`. */
 export interface EmrouteAppOptions {
@@ -225,11 +225,8 @@ export async function bootEmrouteApp(options?: BootOptions): Promise<EmrouteApp>
   // Build lazy module loaders for all route + widget + element modules
   const moduleLoaders = buildLazyLoaders(routeTree, widgetEntries, elementEntries, runtime);
 
-  // Register widgets: lazy in registry (loaded on demand during render),
-  // lazy in DOM (module loads on connectedCallback for hydration).
-  const widgets = new WidgetRegistry();
+  // Register widgets in DOM (module loads on connectedCallback for hydration).
   for (const entry of widgetEntries) {
-    widgets.addLazy(entry.name, entry.modulePath);
     ComponentElement.registerLazy(entry.name, moduleLoaders[entry.modulePath]!);
   }
 
@@ -257,7 +254,6 @@ export async function bootEmrouteApp(options?: BootOptions): Promise<EmrouteApp>
   const mdRenderer = MarkdownElement.getConfiguredRenderer();
   const server = await Emroute.create({
     routeTree,
-    widgets,
     moduleLoaders,
     ...(mdRenderer ? { markdownRenderer: mdRenderer } : {}),
     ...(options?.extendContext ? { extendContext: options.extendContext } : {}),

@@ -4,16 +4,13 @@
  * Everything needed for the browser bundle:
  * - EmrouteApp: Navigation API glue wired to an EmrouteServer
  * - Custom elements for rendering and hydrating SSR islands
- * - Widget registry (built-in widgets are opt-in)
  */
 
 import { RouterSlot } from '../../element/slot.element.ts';
 import { MarkdownElement } from '../../element/markdown.element.ts';
 import { ComponentElement } from '../../element/component.element.ts';
-import { WidgetRegistry } from '../../../core/widget/widget.registry.ts';
-
 export { bootEmrouteApp, createEmrouteApp, EmrouteApp, type BootOptions, type EmrouteAppOptions } from './emroute.app.ts';
-export { ComponentElement, MarkdownElement, RouterSlot, WidgetRegistry };
+export { ComponentElement, MarkdownElement, RouterSlot };
 export type { SpaMode, WidgetsManifest } from '../../../core/type/widget.type.ts';
 
 // Re-export base classes and types for consumer code (pages, widgets)

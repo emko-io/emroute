@@ -3,7 +3,7 @@
  *
  * Embeddable unit within page content. Everything reusable that is not
  * a page is a Widget. Widgets render across all contexts (HTML, Markdown, SPA)
- * and are resolved by name via WidgetRegistry.
+ * and are resolved by name via the widgets manifest.
  *
  * Default rendering fallback chains (parallel to PageComponent):
  * - renderHTML:     html file → md file in <mark-down> → base Component default

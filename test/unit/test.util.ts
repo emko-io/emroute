@@ -8,7 +8,7 @@
 import type { RouteNode } from '../../core/type/route-tree.type.ts';
 import type { RouteConfig, ErrorBoundary } from '../../core/type/route.type.ts';
 import { RouteTrie } from '../../core/router/route.trie.ts';
-import { ROUTES_MANIFEST_PATH } from '../../core/runtime/abstract.runtime.ts';
+import { ROUTES_MANIFEST_PATH, WIDGETS_MANIFEST_PATH } from '../../core/runtime/abstract.runtime.ts';
 import { Runtime } from '../../core/runtime/abstract.runtime.ts';
 
 /**
@@ -21,6 +21,7 @@ export interface TestManifest {
   statusPages?: Map<number, RouteConfig>;
   errorHandler?: RouteConfig;
   moduleLoaders?: Record<string, () => Promise<unknown>>;
+  widgetEntries?: { name: string; modulePath: string }[];
 }
 
 /**
@@ -128,15 +129,17 @@ export function writeManifest(
     errorBoundaries?: ErrorBoundary[];
     statusPages?: Map<number, RouteConfig>;
     errorHandler?: RouteConfig;
+    widgetEntries?: { name: string; modulePath: string }[];
   },
 ): RouteNode {
   const tree = routesToTree(routes, options);
   const json = JSON.stringify(tree);
   if ('set' in runtime && typeof (runtime as Record<string, unknown>).set === 'function') {
-    (runtime as Runtime & { set(path: string, content: string): void }).set(
-      ROUTES_MANIFEST_PATH,
-      json,
-    );
+    const rt = runtime as Runtime & { set(path: string, content: string): void };
+    rt.set(ROUTES_MANIFEST_PATH, json);
+    if (options?.widgetEntries) {
+      rt.set(WIDGETS_MANIFEST_PATH, JSON.stringify(options.widgetEntries));
+    }
   }
   return tree;
 }

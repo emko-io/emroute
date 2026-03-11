@@ -18,7 +18,6 @@ import { SsrMdRenderer, type SsrMdRendererOptions } from '../../core/renderer/md
 import { Pipeline } from '../../core/pipeline/pipeline.ts';
 import type { RouteConfig } from '../../core/type/route.type.ts';
 import type { ComponentContext } from '../../core/type/component.type.ts';
-import { WidgetRegistry } from '../../core/widget/widget.registry.ts';
 import { WidgetComponent } from '../../core/component/widget.component.ts';
 import { Runtime } from '../../core/runtime/abstract.runtime.ts';
 import { writeManifest, url, type TestManifest } from './test.util.ts';
@@ -66,8 +65,7 @@ class MockRuntime extends Runtime {
 function createRenderer(
   manifest: TestManifest,
   runtime: MockRuntime,
-  options?: Omit<SsrMdRendererOptions, 'widgets'> & {
-    widgets?: WidgetRegistry;
+  options?: SsrMdRendererOptions & {
     extendContext?: (ctx: ComponentContext) => ComponentContext;
   },
 ): SsrMdRenderer {
@@ -75,6 +73,7 @@ function createRenderer(
     ...(manifest.errorBoundaries ? { errorBoundaries: manifest.errorBoundaries } : {}),
     ...(manifest.statusPages ? { statusPages: manifest.statusPages } : {}),
     ...(manifest.errorHandler ? { errorHandler: manifest.errorHandler } : {}),
+    ...(manifest.widgetEntries ? { widgetEntries: manifest.widgetEntries } : {}),
   });
   const pipeline = new Pipeline({
     runtime,
@@ -131,13 +130,6 @@ test('SsrMdRenderer - constructor creates correct instance', () => {
   const runtime = new MockRuntime();
   const renderer = createRenderer(createTestManifest(), runtime);
   expect(renderer instanceof SsrMdRenderer).toEqual(true);
-});
-
-test('SsrMdRenderer - constructor with options accepts widget registry', () => {
-  const widgets = new WidgetRegistry();
-  const runtime = new MockRuntime();
-  const renderer = createRenderer(createTestManifest(), runtime, { widgets });
-  expect(renderer).toBeDefined();
 });
 
 // ============================================================================
@@ -287,16 +279,18 @@ test('SsrMdRenderer - resolves and renders widgets in markdown content', async (
   const runtime = new MockRuntime();
   runtime.set('/page.md', 'Page content\n\n```widget:greeting\n{}\n```\n\nMore content');
 
-  const widgets = new WidgetRegistry();
   const greetingWidget = new (class extends WidgetComponent {
     override readonly name = 'greeting';
     override getData() { return Promise.resolve(null); }
     override renderHTML() { return '<div>greeting</div>'; }
     override renderMarkdown() { return '**Hello World**'; }
   })();
-  widgets.add(greetingWidget);
 
-  const renderer = createRenderer(createTestManifest({ routes }), runtime, { widgets });
+  const renderer = createRenderer(createTestManifest({
+    routes,
+    widgetEntries: [{ name: 'greeting', modulePath: '/widgets/greeting.js' }],
+    moduleLoaders: { '/widgets/greeting.js': () => Promise.resolve({ default: greetingWidget }) },
+  }), runtime);
   const result = await renderer.render(url('/page'));
 
   expect(result.status).toEqual(200);
@@ -312,7 +306,6 @@ test('SsrMdRenderer - passes widget params to renderMarkdown', async () => {
   const runtime = new MockRuntime();
   runtime.set('/page.md', '```widget:counter\n{"start": 5}\n```');
 
-  const widgets = new WidgetRegistry();
   const counterWidget = new (class extends WidgetComponent {
     override readonly name = 'counter';
     override getData() { return Promise.resolve(null); }
@@ -321,9 +314,12 @@ test('SsrMdRenderer - passes widget params to renderMarkdown', async () => {
       return `Counter starts at: ${(args.params as Record<string, unknown>)?.start ?? 0}`;
     }
   })();
-  widgets.add(counterWidget);
 
-  const renderer = createRenderer(createTestManifest({ routes }), runtime, { widgets });
+  const renderer = createRenderer(createTestManifest({
+    routes,
+    widgetEntries: [{ name: 'counter', modulePath: '/widgets/counter.js' }],
+    moduleLoaders: { '/widgets/counter.js': () => Promise.resolve({ default: counterWidget }) },
+  }), runtime);
   const result = await renderer.render(url('/page'));
 
   expect(result.status).toEqual(200);
@@ -337,19 +333,19 @@ test('SsrMdRenderer - handles widget with invalid JSON params', async () => {
   const runtime = new MockRuntime();
   runtime.set('/page.md', '```widget:bad-json\n{invalid json}\n```');
 
-  const widgets = new WidgetRegistry();
-  const badJsonWidget = new (class extends WidgetComponent {
-    override readonly name = 'bad-json';
-    override getData() { return Promise.resolve(null); }
-    override renderHTML() { return ''; }
-    override renderMarkdown() { return '**bad-json**'; }
-    override renderMarkdownError(e: unknown) {
-      return `> **Error** (\`bad-json\`): ${e instanceof Error ? e.message : String(e)}`;
-    }
-  })();
-  widgets.add(badJsonWidget);
-
-  const renderer = createRenderer(createTestManifest({ routes }), runtime, { widgets });
+  const renderer = createRenderer(createTestManifest({
+    routes,
+    widgetEntries: [{ name: 'bad-json', modulePath: '/widgets/bad-json.js' }],
+    moduleLoaders: { '/widgets/bad-json.js': () => Promise.resolve({ default: new (class extends WidgetComponent {
+      override readonly name = 'bad-json';
+      override getData() { return Promise.resolve(null); }
+      override renderHTML() { return ''; }
+      override renderMarkdown() { return '**bad-json**'; }
+      override renderMarkdownError(e: unknown) {
+        return `> **Error** (\`bad-json\`): ${e instanceof Error ? e.message : String(e)}`;
+      }
+    })() }) },
+  }), runtime);
   const result = await renderer.render(url('/page'));
 
   expect(result.status).toEqual(200);
@@ -363,8 +359,7 @@ test('SsrMdRenderer - handles unknown widget name', async () => {
   const runtime = new MockRuntime();
   runtime.set('/page.md', '```widget:nonexistent\n{}\n```');
 
-  const widgets = new WidgetRegistry();
-  const renderer = createRenderer(createTestManifest({ routes }), runtime, { widgets });
+  const renderer = createRenderer(createTestManifest({ routes }), runtime);
   const result = await renderer.render(url('/page'));
 
   expect(result.status).toEqual(200);
@@ -378,7 +373,6 @@ test('SsrMdRenderer - widget error is rendered as markdown quote', async () => {
   const runtime = new MockRuntime();
   runtime.set('/page.md', '```widget:failing\n{}\n```');
 
-  const widgets = new WidgetRegistry();
   const failingWidget = new (class extends WidgetComponent {
     override readonly name = 'failing';
     override getData() { return Promise.reject(new Error('Widget crashed')); }
@@ -388,9 +382,12 @@ test('SsrMdRenderer - widget error is rendered as markdown quote', async () => {
       return `> **Widget Error**: ${e instanceof Error ? e.message : String(e)}`;
     }
   })();
-  widgets.add(failingWidget);
 
-  const renderer = createRenderer(createTestManifest({ routes }), runtime, { widgets });
+  const renderer = createRenderer(createTestManifest({
+    routes,
+    widgetEntries: [{ name: 'failing', modulePath: '/widgets/failing.js' }],
+    moduleLoaders: { '/widgets/failing.js': () => Promise.resolve({ default: failingWidget }) },
+  }), runtime);
   const result = await renderer.render(url('/page'));
 
   expect(result.status).toEqual(200);
@@ -405,21 +402,30 @@ test('SsrMdRenderer - multiple widgets in same page are all resolved', async () 
   const runtime = new MockRuntime();
   runtime.set('/page.md', 'Start\n\n```widget:w1\n{}\n```\n\nMiddle\n\n```widget:w2\n{}\n```\n\nEnd');
 
-  const widgets = new WidgetRegistry();
-  widgets.add(new (class extends WidgetComponent {
+  const w1 = new (class extends WidgetComponent {
     override readonly name = 'w1';
     override getData() { return Promise.resolve(null); }
     override renderHTML() { return ''; }
     override renderMarkdown() { return '**Widget 1**'; }
-  })());
-  widgets.add(new (class extends WidgetComponent {
+  })();
+  const w2 = new (class extends WidgetComponent {
     override readonly name = 'w2';
     override getData() { return Promise.resolve(null); }
     override renderHTML() { return ''; }
     override renderMarkdown() { return '**Widget 2**'; }
-  })());
+  })();
 
-  const renderer = createRenderer(createTestManifest({ routes }), runtime, { widgets });
+  const renderer = createRenderer(createTestManifest({
+    routes,
+    widgetEntries: [
+      { name: 'w1', modulePath: '/widgets/w1.js' },
+      { name: 'w2', modulePath: '/widgets/w2.js' },
+    ],
+    moduleLoaders: {
+      '/widgets/w1.js': () => Promise.resolve({ default: w1 }),
+      '/widgets/w2.js': () => Promise.resolve({ default: w2 }),
+    },
+  }), runtime);
   const result = await renderer.render(url('/page'));
 
   expect(result.status).toEqual(200);
@@ -670,16 +676,18 @@ test('SsrMdRenderer - resolves widget blocks and calls renderMarkdown', async ()
   const runtime = new MockRuntime();
   runtime.set('/page.md', 'Start\n\n```widget:demo\n{}\n```\n\nEnd');
 
-  const widgets = new WidgetRegistry();
   const demoWidget = new (class extends WidgetComponent {
     override readonly name = 'demo';
     override getData() { return Promise.resolve(null); }
     override renderHTML() { return '<div>demo</div>'; }
     override renderMarkdown() { return 'Widget rendered in markdown'; }
   })();
-  widgets.add(demoWidget);
 
-  const renderer = createRenderer(createTestManifest({ routes }), runtime, { widgets });
+  const renderer = createRenderer(createTestManifest({
+    routes,
+    widgetEntries: [{ name: 'demo', modulePath: '/widgets/demo.js' }],
+    moduleLoaders: { '/widgets/demo.js': () => Promise.resolve({ default: demoWidget }) },
+  }), runtime);
   const result = await renderer.render(url('/page'));
 
   expect(result.status).toEqual(200);
@@ -856,18 +864,16 @@ test('SsrMdRenderer - uses __files from widget module when available', async () 
     override renderMarkdown() { return 'From discovered files'; }
   };
 
-  const widgets = new WidgetRegistry();
-  widgets.add(new InfoWidget(), '/widgets/info.widget.js');
-
   const renderer = createRenderer(createTestManifest({
     routes,
+    widgetEntries: [{ name: 'info', modulePath: '/widgets/info.widget.js' }],
     moduleLoaders: {
       '/widgets/info.widget.js': () => Promise.resolve({
         default: InfoWidget,
         __files: { md: 'discovered md content' },
       }),
     },
-  }), runtime, { widgets });
+  }), runtime);
   const result = await renderer.render(url('/page'));
 
   expect(result.status).toEqual(200);
@@ -885,7 +891,6 @@ test('SsrMdRenderer - passes context to widget getData', async () => {
   const runtime = new MockRuntime();
   runtime.set('/page.md', '```widget:ctx-aware\n{}\n```');
 
-  const widgets = new WidgetRegistry();
   let capturedContext: ComponentContext | undefined;
 
   const ctxWidget = new (class extends WidgetComponent {
@@ -897,10 +902,13 @@ test('SsrMdRenderer - passes context to widget getData', async () => {
     override renderHTML() { return ''; }
     override renderMarkdown() { return 'Context passed'; }
   })();
-  widgets.add(ctxWidget);
 
   const extendContext = (baseCtx: ComponentContext) => ({ ...baseCtx, custom: true });
-  const renderer = createRenderer(createTestManifest({ routes }), runtime, { widgets, extendContext });
+  const renderer = createRenderer(createTestManifest({
+    routes,
+    widgetEntries: [{ name: 'ctx-aware', modulePath: '/widgets/ctx-aware.js' }],
+    moduleLoaders: { '/widgets/ctx-aware.js': () => Promise.resolve({ default: ctxWidget }) },
+  }), runtime, { extendContext });
   const result = await renderer.render(url('/page'));
 
   expect(result.status).toEqual(200);

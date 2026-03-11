@@ -11,9 +11,8 @@ import { resolve } from 'node:path';
 import { Emroute } from '../../server/emroute.server.ts';
 import { buildClientBundles } from '../../server/build.util.ts';
 import { BunFsRuntime } from '../../runtime/bun/fs/bun-fs.runtime.ts';
-import { WidgetRegistry } from '../../core/widget/widget.registry.ts';
-import { externalWidget } from '../browser/fixtures/assets/external.widget.ts';
-import type { RuntimeConfig } from '../../runtime/abstract.runtime.ts';
+import { WIDGETS_MANIFEST_PATH, type RuntimeConfig } from '../../runtime/abstract.runtime.ts';
+import type { WidgetManifestEntry } from '../../core/type/widget.type.ts';
 
 const FIXTURES_DIR = 'test/browser/fixtures';
 
@@ -31,9 +30,6 @@ const runtimeConfig: RuntimeConfig = {
 async function createTestEmroute(
   spa: 'none' | 'leaf' | 'root' | 'only' = 'root',
 ): Promise<Emroute> {
-  const manualWidgets = new WidgetRegistry();
-  manualWidgets.add(externalWidget);
-
   const runtime = new BunFsRuntime(FIXTURES_DIR, runtimeConfig);
 
   // Build client bundles for modes that need them
@@ -45,11 +41,31 @@ async function createTestEmroute(
     });
   }
 
+  // Add external widget to the manifest (lives outside widgetsDir)
+  await appendWidgetManifestEntry(runtime, {
+    name: 'external',
+    modulePath: '/assets/external.widget.ts',
+    tagName: 'widget-external',
+  });
+
   return await Emroute.create({
-    widgets: manualWidgets,
     spa,
     title: 'Test App',
   }, runtime);
+}
+
+/** Append a widget entry to the manifest without overwriting existing entries. */
+async function appendWidgetManifestEntry(
+  runtime: BunFsRuntime,
+  entry: WidgetManifestEntry,
+): Promise<void> {
+  const res = await runtime.query(WIDGETS_MANIFEST_PATH);
+  const entries: WidgetManifestEntry[] = res.ok ? await res.json() : [];
+  if (!entries.some((e) => e.name === entry.name)) {
+    entries.push(entry);
+    entries.sort((a, b) => a.name.localeCompare(b.name));
+    await runtime.command(WIDGETS_MANIFEST_PATH, { body: JSON.stringify(entries) });
+  }
 }
 
 // Shared server instances — created once in setup, reused across all tests.

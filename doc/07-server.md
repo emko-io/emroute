@@ -105,7 +105,7 @@ All paths are relative to `appRoot` and start with `/`.
 | `extendContext`    | `(base: ComponentContext) => ComponentContext` | — | Inject services into every component's context |
 | `basePath`         | `{ html: string, md: string, app: string }` | `{ html: '/html', md: '/md', app: '/app' }` | URL prefixes for SSR and SPA endpoints |
 | `routeTree`        | `RouteNode`                         | —              | Pre-built route tree (skips runtime scanning) |
-| `widgets`          | `WidgetRegistry`                    | —              | Additional widgets (merged with auto-discovered) |
+| `widgets`          | ~~deprecated~~                      | —              | Ignored. Widgets are resolved from the manifest via Runtime. |
 | `moduleLoaders`    | `Record<string, () => Promise<unknown>>` | — | Pre-built module loaders (used in browser) |
 
 ## `handleRequest` composability

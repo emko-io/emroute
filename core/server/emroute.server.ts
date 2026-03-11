@@ -10,7 +10,6 @@ import type { Runtime } from '../runtime/abstract.runtime.ts';
 import { Pipeline } from '../pipeline/pipeline.ts';
 import { SsrHtmlRenderer } from '../renderer/html.renderer.ts';
 import { SsrMdRenderer } from '../renderer/md.renderer.ts';
-import { WidgetRegistry } from '../widget/widget.registry.ts';
 import { escapeHtml } from '../util/html.util.ts';
 import { rewriteMdLinks } from '../util/md.util.ts';
 import type { RouteNode } from '../type/route-tree.type.ts';
@@ -48,7 +47,8 @@ export class Emroute {
   static async create(
     config: {
       routeTree?: RouteNode;
-      widgets?: WidgetRegistry;
+      /** @deprecated Widgets are resolved from the manifest via Runtime. This option is ignored. */
+      widgets?: unknown;
       spa?: SpaMode;
       basePath?: BasePath;
       title?: string;
@@ -85,24 +85,6 @@ export class Emroute {
       ...(config.moduleLoaders ? { moduleLoaders: config.moduleLoaders } : {}),
     });
 
-    // ── Widgets ───────────────────────────────────────────────────────
-
-    let widgets: WidgetRegistry | undefined;
-
-    const widgetsResponse = await runtime.query(WIDGETS_MANIFEST_PATH);
-    if (widgetsResponse.status !== 404) {
-      const entries: WidgetManifestEntry[] = await widgetsResponse.json();
-      widgets = new WidgetRegistry();
-      for (const entry of entries) {
-        widgets.addLazy(entry.name, entry.modulePath);
-      }
-    }
-
-    if (config.widgets) {
-      if (!widgets) widgets = new WidgetRegistry();
-      for (const w of config.widgets) widgets.add(w);
-    }
-
     // ── Renderers ─────────────────────────────────────────────────────
 
     let ssrHtmlRenderer: SsrHtmlRenderer | null = null;
@@ -111,12 +93,9 @@ export class Emroute {
     if (spa !== 'only') {
       ssrHtmlRenderer = new SsrHtmlRenderer(pipeline, {
         ...(config.markdownRenderer ? { markdownRenderer: config.markdownRenderer } : {}),
-        ...(widgets ? { widgets } : {}),
       });
 
-      ssrMdRenderer = new SsrMdRenderer(pipeline, {
-        ...(widgets ? { widgets } : {}),
-      });
+      ssrMdRenderer = new SsrMdRenderer(pipeline);
     }
 
     // ── HTML shell ────────────────────────────────────────────────────

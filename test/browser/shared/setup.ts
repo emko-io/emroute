@@ -10,11 +10,11 @@ import { buildClientBundles } from '../../../server/build.util.ts';
 import { BunFsRuntime } from '../../../runtime/bun/fs/bun-fs.runtime.ts';
 import type { RuntimeConfig } from '../../../runtime/abstract.runtime.ts';
 
-import { WidgetRegistry } from '../../../core/widget/widget.registry.ts';
 import type { MarkdownRenderer } from '../../../core/type/markdown.type.ts';
 import { renderMarkdown } from '@emkodev/emkoma/render';
-import { externalWidget } from '../fixtures/assets/external.widget.ts';
 import type { SpaMode } from '../../../core/type/widget.type.ts';
+import type { WidgetManifestEntry } from '../../../core/type/widget.type.ts';
+import { WIDGETS_MANIFEST_PATH } from '../../../runtime/abstract.runtime.ts';
 
 import { resolve, join } from 'node:path';
 import { unlink, cp, writeFile } from 'node:fs/promises';
@@ -81,13 +81,17 @@ export async function createTestServer(options: {
   // Server-side markdown renderer via emkoma
   const markdownRenderer: MarkdownRenderer = { render: renderMarkdown };
 
-  // Manual widget registry for widgets outside widgetsDir (e.g. external/vendor)
-  const manualWidgets = new WidgetRegistry();
-  manualWidgets.add(externalWidget);
+  // Add external widget to the manifest (lives outside widgetsDir)
+  const widgetRes = await runtime.query(WIDGETS_MANIFEST_PATH);
+  const widgetEntries: WidgetManifestEntry[] = widgetRes.ok ? await widgetRes.json() : [];
+  if (!widgetEntries.some((e) => e.name === 'external')) {
+    widgetEntries.push({ name: 'external', modulePath: '/assets/external.widget.ts', tagName: 'widget-external' });
+    widgetEntries.sort((a, b) => a.name.localeCompare(b.name));
+    await runtime.command(WIDGETS_MANIFEST_PATH, { body: JSON.stringify(widgetEntries) });
+  }
 
   // Create emroute server (reads manifests from runtime)
   const emroute = await Emroute.create({
-    widgets: manualWidgets,
     markdownRenderer,
     spa: mode,
   }, runtime);

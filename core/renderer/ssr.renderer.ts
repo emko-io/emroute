@@ -15,12 +15,13 @@ import type { Logger } from '../type/logger.type.ts';
 import defaultPageComponent, { type PageComponent } from '../component/page.component.ts';
 import { DEFAULT_ROOT_ROUTE, type Pipeline } from '../pipeline/pipeline.ts';
 import { assertSafeRedirect } from '../util/html.util.ts';
-import { type WidgetRegistry, extractWidgetExport } from '../widget/widget.registry.ts';
+import { extractWidgetExport } from '../widget/widget.registry.ts';
 import type { WidgetComponent } from '../component/widget.component.ts';
 
 /** Options for SSR renderers. */
 export interface SsrRendererOptions {
-  widgets?: WidgetRegistry;
+  /** @deprecated Widgets are resolved from the manifest via Runtime. This option is ignored. */
+  widgets?: unknown;
 }
 
 /**
@@ -28,23 +29,18 @@ export interface SsrRendererOptions {
  */
 export abstract class SsrRenderer {
   protected readonly pipeline: Pipeline;
-  protected widgets: WidgetRegistry | null;
   protected abstract readonly label: string;
 
   protected readonly logger: Logger;
 
-  constructor(pipeline: Pipeline, options: SsrRendererOptions = {}) {
+  constructor(pipeline: Pipeline, _options: SsrRendererOptions = {}) {
     this.pipeline = pipeline;
     this.logger = pipeline.logger;
-    this.widgets = options.widgets ?? null;
   }
 
-  /** Resolve a widget by name — eager lookup, then lazy load via Pipeline → Runtime. */
+  /** Resolve a widget by name — queries manifest from Runtime on demand. */
   protected async resolveWidget(name: string): Promise<WidgetComponent | undefined> {
-    if (!this.widgets) return undefined;
-    const widget = this.widgets.get(name);
-    if (widget) return widget;
-    const path = this.widgets.getModulePath(name);
+    const path = await this.pipeline.findWidgetModulePath(name);
     if (!path) return undefined;
     try {
       const mod = await this.pipeline.loadModule<Record<string, unknown>>(path);

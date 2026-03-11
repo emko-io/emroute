@@ -10,7 +10,7 @@
 <p>
   When served via <strong>SSR HTML</strong> (<code>/html/widgets-html</code>),
   <code>resolveWidgetTags()</code> finds each <code>&lt;widget-*&gt;</code>
-  element, looks up the widget in the <code>WidgetRegistry</code>, calls
+  element, looks up the widget via the widgets manifest, calls
   <code>getData()</code> + <code>renderHTML()</code>, and injects the rendered content inside the
   element. A boolean <code>ssr</code> attribute marks the widget as server-rendered for SPA
   hydration.

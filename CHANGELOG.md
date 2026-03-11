@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.0-beta.1] - 2026-03-11
+
+### Removed
+
+- **`WidgetRegistry` class**: Deleted. Widgets are now resolved on demand from
+  the widgets manifest via `Pipeline.findWidgetModulePath()` → Runtime, the same
+  pattern routes already use. This eliminates the frozen snapshot that caused
+  stale widgets when the manifest was updated after server creation.
+
+### Changed
+
+- **Widget resolution is live**: SSR renderers (`SsrHtmlRenderer`,
+  `SsrMdRenderer`) query the widgets manifest from Runtime on every render
+  instead of reading from a frozen in-memory registry. Adding or removing
+  widgets at runtime is now reflected immediately.
+
+- **`Emroute.create({ widgets })` deprecated**: The `widgets` config option is
+  ignored. Widgets are discovered from the manifest. External widgets (outside
+  `widgetsDir`) should be added to the manifest via `runtime.command()`.
+
+- **Browser boot (`bootEmrouteApp`)**: No longer creates a `WidgetRegistry`.
+  Widget entries are registered directly with `ComponentElement.registerLazy()`
+  for DOM hydration.
+
+### Added
+
+- **`Pipeline.findWidgetModulePath(name)`**: Reads the widgets manifest from
+  Runtime and returns the module path for a given widget name. Single source of
+  truth for widget resolution.
+
+- **`widgetEntries` in test utilities**: `TestManifest` and `writeManifest()`
+  now accept `widgetEntries` for writing the widgets manifest in unit tests.
+
 ## [1.9.0] - 2026-03-10
 
 ### Added

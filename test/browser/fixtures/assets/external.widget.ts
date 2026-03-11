@@ -1,6 +1,6 @@
 /**
  * External Widget — lives outside widgets/ directory.
- * Registered manually via WidgetRegistry to test mixing
+ * Added to the widgets manifest to test mixing
  * auto-discovered and manually-registered widgets.
  */
 

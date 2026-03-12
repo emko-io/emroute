@@ -21,12 +21,6 @@ export class PageComponent<
   override readonly name: string = 'page';
   readonly pattern?: string;
 
-  override getData(
-    _args: this['DataArgs'],
-  ): Promise<TData | null> {
-    return Promise.resolve(null);
-  }
-
   override renderHTML(
     args: this['RenderArgs'],
   ): string {

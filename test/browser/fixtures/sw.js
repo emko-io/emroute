@@ -451,6 +451,9 @@ class Component {
   element;
   files;
   exposeSsrData;
+  getData(_args) {
+    return Promise.resolve(null);
+  }
   renderHTML(args) {
     if (args.data === null) {
       return `<div data-component="${this.name}">Loading...</div>`;
@@ -536,9 +539,6 @@ class Component {
 class PageComponent extends Component {
   name = "page";
   pattern;
-  getData(_args) {
-    return Promise.resolve(null);
-  }
   renderHTML(args) {
     const files = args.context.files;
     const style = files?.css ? `<style>${files.css}</style>

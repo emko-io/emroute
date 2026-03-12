@@ -8,6 +8,9 @@ export const SSR_ATTR = 'ssr';
 /** HTML attribute name for lazy-loading widgets. */
 export const LAZY_ATTR = 'lazy';
 
+/** Attribute names to skip when parsing widget params (not user-supplied data). */
+export const RESERVED_ATTRS = new Set([SSR_ATTR, LAZY_ATTR, 'style', 'class', 'id', 'slot', 'part']);
+
 const BLOCKED_PROTOCOLS = /^(javascript|data|vbscript):/i;
 
 /** Throw if a redirect URL uses a dangerous protocol. */

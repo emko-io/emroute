@@ -12,7 +12,7 @@
 import type { Component } from '../../core/component/abstract.component.ts';
 import type { ComponentContext, ContextProvider } from '../../core/type/component.type.ts';
 import { HTMLElementBase } from '../util/html.util.ts';
-import { LAZY_ATTR, SSR_ATTR } from '../../core/util/html.util.ts';
+import { LAZY_ATTR, RESERVED_ATTRS, SSR_ATTR } from '../../core/util/html.util.ts';
 
 type ComponentState = 'idle' | 'loading' | 'ready' | 'error';
 
@@ -210,7 +210,7 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
     // Parse params from element attributes
     const params: Record<string, unknown> = {};
     for (const attr of this.attributes) {
-      if (attr.name === SSR_ATTR || attr.name === LAZY_ATTR) continue;
+      if (RESERVED_ATTRS.has(attr.name)) continue;
       const key = attr.name.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
       try {
         params[key] = JSON.parse(attr.value);

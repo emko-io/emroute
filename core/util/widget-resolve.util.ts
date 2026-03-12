@@ -9,7 +9,7 @@ import type { Component } from '../component/abstract.component.ts';
 import type { ComponentContext, ContextProvider, FileContents } from '../type/component.type.ts';
 import { type Logger, defaultLogger } from '../type/logger.type.ts';
 import type { RouteInfo } from '../type/route.type.ts';
-import { LAZY_ATTR, SSR_ATTR } from './html.util.ts';
+import { RESERVED_ATTRS, SSR_ATTR } from './html.util.ts';
 
 /** Maximum nesting depth for widgets to prevent infinite loops */
 export const MAX_WIDGET_DEPTH = 10;
@@ -138,7 +138,7 @@ export function parseAttrsToParams(attrsString: string): Record<string, unknown>
     /(?<attr>[a-z][a-z0-9-]*)(?:="(?<dq>[^"]*)"|='(?<sq>[^']*)'|=(?<uq>[^\s>]+))?/gi;
   for (const match of attrsString.matchAll(attrPattern)) {
     const { attr: attrName, dq, sq, uq } = match.groups!;
-    if (!attrName || attrName === SSR_ATTR || attrName === LAZY_ATTR) continue;
+    if (!attrName || RESERVED_ATTRS.has(attrName)) continue;
     const key = attrName.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
     const rawValue = dq ?? sq ?? uq;
     if (rawValue === undefined) {

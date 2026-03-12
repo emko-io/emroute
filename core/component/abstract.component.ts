@@ -43,7 +43,7 @@ export abstract class Component<
    */
   readonly exposeSsrData?: boolean;
 
-  abstract getData(args: this['DataArgs']): Promise<TData | null>;
+  getData(_args: this['DataArgs']): Promise<TData | null> { return Promise.resolve(null); }
   abstract renderMarkdown(args: this['RenderArgs']): string;
 
   renderHTML(args: this['RenderArgs']): string {

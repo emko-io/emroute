@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.0-beta.4] - 2026-03-12
+
+### Fixed
+
+- **Widget attribute parsing**: Standard HTML attributes (`style`, `class`, `id`,
+  `slot`, `part`) are now skipped when parsing widget params. Previously,
+  `ComponentElement` picked up `style` (set by itself via `contentVisibility`)
+  and other non-param attributes into the widget's params object. Both SSR
+  (`parseAttrsToParams`) and browser (`ComponentElement.connectedCallback`) now
+  share a `RESERVED_ATTRS` set from `html.util.ts`.
+
+### Changed
+
+- **`Component.getData` default no-op**: `getData` is no longer abstract — it
+  returns `Promise.resolve(null)` by default. Components that don't fetch data
+  no longer need a boilerplate override. `renderMarkdown` remains abstract (a
+  component that produces nothing in `/md/` is a bug, not a default).
+
 ## [1.10.0-beta.3] - 2026-03-12
 
 ### Changed

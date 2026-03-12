@@ -217,6 +217,39 @@ class Pipeline {
     }
     return hierarchy;
   }
+  async findWidgetModulePath(name) {
+    const response = await this.runtime.query(WIDGETS_MANIFEST_PATH);
+    if (response.status === 404)
+      return;
+    const entries = await response.json();
+    return entries.find((e) => e.name === name)?.modulePath;
+  }
+  async loadWidgetModule(name) {
+    const path = await this.findWidgetModulePath(name);
+    if (!path)
+      return;
+    const mod = await this.loadModule(path);
+    const component = this.extractWidgetComponent(mod);
+    if (!component)
+      return;
+    return { component, files: this.getModuleFiles(mod) ?? {} };
+  }
+  async loadWidget(name) {
+    return (await this.loadWidgetModule(name))?.component;
+  }
+  extractWidgetComponent(mod) {
+    for (const value of Object.values(mod)) {
+      if (!value)
+        continue;
+      if (typeof value === "object" && "getData" in value) {
+        return value;
+      }
+      if (typeof value === "function" && value.prototype?.getData) {
+        return new value;
+      }
+    }
+    return;
+  }
   async loadModule(modulePath) {
     const loader = this.moduleLoaders[modulePath];
     if (loader) {
@@ -330,7 +363,7 @@ async function resolveRecursively(content, parse, resolve, replace, depth = 0, l
   }));
   return replace(content, replacements);
 }
-function resolveWidgetTags(html, getWidget, routeInfo, loadFiles, contextProvider, logger = defaultLogger) {
+function resolveWidgetTags(html, getWidget, routeInfo, contextProvider, logger = defaultLogger) {
   const tagPattern = /<widget-(?<name>[a-z][a-z0-9-]*)(?<attrs>\s[^>]*)?>(?<content>.*?)<\/widget-\k<name>>/gis;
   const wrappers = new Map;
   const ssrAttrPattern = new RegExp(`\\s${SSR_ATTR}(?:\\s|=|$)`);
@@ -344,15 +377,12 @@ function resolveWidgetTags(html, getWidget, routeInfo, loadFiles, contextProvide
   const resolve = async (match) => {
     const widgetName = match.groups.name;
     const attrsString = match.groups.attrs?.trim() ?? "";
-    const widget = await getWidget(widgetName);
-    if (!widget)
-      return match[0];
-    const params = parseAttrsToParams(attrsString);
     try {
-      let files;
-      if (loadFiles) {
-        files = await loadFiles(widgetName);
-      }
+      const result = await getWidget(widgetName);
+      if (!result)
+        return match[0];
+      const { component: widget, files } = result;
+      const params = parseAttrsToParams(attrsString);
       const baseContext = {
         ...routeInfo,
         pathname: routeInfo.url.pathname,
@@ -541,73 +571,13 @@ class PageComponent extends Component {
 }
 var page_component_default = new PageComponent;
 
-// core/widget/widget.registry.ts
-class WidgetRegistry {
-  entries = new Map;
-  add(widget, modulePath) {
-    this.entries.set(widget.name, { widget, modulePath });
-  }
-  addLazy(name, modulePath) {
-    if (!this.entries.has(name)) {
-      this.entries.set(name, { modulePath });
-    }
-  }
-  get(name) {
-    return this.entries.get(name)?.widget;
-  }
-  getModulePath(name) {
-    return this.entries.get(name)?.modulePath;
-  }
-  [Symbol.iterator]() {
-    const entries = this.entries.values();
-    return function* () {
-      for (const entry of entries) {
-        if (entry.widget)
-          yield entry.widget;
-      }
-    }();
-  }
-}
-function extractWidgetExport(mod) {
-  for (const value of Object.values(mod)) {
-    if (!value)
-      continue;
-    if (typeof value === "object" && "getData" in value) {
-      return value;
-    }
-    if (typeof value === "function" && value.prototype?.getData) {
-      return new value;
-    }
-  }
-  return null;
-}
-
 // core/renderer/ssr.renderer.ts
 class SsrRenderer {
   pipeline;
-  widgets;
   logger;
-  constructor(pipeline, options = {}) {
+  constructor(pipeline, _options = {}) {
     this.pipeline = pipeline;
     this.logger = pipeline.logger;
-    this.widgets = options.widgets ?? null;
-  }
-  async resolveWidget(name) {
-    if (!this.widgets)
-      return;
-    const widget = this.widgets.get(name);
-    if (widget)
-      return widget;
-    const path = this.widgets.getModulePath(name);
-    if (!path)
-      return;
-    try {
-      const mod = await this.pipeline.loadModule(path);
-      return extractWidgetExport(mod) ?? undefined;
-    } catch (e) {
-      this.logger.error(`[${this.label}] Failed to load widget "${name}"`, e instanceof Error ? e : undefined);
-      return;
-    }
   }
   async render(url, signal) {
     const matched = await this.pipeline.match(url);
@@ -772,18 +742,16 @@ class SsrHtmlRenderer extends SsrRenderer {
     let content = rawContent;
     content = await this.expandMarkdown(content);
     content = this.attributeSlots(content, route.pattern);
-    if (this.widgets) {
-      content = await resolveWidgetTags(content, (name) => this.resolveWidget(name), routeInfo, async (name) => {
-        const modulePath = this.widgets.getModulePath(name);
-        if (modulePath) {
-          const mod = await this.pipeline.loadModule(modulePath);
-          const inlined = this.pipeline.getModuleFiles(mod);
-          if (inlined)
-            return inlined;
-        }
-        return {};
-      }, this.pipeline.contextProvider, this.logger);
-    }
+    const widgetCache = new Map;
+    content = await resolveWidgetTags(content, (name) => {
+      if (!widgetCache.has(name)) {
+        widgetCache.set(name, this.pipeline.loadWidgetModule(name).catch((e) => {
+          this.logger.error(`[${this.label}] Failed to load widget "${name}"`, e instanceof Error ? e : undefined);
+          return;
+        }));
+      }
+      return widgetCache.get(name);
+    }, routeInfo, this.pipeline.contextProvider, this.logger);
     return { content, ...title !== undefined ? { title } : {} };
   }
   renderContent(component, args) {
@@ -895,9 +863,7 @@ class SsrMdRenderer extends SsrRenderer {
     const { content: rawContent, title } = await this.loadRouteContent(routeInfo, route, isLeaf, signal);
     let content = rawContent;
     content = content.replaceAll(BARE_SLOT_BLOCK, routerSlotBlock(route.pattern));
-    if (this.widgets) {
-      content = await this.resolveWidgets(content, routeInfo);
-    }
+    content = await this.resolveWidgets(content, routeInfo);
     return { content, ...title !== undefined ? { title } : {} };
   }
   renderContent(component, args) {
@@ -917,21 +883,26 @@ Path: \`${url.pathname}\``;
 Path: \`${url.pathname}\``;
   }
   resolveWidgets(content, routeInfo) {
+    const widgetCache = new Map;
+    const loadWidget = (name) => {
+      if (!widgetCache.has(name)) {
+        widgetCache.set(name, this.pipeline.loadWidgetModule(name).catch((e) => {
+          this.logger.error(`[${this.label}] Failed to load widget "${name}"`, e instanceof Error ? e : undefined);
+          return;
+        }));
+      }
+      return widgetCache.get(name);
+    };
     return resolveRecursively(content, parseWidgetBlocks, async (block) => {
       if (block.parseError || !block.params) {
         return `> **Error** (\`${block.widgetName}\`): ${block.parseError}`;
       }
-      const widget = await this.resolveWidget(block.widgetName);
-      if (!widget) {
+      const result = await loadWidget(block.widgetName);
+      if (!result) {
         return `> **Error**: Unknown widget \`${block.widgetName}\``;
       }
+      const { component: widget, files } = result;
       try {
-        let files;
-        const modulePath = this.widgets.getModulePath(block.widgetName);
-        if (modulePath) {
-          const mod = await this.pipeline.loadModule(modulePath);
-          files = this.pipeline.getModuleFiles(mod);
-        }
         const baseContext = {
           ...routeInfo,
           pathname: routeInfo.url.pathname,
@@ -1012,31 +983,13 @@ class Emroute {
       ...config.extendContext ? { contextProvider: config.extendContext } : {},
       ...config.moduleLoaders ? { moduleLoaders: config.moduleLoaders } : {}
     });
-    let widgets;
-    const widgetsResponse = await runtime.query(WIDGETS_MANIFEST_PATH);
-    if (widgetsResponse.status !== 404) {
-      const entries = await widgetsResponse.json();
-      widgets = new WidgetRegistry;
-      for (const entry of entries) {
-        widgets.addLazy(entry.name, entry.modulePath);
-      }
-    }
-    if (config.widgets) {
-      if (!widgets)
-        widgets = new WidgetRegistry;
-      for (const w of config.widgets)
-        widgets.add(w);
-    }
     let ssrHtmlRenderer = null;
     let ssrMdRenderer = null;
     if (spa !== "only") {
       ssrHtmlRenderer = new SsrHtmlRenderer(pipeline, {
-        ...config.markdownRenderer ? { markdownRenderer: config.markdownRenderer } : {},
-        ...widgets ? { widgets } : {}
+        ...config.markdownRenderer ? { markdownRenderer: config.markdownRenderer } : {}
       });
-      ssrMdRenderer = new SsrMdRenderer(pipeline, {
-        ...widgets ? { widgets } : {}
-      });
+      ssrMdRenderer = new SsrMdRenderer(pipeline);
     }
     const title = config.title ?? "emroute";
     const shellBase = spa === "root" || spa === "only" ? appBase : htmlBase;

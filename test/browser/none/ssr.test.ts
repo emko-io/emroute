@@ -355,6 +355,17 @@ describe('SSR HTML renderer', () => {
     expect(html).toContain('<widget-failing');
   });
 
+  // --- Nested widget: SSR rendering ---
+
+  test('nested widget: nesting widget renders greeting widget inside', async () => {
+    const res = await fetch(baseUrl('/html/widgets-html'));
+    expect(res.status).toEqual(200);
+    const html = await res.text();
+    expect(html).toContain('<widget-nesting');
+    expect(html).toContain('Wrapper');
+    expect(html).toContain('Hello, Nested!');
+  });
+
   // --- Widgets in Markdown: SSR rendering ---
 
   test('widgets in .page.md are rendered server-side via resolveWidgetTags', async () => {
@@ -714,6 +725,17 @@ describe('SSR Markdown renderer', () => {
     expect(md).toContain('Hello, Developer!');
     expect(md).toContain('[SSR] Widget Rendering');
     expect(md.includes('Widget data fetch failed') || md.includes('Error')).toBeTruthy();
+    expect(md.includes('```widget:')).toBe(false);
+  });
+
+  // --- Nested widget: SSR markdown rendering ---
+
+  test('nested widget: nesting widget renders greeting inside in markdown', async () => {
+    const res = await fetch(baseUrl('/md/widgets'));
+    expect(res.status).toEqual(200);
+    const md = await res.text();
+    expect(md).toContain('Wrapper:');
+    expect(md).toContain('Hello, Nested!');
     expect(md.includes('```widget:')).toBe(false);
   });
 

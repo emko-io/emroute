@@ -15,17 +15,15 @@ import { test, expect, describe } from 'bun:test';
 import { parseAttrsToParams, resolveWidgetTags } from '../../core/util/widget-resolve.util.ts';
 import { WidgetComponent } from '../../core/component/widget.component.ts';
 import { Component } from '../../core/component/abstract.component.ts';
-import type { ComponentContext, ContextProvider } from '../../core/type/component.type.ts';
+import type { ComponentContext, ContextProvider, FileContents } from '../../core/type/component.type.ts';
 import type { RouteInfo } from '../../core/type/route.type.ts';
 
 /**
  * Test Helpers
  */
 
-/** File loader type for widget file loading */
-type WidgetFileLoader = (
-  widgetName: string,
-) => Promise<{ html?: string; md?: string; css?: string }>;
+/** Resolved widget type matching the resolveWidgetTags callback signature */
+type ResolvedWidget = { component: Component; files?: FileContents };
 
 /** Create a test RouteInfo for widget resolution */
 function createTestRouteInfo(
@@ -199,9 +197,11 @@ class MockRegistry {
     return this.widgets.get(name);
   }
 
-  /** Async getter matching the `resolveWidgetTags` signature. */
-  getWidget = (name: string): Promise<Component | undefined> =>
-    Promise.resolve(this.widgets.get(name));
+  /** Async getter matching the `resolveWidgetTags` callback signature. */
+  getWidget = (name: string): Promise<ResolvedWidget | undefined> => {
+    const component = this.widgets.get(name);
+    return Promise.resolve(component ? { component } : undefined);
+  };
 }
 
 /**
@@ -518,41 +518,28 @@ test('resolveWidgetTags - uses context provider if supplied', async () => {
     customProp: 'custom-value',
   });
 
-  const result = await resolveWidgetTags(html, registry.getWidget, routeInfo, undefined, contextProvider);
+  const result = await resolveWidgetTags(html, registry.getWidget, routeInfo, contextProvider);
   expect(result).toContain('Hello Widget');
 });
 
-test('resolveWidgetTags - file loader is called if supplied', async () => {
-  const html = '<widget-file-widget></widget-file-widget>';
-  const registry = new MockRegistry(new FileWidget());
-  const routeInfo = createTestRouteInfo();
-
-  let fileLoaderCalled = false;
-  const fileLoader: WidgetFileLoader = (widgetName: string) => {
-    fileLoaderCalled = true;
-    expect(widgetName).toEqual('file-widget');
-    return Promise.resolve({ html: '<div>Loaded from file</div>' });
-  };
-
-  const result = await resolveWidgetTags(html, registry.getWidget, routeInfo, fileLoader);
-  expect(fileLoaderCalled).toEqual(true);
-  expect(result).toContain('File content');
-});
-
-test('resolveWidgetTags - file loader receives widget name', async () => {
+test('resolveWidgetTags - files from getWidget are passed in context', async () => {
   const html = '<widget-file-widget></widget-file-widget>';
   const fileWidget = new FileWidget();
-  const registry = new MockRegistry(fileWidget);
   const routeInfo = createTestRouteInfo();
 
-  let receivedName: string | undefined;
-  const fileLoader: WidgetFileLoader = (widgetName: string) => {
-    receivedName = widgetName;
-    return Promise.resolve({ html: '<div>Loaded</div>' });
+  const getWidget = (name: string): Promise<ResolvedWidget | undefined> => {
+    if (name === 'file-widget') {
+      return Promise.resolve({
+        component: fileWidget,
+        files: { html: '<div>Loaded from file</div>' },
+      });
+    }
+    return Promise.resolve(undefined);
   };
 
-  await resolveWidgetTags(html, registry.getWidget, routeInfo, fileLoader);
-  expect(receivedName).toEqual('file-widget');
+  const result = await resolveWidgetTags(html, getWidget, routeInfo);
+  expect(result).toContain('File content');
+  expect(result).toContain('<div>Loaded from file</div>');
 });
 
 /**
@@ -588,16 +575,15 @@ test('resolveWidgetTags - error in one widget does not break others', async () =
   expect(result).toContain('<widget-error-widget></widget-error-widget>');
 });
 
-test('resolveWidgetTags - file loader error leaves tag unchanged', async () => {
+test('resolveWidgetTags - getWidget error leaves tag unchanged', async () => {
   const html = '<widget-simple></widget-simple>';
-  const registry = new MockRegistry(new SimpleWidget());
   const routeInfo = createTestRouteInfo();
 
-  const fileLoader: WidgetFileLoader = () => {
-    throw new Error('File load failed');
+  const getWidget = (_name: string): Promise<ResolvedWidget | undefined> => {
+    throw new Error('Widget load failed');
   };
 
-  const result = await resolveWidgetTags(html, registry.getWidget, routeInfo, fileLoader);
+  const result = await resolveWidgetTags(html, getWidget, routeInfo);
   expect(result).toEqual(html);
 });
 

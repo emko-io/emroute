@@ -15,8 +15,6 @@ import type { Logger } from '../type/logger.type.ts';
 import defaultPageComponent, { type PageComponent } from '../component/page.component.ts';
 import { DEFAULT_ROOT_ROUTE, type Pipeline } from '../pipeline/pipeline.ts';
 import { assertSafeRedirect } from '../util/html.util.ts';
-import type { WidgetComponent } from '../component/widget.component.ts';
-
 /** Options for SSR renderers. */
 export interface SsrRendererOptions {
   /** @deprecated Widgets are resolved from the manifest via Runtime. This option is ignored. */
@@ -35,19 +33,6 @@ export abstract class SsrRenderer {
   constructor(pipeline: Pipeline, _options: SsrRendererOptions = {}) {
     this.pipeline = pipeline;
     this.logger = pipeline.logger;
-  }
-
-  /** Resolve a widget by name — queries manifest from Runtime on demand. */
-  protected async resolveWidget(name: string): Promise<WidgetComponent | undefined> {
-    try {
-      return await this.pipeline.loadWidget(name);
-    } catch (e) {
-      this.logger.error(
-        `[${this.label}] Failed to load widget "${name}"`,
-        e instanceof Error ? e : undefined,
-      );
-      return undefined;
-    }
   }
 
   /**

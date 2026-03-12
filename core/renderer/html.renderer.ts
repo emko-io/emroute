@@ -64,20 +64,23 @@ export class SsrHtmlRenderer extends SsrRenderer {
     // Attribute bare <router-slot> tags with this route's pattern
     content = this.attributeSlots(content, route.pattern);
 
-    // Resolve <widget-*> tags
+    // Resolve <widget-*> tags (memoized per render pass for streaming compat)
+    const widgetCache = new Map<string, ReturnType<typeof this.pipeline.loadWidgetModule>>();
     content = await resolveWidgetTags(
       content,
-      (name) => this.resolveWidget(name),
-      routeInfo,
-      async (name) => {
-        const modulePath = await this.pipeline.findWidgetModulePath(name);
-        if (modulePath) {
-          const mod = await this.pipeline.loadModule(modulePath);
-          const inlined = this.pipeline.getModuleFiles(mod);
-          if (inlined) return inlined;
+      (name) => {
+        if (!widgetCache.has(name)) {
+          widgetCache.set(name, this.pipeline.loadWidgetModule(name).catch((e) => {
+            this.logger.error(
+              `[${this.label}] Failed to load widget "${name}"`,
+              e instanceof Error ? e : undefined,
+            );
+            return undefined;
+          }));
         }
-        return {};
+        return widgetCache.get(name)!;
       },
+      routeInfo,
       this.pipeline.contextProvider,
       this.logger,
     );

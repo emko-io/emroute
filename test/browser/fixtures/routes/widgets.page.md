@@ -37,6 +37,12 @@ The custom elements then call `getData()` + `renderHTML()` on the client.
 {"title": "Widget Rendering", "description": "This card was rendered by the server.", "badge": "SSR"}
 ```
 
+## Nesting Widget (renders greeting inside)
+
+```widget:nesting
+{}
+```
+
 ## Failing Widget (error handling)
 
 This widget throws in `getData()`. The SSR Markdown renderer catches the

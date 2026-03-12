@@ -139,12 +139,19 @@ export class Pipeline {
     return entries.find((e) => e.name === name)?.modulePath;
   }
 
-  /** Load a widget by name — manifest lookup → module load → extract component. */
-  async loadWidget(name: string): Promise<WidgetComponent | undefined> {
+  /** Load a widget module by name — single load yields both component and files. */
+  async loadWidgetModule(name: string): Promise<{ component: WidgetComponent; files: FileContents } | undefined> {
     const path = await this.findWidgetModulePath(name);
     if (!path) return undefined;
     const mod = await this.loadModule<Record<string, unknown>>(path);
-    return this.extractWidgetComponent(mod);
+    const component = this.extractWidgetComponent(mod);
+    if (!component) return undefined;
+    return { component, files: this.getModuleFiles(mod) ?? {} };
+  }
+
+  /** Load a widget by name — shorthand when only the component is needed. */
+  async loadWidget(name: string): Promise<WidgetComponent | undefined> {
+    return (await this.loadWidgetModule(name))?.component;
   }
 
   /** Extract a WidgetComponent from a loaded module's exports. */

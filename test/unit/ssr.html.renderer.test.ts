@@ -300,6 +300,218 @@ test('SsrHtmlRenderer - multiple widgets on same page resolve concurrently', asy
 });
 
 // ============================================================================
+// Nested Widget Resolution Tests
+// ============================================================================
+
+test('SsrHtmlRenderer - nested widget: outer widget renders inner widget', async () => {
+  class InnerWidget extends WidgetComponent<Record<string, unknown>, { text: string }> {
+    override readonly name = 'inner';
+    override getData() { return Promise.resolve({ text: 'Inner Content' }); }
+    override renderHTML({ data }: this['RenderArgs']) { return `<em>${data!.text}</em>`; }
+    override renderMarkdown() { return ''; }
+  }
+
+  class OuterWidget extends WidgetComponent<Record<string, unknown>, { text: string }> {
+    override readonly name = 'outer';
+    override getData() { return Promise.resolve({ text: 'Outer' }); }
+    override renderHTML({ data }: this['RenderArgs']) {
+      return `<div>${data!.text}: <widget-inner></widget-inner></div>`;
+    }
+    override renderMarkdown() { return ''; }
+  }
+
+  const routes: RouteConfig[] = [
+    createTestRoute({ pattern: '/nested', modulePath: '/nested.page.html', files: { html: '/nested.page.html' } }),
+  ];
+  const runtime = new MockRuntime();
+  runtime.set('/nested.page.html', '<widget-outer></widget-outer>');
+
+  const renderer = createRenderer(createTestManifest({
+    routes,
+    widgetEntries: [
+      { name: 'outer', modulePath: '/widgets/outer.js' },
+      { name: 'inner', modulePath: '/widgets/inner.js' },
+    ],
+    moduleLoaders: {
+      '/widgets/outer.js': () => Promise.resolve({ default: new OuterWidget() }),
+      '/widgets/inner.js': () => Promise.resolve({ default: new InnerWidget() }),
+    },
+  }), runtime);
+  const result = await renderer.render(url('http://localhost/nested'));
+
+  expect(result.status).toEqual(200);
+  expect(result.content).toContain('Outer:');
+  expect(result.content).toContain('<em>Inner Content</em>');
+});
+
+test('SsrHtmlRenderer - nested widget with params passed through', async () => {
+  class ChildWidget extends WidgetComponent<{ label?: string }, { label: string }> {
+    override readonly name = 'child';
+    override getData({ params }: this['DataArgs']) {
+      return Promise.resolve({ label: String(params.label ?? 'default') });
+    }
+    override renderHTML({ data }: this['RenderArgs']) { return `<b>${data!.label}</b>`; }
+    override renderMarkdown() { return ''; }
+  }
+
+  class ParentWidget extends WidgetComponent<Record<string, unknown>, null> {
+    override readonly name = 'parent';
+    override getData() { return Promise.resolve(null); }
+    override renderHTML() {
+      return '<section><widget-child label="from-parent"></widget-child></section>';
+    }
+    override renderMarkdown() { return ''; }
+  }
+
+  const routes: RouteConfig[] = [
+    createTestRoute({ pattern: '/nested-params', modulePath: '/nested-params.page.html', files: { html: '/nested-params.page.html' } }),
+  ];
+  const runtime = new MockRuntime();
+  runtime.set('/nested-params.page.html', '<widget-parent></widget-parent>');
+
+  const renderer = createRenderer(createTestManifest({
+    routes,
+    widgetEntries: [
+      { name: 'parent', modulePath: '/widgets/parent.js' },
+      { name: 'child', modulePath: '/widgets/child.js' },
+    ],
+    moduleLoaders: {
+      '/widgets/parent.js': () => Promise.resolve({ default: new ParentWidget() }),
+      '/widgets/child.js': () => Promise.resolve({ default: new ChildWidget() }),
+    },
+  }), runtime);
+  const result = await renderer.render(url('http://localhost/nested-params'));
+
+  expect(result.status).toEqual(200);
+  expect(result.content).toContain('<b>from-parent</b>');
+});
+
+test('SsrHtmlRenderer - widget module loaded once per name despite multiple occurrences', async () => {
+  let loadCount = 0;
+
+  const routes: RouteConfig[] = [
+    createTestRoute({ pattern: '/dedup', modulePath: '/dedup.page.html', files: { html: '/dedup.page.html' } }),
+  ];
+  const runtime = new MockRuntime();
+  runtime.set('/dedup.page.html', `
+    <widget-test-widget name="a"></widget-test-widget>
+    <widget-test-widget name="b"></widget-test-widget>
+    <widget-test-widget name="c"></widget-test-widget>
+  `);
+
+  const renderer = createRenderer(createTestManifest({
+    routes,
+    widgetEntries: [{ name: 'test-widget', modulePath: '/widgets/test-widget.js' }],
+    moduleLoaders: {
+      '/widgets/test-widget.js': () => {
+        loadCount++;
+        return Promise.resolve({ default: new TestWidget() });
+      },
+    },
+  }), runtime);
+  const result = await renderer.render(url('http://localhost/dedup'));
+
+  expect(result.status).toEqual(200);
+  expect(result.content).toContain('Widget: a');
+  expect(result.content).toContain('Widget: b');
+  expect(result.content).toContain('Widget: c');
+  expect(loadCount).toEqual(1);
+});
+
+test('SsrHtmlRenderer - nested self-referencing widget loads module once', async () => {
+  let loadCount = 0;
+  let callCount = 0;
+
+  class CountingWidget extends WidgetComponent<Record<string, unknown>, { n: number }> {
+    override readonly name = 'counting';
+    override getData() {
+      callCount++;
+      return Promise.resolve({ n: callCount });
+    }
+    override renderHTML({ data }: this['RenderArgs']) {
+      if (data!.n >= 3) return `<span>leaf-${data!.n}</span>`;
+      return `<span>node-${data!.n}:<widget-counting></widget-counting></span>`;
+    }
+    override renderMarkdown() { return ''; }
+  }
+
+  const routes: RouteConfig[] = [
+    createTestRoute({ pattern: '/recursive', modulePath: '/recursive.page.html', files: { html: '/recursive.page.html' } }),
+  ];
+  const runtime = new MockRuntime();
+  runtime.set('/recursive.page.html', '<widget-counting></widget-counting>');
+
+  const renderer = createRenderer(createTestManifest({
+    routes,
+    widgetEntries: [{ name: 'counting', modulePath: '/widgets/counting.js' }],
+    moduleLoaders: {
+      '/widgets/counting.js': () => {
+        loadCount++;
+        return Promise.resolve({ default: new CountingWidget() });
+      },
+    },
+  }), runtime);
+  const result = await renderer.render(url('http://localhost/recursive'));
+
+  expect(result.status).toEqual(200);
+  expect(result.content).toContain('node-1:');
+  expect(result.content).toContain('node-2:');
+  expect(result.content).toContain('leaf-3');
+  expect(loadCount).toEqual(1);
+  expect(callCount).toEqual(3);
+});
+
+test('SsrHtmlRenderer - different widgets each load once in nested scenario', async () => {
+  const loads = new Map<string, number>();
+
+  class AlphaWidget extends WidgetComponent<Record<string, unknown>, null> {
+    override readonly name = 'alpha';
+    override getData() { return Promise.resolve(null); }
+    override renderHTML() { return '<div>Alpha:<widget-beta></widget-beta></div>'; }
+    override renderMarkdown() { return ''; }
+  }
+
+  class BetaWidget extends WidgetComponent<Record<string, unknown>, null> {
+    override readonly name = 'beta';
+    override getData() { return Promise.resolve(null); }
+    override renderHTML() { return '<span>Beta</span>'; }
+    override renderMarkdown() { return ''; }
+  }
+
+  const routes: RouteConfig[] = [
+    createTestRoute({ pattern: '/multi', modulePath: '/multi.page.html', files: { html: '/multi.page.html' } }),
+  ];
+  const runtime = new MockRuntime();
+  runtime.set('/multi.page.html', '<widget-alpha></widget-alpha><widget-beta></widget-beta>');
+
+  const renderer = createRenderer(createTestManifest({
+    routes,
+    widgetEntries: [
+      { name: 'alpha', modulePath: '/widgets/alpha.js' },
+      { name: 'beta', modulePath: '/widgets/beta.js' },
+    ],
+    moduleLoaders: {
+      '/widgets/alpha.js': () => {
+        loads.set('alpha', (loads.get('alpha') ?? 0) + 1);
+        return Promise.resolve({ default: new AlphaWidget() });
+      },
+      '/widgets/beta.js': () => {
+        loads.set('beta', (loads.get('beta') ?? 0) + 1);
+        return Promise.resolve({ default: new BetaWidget() });
+      },
+    },
+  }), runtime);
+  const result = await renderer.render(url('http://localhost/multi'));
+
+  expect(result.status).toEqual(200);
+  expect(result.content).toContain('Alpha:');
+  expect(result.content).toContain('Beta');
+  // beta appears at top level AND nested inside alpha — still loaded once
+  expect(loads.get('alpha')).toEqual(1);
+  expect(loads.get('beta')).toEqual(1);
+});
+
+// ============================================================================
 // Status Page Rendering Tests
 // ============================================================================
 

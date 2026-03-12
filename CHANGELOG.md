@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.0-beta.3] - 2026-03-12
+
+### Changed
+
+- **Per-render widget memoization**: Widget modules are loaded once per unique
+  name per render pass via a `Map<string, Promise>` cache scoped to each
+  `renderRouteContent` call. Eliminates redundant module loads across recursive
+  widget nesting and repeated widget occurrences on the same page.
+
+- **Single module load for widget + files**: `Pipeline.loadWidgetModule(name)`
+  returns both `{ component, files }` from a single `loadModule()` call.
+  Previously, the HTML and MD renderers loaded the same module twice — once for
+  the widget component, once for `__files`. The separate `loadFiles` callback
+  in `resolveWidgetTags` has been removed.
+
+- **`resolveWidgetTags` signature**: The `getWidget` callback now returns
+  `{ component, files }` instead of just `Component`. The `loadFiles` parameter
+  has been removed — files come from the same module load as the component.
+
+- **Widget error handling widened**: `resolveWidgetTags` now catches errors from
+  the `getWidget` callback (not just from `getData`/`renderHTML`), leaving the
+  tag unchanged on load failure.
+
+### Removed
+
+- **`SsrRenderer.resolveWidget()`**: Method removed. Both renderers now handle
+  widget loading and error handling via their per-render memoized callbacks.
+
 ## [1.10.0-beta.1] - 2026-03-11
 
 ### Removed

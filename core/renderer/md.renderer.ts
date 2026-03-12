@@ -85,6 +85,20 @@ export class SsrMdRenderer extends SsrRenderer {
     content: string,
     routeInfo: RouteInfo,
   ): Promise<string> {
+    const widgetCache = new Map<string, ReturnType<typeof this.pipeline.loadWidgetModule>>();
+    const loadWidget = (name: string) => {
+      if (!widgetCache.has(name)) {
+        widgetCache.set(name, this.pipeline.loadWidgetModule(name).catch((e) => {
+          this.logger.error(
+            `[${this.label}] Failed to load widget "${name}"`,
+            e instanceof Error ? e : undefined,
+          );
+          return undefined;
+        }));
+      }
+      return widgetCache.get(name)!;
+    };
+
     return resolveRecursively(
       content,
       parseWidgetBlocks,
@@ -93,19 +107,14 @@ export class SsrMdRenderer extends SsrRenderer {
           return `> **Error** (\`${block.widgetName}\`): ${block.parseError}`;
         }
 
-        const widget = await this.resolveWidget(block.widgetName);
-        if (!widget) {
+        const result = await loadWidget(block.widgetName);
+        if (!result) {
           return `> **Error**: Unknown widget \`${block.widgetName}\``;
         }
 
-        try {
-          let files: { html?: string; md?: string } | undefined;
-          const modulePath = await this.pipeline.findWidgetModulePath(block.widgetName);
-          if (modulePath) {
-            const mod = await this.pipeline.loadModule(modulePath);
-            files = this.pipeline.getModuleFiles(mod);
-          }
+        const { component: widget, files } = result;
 
+        try {
           const baseContext: ComponentContext = {
             ...routeInfo,
             pathname: routeInfo.url.pathname,

@@ -6,7 +6,7 @@
  */
 
 import type { Component } from '../component/abstract.component.ts';
-import type { ComponentContext, ContextProvider } from '../type/component.type.ts';
+import type { ComponentContext, ContextProvider, FileContents } from '../type/component.type.ts';
 import { type Logger, defaultLogger } from '../type/logger.type.ts';
 import type { RouteInfo } from '../type/route.type.ts';
 import { LAZY_ATTR, SSR_ATTR } from './html.util.ts';
@@ -53,11 +53,8 @@ export async function resolveRecursively<T>(
  */
 export function resolveWidgetTags(
   html: string,
-  getWidget: (name: string) => Promise<Component | undefined>,
+  getWidget: (name: string) => Promise<{ component: Component; files?: FileContents } | undefined>,
   routeInfo: RouteInfo,
-  loadFiles?: (
-    widgetName: string,
-  ) => Promise<{ html?: string; md?: string; css?: string }>,
   contextProvider?: ContextProvider,
   logger: Logger = defaultLogger,
 ): Promise<string> {
@@ -78,17 +75,13 @@ export function resolveWidgetTags(
   const resolve = async (match: RegExpExecArray): Promise<string> => {
     const widgetName = match.groups!.name!;
     const attrsString = match.groups!.attrs?.trim() ?? '';
-    const widget = await getWidget(widgetName);
-
-    if (!widget) return match[0];
-
-    const params = parseAttrsToParams(attrsString);
 
     try {
-      let files: { html?: string; md?: string; css?: string } | undefined;
-      if (loadFiles) {
-        files = await loadFiles(widgetName);
-      }
+      const result = await getWidget(widgetName);
+      if (!result) return match[0];
+
+      const { component: widget, files } = result;
+      const params = parseAttrsToParams(attrsString);
 
       const baseContext: ComponentContext = {
         ...routeInfo,

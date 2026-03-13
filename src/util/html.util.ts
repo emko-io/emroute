@@ -17,15 +17,49 @@ export {
 } from '../../core/util/html.util.ts';
 
 /**
+ * SSR-compatible CSSStyleSheet mock.
+ * Stores cssText for serialization into <style> tags during SSR.
+ */
+class SsrCSSStyleSheet {
+  cssText = '';
+
+  replaceSync(css: string): void {
+    this.cssText = css;
+  }
+
+  replace(css: string): Promise<SsrCSSStyleSheet> {
+    this.cssText = css;
+    return Promise.resolve(this);
+  }
+}
+
+/** Server-safe CSSStyleSheet: real in browser, mock on server. */
+export const CSSStyleSheetBase = globalThis.CSSStyleSheet ??
+  (SsrCSSStyleSheet as unknown as typeof CSSStyleSheet);
+
+/**
  * SSR-compatible ShadowRoot mock.
  */
 class SsrShadowRoot {
   private _innerHTML = '';
+  private _adoptedStyleSheets: SsrCSSStyleSheet[] = [];
 
   constructor(public readonly host: SsrHTMLElement) {}
 
+  get adoptedStyleSheets(): SsrCSSStyleSheet[] {
+    return this._adoptedStyleSheets;
+  }
+
+  set adoptedStyleSheets(sheets: SsrCSSStyleSheet[]) {
+    this._adoptedStyleSheets = sheets;
+  }
+
   get innerHTML(): string {
-    return this._innerHTML;
+    const adopted = this._adoptedStyleSheets
+      .filter(s => s.cssText)
+      .map(s => `<style>${s.cssText}</style>`)
+      .join('');
+    return adopted + this._innerHTML;
   }
 
   set innerHTML(value: string) {

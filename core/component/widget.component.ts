@@ -12,7 +12,7 @@
 
 import { Component } from './abstract.component.ts';
 import type { ComponentContext } from '../type/component.type.ts';
-import { escapeHtml, scopeWidgetCss } from '../util/html.util.ts';
+import { escapeHtml } from '../util/html.util.ts';
 
 export abstract class WidgetComponent<
   TParams = unknown,
@@ -23,18 +23,13 @@ export abstract class WidgetComponent<
     args: this['RenderArgs'],
   ): string {
     const files = args.context.files;
-    const style = files?.css ? `<style>${scopeWidgetCss(files.css, this.name)}</style>\n` : '';
 
     if (files?.html) {
-      return style + files.html;
+      return files.html;
     }
 
     if (files?.md) {
-      return `${style}<mark-down>${escapeHtml(files.md)}</mark-down>`;
-    }
-
-    if (style) {
-      return style + super.renderHTML(args);
+      return `<mark-down>${escapeHtml(files.md)}</mark-down>`;
     }
 
     return super.renderHTML(args);

@@ -9,7 +9,7 @@ import type { Component } from '../component/abstract.component.ts';
 import type { ComponentContext, ContextProvider, FileContents } from '../type/component.type.ts';
 import { type Logger, defaultLogger } from '../type/logger.type.ts';
 import type { RouteInfo } from '../type/route.type.ts';
-import { RESERVED_ATTRS, SSR_ATTR } from './html.util.ts';
+import { RESERVED_ATTRS, SSR_ATTR, scopeWidgetCss } from './html.util.ts';
 
 /** Maximum nesting depth for widgets to prevent infinite loops */
 export const MAX_WIDGET_DEPTH = 10;
@@ -92,7 +92,8 @@ export function resolveWidgetTags(
       const context: ComponentContext = contextProvider ? contextProvider(baseContext) : baseContext;
 
       const data = await widget.getData({ params, context });
-      const rendered = widget.renderHTML({ data, params, context });
+      const cssStyle = files?.css ? `<style>${scopeWidgetCss(files.css, widgetName)}</style>` : '';
+      const rendered = cssStyle + widget.renderHTML({ data, params, context });
 
       wrappers.set(match, {
         tagName: `widget-${widgetName}`,

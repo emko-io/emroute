@@ -6,7 +6,7 @@
  * file for styling, demonstrating the widget CSS feature.
  */
 
-import { scopeWidgetCss, WidgetComponent } from '@emkodev/emroute';
+import { WidgetComponent } from '@emkodev/emroute';
 
 interface NavLink {
   label: string;
@@ -48,12 +48,9 @@ class NavWidget extends WidgetComponent<Record<string, unknown>, NavData> {
   }
 
   override renderHTML(args: this['RenderArgs']): string {
-    const { data, context } = args;
-    const style = context.files?.css
-      ? `<style>${scopeWidgetCss(context.files.css, this.name)}</style>\n`
-      : '';
+    const { data } = args;
 
-    if (!data) return `${style}<nav class="site-nav">Loading...</nav>`;
+    if (!data) return `<nav class="site-nav">Loading...</nav>`;
 
     const items = data.links
       .map((link) => {
@@ -62,7 +59,7 @@ class NavWidget extends WidgetComponent<Record<string, unknown>, NavData> {
       })
       .join('\n      ');
 
-    return `${style}<nav class="site-nav">
+    return `<nav class="site-nav">
       ${items}
     </nav>`;
   }

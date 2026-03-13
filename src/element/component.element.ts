@@ -11,8 +11,8 @@
 
 import type { Component } from '../../core/component/abstract.component.ts';
 import type { ComponentContext, ContextProvider } from '../../core/type/component.type.ts';
-import { HTMLElementBase } from '../util/html.util.ts';
-import { LAZY_ATTR, RESERVED_ATTRS, SSR_ATTR } from '../../core/util/html.util.ts';
+import { CSSStyleSheetBase, HTMLElementBase } from '../util/html.util.ts';
+import { LAZY_ATTR, RESERVED_ATTRS, SSR_ATTR, scopeWidgetCss } from '../../core/util/html.util.ts';
 
 type ComponentState = 'idle' | 'loading' | 'ready' | 'error';
 
@@ -35,6 +35,9 @@ type WidgetFiles = { html?: string; md?: string; css?: string };
 export class ComponentElement<TParams, TData> extends HTMLElementBase {
   /** Lazy module loaders keyed by tag name — set by registerLazy(). */
   private static lazyLoaders = new Map<string, () => Promise<unknown>>();
+
+  /** Shared CSSStyleSheet cache — keyed by widget name for cross-instance sharing. */
+  private static sheetCache = new Map<string, CSSStyleSheet>();
 
   /** App-level context provider set once during router initialization. */
   private static extendContext: ContextProvider | undefined;
@@ -244,6 +247,9 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
     };
     this.context = ComponentElement.extendContext ? ComponentElement.extendContext(base) : base;
 
+    // Apply CSS via adoptedStyleSheets (shared across instances)
+    this.adoptCss();
+
     // Hydrate from SSR: adopt content from Declarative Shadow DOM
     if (this.hasAttribute(SSR_ATTR)) {
       this.removeAttribute(SSR_ATTR);
@@ -326,6 +332,21 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
    */
   private async loadFiles(): Promise<{ html?: string; md?: string; css?: string }> {
     return this.effectiveFiles ?? {};
+  }
+
+  /** Apply CSS via adoptedStyleSheets with cross-instance sheet sharing. */
+  private adoptCss(): void {
+    const css = this.effectiveFiles?.css;
+    if (!css) return;
+
+    const name = this.component.name;
+    let sheet = ComponentElement.sheetCache.get(name);
+    if (!sheet) {
+      sheet = new CSSStyleSheetBase();
+      sheet.replaceSync(scopeWidgetCss(css, name));
+      ComponentElement.sheetCache.set(name, sheet);
+    }
+    this.shadowRoot!.adoptedStyleSheets = [sheet];
   }
 
   private async loadData(): Promise<void> {

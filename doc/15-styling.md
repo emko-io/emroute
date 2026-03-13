@@ -22,7 +22,7 @@ The CSS is delivered to the shadow root through two complementary mechanisms:
   when the element connects. Multiple instances of the same widget share a
   single sheet object in memory.
 
-The CSS is wrapped in `@scope (widget-{name})` for additional scoping:
+The CSS is wrapped in `@layer emroute` and `@scope (widget-{name})`:
 
 ```css
 /* nav.widget.css — written as plain CSS */
@@ -30,11 +30,17 @@ The CSS is wrapped in `@scope (widget-{name})` for additional scoping:
 .site-nav a.active { font-weight: bold; }
 
 /* Injected as: */
-@scope (widget-nav) {
-  .site-nav { display: flex; gap: 1rem; }
-  .site-nav a.active { font-weight: bold; }
+@layer emroute {
+  @scope (widget-nav) {
+    .site-nav { display: flex; gap: 1rem; }
+    .site-nav a.active { font-weight: bold; }
+  }
 }
 ```
+
+The `@layer emroute` ensures companion CSS has the **lowest** cascade priority.
+Any layerless `<style>` in `renderHTML()` always overrides companion CSS,
+regardless of specificity.
 
 ### Inline styles
 
@@ -50,9 +56,8 @@ override renderHTML(args: this['RenderArgs']): string {
 ```
 
 Both approaches coexist — companion CSS (via `adoptedStyleSheets`) and inline
-`<style>` tags merge inside shadow DOM. Note that `adoptedStyleSheets` has
-higher cascade priority than `<style>` elements per spec. If both contain
-conflicting rules at the same specificity, the adopted sheet wins.
+`<style>` tags merge inside shadow DOM. Because companion CSS is wrapped in
+`@layer emroute`, your inline `<style>` always takes precedence.
 
 ## Page CSS
 

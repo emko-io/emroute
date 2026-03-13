@@ -32,6 +32,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   many instances exist on a page. The SSR `<style>` tag in declarative shadow
   DOM remains for no-FOUC rendering before JS loads.
 
+- **`@layer emroute` for companion CSS cascade**: Widget companion CSS is
+  wrapped in `@layer emroute`, giving it the lowest cascade priority. Consumer
+  `<style>` tags in `renderHTML()` are layerless and always override companion
+  CSS, regardless of specificity or `adoptedStyleSheets` ordering.
+
 - **SSR mocks for `CSSStyleSheet` and `ElementInternals`**: The SSR-compatible
   HTMLElement mock now includes `attachInternals()` (returns a mock with a
   `states` Set) and `CSSStyleSheetBase` (server-safe `CSSStyleSheet` with

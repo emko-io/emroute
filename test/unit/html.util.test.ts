@@ -208,18 +208,18 @@ test('unescapeHtml - partial entities (should not convert)', () => {
 test('scopeWidgetCss - basic scoping', () => {
   const css = 'body { color: red; }';
   const result = scopeWidgetCss(css, 'my-widget');
-  expect(result).toEqual('@scope (widget-my-widget) {\nbody { color: red; }\n}');
+  expect(result).toEqual('@layer emroute {\n@scope (widget-my-widget) {\nbody { color: red; }\n}\n}');
 });
 
 test('scopeWidgetCss - with hyphenated widget name', () => {
   const css = '.button { background: blue; }';
   const result = scopeWidgetCss(css, 'awesome-button');
-  expect(result).toEqual('@scope (widget-awesome-button) {\n.button { background: blue; }\n}');
+  expect(result).toEqual('@layer emroute {\n@scope (widget-awesome-button) {\n.button { background: blue; }\n}\n}');
 });
 
 test('scopeWidgetCss - with empty CSS', () => {
   const result = scopeWidgetCss('', 'widget');
-  expect(result).toEqual('@scope (widget-widget) {\n\n}');
+  expect(result).toEqual('@layer emroute {\n@scope (widget-widget) {\n\n}\n}');
 });
 
 test('scopeWidgetCss - with multiline CSS', () => {
@@ -235,8 +235,10 @@ test('scopeWidgetCss - with multiline CSS', () => {
   expect(
     result,
   ).toEqual(
-    `@scope (widget-complex) {
+    `@layer emroute {
+@scope (widget-complex) {
 ${css}
+}
 }`,
   );
 });
@@ -244,13 +246,13 @@ ${css}
 test('scopeWidgetCss - with special characters in widget name', () => {
   const css = 'p { margin: 0; }';
   const result = scopeWidgetCss(css, 'my-awesome-widget-v2');
-  expect(result).toEqual('@scope (widget-my-awesome-widget-v2) {\np { margin: 0; }\n}');
+  expect(result).toEqual('@layer emroute {\n@scope (widget-my-awesome-widget-v2) {\np { margin: 0; }\n}\n}');
 });
 
 test('scopeWidgetCss - with unicode in CSS', () => {
   const css = '.content { content: "你好"; }';
   const result = scopeWidgetCss(css, 'i18n');
-  expect(result).toEqual('@scope (widget-i18n) {\n.content { content: "你好"; }\n}');
+  expect(result).toEqual('@layer emroute {\n@scope (widget-i18n) {\n.content { content: "你好"; }\n}\n}');
 });
 
 test('SSR_ATTR constant', () => {
@@ -353,6 +355,6 @@ test('scopeWidgetCss - does not escape CSS content', () => {
   expect(
     result,
   ).toEqual(
-    '@scope (widget-responsive) {\n@media (max-width: 768px) { body { color: < test >; } }\n}',
+    '@layer emroute {\n@scope (widget-responsive) {\n@media (max-width: 768px) { body { color: < test >; } }\n}\n}',
   );
 });

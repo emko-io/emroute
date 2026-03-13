@@ -41,7 +41,7 @@ export function unescapeHtml(text: string): string {
 }
 
 export function scopeWidgetCss(css: string, widgetName: string): string {
-  return `@scope (widget-${widgetName}) {\n${css}\n}`;
+  return `@layer emroute {\n@scope (widget-${widgetName}) {\n${css}\n}\n}`;
 }
 
 /** Status code to message mapping. */

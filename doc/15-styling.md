@@ -14,9 +14,13 @@ widgets/nav/nav.widget.ts
 widgets/nav/nav.widget.css
 ```
 
-The CSS is automatically loaded and injected as a `<style>` tag inside the
-widget's shadow root — both during SSR (via declarative shadow DOM) and
-client-side rendering (via `setHTMLUnsafe()`).
+The CSS is delivered to the shadow root through two complementary mechanisms:
+
+- **SSR**: A `<style>` tag inside the declarative shadow DOM `<template>`,
+  ensuring styles are visible before JavaScript loads (no FOUC).
+- **Browser**: A shared `CSSStyleSheet` via `adoptedStyleSheets`, applied once
+  when the element connects. Multiple instances of the same widget share a
+  single sheet object in memory.
 
 The CSS is wrapped in `@scope (widget-{name})` for additional scoping:
 
@@ -45,8 +49,10 @@ override renderHTML(args: this['RenderArgs']): string {
 }
 ```
 
-Both approaches coexist — companion CSS and inline `<style>` tags merge
-inside shadow DOM.
+Both approaches coexist — companion CSS (via `adoptedStyleSheets`) and inline
+`<style>` tags merge inside shadow DOM. Note that `adoptedStyleSheets` has
+higher cascade priority than `<style>` elements per spec. If both contain
+conflicting rules at the same specificity, the adopted sheet wins.
 
 ## Page CSS
 
@@ -131,3 +137,24 @@ widget-nav { display: block; }
 /* Only applies once JS has run and widget is ready */
 widget-nav:state(ready) { animation: fade-in 0.2s; }
 ```
+
+## Design note: dual CSS delivery
+
+In modes with SSR (`none`, `leaf`, `root`), companion CSS is present in the
+shadow root twice after hydration: once as a `<style>` tag from the declarative
+shadow DOM template, and once via `adoptedStyleSheets` set by JavaScript. In
+`only` mode, the SSR resolve path also runs (in the browser), producing the
+same duplication.
+
+This is intentional. The SSR `<style>` tag guarantees styles are applied
+immediately when the browser parses the HTML — before any JavaScript executes.
+The `adoptedStyleSheets` sheet provides durability across re-renders (it
+survives `setHTMLUnsafe()` calls) and memory efficiency when many instances of
+the same widget exist on a page.
+
+The duplicate rules are identical in content and specificity, so they produce
+no visual difference or cascade conflicts. Eliminating the duplication would
+require either accepting a flash of unstyled content (by removing the SSR
+`<style>`) or adding mode-aware branching to the resolve path — neither is
+worth the trade-off for what amounts to a few kilobytes of redundant CSS text
+in the DOM.

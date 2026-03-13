@@ -5,6 +5,51 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.0] - 2026-03-13
+
+### Added
+
+- **Widget lifecycle states via `CustomStateSet`**: Widgets now expose their
+  internal state through `ElementInternals.states`, enabling CSS styling from
+  light DOM using the `:state()` pseudo-class. Five states are available:
+  - `:state(lazy)` — waiting for viewport intersection
+  - `:state(loading)` — `getData()` in flight
+  - `:state(hydrating)` — SSR content adopted, wiring up event listeners
+  - `:state(ready)` — interactive, data loaded and rendered
+  - `:state(error)` — `getData()` threw or params validation failed
+
+  States are mutually exclusive. Example usage:
+  ```css
+  widget-nav:state(loading) { opacity: 0.5; }
+  widget-nav:state(ready) { animation: fade-in 0.2s; }
+  widget-nav:state(error) { border: 2px solid red; }
+  ```
+
+- **`adoptedStyleSheets` for widget CSS**: Companion `.css` files are now
+  applied via `adoptedStyleSheets` on the shadow root, in addition to the
+  existing SSR `<style>` tag injection. A per-widget-name `CSSStyleSheet` cache
+  shares sheet objects across instances of the same widget, reducing memory when
+  many instances exist on a page. The SSR `<style>` tag in declarative shadow
+  DOM remains for no-FOUC rendering before JS loads.
+
+- **SSR mocks for `CSSStyleSheet` and `ElementInternals`**: The SSR-compatible
+  HTMLElement mock now includes `attachInternals()` (returns a mock with a
+  `states` Set) and `CSSStyleSheetBase` (server-safe `CSSStyleSheet` with
+  `replaceSync`). `SsrShadowRoot.adoptedStyleSheets` serializes adopted sheets
+  as `<style>` tags in `innerHTML`.
+
+- **Styling documentation** (`doc/15-styling.md`): New guide covering widget
+  companion CSS, inline styles, page CSS, and lifecycle state styling with
+  `:state()` selectors.
+
+### Changed
+
+- **Widget CSS removed from `renderHTML()`**: `WidgetComponent.renderHTML()` no
+  longer injects `<style>` tags from companion CSS files. CSS injection is now
+  handled by the element layer (`ComponentElement.adoptCss()`) via
+  `adoptedStyleSheets`, and by the SSR resolve path
+  (`widget-resolve.util.ts`) for declarative shadow DOM.
+
 ## [1.10.0-beta.4] - 2026-03-12
 
 ### Fixed

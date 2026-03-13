@@ -47,6 +47,9 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
     ComponentElement.extendContext = provider;
   }
 
+  /** Custom state names exposed via ElementInternals for CSS `:state()` matching. */
+  private static readonly CUSTOM_STATES = ['lazy', 'loading', 'hydrating', 'ready', 'error'] as const;
+
   private component: Component<TParams, TData>;
   private effectiveFiles?: WidgetFiles | undefined;
   private params: TParams | null = null;
@@ -57,6 +60,7 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
   private deferred: PromiseWithResolvers<void> | null = null;
   private abortController: AbortController | null = null;
   private intersectionObserver: IntersectionObserver | null = null;
+  private readonly internals: ElementInternals;
 
   /** Promise that resolves with fetched data (available after loadData starts) */
   dataPromise: Promise<TData | null> | null = null;
@@ -65,11 +69,20 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
     super();
     this.component = component;
     this.effectiveFiles = files;
+    this.internals = this.attachInternals();
     // Attach shadow root if not already present (Declarative Shadow DOM creates it from <template shadowrootmode="open">)
     // This enables progressive enhancement: SSR with DSD works without JS, then hydrates when JS loads
     if (!this.shadowRoot) {
       this.attachShadow({ mode: 'open' });
     }
+  }
+
+  /** Update the CSS-visible custom state via ElementInternals. */
+  private setCustomState(next: typeof ComponentElement.CUSTOM_STATES[number]): void {
+    for (const s of ComponentElement.CUSTOM_STATES) {
+      this.internals.states.delete(s);
+    }
+    this.internals.states.add(next);
   }
 
   /**
@@ -247,6 +260,7 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
     // Hydrate from SSR: adopt content from Declarative Shadow DOM
     if (this.hasAttribute(SSR_ATTR)) {
       this.removeAttribute(SSR_ATTR);
+      this.setCustomState('hydrating');
 
       // Read SSR data from light DOM (JSON text placed alongside shadow root)
       const lightText = this.textContent?.trim();
@@ -267,7 +281,10 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
         const args = { data: this.data, params: this.params!, context: this.context };
         queueMicrotask(() => {
           this.component.hydrate!(args);
+          this.setCustomState('ready');
         });
+      } else {
+        this.setCustomState('ready');
       }
 
       this.signalReady();
@@ -276,6 +293,7 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
 
     // Lazy: defer loadData until element is visible
     if (this.hasAttribute(LAZY_ATTR)) {
+      this.setCustomState('lazy');
       this.intersectionObserver = new IntersectionObserver((entries) => {
         const entry = entries[0]!;
         if (entry.isIntersecting) {
@@ -299,6 +317,9 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
     this.abortController?.abort();
     this.abortController = null;
     this.state = 'idle';
+    for (const s of ComponentElement.CUSTOM_STATES) {
+      this.internals.states.delete(s);
+    }
     this.data = null;
     this.context = undefined!;
     this.dataPromise = null;
@@ -334,6 +355,7 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
     const signal = this.abortController?.signal;
 
     this.state = 'loading';
+    this.setCustomState('loading');
     this.render();
 
     try {
@@ -349,6 +371,7 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
       if (signal?.aborted) return;
 
       this.state = 'ready';
+      this.setCustomState('ready');
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') return;
       if (signal?.aborted) return;
@@ -363,6 +386,7 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
 
   private setError(message: string): void {
     this.state = 'error';
+    this.setCustomState('error');
     this.errorMessage = message;
     this.render();
     this.signalReady(); // Ready even on error (completed loading)

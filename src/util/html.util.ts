@@ -56,6 +56,13 @@ class SsrShadowRoot {
 }
 
 /**
+ * SSR-compatible ElementInternals mock.
+ */
+class SsrElementInternals {
+  readonly states = new Set<string>();
+}
+
+/**
  * SSR-compatible HTMLElement mock.
  */
 class SsrHTMLElement {
@@ -103,6 +110,10 @@ class SsrHTMLElement {
   attachShadow(_init: ShadowRootInit): ShadowRoot {
     this._shadowRoot = new SsrShadowRoot(this);
     return this._shadowRoot as unknown as ShadowRoot;
+  }
+
+  attachInternals(): ElementInternals {
+    return new SsrElementInternals() as unknown as ElementInternals;
   }
 
   getAttribute(name: string): string | null {

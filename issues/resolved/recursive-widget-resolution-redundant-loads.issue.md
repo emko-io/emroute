@@ -40,3 +40,18 @@ Same pattern applies to `md.renderer.ts`.
 
 Low — correctness is fine, it's a performance issue. Visible as redundant
 requests in DevTools network tab (served from SW cache, not actual network).
+
+## Resolution (1.10.0-beta.3 / beta.4)
+
+Fixed in two commits:
+
+1. **Per-render memoization** (`c41fa29`): Both `html.renderer.ts` and
+   `md.renderer.ts` now scope a `Map<string, Promise>` to each render pass.
+   First encounter of a widget name triggers `loadWidgetModule()`; subsequent
+   encounters (same name, same render) reuse the cached promise. Self-referencing
+   widget at depth 10 → 1 load instead of 10.
+
+2. **Single module load** (`65c9a6c`): `Pipeline.loadWidgetModule(name)` returns
+   `{ component, files }` from one `loadModule()` call. The separate `loadFiles`
+   callback in `resolveWidgetTags` was removed — it was a dead path since merged
+   modules bake `__files` into the `.js`.

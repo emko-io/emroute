@@ -85,9 +85,9 @@ The client does not require the server to be aware of it.
 
 This means:
 
-- **`buildClientBundles()` is a standalone build step**, not part of server
-  init. Call it from a build script, CI pipeline, or CLI — not from your
-  server's startup code.
+- **`buildClientBundles()` is an optional production optimization**, not a
+  requirement. The runtime serves `.ts` as transpiled JavaScript on the fly.
+  Pre-building avoids per-request transpilation overhead in production.
 - **The consumer owns `index.html` and `main.ts`.** If you provide your own,
   emroute uses them as-is. The generated defaults are just a convenience.
 - **Frameworks wrapping emroute (like emkoord) don't need to know about
@@ -108,13 +108,15 @@ This means:
 | `root` | SSR rendered | Yes | Yes | Yes |
 | `only` | Empty shell | Yes | Yes | Yes |
 
-### What gets built
+### What gets served
 
-When SPA mode is not `none`, `buildClientBundles()` produces:
+`BunFsRuntime` serves `.ts` files as transpiled JavaScript on the fly, with
+companion files (`.html`, `.md`, `.css`) inlined as `export const __files`.
+Manifests reference `.ts` paths and the browser loads them directly.
 
-- **Merged `.js` modules** — each `.ts` page/widget transpiled to `.js` with
-  companion files (`.html`, `.md`, `.css`) inlined as `export const __files`
-- **Updated manifests** — route tree and widget manifest reference `.js` paths
+For production, `buildClientBundles()` pre-compiles these into `.js` files and
+updates manifests accordingly. It also produces the SPA shell assets:
+
 - **`emroute.js`** — the framework (router, component element, widget system,
   `bootEmrouteApp`)
 - **`app.js`** — your `main.ts` entry point (esbuild only touches consumer code)

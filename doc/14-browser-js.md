@@ -10,9 +10,12 @@ both sides, and how to register custom elements.
 
 ## How browser code is delivered
 
-Every `.ts` file — pages, widgets, elements, `main.ts` — is transpiled
-(type-stripped) to `.js` and served as an individual ES module. The browser
-loads them on demand over HTTP/2. There is no bundling step.
+Every `.ts` file — pages, widgets, elements, `main.ts` — is served as an
+individual ES module. `BunFsRuntime` transpiles TypeScript on the fly when the
+browser requests it, inlining companion files (`.html`, `.md`, `.css`) as
+`export const __files`. There is no bundling step. For production,
+`buildClientBundles()` can pre-compile `.ts` to `.js` to avoid per-request
+transpilation.
 
 Module resolution in the browser uses a standard
 [import map](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script/type/importmap).

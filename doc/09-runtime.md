@@ -59,8 +59,13 @@ const mod = await runtime.loadModule('/routes/about.page.ts');
 // mod.default is the page component
 ```
 
-`UniversalFsRuntime` and `BunFsRuntime` use native `import()` (Bun and Deno
-understand TypeScript natively; Node needs `--experimental-strip-types` or tsx).
+`BunFsRuntime` reads the file, transpiles if `.ts`, and imports via a unique
+blob URL. This means every call returns the current file contents — there is no
+stale module cache. CMS writes via `command()` are reflected on the next request
+without restarting the server.
+
+`UniversalFsRuntime` uses native `import()` (Deno understands TypeScript
+natively; Node needs `--experimental-strip-types` or tsx).
 `BunSqliteRuntime` transpiles via `Bun.Transpiler` and imports from a blob URL.
 Your runtime can do whatever makes sense — compile, cache, fetch from a CDN.
 
@@ -77,10 +82,26 @@ Each runtime implements this with its native transpiler (`Bun.Transpiler` for
 BunFsRuntime, esbuild for UniversalFsRuntime). Custom runtimes should override
 this method.
 
-### Building client bundles
+### On-the-fly transpilation
 
-Bundling is a separate step from the runtime. Call `buildClientBundles()` before
-`Emroute.create()`:
+`BunFsRuntime` serves `.ts` files as transpiled JavaScript automatically. When
+a `.ts` file is requested (by the browser or any HTTP client), the runtime:
+
+1. Reads the TypeScript source
+2. Transpiles to JavaScript via `Bun.Transpiler`
+3. Discovers companion files (`.html`, `.md`, `.css`) with the same base name
+4. Inlines them as `export const __files = { html: \`...\`, md: \`...\` }`
+5. Returns the result as `application/javascript`
+
+This means browsers can load `.ts` modules directly — manifests reference `.ts`
+paths and the runtime handles the rest. No build step is required for
+development or for CMS-like apps where content changes at runtime.
+
+### Building client bundles (optional)
+
+For production, `buildClientBundles()` pre-computes what the runtime would
+otherwise do on every request. Call it before `Emroute.create()` or from a
+separate build script:
 
 ```typescript
 import { buildClientBundles } from '@emkodev/emroute/server/build';
@@ -99,6 +120,9 @@ The build step:
 3. Updates manifests to reference `.js` paths
 4. Transpiles the consumer's `main.ts` to `app.js`
 5. Writes `emroute.js`, `app.js`, and `importmap.json` into the runtime
+
+This is a performance optimization — the runtime can serve everything without
+it, but pre-building avoids per-request transpilation overhead in production.
 
 ### Manifest resolution
 

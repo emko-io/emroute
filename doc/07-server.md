@@ -1,8 +1,9 @@
 # Server Setup
 
-The server consists of three parts: a **runtime** that reads files, a **build
-step** that transpiles modules and produces client bundles, and a **server**
-that handles requests and renders pages.
+The server consists of two parts: a **runtime** that reads and serves files
+(including on-the-fly TypeScript transpilation), and a **server** that handles
+requests and renders pages. An optional **build step** can pre-compile modules
+for production.
 
 ## Minimal server
 
@@ -34,8 +35,9 @@ Bun.serve({
 
 ## With SPA (root mode)
 
-When using any SPA mode except `'none'`, call `buildClientBundles()` before
-creating the server:
+`BunFsRuntime` serves `.ts` files as transpiled JavaScript on the fly, so a
+build step is not required for development. For production, call
+`buildClientBundles()` to pre-compile modules and produce the SPA shell assets:
 
 ```ts
 import { Emroute } from '@emkodev/emroute/server';
@@ -50,6 +52,8 @@ const runtime = new BunFsRuntime(appRoot, {
   widgetsDir: '/widgets',
 });
 
+// Optional: pre-compile for production performance.
+// Without this, the runtime transpiles .ts on every request.
 await buildClientBundles({
   runtime,
   root: appRoot,
@@ -79,6 +83,12 @@ The build step:
 4. Transpiles the consumer's `main.ts` to `app.js`
 5. Copies `main.css` if present
 6. Writes merged `importmap.json` (server generates the HTML shell at request time)
+
+Without `buildClientBundles()`, the runtime still serves `.ts` modules as
+JavaScript with companions inlined — the build step is a production
+optimization, not a correctness requirement. However, `emroute.js`, `app.js`,
+and `importmap.json` are still needed for SPA modes and must be produced by
+the build step or provided manually.
 
 ## Runtime config
 

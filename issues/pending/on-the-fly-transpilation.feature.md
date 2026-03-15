@@ -77,14 +77,15 @@ the work once) rather than a correctness requirement.
 
 ## Scope
 
-- [ ] Move `escapeTemplateLiteral()` to a shared util
-- [ ] `BunFsRuntime.loadModule()` — blob-URL import with transpilation
-- [ ] `BunFsRuntime.read()` — on-the-fly `.ts` → JS serving with companion merging
+- [x] Move `escapeTemplateLiteral()` to a shared util (`core/util/js.util.ts`)
+- [x] `BunFsRuntime.loadModule()` — blob-URL import with transpilation
+- [x] `BunFsRuntime.read()` — on-the-fly `.ts` → JS serving with companion merging
 - [ ] Update `UniversalFsRuntime` if it has the same `loadModule()` issue
-- [ ] Tests: SSR picks up module changes without restart
-- [ ] Tests: browser fetch of `.ts` returns valid JS with `__files`
-- [ ] Clean up spike file (`test/browser/spike-dev-server.ts`)
-- [ ] Delete `server/dev.server.ts` (scrapped subprocess approach)
+- [x] Tests: SSR picks up module changes without restart (910/921 pass)
+- [x] Tests: browser fetch of `.ts` returns valid JS with `__files`
+- [x] Clean up spike file (`test/browser/spike-dev-server.ts`)
+- [x] Delete `server/dev.server.ts` (scrapped subprocess approach)
+- [x] Update documentation (README, runtime, server, SPA mode, browser JS guides)
 
 ## Proven
 

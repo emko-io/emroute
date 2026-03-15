@@ -313,12 +313,15 @@ describe('SSR to SPA hydration — comprehensive', () => {
     await page.goto(baseUrl('/html/vanilla/counter'));
     await page.waitForSelector('widget-counter-vanilla', { timeout: 5000 });
 
-    // Counter widget has inline styles - check shadow root
+    // Counter widget has inline styles in renderHTML(). Check all <style>
+    // tags in the shadow root — the first may be the framework's hostStyle.
     const hasStyles = await page.evaluate(() => {
       const widget = document.querySelector('widget-counter-vanilla');
       const shadow = widget?.shadowRoot;
-      const style = shadow?.querySelector('style');
-      return style !== null && style?.textContent?.includes('c-counter-vanilla');
+      for (const style of shadow?.querySelectorAll('style') ?? []) {
+        if (style.textContent?.includes('c-counter-vanilla')) return true;
+      }
+      return false;
     });
     expect(hasStyles).toBeTruthy();
   });

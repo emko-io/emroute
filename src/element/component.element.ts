@@ -219,7 +219,6 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
     }
 
     this.component.element = this;
-    this.style.contentVisibility = 'auto';
     this.abortController = new AbortController();
     const signal = this.abortController.signal;
 
@@ -355,10 +354,26 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
     return this.effectiveFiles ?? {};
   }
 
+  /** Base sheet shared by all widgets — host-level defaults. */
+  private static baseSheet: CSSStyleSheet | null = null;
+
+  private static getBaseSheet(): CSSStyleSheet {
+    if (!ComponentElement.baseSheet) {
+      ComponentElement.baseSheet = new CSSStyleSheetBase();
+      ComponentElement.baseSheet.replaceSync(':host { container-type: inline-size; content-visibility: auto; }');
+    }
+    return ComponentElement.baseSheet;
+  }
+
   /** Apply CSS via adoptedStyleSheets with cross-instance sheet sharing. */
   private adoptCss(): void {
     const css = this.effectiveFiles?.css;
-    if (!css) return;
+    const base = ComponentElement.getBaseSheet();
+
+    if (!css) {
+      this.shadowRoot!.adoptedStyleSheets = [base];
+      return;
+    }
 
     const name = this.component.name;
     let sheet = ComponentElement.sheetCache.get(name);
@@ -367,7 +382,7 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
       sheet.replaceSync(scopeWidgetCss(css, name));
       ComponentElement.sheetCache.set(name, sheet);
     }
-    this.shadowRoot!.adoptedStyleSheets = [sheet];
+    this.shadowRoot!.adoptedStyleSheets = [base, sheet];
   }
 
   private async loadData(): Promise<void> {

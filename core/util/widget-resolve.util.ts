@@ -92,8 +92,9 @@ export function resolveWidgetTags(
       const context: ComponentContext = contextProvider ? contextProvider(baseContext) : baseContext;
 
       const data = await widget.getData({ params, context });
+      const hostStyle = '<style>:host { container-type: inline-size; content-visibility: auto; }</style>';
       const cssStyle = files?.css ? `<style>${scopeWidgetCss(files.css, widgetName)}</style>` : '';
-      const rendered = cssStyle + widget.renderHTML({ data, params, context });
+      const rendered = hostStyle + cssStyle + widget.renderHTML({ data, params, context });
 
       wrappers.set(match, {
         tagName: `widget-${widgetName}`,

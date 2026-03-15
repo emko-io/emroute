@@ -652,7 +652,7 @@ describe('SPA renderer', () => {
         };
       });
       expect(styles?.contentVisibility).toEqual('auto');
-      expect(styles?.containerType).toEqual('normal');
+      expect(styles?.containerType).toEqual('inline-size');
     },
   );
 

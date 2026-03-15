@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.12.0-beta.3] - 2026-03-15
+## [1.12.0-beta.4] - 2026-03-15
 
 ### Added
 
@@ -43,6 +43,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `@scope (widget-name)` targets the host element tag, which doesn't exist
   inside the shadow tree. Removed `@scope` — shadow DOM already isolates
   styles. `@layer emroute` remains for cascade priority control.
+
+- **`buildClientBundles()` wrote stale `emroute.js`**: `resolvePrebuiltBundle()`
+  used the consumer's `createRequire()` to find `dist/emroute.js`, which
+  resolved to stale files in workspace/link setups. Now resolves relative to
+  the package itself via `import.meta.url`.
 
 - **`escapeTemplateLiteral` bug**: `retranspileIfNeeded()` escaped all `$`
   characters instead of just `${}` template expressions, corrupting content

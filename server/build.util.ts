@@ -26,6 +26,7 @@ import type { RouteNode } from '../core/type/route-tree.type.ts';
 import type { WidgetManifestEntry } from '../core/type/widget.type.ts';
 import type { ElementManifestEntry } from '../core/type/element.type.ts';
 import { generateMainTs } from './codegen.util.ts';
+import { escapeTemplateLiteral } from '../core/util/js.util.ts';
 import type { SpaMode } from '../core/type/widget.type.ts';
 
 /** Package specifiers that map to emroute.js via import map. */
@@ -151,24 +152,22 @@ async function writeImportMap(
 
 // ── Module merging ───────────────────────────────────────────────────
 
-/** Escape backticks and ${} for safe embedding in a JS template literal. */
-function escapeTemplateLiteral(s: string): string {
-  return s.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${');
-}
-
 /** Convert a .ts path to .js (e.g. "routes/about.page.ts" → "routes/about.page.js"). */
 function tsToJs(path: string): string {
   return path.replace(/\.ts$/, '.js');
 }
 
 /**
- * Read a file from runtime as text. Returns undefined if not found.
+ * Read a file from runtime as raw text. Returns undefined if not found.
+ * Uses `as: 'text'` to bypass on-the-fly transpilation.
  */
 async function readText(runtime: Runtime, path: string): Promise<string | undefined> {
   const abs = path.startsWith('/') ? path : '/' + path;
-  const response = await runtime.query(abs);
-  if (response.status === 404) return undefined;
-  return response.text();
+  try {
+    return await runtime.query(abs, { as: 'text' });
+  } catch {
+    return undefined;
+  }
 }
 
 /**

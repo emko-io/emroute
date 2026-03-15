@@ -10,6 +10,7 @@ import {
   WIDGETS_MANIFEST_PATH,
   ELEMENTS_MANIFEST_PATH,
 } from '../../abstract.runtime.ts';
+import { escapeTemplateLiteral } from '../../../core/util/js.util.ts';
 
 export class BunFsRuntime extends Runtime {
   private readonly root: string;
@@ -85,6 +86,11 @@ export class BunFsRuntime extends Runtime {
         return this.list(path);
       }
 
+      // Serve .ts as transpiled JavaScript with merged companion files.
+      if (path.endsWith('.ts')) {
+        return this.serveTranspiled(path);
+      }
+
       const content = new Uint8Array(await Bun.file(path).arrayBuffer());
       const ext = path.slice(path.lastIndexOf('.')).toLowerCase();
       const headers: HeadersInit = {
@@ -107,6 +113,36 @@ export class BunFsRuntime extends Runtime {
       }
       return new Response(`Internal Error: ${error}`, { status: 500 });
     }
+  }
+
+  /**
+   * Transpile a .ts file on the fly and inline companion files (.html, .md, .css)
+   * as `export const __files = { ... }`. Serves as application/javascript.
+   */
+  private async serveTranspiled(path: string): Promise<Response> {
+    const source = await Bun.file(path).text();
+    let js = await this.transpile(source);
+
+    const basePath = path.replace(/\.ts$/, '');
+    const companions = ['html', 'md', 'css'] as const;
+    const entries: string[] = [];
+
+    for (const ext of companions) {
+      const file = Bun.file(basePath + '.' + ext);
+      if (await file.exists()) {
+        const content = await file.text();
+        entries.push(`  ${ext}: \`${escapeTemplateLiteral(content)}\``);
+      }
+    }
+
+    if (entries.length > 0) {
+      js += `\nexport const __files = {\n${entries.join(',\n')}\n};\n`;
+    }
+
+    return new Response(js, {
+      status: 200,
+      headers: { 'Content-Type': 'application/javascript; charset=utf-8' },
+    });
   }
 
   private async list(path: string): Promise<Response> {
@@ -144,8 +180,18 @@ export class BunFsRuntime extends Runtime {
     }
   }
 
-  override loadModule(path: string): Promise<unknown> {
-    return import(this.root + path);
+  override async loadModule(path: string): Promise<unknown> {
+    let source = await Bun.file(this.root + path).text();
+    if (path.endsWith('.ts')) {
+      source = await this.transpile(source);
+    }
+    const blob = new Blob([source], { type: 'application/javascript' });
+    const url = URL.createObjectURL(blob);
+    try {
+      return await import(url);
+    } finally {
+      URL.revokeObjectURL(url);
+    }
   }
 
   override async transpile(source: string): Promise<string> {

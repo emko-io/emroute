@@ -133,20 +133,28 @@ export class Pipeline {
   // ── Widget manifest lookup ─────────────────────────────────────────
 
   async findWidgetModulePath(name: string): Promise<string | undefined> {
+    return (await this.findWidgetEntry(name))?.modulePath;
+  }
+
+  private async findWidgetEntry(name: string): Promise<WidgetManifestEntry | undefined> {
     const response = await this.runtime.query(WIDGETS_MANIFEST_PATH);
     if (response.status === 404) return undefined;
     const entries: WidgetManifestEntry[] = await response.json();
-    return entries.find((e) => e.name === name)?.modulePath;
+    return entries.find((e) => e.name === name);
   }
 
   /** Load a widget module by name — single load yields both component and files. */
   async loadWidgetModule(name: string): Promise<{ component: WidgetComponent; files: FileContents } | undefined> {
-    const path = await this.findWidgetModulePath(name);
-    if (!path) return undefined;
-    const mod = await this.loadModule<Record<string, unknown>>(path);
+    const entry = await this.findWidgetEntry(name);
+    if (!entry) return undefined;
+    const mod = await this.loadModule<Record<string, unknown>>(entry.modulePath);
     const component = this.extractWidgetComponent(mod);
     if (!component) return undefined;
-    return { component, files: this.getModuleFiles(mod) ?? {} };
+    // Prefer __files inlined in the module (pre-built .js); fall back to
+    // loading companions from the manifest's file paths (on-the-fly .ts).
+    const inlined = this.getModuleFiles(mod);
+    const files = inlined ?? (entry.files ? await this.loadFiles(entry.files) : {});
+    return { component, files };
   }
 
   /** Load a widget by name — shorthand when only the component is needed. */

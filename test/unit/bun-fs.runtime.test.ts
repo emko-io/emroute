@@ -96,6 +96,8 @@ describe('BunFsRuntime.loadModule', () => {
     const v1 = await runtime.loadModule('/counter.ts') as { count: number };
     expect(v1.count).toEqual(1);
 
+    // Ensure cache-busting timestamp differs (Date.now() granularity).
+    await Bun.sleep(1);
     await writeFixture('counter.ts', 'export const count: number = 2;');
 
     const v2 = await runtime.loadModule('/counter.ts') as { count: number };

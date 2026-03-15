@@ -163,18 +163,11 @@ export class BunFsRuntime extends Runtime {
     }
   }
 
-  override async loadModule(path: string): Promise<unknown> {
-    let source = await Bun.file(this.root + path).text();
-    if (path.endsWith('.ts')) {
-      source = await this.transpile(source);
-    }
-    const blob = new Blob([source], { type: 'application/javascript' });
-    const url = URL.createObjectURL(blob);
-    try {
-      return await import(url);
-    } finally {
-      URL.revokeObjectURL(url);
-    }
+  override loadModule(path: string): Promise<unknown> {
+    // Cache-busting query string makes Bun treat each call as a unique
+    // module, bypassing the module cache. Unlike blob URLs, a real file
+    // path preserves filesystem context for bare specifier resolution.
+    return import(this.root + path + '?t=' + Date.now());
   }
 
   override async transpile(source: string): Promise<string> {

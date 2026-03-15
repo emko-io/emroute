@@ -114,9 +114,10 @@ widgets/counter/
   counter.widget.md      ← Markdown template (optional)
 ```
 
-CSS companions are automatically scoped to the widget element using
-`@scope (widget-{name}) { ... }`. Write plain CSS — scoping happens at render
-time.
+CSS companions are wrapped in `@layer emroute { ... }` and applied inside the
+widget's shadow DOM. Shadow DOM isolates the styles; the `@layer` ensures
+companion CSS has lower cascade priority than inline `<style>` tags in
+`renderHTML()`. Write plain CSS — wrapping happens automatically.
 
 ## Hydration (SPA mode)
 

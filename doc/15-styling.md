@@ -22,7 +22,7 @@ The CSS is delivered to the shadow root through two complementary mechanisms:
   when the element connects. Multiple instances of the same widget share a
   single sheet object in memory.
 
-The CSS is wrapped in `@layer emroute` and `@scope (widget-{name})`:
+The CSS is wrapped in `@layer emroute`:
 
 ```css
 /* nav.widget.css — written as plain CSS */
@@ -31,16 +31,14 @@ The CSS is wrapped in `@layer emroute` and `@scope (widget-{name})`:
 
 /* Injected as: */
 @layer emroute {
-  @scope (widget-nav) {
-    .site-nav { display: flex; gap: 1rem; }
-    .site-nav a.active { font-weight: bold; }
-  }
+  .site-nav { display: flex; gap: 1rem; }
+  .site-nav a.active { font-weight: bold; }
 }
 ```
 
-The `@layer emroute` ensures companion CSS has the **lowest** cascade priority.
-Any layerless `<style>` in `renderHTML()` always overrides companion CSS,
-regardless of specificity.
+Shadow DOM isolates the styles to the widget. The `@layer emroute` ensures
+companion CSS has the **lowest** cascade priority — any layerless `<style>` in
+`renderHTML()` always overrides companion CSS, regardless of specificity.
 
 ### Inline styles
 
@@ -62,7 +60,7 @@ Both approaches coexist — companion CSS (via `adoptedStyleSheets`) and inline
 ## Page CSS
 
 Pages use companion `.css` files the same way, but they render in light DOM
-as a plain `<style>` tag (no `@scope`, no shadow DOM):
+as a plain `<style>` tag (no shadow DOM, no `@layer`):
 
 ```
 routes/about/about.page.ts

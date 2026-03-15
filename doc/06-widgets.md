@@ -119,6 +119,29 @@ widget's shadow DOM. Shadow DOM isolates the styles; the `@layer` ensures
 companion CSS has lower cascade priority than inline `<style>` tags in
 `renderHTML()`. Write plain CSS — wrapping happens automatically.
 
+### Default `:host` styles
+
+Every widget receives a base stylesheet (via `@layer emroute-base`, lower
+priority than companion CSS):
+
+```css
+:host { display: block; container-type: inline-size; content-visibility: auto; }
+:host([hidden]) { display: none; }
+```
+
+- **`display: block`** — custom elements are `inline` by default, which breaks
+  width/height and containment. Block is the right default for widgets.
+- **`container-type: inline-size`** — every widget is a container query target.
+  Use `@container` in companion CSS to write responsive styles scoped to the
+  widget's own width rather than the viewport.
+- **`content-visibility: auto`** — off-screen widgets skip layout and paint,
+  improving performance on pages with many widgets.
+- **`hidden` safeguard** — ensures the `hidden` attribute works even though
+  `:host` sets an explicit display.
+
+To override any of these, write `:host { ... }` in your companion CSS — it
+lives in `@layer emroute` which takes priority over `@layer emroute-base`.
+
 ## Hydration (SPA mode)
 
 When using SPA mode, widgets can add interactivity after rendering via the

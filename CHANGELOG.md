@@ -5,14 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.12.1] - 2026-03-15
+## [1.12.2] - 2026-03-16
+
+### Fixed
+
+- **Widget invisible after SSR hydration**: Custom elements default to
+  `display: inline`, and the base `container-type: inline-size` implied size
+  containment — collapsing the widget to zero dimensions. Added `display: block`
+  to the base `:host` styles in both the SSR inline `<style>` and browser
+  `adoptedStyleSheets` paths.
+
+- **SSR and browser base styles now consistent**: The SSR host `<style>`
+  (in `widget-resolve.util.ts`) and browser `ComponentElement` base sheet
+  now emit identical CSS via `@layer emroute-base`.
 
 ### Changed
 
 - **Widget base stylesheet uses `@layer emroute-base`**: The default `:host`
   styles (`container-type`, `content-visibility`) are now in a lower-priority
   cascade layer, allowing companion CSS in `@layer emroute` to override them.
-  Added `display: block` default and `:host([hidden]) { display: none }`.
+  Added `:host([hidden]) { display: none }` safeguard.
 
 ## [1.12.0] - 2026-03-15
 

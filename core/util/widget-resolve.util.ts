@@ -92,7 +92,7 @@ export function resolveWidgetTags(
       const context: ComponentContext = contextProvider ? contextProvider(baseContext) : baseContext;
 
       const data = await widget.getData({ params, context });
-      const hostStyle = '<style>:host { container-type: inline-size; content-visibility: auto; }</style>';
+      const hostStyle = '<style>@layer emroute-base { :host { display: block; container-type: inline-size; content-visibility: auto; } :host([hidden]) { display: none; } }</style>';
       const cssStyle = files?.css ? `<style>${scopeWidgetCss(files.css, widgetName)}</style>` : '';
       const rendered = hostStyle + cssStyle + widget.renderHTML({ data, params, context });
 

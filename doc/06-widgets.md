@@ -140,4 +140,24 @@ override destroy() {
 `this.element` to access the host `<widget-{name}>` custom element (only
 available in the browser — `undefined` on the server).
 
+## Best practices
+
+### Don't override global HTML attributes
+
+When setting attributes like `role` or `tabindex` in `hydrate()`, check whether
+the consumer has already set them. Overriding author-set globals breaks
+accessibility and developer intent:
+
+```ts
+override hydrate() {
+  const el = this.element!;
+  // Respect consumer-set values — only apply defaults
+  if (!el.hasAttribute('role')) el.setAttribute('role', 'button');
+  if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '0');
+}
+```
+
+Never unconditionally write to `role`, `tabindex`, `aria-*`, `class`, or other
+global attributes — the consumer may have set them deliberately.
+
 Next: [Server Setup](./07-server.md)

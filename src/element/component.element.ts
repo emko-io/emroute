@@ -360,7 +360,7 @@ export class ComponentElement<TParams, TData> extends HTMLElementBase {
   private static getBaseSheet(): CSSStyleSheet {
     if (!ComponentElement.baseSheet) {
       ComponentElement.baseSheet = new CSSStyleSheetBase();
-      ComponentElement.baseSheet.replaceSync(':host { container-type: inline-size; content-visibility: auto; }');
+      ComponentElement.baseSheet.replaceSync('@layer emroute-base { :host { display: block; container-type: inline-size; content-visibility: auto; } :host([hidden]) { display: none; } }');
     }
     return ComponentElement.baseSheet;
   }

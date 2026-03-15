@@ -1,7 +1,8 @@
 # ADR-0020: Browser API Adoption Plan
 
-**Status**: Proposed
+**Status**: Living document
 **Date**: 2026-03-15
+**Updated**: 2026-03-15
 
 ## Context
 
@@ -14,18 +15,14 @@ This document tracks which APIs to adopt, how, and in what order.
 
 ## APIs
 
-### Container queries — adopt now
+### Container queries — adopted (1.11.0)
 
-**Priority**: High
 **Baseline**: Widely available (Chrome 105, Firefox 110, Safari 16)
 
-Widgets are natural containers. A `widget-card` in a sidebar should adapt to
-its own width, not the viewport. Shadow DOM already creates a containment
-context.
-
-**Implementation**: Set `container-type: inline-size` on the host element in
-`connectedCallback()`, alongside the existing `content-visibility: auto`.
-Consumers get `@container` queries for free in their companion CSS:
+Widgets are natural containers. `container-type: inline-size` is set
+automatically on all widget host elements via the shared base stylesheet
+(`adoptedStyleSheets`) in the browser and via `:host` style in SSR. Consumers
+get `@container` queries for free in their companion CSS:
 
 ```css
 /* nav.widget.css */
@@ -33,9 +30,6 @@ Consumers get `@container` queries for free in their companion CSS:
   .site-nav { flex-direction: column; }
 }
 ```
-
-emkoma and consumers already use containers as a default pattern. The framework
-should make this automatic.
 
 **Consideration**: `container-type: inline-size` prevents the element from using
 its own content for inline size. This is correct for widgets (they fill their
@@ -146,25 +140,9 @@ for free.
 
 ---
 
-### Container queries in SSR — investigate
-
-**Priority**: Low
-
-`container-type` on the host element is set by JavaScript in
-`connectedCallback()`. In `none` mode (no JS), the container type is not set
-and `@container` queries in companion CSS won't activate.
-
-Options:
-1. Accept this — `none` mode is SSR-only, responsive design via `@media` works.
-2. Inject `container-type` as an inline style in the SSR HTML output.
-3. Add a default rule in the SSR `<style>` tag: `:host { container-type: inline-size; }`.
-
-Option 3 is cleanest — the `:host` rule lives inside shadow DOM and applies
-the containment context from CSS alone.
-
 ## Decision
 
-Adopt container queries as an immediate next step. Document `:has()` patterns.
+Container queries adopted in 1.11.0. Document `:has()` patterns.
 Evaluate the others as opportunities arise.
 
 ## References

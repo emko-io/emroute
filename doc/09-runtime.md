@@ -97,6 +97,11 @@ This means browsers can load `.ts` modules directly — manifests reference `.ts
 paths and the runtime handles the rest. No build step is required for
 development or for CMS-like apps where content changes at runtime.
 
+Steps 2–4 are implemented as `transpileModule(path, source)` on the abstract
+`Runtime` class. Custom runtimes can call it from their read path to add
+on-the-fly transpilation — override `transpile()` for the type-stripping
+engine, and `transpileModule()` handles companion discovery and inlining.
+
 ### Building client bundles (optional)
 
 For production, `buildClientBundles()` pre-computes what the runtime would

@@ -2,6 +2,7 @@ import type { RouteNode, RouteFiles } from '../core/type/route-tree.type.ts';
 import { resolveTargetNode } from '../core/util/route-tree.util.ts';
 import type { WidgetManifestEntry } from '../core/type/widget.type.ts';
 import type { ElementManifestEntry } from '../core/type/element.type.ts';
+import { escapeTemplateLiteral } from '../core/util/js.util.ts';
 
 export const CONTENT_TYPES: Map<string, string> = new Map<string, string>([
   ['.html', 'text/html; charset=utf-8'],
@@ -428,32 +429,12 @@ export abstract class Runtime {
       return; // .ts doesn't exist (maybe .js was hand-written)
     }
 
-    // Collect companion files and inline them
-    const companionExts = kind === 'element' ? [] : ['html', 'md', 'css'];
-    const files: Record<string, string> = {};
-    for (const ext of companionExts) {
-      const companionPath = tsPath.replace(/\.ts$/, `.${ext}`);
-      try {
-        files[ext] = await this.query(companionPath, { as: 'text' });
-      } catch {
-        // companion doesn't exist — skip
-      }
-    }
-
-    // Transpile
+    // Transpile and inline companions
     let jsCode: string;
     try {
-      jsCode = await this.transpile(tsSource);
+      jsCode = await this.transpileModule(tsPath, tsSource);
     } catch {
       return; // transpile not implemented — skip silently
-    }
-
-    // Append __files export if there are companions
-    if (Object.keys(files).length > 0) {
-      const entries = Object.entries(files)
-        .map(([k, v]) => `${k}: \`${v.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$')}\``)
-        .join(', ');
-      jsCode += `\nexport const __files = { ${entries} };\n`;
     }
 
     await this.handle(jsPath, { method: 'PUT', body: jsCode });
@@ -469,10 +450,44 @@ export abstract class Runtime {
 
   /**
    * Transpile TypeScript source to JavaScript.
-   * Used by the build step to produce browser-loadable .js modules.
    */
   transpile(_source: string): Promise<string> {
     throw new Error(`transpile not implemented for ${this.constructor.name}`);
+  }
+
+  /**
+   * Transpile a .ts module and inline companion files (.html, .md, .css)
+   * as `export const __files = { ... }`.
+   *
+   * This is the single implementation of the transpile+merge operation.
+   * Used by concrete runtimes in their serving path (e.g. BunFsRuntime
+   * intercepts .ts in read()) and by retranspileIfNeeded() to keep
+   * pre-built .js artifacts in sync after command() writes.
+   *
+   * @param path Virtual path (e.g. "/widgets/nav.widget.ts")
+   * @param source Raw TypeScript source
+   */
+  protected async transpileModule(path: string, source: string): Promise<string> {
+    let js = await this.transpile(source);
+
+    const basePath = path.replace(/\.ts$/, '');
+    const companions = ['html', 'md', 'css'] as const;
+    const entries: string[] = [];
+
+    for (const ext of companions) {
+      try {
+        const content = await this.query(basePath + '.' + ext, { as: 'text' });
+        entries.push(`  ${ext}: \`${escapeTemplateLiteral(content)}\``);
+      } catch {
+        // companion doesn't exist
+      }
+    }
+
+    if (entries.length > 0) {
+      js += `\nexport const __files = {\n${entries.join(',\n')}\n};\n`;
+    }
+
+    return js;
   }
 
   /**

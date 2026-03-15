@@ -10,7 +10,6 @@ import {
   WIDGETS_MANIFEST_PATH,
   ELEMENTS_MANIFEST_PATH,
 } from '../../abstract.runtime.ts';
-import { escapeTemplateLiteral } from '../../../core/util/js.util.ts';
 
 export class BunFsRuntime extends Runtime {
   private readonly root: string;
@@ -116,28 +115,12 @@ export class BunFsRuntime extends Runtime {
   }
 
   /**
-   * Transpile a .ts file on the fly and inline companion files (.html, .md, .css)
-   * as `export const __files = { ... }`. Serves as application/javascript.
+   * Serve a .ts file as transpiled JavaScript with companion files inlined.
    */
   private async serveTranspiled(path: string): Promise<Response> {
     const source = await Bun.file(path).text();
-    let js = await this.transpile(source);
-
-    const basePath = path.replace(/\.ts$/, '');
-    const companions = ['html', 'md', 'css'] as const;
-    const entries: string[] = [];
-
-    for (const ext of companions) {
-      const file = Bun.file(basePath + '.' + ext);
-      if (await file.exists()) {
-        const content = await file.text();
-        entries.push(`  ${ext}: \`${escapeTemplateLiteral(content)}\``);
-      }
-    }
-
-    if (entries.length > 0) {
-      js += `\nexport const __files = {\n${entries.join(',\n')}\n};\n`;
-    }
+    const virtualPath = path.slice(this.root.length);
+    const js = await this.transpileModule(virtualPath, source);
 
     return new Response(js, {
       status: 200,

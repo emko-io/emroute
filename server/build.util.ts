@@ -1,16 +1,12 @@
 /**
  * Build Utilities
  *
- * Standalone client build step — extracted from Runtime so that build is a
- * separate concern from storage. Call `buildClientBundles()` before
- * `Emroute.create()` to produce emroute.js + app.js.
+ * Optional production build step. The runtime serves .ts modules as
+ * transpiled JavaScript on the fly — this step pre-computes that output
+ * into .js files to avoid per-request transpilation overhead.
  *
- * Route tree and widget manifest are fetched as JSON at boot time by
- * `bootEmrouteApp()` — no longer compiled into app.js.
- *
- * Per-file module merging: each .ts page/widget is transpiled to .js with
- * companion files (.html, .md, .css) inlined as `export const __files`.
- * The browser lazy-loads these individual .js files — no bundler needed.
+ * Also produces the SPA shell assets (emroute.js, app.js, importmap.json)
+ * required by root/only modes.
  */
 
 import { readFile } from 'node:fs/promises';
@@ -26,7 +22,6 @@ import type { RouteNode } from '../core/type/route-tree.type.ts';
 import type { WidgetManifestEntry } from '../core/type/widget.type.ts';
 import type { ElementManifestEntry } from '../core/type/element.type.ts';
 import { generateMainTs } from './codegen.util.ts';
-import { escapeTemplateLiteral } from '../core/util/js.util.ts';
 import type { SpaMode } from '../core/type/widget.type.ts';
 
 /** Package specifiers that map to emroute.js via import map. */
@@ -158,53 +153,25 @@ function tsToJs(path: string): string {
 }
 
 /**
- * Read a file from runtime as raw text. Returns undefined if not found.
- * Uses `as: 'text'` to bypass on-the-fly transpilation.
- */
-async function readText(runtime: Runtime, path: string): Promise<string | undefined> {
-  const abs = path.startsWith('/') ? path : '/' + path;
-  try {
-    return await runtime.query(abs, { as: 'text' });
-  } catch {
-    return undefined;
-  }
-}
-
-/**
- * Transpile a .ts module, inline companion files as `__files` export,
- * and write the resulting .js back to the runtime.
+ * Materialize a .ts module as a browser-ready .js file in the runtime.
  *
- * Returns the .js output path.
+ * Queries the runtime for the .ts path. The runtime is expected to serve .ts
+ * as transpiled JavaScript with companion files inlined — the build step is
+ * a pre-computation of what the runtime serves on the fly.
+ *
+ * Returns the .js output path (same format as the input tsPath).
  */
 async function transpileAndMerge(
   runtime: Runtime,
   tsPath: string,
-  companionPaths?: { html?: string; md?: string; css?: string },
 ): Promise<string> {
-  const source = await readText(runtime, tsPath);
-  if (!source) throw new Error(`[emroute] Module not found: ${tsPath}`);
+  const abs = tsPath.startsWith('/') ? tsPath : '/' + tsPath;
+  const response = await runtime.query(abs);
+  if (response.status === 404) throw new Error(`[emroute] Module not found: ${tsPath}`);
 
-  const js = await runtime.transpile(source);
   const jsPath = tsToJs(tsPath);
-
-  // Read companion files and build __files export
-  const entries: string[] = [];
-  if (companionPaths) {
-    for (const [key, filePath] of Object.entries(companionPaths)) {
-      if (!filePath) continue;
-      const content = await readText(runtime, filePath);
-      if (content !== undefined) {
-        entries.push(`  ${key}: \`${escapeTemplateLiteral(content)}\``);
-      }
-    }
-  }
-
-  const merged = entries.length > 0
-    ? `${js}\nexport const __files = {\n${entries.join(',\n')}\n};\n`
-    : js;
-
   const absJsPath = jsPath.startsWith('/') ? jsPath : '/' + jsPath;
-  await runtime.command(absJsPath, { body: merged });
+  await runtime.command(absJsPath, { body: await response.text() });
   return jsPath;
 }
 
@@ -227,11 +194,7 @@ async function mergeModules(runtime: Runtime): Promise<void> {
   // Merge route modules
   async function walkRoutes(node: RouteNode): Promise<void> {
     if (node.files?.ts) {
-      const companions: { html?: string; md?: string; css?: string } = {};
-      if (node.files.html) companions.html = node.files.html;
-      if (node.files.md) companions.md = node.files.md;
-      if (node.files.css) companions.css = node.files.css;
-      node.files.js = await transpileAndMerge(runtime, node.files.ts, companions);
+      node.files.js = await transpileAndMerge(runtime, node.files.ts);
       delete node.files.ts;
       delete node.files.html;
       delete node.files.md;
@@ -260,7 +223,7 @@ async function mergeModules(runtime: Runtime): Promise<void> {
   // Merge widget modules
   for (const entry of widgetEntries) {
     if (entry.modulePath.endsWith('.ts')) {
-      entry.modulePath = await transpileAndMerge(runtime, entry.modulePath, entry.files);
+      entry.modulePath = await transpileAndMerge(runtime, entry.modulePath);
       delete entry.files;
     }
   }

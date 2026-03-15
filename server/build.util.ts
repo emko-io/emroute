@@ -7,8 +7,8 @@
  */
 
 import { readFile } from 'node:fs/promises';
-import { createRequire } from 'node:module';
-import { resolve } from 'node:path';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { Runtime } from '../runtime/abstract.runtime.ts';
 import { generateMainTs } from './codegen.util.ts';
 import type { SpaMode } from '../core/type/widget.type.ts';
@@ -54,9 +54,8 @@ export async function buildClientBundles(options: BuildOptions): Promise<void> {
 
   if (spa === 'none') return;
 
-  // Copy pre-built emroute.js from the package dist/
-  const consumerRequire = createRequire(root + '/');
-  const emrouteJsPath = resolvePrebuiltBundle(consumerRequire);
+  // Copy pre-built emroute.js from this package's dist/
+  const emrouteJsPath = resolvePrebuiltBundle();
   const emrouteJs = await readFile(emrouteJsPath);
   await runtime.command(paths.emroute, { body: emrouteJs });
 
@@ -88,21 +87,24 @@ export async function buildClientBundles(options: BuildOptions): Promise<void> {
 }
 
 /**
- * Resolve the pre-built dist/emroute.js from the consumer's node_modules.
- * Falls back to the local dist/ when running from the source repo.
+ * Resolve dist/emroute.js relative to this file.
+ * This module IS part of emroute — no need to resolve via the consumer's
+ * node_modules. Works for both source (server/build.util.ts → ../dist/)
+ * and compiled (dist/server/build.util.js → ../emroute.js).
  */
-function resolvePrebuiltBundle(require: NodeRequire): string {
+function resolvePrebuiltBundle(): string {
+  const thisDir = dirname(fileURLToPath(import.meta.url));
+  // Source: server/build.util.ts → repo root → dist/emroute.js
+  // Compiled: dist/server/build.util.js → dist/ → emroute.js
+  const fromSource = resolve(thisDir, '..', 'dist', 'emroute.js');
+  const fromDist = resolve(thisDir, '..', 'emroute.js');
+  // Prefer the compiled path (consumer installs dist/), fall back to source
   try {
-    const spaEntry = require.resolve('@emkodev/emroute/spa');
-    // Compiled: .../dist/src/renderer/spa/mod.js → .../dist/emroute.js
-    const distMatch = spaEntry.match(/^(.+\/dist\/)src\/renderer\/spa\/mod\.js$/);
-    if (distMatch) return distMatch[1] + 'emroute.js';
-    // Source (Bun): .../src/renderer/spa/mod.ts → .../dist/emroute.js
-    const srcMatch = spaEntry.match(/^(.+\/)src\/renderer\/spa\/mod\.ts$/);
-    if (srcMatch) return srcMatch[1] + 'dist/emroute.js';
-  } catch { /* not installed as dependency */ }
-  // Last resort
-  return resolve(process.cwd(), 'dist/emroute.js');
+    require('node:fs').accessSync(fromDist);
+    return fromDist;
+  } catch {
+    return fromSource;
+  }
 }
 
 // ── Import map ───────────────────────────────────────────────────────

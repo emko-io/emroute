@@ -413,12 +413,12 @@ describe('SSR HTML renderer', () => {
 
   // --- CSS file injection: widget (local) ---
 
-  test('file-backed widget with CSS injects @scope-wrapped <style> tag', async () => {
+  test('file-backed widget with CSS injects @layer-wrapped <style> tag', async () => {
     const res = await fetch(baseUrl('/html/widget-files'));
     expect(res.status).toEqual(200);
     const html = await res.text();
     expect(html).toContain('<style>');
-    expect(html).toContain('@scope (widget-file-widget)');
+    expect(html).toContain('@layer emroute');
     expect(html).toContain('.widget-file');
     expect(html).toContain('border-radius');
   });

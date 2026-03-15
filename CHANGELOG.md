@@ -5,35 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.12.0-beta.1] - 2026-03-15
+## [1.12.0-beta.2] - 2026-03-15
 
 ### Added
 
 - **On-the-fly TypeScript transpilation**: `BunFsRuntime` serves `.ts` files
   as transpiled JavaScript with companion files (`.html`, `.md`, `.css`)
   inlined as `export const __files`. Browsers and SSR consumers load `.ts`
-  paths directly — no build step required for correctness.
+  paths directly — no build step required for module serving.
 
 - **`Runtime.transpileModule()`**: Protected method on the abstract `Runtime`
   class. Single implementation of transpile + companion merge, available to
   all runtimes. Concrete runtimes call it from their serving path to serve
   `.ts` as JavaScript.
 
-- **Fresh modules via blob URL import**: `BunFsRuntime.loadModule()` reads
-  from disk and imports via a unique blob URL on every call, bypassing Bun's
-  module cache. CMS writes via `command()` are reflected on the next SSR
-  request without restarting the server.
+- **Fresh modules without stale cache**: `BunFsRuntime.loadModule()` uses a
+  cache-busting query string on the real file path, bypassing Bun's module
+  cache while preserving bare specifier resolution for third-party packages.
 
 ### Changed
 
-- **`buildClientBundles()` is now optional**: The build step pre-computes
-  what the runtime serves on the fly. It remains required for SPA shell
-  assets (`emroute.js`, `app.js`, `importmap.json`) but module merging is
-  handled by the runtime at request time.
+- **`buildClientBundles()` produces SPA shell only**: The build step no
+  longer transpiles modules or rewrites manifests. It produces `emroute.js`,
+  `app.js`, and `importmap.json` — the SPA shell assets. Module serving
+  (`.ts` → JS with companions) is handled entirely by the runtime.
 
-- **Build step delegates to runtime**: `transpileAndMerge()` queries the
-  runtime for `.ts` files and writes the response as `.js`. No duplicate
-  transpilation or companion merging logic in the build step.
+- **Manifests always reference `.ts` paths**: No `.ts` → `.js` rewriting.
+  The runtime transpiles on the fly when the browser requests `.ts` files.
+
+- **Pipeline loads companion files from manifest**: When a module doesn't
+  have inlined `__files` (on-the-fly `.ts` imports), the pipeline falls back
+  to loading companions from the manifest's file paths.
 
 ### Fixed
 

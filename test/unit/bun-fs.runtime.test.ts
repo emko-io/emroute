@@ -112,6 +112,7 @@ describe('BunFsRuntime.loadModule', () => {
     const v1 = await runtime.loadModule('/routes/index.page.ts') as { version: number };
     expect(v1.version).toEqual(1);
 
+    await Bun.sleep(1);
     await runtime.command('/routes/index.page.ts', {
       body: 'export const version: number = 2;',
     });

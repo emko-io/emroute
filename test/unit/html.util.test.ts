@@ -205,21 +205,15 @@ test('unescapeHtml - partial entities (should not convert)', () => {
   expect(unescapeHtml('&quot')).toEqual('&quot');
 });
 
-test('scopeWidgetCss - basic scoping', () => {
+test('scopeWidgetCss - wraps in @layer emroute', () => {
   const css = 'body { color: red; }';
   const result = scopeWidgetCss(css, 'my-widget');
-  expect(result).toEqual('@layer emroute {\n@scope (widget-my-widget) {\nbody { color: red; }\n}\n}');
-});
-
-test('scopeWidgetCss - with hyphenated widget name', () => {
-  const css = '.button { background: blue; }';
-  const result = scopeWidgetCss(css, 'awesome-button');
-  expect(result).toEqual('@layer emroute {\n@scope (widget-awesome-button) {\n.button { background: blue; }\n}\n}');
+  expect(result).toEqual('@layer emroute {\nbody { color: red; }\n}');
 });
 
 test('scopeWidgetCss - with empty CSS', () => {
   const result = scopeWidgetCss('', 'widget');
-  expect(result).toEqual('@layer emroute {\n@scope (widget-widget) {\n\n}\n}');
+  expect(result).toEqual('@layer emroute {\n\n}');
 });
 
 test('scopeWidgetCss - with multiline CSS', () => {
@@ -232,27 +226,7 @@ test('scopeWidgetCss - with multiline CSS', () => {
   padding: 10px;
 }`;
   const result = scopeWidgetCss(css, 'complex');
-  expect(
-    result,
-  ).toEqual(
-    `@layer emroute {
-@scope (widget-complex) {
-${css}
-}
-}`,
-  );
-});
-
-test('scopeWidgetCss - with special characters in widget name', () => {
-  const css = 'p { margin: 0; }';
-  const result = scopeWidgetCss(css, 'my-awesome-widget-v2');
-  expect(result).toEqual('@layer emroute {\n@scope (widget-my-awesome-widget-v2) {\np { margin: 0; }\n}\n}');
-});
-
-test('scopeWidgetCss - with unicode in CSS', () => {
-  const css = '.content { content: "你好"; }';
-  const result = scopeWidgetCss(css, 'i18n');
-  expect(result).toEqual('@layer emroute {\n@scope (widget-i18n) {\n.content { content: "你好"; }\n}\n}');
+  expect(result).toEqual(`@layer emroute {\n${css}\n}`);
 });
 
 test('SSR_ATTR constant', () => {
@@ -351,10 +325,7 @@ test('HTML injection prevention - prevents comment injection', () => {
 test('scopeWidgetCss - does not escape CSS content', () => {
   const css = '@media (max-width: 768px) { body { color: < test >; } }';
   const result = scopeWidgetCss(css, 'responsive');
-  // CSS content should remain unchanged
-  expect(
-    result,
-  ).toEqual(
-    '@layer emroute {\n@scope (widget-responsive) {\n@media (max-width: 768px) { body { color: < test >; } }\n}\n}',
+  expect(result).toEqual(
+    '@layer emroute {\n@media (max-width: 768px) { body { color: < test >; } }\n}',
   );
 });

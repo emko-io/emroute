@@ -40,8 +40,8 @@ export function unescapeHtml(text: string): string {
     .replaceAll('&amp;', '&');
 }
 
-export function scopeWidgetCss(css: string, widgetName: string): string {
-  return `@layer emroute {\n@scope (widget-${widgetName}) {\n${css}\n}\n}`;
+export function scopeWidgetCss(css: string, _widgetName: string): string {
+  return `@layer emroute {\n${css}\n}`;
 }
 
 /** Status code to message mapping. */

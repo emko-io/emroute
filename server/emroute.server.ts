@@ -1,7 +1,7 @@
 /**
  * Emroute — re-exports from core/server.
  */
-export { Emroute } from '../core/server/emroute.server.ts';
+export { Emroute, type ShellContext } from '../core/server/emroute.server.ts';
 
 // ── Deprecated aliases ───────────────────────────────────────────────
 

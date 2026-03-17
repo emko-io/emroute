@@ -11,7 +11,7 @@ import { resolve } from 'node:path';
 import { Emroute } from '../../server/emroute.server.ts';
 import { buildClientBundles } from '../../server/build.util.ts';
 import { BunFsRuntime } from '../../runtime/bun/fs/bun-fs.runtime.ts';
-import { WIDGETS_MANIFEST_PATH, type RuntimeConfig } from '../../runtime/abstract.runtime.ts';
+import { WIDGETS_MANIFEST_PATH, ELEMENTS_MANIFEST_PATH, type RuntimeConfig } from '../../runtime/abstract.runtime.ts';
 import type { WidgetManifestEntry } from '../../core/type/widget.type.ts';
 
 const FIXTURES_DIR = 'test/browser/fixtures';
@@ -134,6 +134,75 @@ describe('prod server', () => {
     expect(response!.headers.get('Location') ?? '').toContain('/app/');
   });
 
+  // ── Custom shell function ───────────────────────────────────────────
+
+  test('shell function overrides default shell', async () => {
+    const runtime = new BunFsRuntime(FIXTURES_DIR, runtimeConfig);
+    const server = await Emroute.create({
+      spa: 'root',
+      title: 'Custom Shell',
+      shell: () => '<!DOCTYPE html><html><body><router-slot></router-slot></body></html>',
+    }, runtime);
+    expect(server.shell).toEqual('<!DOCTYPE html><html><body><router-slot></router-slot></body></html>');
+  });
+
+  test('shell function receives context', async () => {
+    const runtime = new BunFsRuntime(FIXTURES_DIR, runtimeConfig);
+    let receivedContext: unknown = null;
+    await Emroute.create({
+      spa: 'only',
+      title: 'Context Test',
+      shell: (ctx) => {
+        receivedContext = ctx;
+        return '<!DOCTYPE html><html><body><router-slot></router-slot></body></html>';
+      },
+    }, runtime);
+    const ctx = receivedContext as Record<string, unknown>;
+    expect(ctx.runtime).toBe(runtime);
+    expect(ctx.spa).toEqual('only');
+    expect(ctx.title).toEqual('Context Test');
+    expect(ctx.basePath).toEqual({ html: '/html', md: '/md', app: '/app' });
+  });
+
+  test('async shell function is awaited', async () => {
+    const runtime = new BunFsRuntime(FIXTURES_DIR, runtimeConfig);
+    const server = await Emroute.create({
+      spa: 'root',
+      shell: async ({ title }) => {
+        await Promise.resolve();
+        return `<!DOCTYPE html><html><head><title>${title}</title></head><body><router-slot></router-slot></body></html>`;
+      },
+    }, runtime);
+    expect(server.shell).toContain('<title>emroute</title>');
+  });
+
+  test('shell function can call buildHtmlShell and modify result', async () => {
+    const runtime = new BunFsRuntime(FIXTURES_DIR, runtimeConfig);
+    await buildClientBundles({ runtime, root: resolve(FIXTURES_DIR), spa: 'root' });
+    const server = await Emroute.create({
+      spa: 'root',
+      shell: async ({ runtime, title, basePath, spa }) => {
+        const base = await Emroute.buildHtmlShell(runtime, title, basePath.app, spa);
+        return base.replace('</head>', '<meta name="custom" content="test"></head>');
+      },
+    }, runtime);
+    expect(server.shell).toContain('<meta name="custom" content="test">');
+    expect(server.shell).toContain('<!DOCTYPE html>');
+  });
+
+  test('SSR injects content into custom shell', async () => {
+    const runtime = new BunFsRuntime(FIXTURES_DIR, runtimeConfig);
+    const server = await Emroute.create({
+      spa: 'root',
+      title: 'Shell SSR',
+      shell: () => '<!DOCTYPE html><html><body><router-slot></router-slot></body></html>',
+    }, runtime);
+    const response = await server.handleRequest(req('/html/about'));
+    const html = await response!.text();
+    expect(html).toContain('<router-slot');
+    expect(html).toContain('About');
+  });
+
   // ── Manifest resolution ─────────────────────────────────────────────
 
   test('createEmroute - exposes shell', async () => {
@@ -153,6 +222,28 @@ describe('prod server', () => {
     expect(server.shell).toContain('@emkodev/emkoma/');
     expect(server.shell).toContain('test-lib');
     expect(server.shell).toContain('/vendor/test-lib.js');
+  });
+
+  // ── Empty manifests for missing directories ────────────────────────────
+
+  test('widgets manifest returns empty array when dir does not exist', async () => {
+    const tmpDir = await import('node:fs/promises').then(fs => fs.mkdtemp('/tmp/emroute-test-'));
+    const runtime = new BunFsRuntime(tmpDir, { widgetsDir: '/widgets' });
+    const res = await runtime.query(WIDGETS_MANIFEST_PATH);
+    expect(res.ok).toBeTruthy();
+    const entries = await res.json();
+    expect(entries).toEqual([]);
+    await import('node:fs/promises').then(fs => fs.rm(tmpDir, { recursive: true }));
+  });
+
+  test('elements manifest returns empty array when dir does not exist', async () => {
+    const tmpDir = await import('node:fs/promises').then(fs => fs.mkdtemp('/tmp/emroute-test-'));
+    const runtime = new BunFsRuntime(tmpDir, { elementsDir: '/elements' });
+    const res = await runtime.query(ELEMENTS_MANIFEST_PATH);
+    expect(res.ok).toBeTruthy();
+    const entries = await res.json();
+    expect(entries).toEqual([]);
+    await import('node:fs/promises').then(fs => fs.rm(tmpDir, { recursive: true }));
   });
 
   // ── SSR HTML ───────────────────────────────────────────────────────────

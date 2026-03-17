@@ -641,11 +641,9 @@ export abstract class Runtime {
     const widgetsDir = this.config.widgetsDir ?? DEFAULT_WIDGETS_DIR;
 
     const dirResponse = await this.query(widgetsDir + '/');
-    if (dirResponse.status === 404) {
-      return new Response('Not Found', { status: 404 });
-    }
-
-    const entries = await this.scanWidgets(widgetsDir, widgetsDir.replace(/^\//, ''));
+    const entries = dirResponse.status === 404
+      ? []
+      : await this.scanWidgets(widgetsDir, widgetsDir.replace(/^\//, ''));
     this.widgetsManifestCache = Response.json(entries);
     return this.widgetsManifestCache.clone();
   }
@@ -660,11 +658,9 @@ export abstract class Runtime {
     const elementsDir = this.config.elementsDir ?? DEFAULT_ELEMENTS_DIR;
 
     const dirResponse = await this.query(elementsDir + '/');
-    if (dirResponse.status === 404) {
-      return new Response('Not Found', { status: 404 });
-    }
-
-    const entries = await this.scanElements(elementsDir, elementsDir.replace(/^\//, ''));
+    const entries = dirResponse.status === 404
+      ? []
+      : await this.scanElements(elementsDir, elementsDir.replace(/^\//, ''));
     this.elementsManifestCache = Response.json(entries);
     return this.elementsManifestCache.clone();
   }

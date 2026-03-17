@@ -23,6 +23,14 @@ import {
 export const DEFAULT_BASE_PATH = { html: '/html', md: '/md', app: '/app' };
 export type BasePath = Record<keyof typeof DEFAULT_BASE_PATH, string>;
 
+/** Context passed to the `shell` function in `Emroute.create()`. */
+export interface ShellContext {
+  runtime: Runtime;
+  spa: SpaMode;
+  basePath: BasePath;
+  title: string;
+}
+
 export class Emroute {
   readonly htmlRenderer: SsrHtmlRenderer | null;
   readonly mdRenderer: SsrMdRenderer | null;
@@ -55,6 +63,7 @@ export class Emroute {
       markdownRenderer?: MarkdownRenderer;
       extendContext?: ContextProvider;
       moduleLoaders?: Record<string, () => Promise<unknown>>;
+      shell?: (context: ShellContext) => string | Promise<string>;
     },
     runtime: Runtime,
   ): Promise<Emroute> {
@@ -101,8 +110,11 @@ export class Emroute {
     // ── HTML shell ────────────────────────────────────────────────────
 
     const title = config.title ?? 'emroute';
-    const shellBase = (spa === 'root' || spa === 'only') ? appBase : htmlBase;
-    const shell = await Emroute.resolveShell(runtime, title, shellBase, spa);
+    const fullBasePath = config.basePath ?? DEFAULT_BASE_PATH;
+    const shell = config.shell
+      ? await config.shell({ runtime, spa, basePath: fullBasePath, title })
+      : await Emroute.resolveShell(runtime, title,
+          (spa === 'root' || spa === 'only') ? appBase : htmlBase, spa);
 
     return new Emroute(
       ssrHtmlRenderer,
@@ -221,7 +233,12 @@ export class Emroute {
 
   // ── Private static helpers ────────────────────────────────────────
 
-  private static async buildHtmlShell(
+  /**
+   * Build the default HTML shell by probing the runtime for optional assets
+   * (/manifest.json, /main.css, /importmap.json, /app.js).
+   * Public so consumers can call it from a custom `shell` function.
+   */
+  static async buildHtmlShell(
     runtime: Runtime,
     title: string,
     basePath: string,

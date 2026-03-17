@@ -255,6 +255,7 @@ export async function bootEmrouteApp(options?: BootOptions): Promise<EmrouteApp>
   const server = await Emroute.create({
     routeTree,
     moduleLoaders,
+    shell: () => document.documentElement.outerHTML,
     ...(mdRenderer ? { markdownRenderer: mdRenderer } : {}),
     ...(options?.extendContext ? { extendContext: options.extendContext } : {}),
   }, runtime);

@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.4] - 2026-03-17
+
+### Added
+
+- **`shell` option in `Emroute.create()`**: Optional function that receives
+  `ShellContext` (`runtime`, `spa`, `basePath`, `title`) and returns the HTML
+  shell string. Skips all default probes (`/index.html`, `/manifest.json`,
+  `/main.css`, `/importmap.json`, `/app.js`). Browser SPA boot uses this
+  internally to avoid unnecessary 404 requests.
+
+- **`Emroute.buildHtmlShell()` is now public**: Consumers can call it from
+  a custom `shell` function to get the default shell and modify it.
+
+### Fixed
+
+- **Unnecessary 404s during SPA boot**: `bootEmrouteApp` no longer probes
+  for `/index.html` and `/manifest.json` — the shell is read from the
+  existing DOM instead.
+
+- **Empty manifest instead of 404 for missing directories**: When `/widgets/`
+  or `/elements/` directories don't exist, the runtime now returns an empty
+  `[]` manifest (200) instead of 404. Eliminates repeated 404 requests and
+  allows caching.
+
 ## [1.12.3] - 2026-03-17
 
 ### Fixed

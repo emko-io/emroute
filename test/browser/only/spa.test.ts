@@ -122,6 +122,30 @@ describe('SPA renderer', () => {
   });
 
   // ========================================
+  // Shell — no unnecessary 404 probes
+  // ========================================
+
+  test(
+    'SPA boot does not fetch /index.html or /manifest.json',
+    async () => {
+      const failedRequests: string[] = [];
+      const newPage = await tb.newPage();
+      newPage.on('response', (response) => {
+        if (response.status() === 404) {
+          const url = new URL(response.url());
+          if (url.pathname === '/index.html' || url.pathname === '/manifest.json') {
+            failedRequests.push(url.pathname);
+          }
+        }
+      });
+      await newPage.goto(baseUrl('/app/'));
+      await newPage.waitForSelector('router-slot h1', { timeout: 5000 });
+      expect(failedRequests).toEqual([]);
+      await newPage.close();
+    },
+  );
+
+  // ========================================
   // SPA Navigation
   // ========================================
 
@@ -635,7 +659,7 @@ describe('SPA renderer', () => {
   );
 
   test(
-    'widgets: widget element has content-visibility and container-type',
+    'widgets: widget element has display block by default',
     async () => {
       await page.goto(baseUrl('/app/mixed-widgets'));
       await page.waitForSelector('widget-greeting .greeting-message', {
@@ -647,12 +671,10 @@ describe('SPA renderer', () => {
         if (!el) return null;
         const s = getComputedStyle(el);
         return {
-          contentVisibility: s.contentVisibility,
-          containerType: s.containerType,
+          display: s.display,
         };
       });
-      expect(styles?.contentVisibility).toEqual('auto');
-      expect(styles?.containerType).toEqual('inline-size');
+      expect(styles?.display).toEqual('block');
     },
   );
 

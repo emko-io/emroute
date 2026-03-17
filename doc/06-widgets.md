@@ -125,19 +125,34 @@ Every widget receives a base stylesheet (via `@layer emroute-base`, lower
 priority than companion CSS):
 
 ```css
-:host { display: block; container-type: inline-size; content-visibility: auto; }
+:host { display: block; }
 :host([hidden]) { display: none; }
 ```
 
 - **`display: block`** — custom elements are `inline` by default, which breaks
-  width/height and containment. Block is the right default for widgets.
-- **`container-type: inline-size`** — every widget is a container query target.
-  Use `@container` in companion CSS to write responsive styles scoped to the
-  widget's own width rather than the viewport.
-- **`content-visibility: auto`** — off-screen widgets skip layout and paint,
-  improving performance on pages with many widgets.
+  width/height. Block is the right default for widgets.
 - **`hidden` safeguard** — ensures the `hidden` attribute works even though
   `:host` sets an explicit display.
+
+To override, write `:host { ... }` in your companion CSS — it lives in
+`@layer emroute` which takes priority over `@layer emroute-base`.
+
+### Opt-in performance and container queries
+
+These properties are useful but have trade-offs, so they are not set by
+default. Add them in your companion CSS when needed:
+
+```css
+/* Container queries — widget responds to its own width, not the viewport.
+   Implies contain: inline-size — the host element won't derive its width
+   from its children. Ensure the parent layout gives the widget explicit
+   or flex/grid sizing. */
+:host { container-type: inline-size; }
+
+/* Skip layout/paint for off-screen widgets. Set contain-intrinsic-size
+   to avoid scroll height jumps. */
+:host { content-visibility: auto; contain-intrinsic-size: auto 200px; }
+```
 
 To override any of these, write `:host { ... }` in your companion CSS — it
 lives in `@layer emroute` which takes priority over `@layer emroute-base`.

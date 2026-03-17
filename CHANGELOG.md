@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.3] - 2026-03-17
+
+### Fixed
+
+- **Widget collapse in flex/grid layouts**: `container-type: inline-size` and
+  `content-visibility: auto` have been removed from the default `:host` styles.
+  `container-type: inline-size` implies size containment, which prevents the
+  host element from deriving its width from its children — causing widgets to
+  collapse to zero width in flex/grid contexts unless explicitly sized from
+  outside. `content-visibility: auto` could collapse off-screen widgets without
+  `contain-intrinsic-size`. Both are now opt-in via companion CSS.
+  **If 1.12.1 or 1.12.2 broke your widget layouts, we apologise — this release
+  fixes it.** The base `:host` styles are now just `display: block` and the
+  `hidden` safeguard.
+
+### Changed
+
+- **`container-type` and `content-visibility` are now opt-in**: Add them in
+  your companion CSS when needed. See the updated [widget docs](doc/06-widgets.md)
+  for guidance and examples.
+
 ## [1.12.2] - 2026-03-16
 
 ### Fixed

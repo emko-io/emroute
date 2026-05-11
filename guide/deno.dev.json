@@ -3,7 +3,7 @@
     "@emkodev/emroute": "../src/index.ts",
     "@emkodev/emroute/server": "../server/emroute.server.ts",
     "@emkodev/emroute/runtime/universal/fs": "../runtime/universal/fs/universal-fs.runtime.ts",
-    "marked": "npm:marked@^16.0.0"
+    "@emkodev/emkoma/render": "npm:@emkodev/emkoma@^0.4.0/render"
   },
   "compilerOptions": {
     "lib": ["deno.ns", "esnext", "dom", "dom.iterable", "dom.asynciterable"]

@@ -178,11 +178,32 @@ For HTTP status conditions (thrown `Response` objects):
 
 ## File Naming Summary
 
-| File pattern             | Role               | Scope                     |
-| ------------------------ | ------------------ | ------------------------- |
-| `index.error.ts`         | Root error handler | All routes (global)       |
-| `*.error.ts`             | Error boundary     | Routes under matched path |
-| `{code}.page.ts/html/md` | Status page        | Specific HTTP status code |
+```table
+{
+  "head": [
+    "File pattern",
+    "Role",
+    "Scope"
+  ],
+  "body": [
+    [
+      "`index.error.ts`",
+      "Root error handler",
+      "All routes (global)"
+    ],
+    [
+      "`*.error.ts`",
+      "Error boundary",
+      "Routes under matched path"
+    ],
+    [
+      "`{code}.page.ts/html/md`",
+      "Status page",
+      "Specific HTTP status code"
+    ]
+  ]
+}
+```
 
 Error boundaries and the root error handler are always `.ts`. Status pages
 support `.ts`, `.html`, and `.md` like regular pages.

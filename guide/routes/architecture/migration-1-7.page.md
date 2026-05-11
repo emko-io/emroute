@@ -7,15 +7,44 @@ setup and SPA initialization.
 
 ## Quick summary
 
-| 1.6 | 1.7 |
-|-----|-----|
-| `SpaHtmlRouter` / `SpaHashRouter` | `EmrouteApp` via `bootEmrouteApp()` |
-| `RoutesManifest` (flat array) | `RouteNode` (tree) |
-| `runtime.bundle()` | `buildClientBundles()` |
-| `RuntimeConfig.entryPoint` | `BuildOptions.entryPoint` |
-| `emroute:routes` / `emroute:widgets` virtual modules | JSON manifests fetched at boot |
-| `createSpaHtmlRouter(manifest)` | `bootEmrouteApp()` |
-| `SsrHtmlRouter.render(pathname)` | `SsrHtmlRouter.render(url, signal)` |
+```table
+{
+  "head": [
+    "1.6",
+    "1.7"
+  ],
+  "body": [
+    [
+      "`SpaHtmlRouter` / `SpaHashRouter`",
+      "`EmrouteApp` via `bootEmrouteApp()`"
+    ],
+    [
+      "`RoutesManifest` (flat array)",
+      "`RouteNode` (tree)"
+    ],
+    [
+      "`runtime.bundle()`",
+      "`buildClientBundles()`"
+    ],
+    [
+      "`RuntimeConfig.entryPoint`",
+      "`BuildOptions.entryPoint`"
+    ],
+    [
+      "`emroute:routes` / `emroute:widgets` virtual modules",
+      "JSON manifests fetched at boot"
+    ],
+    [
+      "`createSpaHtmlRouter(manifest)`",
+      "`bootEmrouteApp()`"
+    ],
+    [
+      "`SsrHtmlRouter.render(pathname)`",
+      "`SsrHtmlRouter.render(url, signal)`"
+    ]
+  ]
+}
+```
 
 ## Server setup
 
@@ -177,26 +206,74 @@ of `/html/*`.
 
 ### Removed from Runtime
 
-| Method | Replacement |
-|--------|-------------|
-| `runtime.bundle()` | `buildClientBundles({ runtime, root, spa })` |
-| `Runtime.compress()` | Removed (use native compression) |
-| `Runtime.stopBundler()` | `esbuild.stop()` is called internally |
-| `runtime.writeShell()` | Handled by `buildClientBundles()` |
+```table
+{
+  "head": [
+    "Method",
+    "Replacement"
+  ],
+  "body": [
+    [
+      "`runtime.bundle()`",
+      "`buildClientBundles({ runtime, root, spa })`"
+    ],
+    [
+      "`Runtime.compress()`",
+      "Removed (use native compression)"
+    ],
+    [
+      "`Runtime.stopBundler()`",
+      "`esbuild.stop()` is called internally"
+    ],
+    [
+      "`runtime.writeShell()`",
+      "Handled by `buildClientBundles()`"
+    ]
+  ]
+}
+```
 
 ### Removed from RuntimeConfig
 
-| Field | Replacement |
-|-------|-------------|
-| `entryPoint` | `BuildOptions.entryPoint` |
-| `bundlePaths` | `BuildOptions.bundlePaths` |
-| `spa` | `BuildOptions.spa` |
+```table
+{
+  "head": [
+    "Field",
+    "Replacement"
+  ],
+  "body": [
+    [
+      "`entryPoint`",
+      "`BuildOptions.entryPoint`"
+    ],
+    [
+      "`bundlePaths`",
+      "`BuildOptions.bundlePaths`"
+    ],
+    [
+      "`spa`",
+      "`BuildOptions.spa`"
+    ]
+  ]
+}
+```
 
 ### Added to Runtime
 
-| Method | Purpose |
-|--------|---------|
-| `transpile(source)` | TypeScript → JavaScript (instance method, not static) |
+```table
+{
+  "head": [
+    "Method",
+    "Purpose"
+  ],
+  "body": [
+    [
+      "`transpile(source)`",
+      "TypeScript → JavaScript (instance method, not static)"
+    ]
+  ]
+}
+```
 
 If you have a custom Runtime, implement `transpile()` to enable per-file module
 merging during the build step.

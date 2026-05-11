@@ -89,24 +89,64 @@ export default new ProjectsPage();
 **Default fallbacks** (used by the framework's built-in component when no
 `.page.ts` exists):
 
-| Method             | Default                                              |
-|--------------------|------------------------------------------------------|
-| `getData()`        | Returns `null`                                       |
-| `renderHTML()`     | Renders companion `.html`, falls back to `.md` wrapped in `<mark-down>`, falls back to a router-slot |
-| `renderMarkdown()` | Renders companion `.md`, falls back to a router-slot |
-| `getTitle()`       | Returns `undefined` (no title change)                |
+```table
+{
+  "head": [
+    "Method",
+    "Default"
+  ],
+  "body": [
+    [
+      "`getData()`",
+      "Returns `null`"
+    ],
+    [
+      "`renderHTML()`",
+      "Renders companion `.html`, falls back to `.md` wrapped in `<mark-down>`, falls back to a router-slot"
+    ],
+    [
+      "`renderMarkdown()`",
+      "Renders companion `.md`, falls back to a router-slot"
+    ],
+    [
+      "`getTitle()`",
+      "Returns `undefined` (no title change)"
+    ]
+  ]
+}
+```
 
 ## Companion files
 
 A single route can have multiple companion files. The framework loads them and
 makes them available via `context.files`:
 
-| File              | Purpose                                  |
-|-------------------|------------------------------------------|
-| `name.page.ts`    | Component with data lifecycle            |
-| `name.page.html`  | HTML template (in `context.files.html`)  |
-| `name.page.md`    | Markdown content (in `context.files.md`) |
-| `name.page.css`   | Styles (in `context.files.css`)          |
+```table
+{
+  "head": [
+    "File",
+    "Purpose"
+  ],
+  "body": [
+    [
+      "`name.page.ts`",
+      "Component with data lifecycle"
+    ],
+    [
+      "`name.page.html`",
+      "HTML template (in `context.files.html`)"
+    ],
+    [
+      "`name.page.md`",
+      "Markdown content (in `context.files.md`)"
+    ],
+    [
+      "`name.page.css`",
+      "Styles (in `context.files.css`)"
+    ]
+  ]
+}
+```
 
 A `.page.css` file alone serves an empty page — CSS is meant to accompany
 a content file (`.html`, `.md`, or `.ts`), not stand alone.

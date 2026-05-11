@@ -79,12 +79,32 @@ conversion, used by `buildClientBundles()` to produce browser-loadable
 const js = await runtime.transpile(tsSource);
 ```
 
-| Runtime               | `transpile()` implementation |
-|-----------------------|------------------------------|
-| `BunFsRuntime`        | `Bun.Transpiler`             |
-| `BunSqliteRuntime`    | `Bun.Transpiler`             |
-| `UniversalFsRuntime`  | **not implemented** — throws |
-| `FetchRuntime`        | **not implemented** — throws |
+```table
+{
+  "head": [
+    "Runtime",
+    "`transpile()` implementation"
+  ],
+  "body": [
+    [
+      "`BunFsRuntime`",
+      "`Bun.Transpiler`"
+    ],
+    [
+      "`BunSqliteRuntime`",
+      "`Bun.Transpiler`"
+    ],
+    [
+      "`UniversalFsRuntime`",
+      "**not implemented** — throws"
+    ],
+    [
+      "`FetchRuntime`",
+      "**not implemented** — throws"
+    ]
+  ]
+}
+```
 
 If your runtime needs to support `buildClientBundles()` (SPA modes), override
 `transpile()`. On Node/Deno, that typically means wrapping esbuild, swc, or a
@@ -255,17 +275,48 @@ class MyRuntime extends Runtime {
 
 ### What you must implement
 
-| Method | Purpose |
-|--------|---------|
-| `handle(resource, init?)` | Raw request passthrough. Route GET → read, PUT → write. |
-| `query(resource, options?)` | Read with optional `{ as: 'text' }` shortcut. |
+```table
+{
+  "head": [
+    "Method",
+    "Purpose"
+  ],
+  "body": [
+    [
+      "`handle(resource, init?)`",
+      "Raw request passthrough. Route GET → read, PUT → write."
+    ],
+    [
+      "`query(resource, options?)`",
+      "Read with optional `{ as: 'text' }` shortcut."
+    ]
+  ]
+}
+```
 
 ### What you should override
 
-| Method | Purpose | Default |
-|--------|---------|---------|
-| `loadModule(path)` | Dynamic `import()` for SSR | Throws "not implemented" |
-| `transpile(source)` | TS → JS transformation | Throws "not implemented" |
+```table
+{
+  "head": [
+    "Method",
+    "Purpose",
+    "Default"
+  ],
+  "body": [
+    [
+      "`loadModule(path)`",
+      "Dynamic `import()` for SSR",
+      "Throws \"not implemented\""
+    ],
+    [
+      "`transpile(source)`",
+      "TS → JS transformation",
+      "Throws \"not implemented\""
+    ]
+  ]
+}
+```
 
 ### What you get for free
 

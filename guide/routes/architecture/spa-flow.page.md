@@ -4,12 +4,42 @@
 
 The server is always there — the question is where it runs.
 
-| Mode | Server location | JS on client | Base path |
-|---|---|---|---|
-| `none` | remote | none | `/html/`, `/md/` |
-| `leaf` | remote | widgets/hydration, no router | `/html/`, `/md/` |
-| `root` | remote | `createEmrouteApp` + FetchRuntime | `/app/` |
-| `only` | local (SW optional) | `createEmrouteApp` + UniversalBrowserRuntime | `/app/` |
+```table
+{
+  "head": [
+    "Mode",
+    "Server location",
+    "JS on client",
+    "Base path"
+  ],
+  "body": [
+    [
+      "`none`",
+      "remote",
+      "none",
+      "`/html/`, `/md/`"
+    ],
+    [
+      "`leaf`",
+      "remote",
+      "widgets/hydration, no router",
+      "`/html/`, `/md/`"
+    ],
+    [
+      "`root`",
+      "remote",
+      "`createEmrouteApp` + FetchRuntime",
+      "`/app/`"
+    ],
+    [
+      "`only`",
+      "local (SW optional)",
+      "`createEmrouteApp` + UniversalBrowserRuntime",
+      "`/app/`"
+    ]
+  ]
+}
+```
 
 Three base paths, three audiences:
 - `/html/` — SSR HTML for browsers without JS, progressive enhancement

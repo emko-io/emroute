@@ -76,12 +76,37 @@ override renderMarkdown(args: this['RenderArgs']): string {
 When a page has no `.html` or `.md` file and no render overrides, the base
 `PageComponent` uses a fallback chain:
 
-| Files present   | `renderHTML()` produces               | `renderMarkdown()` produces |
-| --------------- | ------------------------------------- | --------------------------- |
-| `.html` + `.md` | HTML file content                     | Markdown file content       |
-| `.html` only    | HTML file content                     | `router-slot` placeholder   |
-| `.md` only      | `<mark-down>` wrapper + `router-slot` | Markdown file content       |
-| Neither         | Bare `<router-slot>`                  | `router-slot` placeholder   |
+```table
+{
+  "head": [
+    "Files present",
+    "`renderHTML()` produces",
+    "`renderMarkdown()` produces"
+  ],
+  "body": [
+    [
+      "`.html` + `.md`",
+      "HTML file content",
+      "Markdown file content"
+    ],
+    [
+      "`.html` only",
+      "HTML file content",
+      "`router-slot` placeholder"
+    ],
+    [
+      "`.md` only",
+      "`<mark-down>` wrapper + `router-slot`",
+      "Markdown file content"
+    ],
+    [
+      "Neither",
+      "Bare `<router-slot>`",
+      "`router-slot` placeholder"
+    ]
+  ]
+}
+```
 
 Every fallback produces a slot. This means:
 
@@ -169,12 +194,42 @@ placeholder. The child page renders directly — no visible wrapper.
 
 Not every file combination produces visible content in every mode.
 
-| Page files      | SSR HTML    | SSR Markdown  | SPA         |
-| --------------- | ----------- | ------------- | ----------- |
-| `.html` + `.md` | visible     | visible       | visible     |
-| `.html` only    | visible     | **invisible** | visible     |
-| `.md` only      | visible     | visible       | visible     |
-| `.ts` only      | passthrough | passthrough   | passthrough |
+```table
+{
+  "head": [
+    "Page files",
+    "SSR HTML",
+    "SSR Markdown",
+    "SPA"
+  ],
+  "body": [
+    [
+      "`.html` + `.md`",
+      "visible",
+      "visible",
+      "visible"
+    ],
+    [
+      "`.html` only",
+      "visible",
+      "**invisible**",
+      "visible"
+    ],
+    [
+      "`.md` only",
+      "visible",
+      "visible",
+      "visible"
+    ],
+    [
+      "`.ts` only",
+      "passthrough",
+      "passthrough",
+      "passthrough"
+    ]
+  ]
+}
+```
 
 > **If you want your page visible in all three modes, provide a `.md` file or
 > override `renderMarkdown()`.** Pages with only `.html` will not appear in
@@ -322,11 +377,32 @@ class DocsCatchAllPage extends PageComponent {
 export default new DocsCatchAllPage();
 ```
 
-| URL                     | Matched by           | `params.rest`     |
-| ----------------------- | -------------------- | ----------------- |
-| `/docs`                 | `docs.page.ts`       | —                 |
-| `/docs/getting-started` | `docs/index.page.ts` | `getting-started` |
-| `/docs/api/components`  | `docs/index.page.ts` | `api/components`  |
+```table
+{
+  "head": [
+    "URL",
+    "Matched by",
+    "`params.rest`"
+  ],
+  "body": [
+    [
+      "`/docs`",
+      "`docs.page.ts`",
+      "—"
+    ],
+    [
+      "`/docs/getting-started`",
+      "`docs/index.page.ts`",
+      "`getting-started`"
+    ],
+    [
+      "`/docs/api/components`",
+      "`docs/index.page.ts`",
+      "`api/components`"
+    ]
+  ]
+}
+```
 
 The catch-all nests inside the flat file's `<router-slot>`, so the docs layout
 wraps every sub-page automatically.
@@ -361,10 +437,27 @@ class DocsPage extends PageComponent<Record<string, never>, DocList> {
 export default new DocsPage();
 ```
 
-| URL                     | `isLeaf` | Behavior                           |
-| ----------------------- | -------- | ---------------------------------- |
-| `/docs`                 | `true`   | Renders docs index content         |
-| `/docs/getting-started` | `false`  | Renders layout with slot for child |
+```table
+{
+  "head": [
+    "URL",
+    "`isLeaf`",
+    "Behavior"
+  ],
+  "body": [
+    [
+      "`/docs`",
+      "`true`",
+      "Renders docs index content"
+    ],
+    [
+      "`/docs/getting-started`",
+      "`false`",
+      "Renders layout with slot for child"
+    ]
+  ]
+}
+```
 
 `isLeaf` is available on `ComponentContext`, so it works in both `getData` and
 render methods. Use it in `getData` to skip expensive work (database queries,
@@ -399,12 +492,37 @@ routes/
     index.page.ts            ← /users/*     (any depth)
 ```
 
-| URL                      | Matched by            | Why                          |
-| ------------------------ | --------------------- | ---------------------------- |
-| `/users`                 | `users.page.ts`       | exact match                  |
-| `/users/42`              | `users/[id].page.ts`  | specific route wins          |
-| `/users/42/posts`        | `users/index.page.ts` | no specific match, catch-all |
-| `/users/42/posts/drafts` | `users/index.page.ts` | no specific match, catch-all |
+```table
+{
+  "head": [
+    "URL",
+    "Matched by",
+    "Why"
+  ],
+  "body": [
+    [
+      "`/users`",
+      "`users.page.ts`",
+      "exact match"
+    ],
+    [
+      "`/users/42`",
+      "`users/[id].page.ts`",
+      "specific route wins"
+    ],
+    [
+      "`/users/42/posts`",
+      "`users/index.page.ts`",
+      "no specific match, catch-all"
+    ],
+    [
+      "`/users/42/posts/drafts`",
+      "`users/index.page.ts`",
+      "no specific match, catch-all"
+    ]
+  ]
+}
+```
 
 Specific routes always win over the catch-all. `/users/42` matches `[id]`
 because it is more specific than `index`. Anything that doesn't have a
@@ -551,13 +669,42 @@ routes/
     archive.page.ts          ← /blog/archive (custom query logic)
 ```
 
-| URL                | Matched by              | Why                    |
-| ------------------ | ----------------------- | ---------------------- |
-| `/blog`            | `blog.page.html`        | exact match            |
-| `/blog/featured`   | `blog/featured.page.md` | specific wins          |
-| `/blog/archive`    | `blog/archive.page.ts`  | specific wins          |
-| `/blog/my-post`    | `blog/index.page.ts`    | no specific, catch-all |
-| `/blog/2024/01/hi` | `blog/index.page.ts`    | no specific, catch-all |
+```table
+{
+  "head": [
+    "URL",
+    "Matched by",
+    "Why"
+  ],
+  "body": [
+    [
+      "`/blog`",
+      "`blog.page.html`",
+      "exact match"
+    ],
+    [
+      "`/blog/featured`",
+      "`blog/featured.page.md`",
+      "specific wins"
+    ],
+    [
+      "`/blog/archive`",
+      "`blog/archive.page.ts`",
+      "specific wins"
+    ],
+    [
+      "`/blog/my-post`",
+      "`blog/index.page.ts`",
+      "no specific, catch-all"
+    ],
+    [
+      "`/blog/2024/01/hi`",
+      "`blog/index.page.ts`",
+      "no specific, catch-all"
+    ]
+  ]
+}
+```
 
 The catch-all handles the long tail. Static files handle the special cases.
 You can add or remove specific overrides at any time without touching the

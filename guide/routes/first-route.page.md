@@ -23,11 +23,36 @@ When it doesn't, the framework renders the `.html` or `.md` file directly.
 
 emroute serves every page in three formats from the same source:
 
-| URL prefix | Mode         | Output        | Audience                |
-|------------|--------------|---------------|-------------------------|
-| `/html/`   | SSR HTML     | HTML document | Browsers, crawlers      |
-| `/md/`     | SSR Markdown | Plain text    | LLMs, `curl`, scripts   |
-| `/app/`    | SPA          | JS app shell  | Interactive browser app |
+```table
+{
+  "head": [
+    "URL prefix",
+    "Mode",
+    "Output",
+    "Audience"
+  ],
+  "body": [
+    [
+      "`/html/`",
+      "SSR HTML",
+      "HTML document",
+      "Browsers, crawlers"
+    ],
+    [
+      "`/md/`",
+      "SSR Markdown",
+      "Plain text",
+      "LLMs, `curl`, scripts"
+    ],
+    [
+      "`/app/`",
+      "SPA",
+      "JS app shell",
+      "Interactive browser app"
+    ]
+  ]
+}
+```
 
 With `spa: 'none'`, bare paths redirect to `/html/`. Try it:
 

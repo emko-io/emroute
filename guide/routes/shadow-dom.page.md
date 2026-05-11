@@ -124,12 +124,42 @@ All four SPA modes use the same Shadow DOM architecture. The mode controls
 **what the server sends** and **whether JavaScript runs**, not how Shadow DOM
 works.
 
-| Mode   | Server renders widgets? | JavaScript bundles? | SPA router? |
-| ------ | ----------------------- | ------------------- | ----------- |
-| `none` | Yes (Declarative SD)    | No                  | No          |
-| `leaf` | Yes (Declarative SD)    | Yes                 | No          |
-| `root` | Yes (Declarative SD)    | Yes                 | Yes         |
-| `only` | No (shell only)         | Yes                 | Yes         |
+```table
+{
+  "head": [
+    "Mode",
+    "Server renders widgets?",
+    "JavaScript bundles?",
+    "SPA router?"
+  ],
+  "body": [
+    [
+      "`none`",
+      "Yes (Declarative SD)",
+      "No",
+      "No"
+    ],
+    [
+      "`leaf`",
+      "Yes (Declarative SD)",
+      "Yes",
+      "No"
+    ],
+    [
+      "`root`",
+      "Yes (Declarative SD)",
+      "Yes",
+      "Yes"
+    ],
+    [
+      "`only`",
+      "No (shell only)",
+      "Yes",
+      "Yes"
+    ]
+  ]
+}
+```
 
 - **`none`**: Full SSR with Declarative Shadow DOM. No JavaScript. Forms
   submit, links reload. Progressive enhancement at its purest.

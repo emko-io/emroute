@@ -80,10 +80,27 @@ The import map declares what is *available*, not what is *loaded*.
 The same `import dayjs from 'dayjs'` in a page or widget resolves differently
 depending on where it runs:
 
-| | Resolution | Source |
-|---|---|---|
-| **Server** (Bun/Node) | Native `import()` | `node_modules/dayjs` |
-| **Browser** | Import map | `https://esm.sh/dayjs` (or wherever you mapped it) |
+```table
+{
+  "head": [
+    "",
+    "Resolution",
+    "Source"
+  ],
+  "body": [
+    [
+      "**Server** (Bun/Node)",
+      "Native `import()`",
+      "`node_modules/dayjs`"
+    ],
+    [
+      "**Browser**",
+      "Import map",
+      "`https://esm.sh/dayjs` (or wherever you mapped it)"
+    ]
+  ]
+}
+```
 
 On the server, bare specifiers resolve from `node_modules` automatically —
 no import map needed. The import map gives the browser the same resolution
@@ -94,11 +111,32 @@ Install the package with your package manager for the server, and map it in
 
 ### Where do vendor modules come from?
 
-| Source | Example | Notes |
-|--------|---------|-------|
-| CDN | `"dayjs": "https://esm.sh/dayjs"` | Zero local files. esm.sh, jspm.io, unpkg, etc. |
-| Local vendor dir | `"my-lib/": "/vendor/my-lib/"` | Copy ESM-ready packages into your project |
-| Pre-built bundle | `"@emkodev/emroute/spa": "/emroute.js"` | How emroute itself is served |
+```table
+{
+  "head": [
+    "Source",
+    "Example",
+    "Notes"
+  ],
+  "body": [
+    [
+      "CDN",
+      "`\"dayjs\": \"https://esm.sh/dayjs\"`",
+      "Zero local files. esm.sh, jspm.io, unpkg, etc."
+    ],
+    [
+      "Local vendor dir",
+      "`\"my-lib/\": \"/vendor/my-lib/\"`",
+      "Copy ESM-ready packages into your project"
+    ],
+    [
+      "Pre-built bundle",
+      "`\"@emkodev/emroute/spa\": \"/emroute.js\"`",
+      "How emroute itself is served"
+    ]
+  ]
+}
+```
 
 ## `main.ts`
 
@@ -208,15 +246,52 @@ await bootEmrouteApp();
 
 ### Widgets vs custom elements
 
-| | Widgets | Custom elements |
-|---|---|---|
-| Base class | `WidgetComponent` | `HTMLElement` |
-| Convention | `widgets/{name}/{name}.widget.ts` | `elements/{name}/{name}.element.ts` |
-| Tag name | `<widget-{name}>` | `<{name}>` (folder name) |
-| SSR | Yes (server renders HTML + markdown) | No (client-side only) |
-| Data fetching | `getData()` with abort signal | Your own logic |
-| Companion files | `.html`, `.md`, `.css` | None |
-| Hydration | `hydrate()` hook | `connectedCallback()` |
+```table
+{
+  "head": [
+    "",
+    "Widgets",
+    "Custom elements"
+  ],
+  "body": [
+    [
+      "Base class",
+      "`WidgetComponent`",
+      "`HTMLElement`"
+    ],
+    [
+      "Convention",
+      "`widgets/{name}/{name}.widget.ts`",
+      "`elements/{name}/{name}.element.ts`"
+    ],
+    [
+      "Tag name",
+      "`<widget-{name}>`",
+      "`<{name}>` (folder name)"
+    ],
+    [
+      "SSR",
+      "Yes (server renders HTML + markdown)",
+      "No (client-side only)"
+    ],
+    [
+      "Data fetching",
+      "`getData()` with abort signal",
+      "Your own logic"
+    ],
+    [
+      "Companion files",
+      "`.html`, `.md`, `.css`",
+      "None"
+    ],
+    [
+      "Hydration",
+      "`hydrate()` hook",
+      "`connectedCallback()`"
+    ]
+  ]
+}
+```
 
 Use widgets when you need SSR, server-side data, or companion files. Use
 custom elements for client-only interactive components.
@@ -338,12 +413,37 @@ widget hydration and your custom elements.
 
 ## What emroute auto-registers
 
-| Tag | Source | When |
-|-----|--------|------|
-| `<router-slot>` | Framework | On `@emkodev/emroute/spa` import |
-| `<mark-down>` | Framework | On `@emkodev/emroute/spa` import |
-| `<widget-{name}>` | `widgets/` | `bootEmrouteApp()` (lazy per widget) |
-| `<{name}>` | `elements/` | `bootEmrouteApp()` (all imported at boot) |
+```table
+{
+  "head": [
+    "Tag",
+    "Source",
+    "When"
+  ],
+  "body": [
+    [
+      "`<router-slot>`",
+      "Framework",
+      "On `@emkodev/emroute/spa` import"
+    ],
+    [
+      "`<mark-down>`",
+      "Framework",
+      "On `@emkodev/emroute/spa` import"
+    ],
+    [
+      "`<widget-{name}>`",
+      "`widgets/`",
+      "`bootEmrouteApp()` (lazy per widget)"
+    ],
+    [
+      "`<{name}>`",
+      "`elements/`",
+      "`bootEmrouteApp()` (all imported at boot)"
+    ]
+  ]
+}
+```
 
 Third-party elements and widgets — register in `main.ts` before
 `bootEmrouteApp()`.

@@ -88,13 +88,36 @@ bun run server.ts
 
 ## Verify
 
-| Endpoint         | Response                               |
-|------------------|----------------------------------------|
-| `GET /`          | 302 → `/app/` (SPA shell)             |
-| `GET /app/`      | SPA — client-side routing              |
-| `GET /html/`     | SSR HTML — markdown rendered to HTML   |
-| `GET /md/`       | SSR Markdown — raw markdown text       |
-| `GET /api/hello` | `{"hello":"world"}` (Hono route)       |
+```table
+{
+  "head": [
+    "Endpoint",
+    "Response"
+  ],
+  "body": [
+    [
+      "`GET /`",
+      "302 → `/app/` (SPA shell)"
+    ],
+    [
+      "`GET /app/`",
+      "SPA — client-side routing"
+    ],
+    [
+      "`GET /html/`",
+      "SSR HTML — markdown rendered to HTML"
+    ],
+    [
+      "`GET /md/`",
+      "SSR Markdown — raw markdown text"
+    ],
+    [
+      "`GET /api/hello`",
+      "`{\"hello\":\"world\"}` (Hono route)"
+    ]
+  ]
+}
+```
 
 All three rendering paths work. Hono routes coexist with emroute routes.
 

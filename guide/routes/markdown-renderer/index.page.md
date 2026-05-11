@@ -47,11 +47,32 @@ Your renderer must handle these conventions. The setup guides below show how.
 
 ## Renderers
 
-| Renderer        | Bundle size | Notes                                       |
-|-----------------|-------------|---------------------------------------------|
-| **marked**      | ~129KB      | Fast, lightweight, custom renderer API      |
-| **markdown-it** | ~362KB      | CommonMark, large plugin ecosystem          |
-| **emkoma**      | —           | Built for emroute, handles conventions natively (pre-release) |
+```table
+{
+  "head": [
+    "Renderer",
+    "Bundle size",
+    "Notes"
+  ],
+  "body": [
+    [
+      "**marked**",
+      "~129KB",
+      "Fast, lightweight, custom renderer API"
+    ],
+    [
+      "**markdown-it**",
+      "~362KB",
+      "CommonMark, large plugin ecosystem"
+    ],
+    [
+      "**emkoma**",
+      "—",
+      "Built for emroute, handles conventions natively (pre-release)"
+    ]
+  ]
+}
+```
 
 Setup guides:
 
@@ -64,11 +85,32 @@ to implement the fenced block conventions above.
 
 ## Why both client and server?
 
-| Context                | What renders markdown            | When it runs                           |
-|------------------------|----------------------------------|----------------------------------------|
-| SPA (`/`)              | `MarkdownElement` in the browser | Client navigates to a `.page.md` route |
-| SSR HTML (`/html/*`)   | `markdownRenderer` on the server | Server handles an `/html/*` request    |
-| SSR Markdown (`/md/*`) | Nothing — returns raw markdown   | Server returns plain text as-is        |
+```table
+{
+  "head": [
+    "Context",
+    "What renders markdown",
+    "When it runs"
+  ],
+  "body": [
+    [
+      "SPA (`/`)",
+      "`MarkdownElement` in the browser",
+      "Client navigates to a `.page.md` route"
+    ],
+    [
+      "SSR HTML (`/html/*`)",
+      "`markdownRenderer` on the server",
+      "Server handles an `/html/*` request"
+    ],
+    [
+      "SSR Markdown (`/md/*`)",
+      "Nothing — returns raw markdown",
+      "Server returns plain text as-is"
+    ]
+  ]
+}
+```
 
 Without the client-side renderer, SPA navigation to a markdown page shows raw
 text. Without the server-side renderer, `/html/*` routes wrap markdown in
@@ -82,11 +124,28 @@ to ensure identical output in both contexts.
 The output of `render()` is assigned to `innerHTML` in the browser and served
 as HTML from the server. Your renderer is responsible for sanitizing its output.
 
-| Scenario                                    | Recommendation                                        |
-|---------------------------------------------|-------------------------------------------------------|
-| Trusted content (your own `.page.md` files) | Enable HTML passthrough for full flexibility          |
-| Untrusted content (user-submitted markdown) | Keep raw HTML escaping enabled (parser default)       |
-| Mixed                                       | Sanitize the output of `render()` before returning it |
+```table
+{
+  "head": [
+    "Scenario",
+    "Recommendation"
+  ],
+  "body": [
+    [
+      "Trusted content (your own `.page.md` files)",
+      "Enable HTML passthrough for full flexibility"
+    ],
+    [
+      "Untrusted content (user-submitted markdown)",
+      "Keep raw HTML escaping enabled (parser default)"
+    ],
+    [
+      "Mixed",
+      "Sanitize the output of `render()` before returning it"
+    ]
+  ]
+}
+```
 
 Most markdown parsers escape raw HTML by default. Only enable HTML passthrough
 when you control the markdown source.

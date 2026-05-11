@@ -99,15 +99,52 @@
 Everything above `renderRouteContent` is shared — the abstract `SsrRenderer`
 base class owns the pipeline. SSR MD only diverges in format-specific overrides:
 
-| Step               | SSR HTML                                | SSR MD                                       |
-|--------------------|-----------------------------------------|----------------------------------------------|
-| `renderContent()`  | `component.renderHTML()`                | `component.renderMarkdown()`                 |
-| Post-processing    | `expandMarkdown()` → `attributeSlots()` → `resolveWidgetTags()` | attribute bare `` ```router-slot``` `` → `resolveWidgets()` (fenced blocks) |
-| `injectSlot()`     | regex replace `<router-slot pattern="...">` | string replace `` ```router-slot {"pattern":"..."}``` `` |
-| `stripSlots()`     | remove `<router-slot...></router-slot>` | remove `` ```router-slot...``` `` blocks     |
-| `renderRedirect()` | `<meta http-equiv="refresh">`           | `Redirect to: /path`                         |
-| `renderStatusPage()` | `<h1>` + `<p>` HTML                  | `# Heading` + `` `path` `` markdown          |
-| Server response    | inject into HTML shell, `text/html`     | return raw content, `text/markdown`           |
+```table
+{
+  "head": [
+    "Step",
+    "SSR HTML",
+    "SSR MD"
+  ],
+  "body": [
+    [
+      "`renderContent()`",
+      "`component.renderHTML()`",
+      "`component.renderMarkdown()`"
+    ],
+    [
+      "Post-processing",
+      "`expandMarkdown()` → `attributeSlots()` → `resolveWidgetTags()`",
+      "attribute bare `` ```router-slot``` `` → `resolveWidgets()` (fenced blocks)"
+    ],
+    [
+      "`injectSlot()`",
+      "regex replace `<router-slot pattern=\"...\">`",
+      "string replace `` ```router-slot {\"pattern\":\"...\"}``` ``"
+    ],
+    [
+      "`stripSlots()`",
+      "remove `<router-slot...></router-slot>`",
+      "remove `` ```router-slot...``` `` blocks"
+    ],
+    [
+      "`renderRedirect()`",
+      "`<meta http-equiv=\"refresh\">`",
+      "`Redirect to: /path`"
+    ],
+    [
+      "`renderStatusPage()`",
+      "`<h1>` + `<p>` HTML",
+      "`# Heading` + `` `path` `` markdown"
+    ],
+    [
+      "Server response",
+      "inject into HTML shell, `text/html`",
+      "return raw content, `text/markdown`"
+    ]
+  ]
+}
+```
 
 ## SPA HTML Router Flow
 
@@ -379,16 +416,57 @@ router (which skips `hashChange` events).
 
 ### Hash Router vs SPA HTML Router
 
-| Aspect              | SPA HTML                         | Hash                              |
-|---------------------|----------------------------------|-----------------------------------|
-| Navigation event    | Navigation API `navigate`        | `hashchange`                      |
-| URL shape           | `/html/about`                    | `#/settings`                      |
-| BasePath stripping  | Yes (`stripBase`)                | No — hash is self-contained       |
-| SSR adoption        | Yes (`data-ssr-route`)           | No — hash content never SSR'd     |
-| View transitions    | `document.startViewTransition()` | Not wired up                      |
-| Route source        | Manifest (route tree)            | Inline consumer definitions       |
-| Slot element        | `<router-slot>`                  | `<hash-slot>`                     |
-| Coexistence         | Skips hash changes               | Ignores non-hash navigation       |
+```table
+{
+  "head": [
+    "Aspect",
+    "SPA HTML",
+    "Hash"
+  ],
+  "body": [
+    [
+      "Navigation event",
+      "Navigation API `navigate`",
+      "`hashchange`"
+    ],
+    [
+      "URL shape",
+      "`/html/about`",
+      "`#/settings`"
+    ],
+    [
+      "BasePath stripping",
+      "Yes (`stripBase`)",
+      "No — hash is self-contained"
+    ],
+    [
+      "SSR adoption",
+      "Yes (`data-ssr-route`)",
+      "No — hash content never SSR'd"
+    ],
+    [
+      "View transitions",
+      "`document.startViewTransition()`",
+      "Not wired up"
+    ],
+    [
+      "Route source",
+      "Manifest (route tree)",
+      "Inline consumer definitions"
+    ],
+    [
+      "Slot element",
+      "`<router-slot>`",
+      "`<hash-slot>`"
+    ],
+    [
+      "Coexistence",
+      "Skips hash changes",
+      "Ignores non-hash navigation"
+    ]
+  ]
+}
+```
 
 ## URLPattern vs RouteTrie
 

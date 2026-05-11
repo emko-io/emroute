@@ -102,12 +102,47 @@ This means:
 
 ### Server behavior by mode
 
-| | HTML response | JS bundles | SPA router | Widgets hydrate |
-|---|---|---|---|---|
-| `none` | SSR rendered | No | No | No |
-| `leaf` | SSR rendered | Yes | No | Yes |
-| `root` | SSR rendered | Yes | Yes | Yes |
-| `only` | Empty shell | Yes | Yes | Yes |
+```table
+{
+  "head": [
+    "",
+    "HTML response",
+    "JS bundles",
+    "SPA router",
+    "Widgets hydrate"
+  ],
+  "body": [
+    [
+      "`none`",
+      "SSR rendered",
+      "No",
+      "No",
+      "No"
+    ],
+    [
+      "`leaf`",
+      "SSR rendered",
+      "Yes",
+      "No",
+      "Yes"
+    ],
+    [
+      "`root`",
+      "SSR rendered",
+      "Yes",
+      "Yes",
+      "Yes"
+    ],
+    [
+      "`only`",
+      "Empty shell",
+      "Yes",
+      "Yes",
+      "Yes"
+    ]
+  ]
+}
+```
 
 ### What gets served
 

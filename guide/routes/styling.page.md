@@ -76,13 +76,42 @@ CSS) based on what the widget is doing — no attributes, no classes.
 
 ### Available states
 
-| State | Meaning | When |
-|---|---|---|
-| `:state(lazy)` | Waiting for viewport intersection | `lazy` attribute present, not yet visible |
-| `:state(loading)` | `getData()` in flight | Client-side data fetch started |
-| `:state(hydrating)` | SSR content adopted, wiring up | Between SSR adoption and `hydrate()` completing |
-| `:state(ready)` | Interactive | Data loaded, rendered, listeners attached |
-| `:state(error)` | Failed | `getData()` threw or params validation failed |
+```table
+{
+  "head": [
+    "State",
+    "Meaning",
+    "When"
+  ],
+  "body": [
+    [
+      "`:state(lazy)`",
+      "Waiting for viewport intersection",
+      "`lazy` attribute present, not yet visible"
+    ],
+    [
+      "`:state(loading)`",
+      "`getData()` in flight",
+      "Client-side data fetch started"
+    ],
+    [
+      "`:state(hydrating)`",
+      "SSR content adopted, wiring up",
+      "Between SSR adoption and `hydrate()` completing"
+    ],
+    [
+      "`:state(ready)`",
+      "Interactive",
+      "Data loaded, rendered, listeners attached"
+    ],
+    [
+      "`:state(error)`",
+      "Failed",
+      "`getData()` threw or params validation failed"
+    ]
+  ]
+}
+```
 
 States are mutually exclusive — only one is active at a time.
 

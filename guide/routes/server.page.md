@@ -102,17 +102,72 @@ All paths are relative to `appRoot` and start with `/`.
 
 `Emroute.create()` accepts:
 
-| Option             | Type                                | Default        | Description |
-|--------------------|-------------------------------------|----------------|-------------|
-| `spa`              | `'none' \| 'leaf' \| 'root' \| 'only'` | `'root'`   | SPA mode (see below) |
-| `title`            | `string`                            | `'emroute'`    | Default page `<title>` |
-| `markdownRenderer` | `{ render(md: string): string }`    | —              | Converts markdown to HTML in `<mark-down>` elements |
-| `extendContext`    | `(base: ComponentContext) => ComponentContext` | — | Inject services into every component's context |
-| `basePath`         | `{ html: string, md: string, app: string }` | `{ html: '/html', md: '/md', app: '/app' }` | URL prefixes for SSR and SPA endpoints |
-| `routeTree`        | `RouteNode`                         | —              | Pre-built route tree (skips runtime scanning) |
-| `moduleLoaders`    | `Record<string, () => Promise<unknown>>` | — | Pre-built module loaders (used in browser) |
-| `shell`            | `(ctx: ShellContext) => string \| Promise<string>` | — | Custom HTML shell. Receives `{ runtime, spa, basePath, title }`. Falls back to a built-in default. |
-| `widgets`          | ~~deprecated~~                      | —              | Ignored. Widgets are resolved from the manifest via Runtime. |
+```table
+{
+  "head": [
+    "Option",
+    "Type",
+    "Default",
+    "Description"
+  ],
+  "body": [
+    [
+      "`spa`",
+      "`'none' | 'leaf' | 'root' | 'only'`",
+      "`'root'`",
+      "SPA mode (see below)"
+    ],
+    [
+      "`title`",
+      "`string`",
+      "`'emroute'`",
+      "Default page `<title>`"
+    ],
+    [
+      "`markdownRenderer`",
+      "`{ render(md: string): string }`",
+      "—",
+      "Converts markdown to HTML in `<mark-down>` elements"
+    ],
+    [
+      "`extendContext`",
+      "`(base: ComponentContext) => ComponentContext`",
+      "—",
+      "Inject services into every component's context"
+    ],
+    [
+      "`basePath`",
+      "`{ html: string, md: string, app: string }`",
+      "`{ html: '/html', md: '/md', app: '/app' }`",
+      "URL prefixes for SSR and SPA endpoints"
+    ],
+    [
+      "`routeTree`",
+      "`RouteNode`",
+      "—",
+      "Pre-built route tree (skips runtime scanning)"
+    ],
+    [
+      "`moduleLoaders`",
+      "`Record<string, () => Promise<unknown>>`",
+      "—",
+      "Pre-built module loaders (used in browser)"
+    ],
+    [
+      "`shell`",
+      "`(ctx: ShellContext) => string | Promise<string>`",
+      "—",
+      "Custom HTML shell. Receives `{ runtime, spa, basePath, title }`. Falls back to a built-in default."
+    ],
+    [
+      "`widgets`",
+      "~~deprecated~~",
+      "—",
+      "Ignored. Widgets are resolved from the manifest via Runtime."
+    ]
+  ]
+}
+```
 
 ## `handleRequest` composability
 
@@ -162,12 +217,47 @@ the SPA router, and wires client-side navigation.
 
 The `spa` option controls how the server handles requests:
 
-| Mode     | `GET /`              | `GET /about`         | `/html/*`  | `/md/*`   |
-|----------|----------------------|----------------------|------------|-----------|
-| `'none'` | 302 → `/html`        | 302 → `/html/about`  | SSR HTML   | SSR MD    |
-| `'leaf'` | 302 → `/html`        | 302 → `/html/about`  | SSR HTML + JS | SSR MD |
-| `'root'` | 302 → `/app`         | 302 → `/app/about`   | SSR HTML + JS + SPA router | SSR MD |
-| `'only'` | 302 → `/app`         | 302 → `/app/about`   | 302 → `/app/*` | 302 → `/app/*` |
+```table
+{
+  "head": [
+    "Mode",
+    "`GET /`",
+    "`GET /about`",
+    "`/html/*`",
+    "`/md/*`"
+  ],
+  "body": [
+    [
+      "`'none'`",
+      "302 → `/html`",
+      "302 → `/html/about`",
+      "SSR HTML",
+      "SSR MD"
+    ],
+    [
+      "`'leaf'`",
+      "302 → `/html`",
+      "302 → `/html/about`",
+      "SSR HTML + JS",
+      "SSR MD"
+    ],
+    [
+      "`'root'`",
+      "302 → `/app`",
+      "302 → `/app/about`",
+      "SSR HTML + JS + SPA router",
+      "SSR MD"
+    ],
+    [
+      "`'only'`",
+      "302 → `/app`",
+      "302 → `/app/about`",
+      "302 → `/app/*`",
+      "302 → `/app/*`"
+    ]
+  ]
+}
+```
 
 In `root` and `only` modes, bare paths redirect to `/app/*` (the SPA
 endpoint). In `none` and `leaf` modes, they redirect to `/html/*`.

@@ -1,0 +1,11 @@
+{
+  "imports": {
+    "@emkodev/emroute": "../src/index.ts",
+    "@emkodev/emroute/server": "../server/emroute.server.ts",
+    "@emkodev/emroute/runtime/universal/fs": "../runtime/universal/fs/universal-fs.runtime.ts",
+    "@emkodev/emkoma/render": "../../emkoma/dist/render.js"
+  },
+  "compilerOptions": {
+    "lib": ["deno.ns", "esnext", "dom", "dom.iterable", "dom.asynciterable"]
+  }
+}

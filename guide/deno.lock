@@ -1,0 +1,17 @@
+{
+  "version": "5",
+  "specifiers": {
+    "npm:marked@16": "16.4.2"
+  },
+  "npm": {
+    "marked@16.4.2": {
+      "integrity": "sha512-TI3V8YYWvkVf3KJe1dRkpnjs68JUPyEa5vjKrp1XEEJUAOaQc+Qj+L1qWbPd0SJuAdQkFU0h73sXXqwDYxsiDA==",
+      "bin": true
+    }
+  },
+  "workspace": {
+    "dependencies": [
+      "npm:marked@16"
+    ]
+  }
+}

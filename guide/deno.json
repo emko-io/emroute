@@ -3,20 +3,17 @@
     "@emkodev/emroute": "npm:@emkodev/emroute@1.12.4",
     "@emkodev/emroute/server": "npm:@emkodev/emroute@1.12.4/server",
     "@emkodev/emroute/runtime/universal/fs": "npm:@emkodev/emroute@1.12.4/runtime/universal/fs",
-    "@emkodev/emkoma/render": "npm:@emkodev/emkoma@0.4.4/render"
+    "marked": "npm:marked@^16.0.0"
   },
   "tasks": {
     "dev": "deno run --config=deno.dev.json --allow-net --allow-read --allow-env server.ts"
   },
   "deploy": {
     "org": "emkodev",
-    "app": "emroute-guide",
-    "runtime": {
-      "type": "dynamic",
-      "entrypoint": "server.ts"
-    }
+    "app": "emroute-guide"
   },
   "compilerOptions": {
     "lib": ["deno.ns", "esnext", "dom", "dom.iterable", "dom.asynciterable"]
   }
 }
+

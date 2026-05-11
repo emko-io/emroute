@@ -1,12 +1,12 @@
 import { Emroute } from '@emkodev/emroute/server';
 import { UniversalFsRuntime } from '@emkodev/emroute/runtime/universal/fs';
-import { renderMarkdown } from '@emkodev/emkoma/render';
 import type { MarkdownRenderer } from '@emkodev/emroute';
+import { render } from './renderer.ts';
 
 const root = import.meta.dirname!;
 const runtime = new UniversalFsRuntime(root);
 
-const markdownRenderer: MarkdownRenderer = { render: renderMarkdown };
+const markdownRenderer: MarkdownRenderer = { render };
 
 const emroute = await Emroute.create({
   spa: 'none',

@@ -12,7 +12,7 @@ Deeper dives into how emroute works internally, plus historical records.
 
 ## Migration
 
-- **[Migrating from 1.6 to 1.7](architecture/migration-1.7)** — historical
+- **[Migrating from 1.6 to 1.7](architecture/migration-1-7)** — historical
   reference. Documents API changes when 1.7 replaced the SPA router layer,
   switched to a route tree, and separated bundling from the Runtime.
 

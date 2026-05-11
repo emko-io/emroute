@@ -118,14 +118,19 @@ export class BunFsRuntime extends Runtime {
    * Serve a .ts file as transpiled JavaScript with companion files inlined.
    */
   private async serveTranspiled(path: string): Promise<Response> {
-    const source = await Bun.file(path).text();
+    const file = Bun.file(path);
+    const source = await file.text();
     const virtualPath = path.slice(this.root.length);
     const js = await this.transpileModule(virtualPath, source);
 
-    return new Response(js, {
-      status: 200,
-      headers: { 'Content-Type': 'application/javascript; charset=utf-8' },
-    });
+    const headers: HeadersInit = {
+      'Content-Type': 'application/javascript; charset=utf-8',
+    };
+    if (file.lastModified) {
+      headers['Last-Modified'] = new Date(file.lastModified).toUTCString();
+    }
+
+    return new Response(js, { status: 200, headers });
   }
 
   private async list(path: string): Promise<Response> {

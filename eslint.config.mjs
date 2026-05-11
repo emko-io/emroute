@@ -11,6 +11,7 @@ export default tseslint.config(
       'dist/',
       'test/browser/fixtures/*.js',
       'server/vendor/',
+      'guide/',
     ],
   },
   {

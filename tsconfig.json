@@ -16,5 +16,5 @@
     "noEmit": true,
     "skipLibCheck": true
   },
-  "exclude": ["vendor", "INTERFACES.sketch.ts"]
+  "exclude": ["vendor", "INTERFACES.sketch.ts", "guide"]
 }

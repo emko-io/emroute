@@ -8,7 +8,12 @@
   "tasks": {
     "dev": "deno run --allow-net --allow-read --allow-env server.ts"
   },
+  "deploy": {
+    "org": "emkodev",
+    "app": "emroute-guide"
+  },
   "compilerOptions": {
     "lib": ["deno.ns", "esnext", "dom", "dom.iterable", "dom.asynciterable"]
   }
 }
+

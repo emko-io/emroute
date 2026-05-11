@@ -11,6 +11,7 @@ test/browser/fixtures/*.bundle.js
 test/browser/fixtures/emroute.js
 test/browser/fixtures/widgets.js
 test/browser/fixtures/app.js
+test/browser/fixtures/sw.js
 test/browser/fixtures/index.html
 test/browser/fixtures/routes.manifest.json
 test/browser/fixtures/widgets.manifest.json

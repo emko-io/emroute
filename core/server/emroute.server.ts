@@ -71,19 +71,18 @@ export class Emroute {
     const { html: htmlBase, md: mdBase, app: appBase } = config.basePath ?? DEFAULT_BASE_PATH;
 
     // ── Verify route manifest exists ──────────────────────────────────
+    // When the caller supplies a routeTree (e.g. SPA boot already fetched
+    // the manifest), skip the verify-fetch — it's a redundant round-trip
+    // on every cold load.
 
-    const manifestResponse = await runtime.query(ROUTES_MANIFEST_PATH);
-    if (manifestResponse.status === 404 && !config.routeTree) {
-      throw new Error(
-        `[emroute] ${ROUTES_MANIFEST_PATH} not found in runtime. ` +
-          'Provide routeTree in config or ensure the runtime produces it.',
-      );
-    }
-
-    if (config.routeTree && manifestResponse.status === 404) {
-      await runtime.command(ROUTES_MANIFEST_PATH, {
-        body: JSON.stringify(config.routeTree),
-      });
+    if (!config.routeTree) {
+      const manifestResponse = await runtime.query(ROUTES_MANIFEST_PATH);
+      if (manifestResponse.status === 404) {
+        throw new Error(
+          `[emroute] ${ROUTES_MANIFEST_PATH} not found in runtime. ` +
+            'Provide routeTree in config or ensure the runtime produces it.',
+        );
+      }
     }
 
     // ── Pipeline ──────────────────────────────────────────────────────

@@ -20,6 +20,11 @@ body {
   align-self: start;
   max-height: calc(100vh - 3rem);
   overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.page-sidebar::-webkit-scrollbar {
+  display: none;
 }
 
 .page-main {

@@ -1,0 +1,72 @@
+:host {
+  display: block;
+  font: 14px/1.5 system-ui, -apple-system, sans-serif;
+}
+
+.site-nav {
+  padding: 1rem 0.75rem;
+}
+
+.brand {
+  display: block;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: inherit;
+  text-decoration: none;
+  margin-bottom: 1.25rem;
+  padding: 0 0.25rem;
+}
+
+.brand:hover {
+  opacity: 0.7;
+}
+
+section {
+  margin-bottom: 1.5rem;
+}
+
+h3 {
+  margin: 0 0.25rem 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #6b7280;
+}
+
+ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+li {
+  margin: 0;
+}
+
+a {
+  display: block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  color: #374151;
+  text-decoration: none;
+  transition: background 0.1s;
+}
+
+a:hover {
+  background: #f3f4f6;
+}
+
+a.active {
+  background: #e5e7eb;
+  color: #111827;
+  font-weight: 500;
+}
+
+@media (prefers-color-scheme: dark) {
+  h3 { color: #9ca3af; }
+  a { color: #d1d5db; }
+  a:hover { background: #1f2937; }
+  a.active { background: #374151; color: #f9fafb; }
+}

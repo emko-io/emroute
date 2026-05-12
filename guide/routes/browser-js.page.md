@@ -49,7 +49,7 @@ emroute always maps its own packages:
 To make third-party packages available to your pages and widgets, create an
 `importmap.json` in your project root:
 
-```json
+```json filepath=importmap.json
 {
   "imports": {
     "@emkodev/emkoma/": "https://esm.sh/@emkodev/emkoma/",
@@ -144,7 +144,7 @@ If a `main.ts` file exists in your project root, it is transpiled to `app.js`
 and loaded as the page's entry module. If it doesn't exist, emroute generates
 a minimal default:
 
-```ts
+```ts filepath=main.ts
 import { bootEmrouteApp } from '@emkodev/emroute/spa';
 await bootEmrouteApp();
 ```
@@ -214,7 +214,7 @@ elements/
     code-editor.element.ts
 ```
 
-```ts
+```ts filepath=elements/code-editor/code-editor.element.ts
 // elements/code-editor/code-editor.element.ts
 export default class CodeEditor extends HTMLElement {
   connectedCallback() {
@@ -301,7 +301,7 @@ custom elements for client-only interactive components.
 Any package mapped in your `importmap.json` can be imported from any `.ts`
 file — pages, widgets, elements, and `main.ts` alike:
 
-```ts
+```ts filepath=widgets/date-display/date-display.widget.ts
 // widgets/date-display/date-display.widget.ts
 import { WidgetComponent } from '@emkodev/emroute';
 import dayjs from 'dayjs';
@@ -342,7 +342,7 @@ Map the framework in `importmap.json`:
 
 Then use it in a widget or custom element:
 
-```ts
+```ts filepath=widgets/react-app/react-app.widget.ts
 // widgets/react-app/react-app.widget.ts
 import { WidgetComponent } from '@emkodev/emroute';
 
@@ -372,7 +372,7 @@ export default new ReactAppWidget();
 
 Or as a custom element:
 
-```ts
+```ts filepath=elements/react-app/react-app.element.ts
 // elements/react-app/react-app.element.ts
 export default class ReactApp extends HTMLElement {
   connectedCallback() {
@@ -388,7 +388,7 @@ export default class ReactApp extends HTMLElement {
 
 In `leaf` mode there is no SPA router. The generated `main.ts` is:
 
-```ts
+```ts filepath=main.ts
 import '@emkodev/emroute/spa';
 ```
 
@@ -398,7 +398,7 @@ This registers `<router-slot>` and `<mark-down>`, but does not call
 To use widgets or custom elements in leaf mode, write a custom `main.ts`
 and register them explicitly:
 
-```ts
+```ts filepath=main.ts
 import '@emkodev/emroute/spa';
 import { ComponentElement } from '@emkodev/emroute/spa';
 import MyWidget from './widgets/my-widget/my-widget.widget.ts';
@@ -490,7 +490,7 @@ my-app/
 
 `importmap.json`:
 
-```json
+```json filepath=importmap.json
 {
   "imports": {
     "@emkodev/emkoma/": "https://esm.sh/@emkodev/emkoma/",
@@ -501,7 +501,7 @@ my-app/
 
 `main.ts`:
 
-```ts
+```ts filepath=main.ts
 import { bootEmrouteApp, MarkdownElement } from '@emkodev/emroute/spa';
 import { renderMarkdown } from '@emkodev/emkoma/render';
 

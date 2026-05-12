@@ -7,7 +7,7 @@ client assets (`emroute.js`, `app.js`, `importmap.json`) for SPA modes.
 
 ## Minimal server
 
-```ts
+```ts filepath=server.ts
 import { Emroute } from '@emkodev/emroute/server';
 import { UniversalFsRuntime } from '@emkodev/emroute/runtime/universal/fs';
 import { render } from './renderer.ts';
@@ -37,7 +37,7 @@ Bun.serve({
 runtime build step is not required for development. For SPA modes, call
 `buildClientBundles()` once to produce the SPA shell assets:
 
-```ts
+```ts filepath=server.ts
 import { Emroute } from '@emkodev/emroute/server';
 import { buildClientBundles } from '@emkodev/emroute/server/build';
 import { BunFsRuntime } from '@emkodev/emroute/runtime/bun/fs';
@@ -200,7 +200,7 @@ entry point. If the file doesn't exist, a default `main.ts` is auto-generated.
 To customize setup (e.g., configuring a markdown renderer for client-side
 rendering of `.md` pages), create your own `main.ts`:
 
-```ts
+```ts filepath=main.ts
 // main.ts
 import { bootEmrouteApp, MarkdownElement } from '@emkodev/emroute/spa';
 import { renderMarkdown } from '@emkodev/emkoma/render';

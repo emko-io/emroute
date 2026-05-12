@@ -69,7 +69,7 @@ ComponentElement is **thin** — just assigns widget output to shadowRoot.
 
 Stays **DOM-agnostic** — returns strings:
 
-```typescript
+```typescript filepath=widgets/price/price.widget.ts
 class PriceWidget extends WidgetComponent {
   getData({ params }) {
     return { price: 50000 };

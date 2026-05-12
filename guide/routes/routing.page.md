@@ -86,7 +86,7 @@ routes/
 
 ## Redirects
 
-```ts
+```ts filepath=routes/old-page.redirect.ts
 // routes/old-page.redirect.ts
 import type { RedirectConfig } from '@emkodev/emroute';
 

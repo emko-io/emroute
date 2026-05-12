@@ -24,7 +24,7 @@ The CSS is delivered to the shadow root through two complementary mechanisms:
 
 The CSS is wrapped in `@layer emroute`:
 
-```css
+```css filepath=widgets/nav/nav.widget.css
 /* nav.widget.css — written as plain CSS */
 .site-nav { display: flex; gap: 1rem; }
 .site-nav a.active { font-weight: bold; }
@@ -66,6 +66,8 @@ as a plain `<style>` tag (no shadow DOM, no `@layer`):
 routes/about/about.page.ts
 routes/about/about.page.css
 ```
+
+Example `routes/about/about.page.css`:
 
 ## Widget lifecycle states
 

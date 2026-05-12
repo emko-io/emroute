@@ -15,7 +15,7 @@ deno init
 
 Add to `deno.json`:
 
-```json
+```json filepath=deno.json
 {
   "imports": {
     "@emkodev/emroute": "npm:@emkodev/emroute",
@@ -32,7 +32,7 @@ manual install step required.
 
 Deno has built-in TypeScript support. Add DOM types to your `deno.json`:
 
-```json
+```json filepath=deno.json
 {
   "compilerOptions": {
     "lib": ["deno.ns", "esnext", "dom", "dom.iterable"]
@@ -57,7 +57,7 @@ Make a `routes/` directory and add an HTML page:
 
 Create `server.ts` in your project root:
 
-```ts
+```ts filepath=server.ts
 import { Emroute } from '@emkodev/emroute/server';
 import { UniversalFsRuntime } from '@emkodev/emroute/runtime/universal/fs';
 

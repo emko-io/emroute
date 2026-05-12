@@ -45,7 +45,7 @@ The default `widgetsDir` is `/widgets`. The runtime scans the directory and
 registers all widgets automatically. To use a different directory, pass it
 to your runtime config:
 
-```ts
+```ts filepath=server.ts
 const runtime = new BunFsRuntime(appRoot, {
   widgetsDir: '/components',
 });
@@ -125,7 +125,7 @@ companion CSS has lower cascade priority than inline `<style>` tags in
 Every widget receives a base stylesheet (via `@layer emroute-base`, lower
 priority than companion CSS):
 
-```css
+```css filepath=counter.widget.css
 :host { display: block; }
 :host([hidden]) { display: none; }
 ```
@@ -143,7 +143,7 @@ To override, write `:host { ... }` in your companion CSS — it lives in
 These properties are useful but have trade-offs, so they are not set by
 default. Add them in your companion CSS when needed:
 
-```css
+```css filepath=counter.widget.css
 /* Container queries — widget responds to its own width, not the viewport.
    Implies contain: inline-size — the host element won't derive its width
    from its children. Ensure the parent layout gives the widget explicit
@@ -163,7 +163,7 @@ lives in `@layer emroute` which takes priority over `@layer emroute-base`.
 When using SPA mode, widgets can add interactivity after rendering via the
 `hydrate()` lifecycle hook:
 
-```ts
+```ts filepath=counter.widget.ts
 override hydrate({ data }: this['RenderArgs']) {
   const button = this.element?.shadowRoot?.querySelector('#btn');
   button?.addEventListener('click', this.handleClick);
@@ -187,7 +187,7 @@ When setting attributes like `role` or `tabindex` in `hydrate()`, check whether
 the consumer has already set them. Overriding author-set globals breaks
 accessibility and developer intent:
 
-```ts
+```ts filepath=counter.widget.ts
 override hydrate() {
   const el = this.element!;
   // Respect consumer-set values — only apply defaults

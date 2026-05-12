@@ -58,7 +58,7 @@ Runtime only stores `.js`. No `.ts` at runtime.
 Each page/widget is a single merged `.js` file: compiled component code
 with companion file contents (.html, .md, .css) inlined:
 
-```js
+```js filepath=about.page.js
 // compiled component...
 export default page;
 

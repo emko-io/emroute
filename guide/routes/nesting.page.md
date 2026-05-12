@@ -32,7 +32,7 @@ its own slot syntax.
 
 ### In `.html` files
 
-```html
+```html filepath=dashboard.page.html
 <div class="dashboard-layout">
   <nav>...</nav>
   <router-slot></router-slot>
@@ -173,7 +173,7 @@ routes/
 
 `api.page.ts`:
 
-```ts
+```ts filepath=api.page.ts
 class ApiPage extends PageComponent {
   override readonly name = 'api';
 
@@ -279,7 +279,7 @@ routes/
 
 `index.page.ts`:
 
-```ts
+```ts filepath=index.page.ts
 class RootPage extends PageComponent {
   override readonly name = 'root';
 }
@@ -289,7 +289,7 @@ export default new RootPage();
 
 `public.page.html` — no navigation, clean marketing layout:
 
-```html
+```html filepath=public.page.html
 <div class="public-layout">
   <router-slot></router-slot>
 </div>
@@ -297,7 +297,7 @@ export default new RootPage();
 
 `app.page.html` — navigation, authenticated layout:
 
-```html
+```html filepath=app.page.html
 <div class="app-layout">
   <widget-nav></widget-nav>
   <router-slot></router-slot>
@@ -341,7 +341,7 @@ routes/
 `docs.page.ts` handles `/docs` — render a table of contents, list all
 subpages, show a search bar, whatever you need:
 
-```ts
+```ts filepath=docs.page.ts
 class DocsPage extends PageComponent {
   override readonly name = 'docs';
 
@@ -364,7 +364,7 @@ ones like `/docs/api/components`. The full sub-path is available in
 `params.rest`. The component `name` is just a label for your own use — the
 router does not look at it or apply any routing logic based on it:
 
-```ts
+```ts filepath=docs/index.page.ts
 class DocsCatchAllPage extends PageComponent {
   override readonly name = 'docs-catch-all';
 
@@ -551,7 +551,7 @@ routes/
 
 `wiki/index.page.ts`:
 
-```ts
+```ts filepath=wiki/index.page.ts
 interface WikiData {
   path: string;
   md: string;
@@ -606,7 +606,7 @@ routes/
 
 `admin.page.css`:
 
-```css
+```css filepath=admin.page.css
 .admin-layout {
   background: #1e1e2e;
   color: #cdd6f4;
@@ -618,7 +618,7 @@ routes/
 
 `admin.page.html`:
 
-```html
+```html filepath=admin.page.html
 <div class="admin-layout">
   <router-slot></router-slot>
 </div>

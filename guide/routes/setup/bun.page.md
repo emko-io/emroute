@@ -22,7 +22,7 @@ bun add @emkodev/emroute
 Bun's default `tsconfig.json` only includes `"lib": ["ESNext"]`. emroute
 components use DOM APIs (custom elements, URLPattern), so add DOM types:
 
-```json
+```json filepath=tsconfig.json
 {
   "compilerOptions": {
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
@@ -55,7 +55,7 @@ Make a `routes/` directory and add an HTML page:
 
 Create `server.ts` in your project root:
 
-```ts
+```ts filepath=server.ts
 import { Emroute } from '@emkodev/emroute/server';
 import { BunFsRuntime } from '@emkodev/emroute/runtime/bun/fs';
 

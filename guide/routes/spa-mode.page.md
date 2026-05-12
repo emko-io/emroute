@@ -186,7 +186,7 @@ This is progressive enhancement — the same links and URLs work in every mode.
 
 The server doesn't need to know about client bundles:
 
-```typescript
+```typescript filepath=server.ts
 import { Emroute } from '@emkodev/emroute/server';
 import { BunFsRuntime } from '@emkodev/emroute/runtime/bun/fs';
 
@@ -202,7 +202,7 @@ const emroute = await Emroute.create({
 For `leaf`, `root`, or `only` modes, run the build step before starting the
 server — from a build script, not from server init:
 
-```typescript
+```typescript filepath=build.ts
 // build.ts — run separately, e.g. `bun run build.ts`
 import { buildClientBundles } from '@emkodev/emroute/server/build';
 import { BunFsRuntime } from '@emkodev/emroute/runtime/bun/fs';
@@ -225,7 +225,7 @@ exist, a default one is generated that calls `bootEmrouteApp()`.
 
 Write your own `main.ts` for full control:
 
-```typescript
+```typescript filepath=main.ts
 import { bootEmrouteApp, MarkdownElement } from '@emkodev/emroute/spa';
 import { renderMarkdown } from '@emkodev/emkoma/render';
 

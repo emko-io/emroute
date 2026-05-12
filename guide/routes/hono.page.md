@@ -22,7 +22,7 @@ See [Markdown Renderers](markdown-renderer) for full setup with
 
 ## Server
 
-```ts
+```ts filepath=server.ts
 // server.ts
 import { Hono } from 'hono';
 import { Emroute } from '@emkodev/emroute/server';
@@ -73,7 +73,7 @@ Key points:
 
 ## First route
 
-```md
+```md filepath=routes/index.page.md
 <!-- routes/index.page.md -->
 # Hello emroute + Hono
 

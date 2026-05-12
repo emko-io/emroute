@@ -24,7 +24,7 @@ page continues rendering normally.
 Override `renderError()` or `renderMarkdownError()` on any widget to customize
 the output:
 
-```ts
+```ts filepath=widgets/my-widget/my-widget.widget.ts
 class MyWidget extends WidgetComponent {
   override readonly name = 'my-widget';
 
@@ -62,7 +62,7 @@ routes/
 
 The boundary file exports a `PageComponent`:
 
-```ts
+```ts filepath=routes/projects/[id].error.ts
 // routes/projects/[id].error.ts
 import { PageComponent } from '@emkodev/emroute';
 
@@ -102,7 +102,7 @@ routes/
     [id].error.ts          →  catches /projects/* errors first
 ```
 
-```ts
+```ts filepath=routes/index.error.ts
 // routes/index.error.ts
 import { PageComponent } from '@emkodev/emroute';
 

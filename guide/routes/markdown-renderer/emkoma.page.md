@@ -14,7 +14,7 @@ bun add @emkodev/emkoma
 
 ## 2. Server setup
 
-```ts
+```ts filepath=server.ts
 // server.ts
 import { Emroute } from '@emkodev/emroute/server';
 import { BunFsRuntime } from '@emkodev/emroute/runtime/bun/fs';
@@ -40,7 +40,7 @@ Bun.serve({
 
 ## 3. Client setup
 
-```ts
+```ts filepath=main.ts
 // main.ts
 import { bootEmrouteApp, MarkdownElement } from '@emkodev/emroute/spa';
 import { renderMarkdown } from '@emkodev/emkoma/render';

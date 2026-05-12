@@ -25,7 +25,7 @@ compiled `.js` files automatically — no extra loaders or flags needed.
 emroute components use DOM APIs (custom elements, URLPattern), so your
 `tsconfig.json` needs DOM types:
 
-```json
+```json filepath=tsconfig.json
 {
   "compilerOptions": {
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
@@ -56,7 +56,7 @@ Make a `routes/` directory and add an HTML page:
 
 Create `server.ts` in your project root:
 
-```ts
+```ts filepath=server.ts
 import { createServer } from 'node:http';
 import { Emroute } from '@emkodev/emroute/server';
 import { UniversalFsRuntime } from '@emkodev/emroute/runtime/universal/fs';

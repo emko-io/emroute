@@ -13,7 +13,7 @@ bun add marked
 
 Create a single module shared by both client and server:
 
-````ts
+````ts filepath=renderer.ts
 // renderer.ts
 import { marked } from 'marked';
 
@@ -72,7 +72,7 @@ The JSON body (if present) is parsed into HTML attributes.
 
 ## 3. Server setup
 
-```ts
+```ts filepath=server.ts
 // server.ts
 import { Emroute } from '@emkodev/emroute/server';
 import { BunFsRuntime } from '@emkodev/emroute/runtime/bun/fs';
@@ -98,7 +98,7 @@ Bun.serve({
 
 ## 4. Client setup
 
-```ts
+```ts filepath=main.ts
 // main.ts
 import { bootEmrouteApp, MarkdownElement } from '@emkodev/emroute/spa';
 import { render } from './renderer.ts';
@@ -115,7 +115,7 @@ connected to the DOM.
 
 The `html` renderer override controls how raw HTML tags in markdown are handled:
 
-```ts
+```ts filepath=renderer.ts
 // Pass through raw HTML (trusted content only)
 html: ({ text }) => text,
 

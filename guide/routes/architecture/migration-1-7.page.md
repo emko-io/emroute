@@ -50,7 +50,7 @@ setup and SPA initialization.
 
 ### Before (1.6)
 
-```ts
+```ts filepath=server.ts
 import { Emroute } from '@emkodev/emroute/server';
 import { BunFsRuntime } from '@emkodev/emroute/runtime/bun/fs';
 
@@ -70,7 +70,7 @@ Bun.serve({ fetch: (req) => emroute.handleRequest(req) ?? new Response('Not Foun
 
 ### After (1.7)
 
-```ts
+```ts filepath=server.ts
 import { Emroute } from '@emkodev/emroute/server';
 import { buildClientBundles } from '@emkodev/emroute/server/build';
 import { BunFsRuntime } from '@emkodev/emroute/runtime/bun/fs';
@@ -107,7 +107,7 @@ Key changes:
 
 ### Before (1.6)
 
-```ts
+```ts filepath=main.ts
 import { routesManifest } from 'emroute:routes';
 import { widgetsManifest } from 'emroute:widgets';
 import { ComponentElement, createSpaHtmlRouter } from '@emkodev/emroute/spa';
@@ -121,7 +121,7 @@ await createSpaHtmlRouter(routesManifest);
 
 ### After (1.7)
 
-```ts
+```ts filepath=main.ts
 import { bootEmrouteApp, MarkdownElement } from '@emkodev/emroute/spa';
 import { renderMarkdown } from '@emkodev/emkoma/render';
 
@@ -147,7 +147,7 @@ If you construct manifests programmatically:
 
 ### Before (1.6)
 
-```ts
+```ts filepath=server.ts
 const manifest: RoutesManifest = {
   routes: [
     { pattern: '/', type: 'page', modulePath: '/routes/index.page.ts', files: {} },
@@ -162,7 +162,7 @@ const emroute = await Emroute.create({ routesManifest: manifest }, runtime);
 
 ### After (1.7)
 
-```ts
+```ts filepath=server.ts
 const routeTree: RouteNode = {
   files: { ts: '/routes/index.page.ts' },
   errorBoundary: '/routes/index.error.ts',
@@ -184,7 +184,7 @@ const emroute = await Emroute.create({ routeTree }, runtime);
 
 ### Before (1.6)
 
-```ts
+```ts filepath=server.ts
 const emroute = await Emroute.create({
   basePath: { html: '/html', md: '/md' },
 }, runtime);
@@ -192,7 +192,7 @@ const emroute = await Emroute.create({
 
 ### After (1.7)
 
-```ts
+```ts filepath=server.ts
 const emroute = await Emroute.create({
   basePath: { html: '/html', md: '/md', app: '/app' },
 }, runtime);
@@ -326,13 +326,13 @@ If you call `htmlRouter.render()` or `mdRouter.render()` directly:
 
 ### Before (1.6)
 
-```ts
+```ts filepath=server.ts
 const result = await emroute.htmlRouter.render('/about');
 ```
 
 ### After (1.7)
 
-```ts
+```ts filepath=server.ts
 const url = new URL('/about', 'http://localhost');
 const result = await emroute.htmlRouter.render(url, AbortSignal.timeout(5000));
 ```

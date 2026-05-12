@@ -173,7 +173,7 @@ Files on disk using only `node:` APIs (`node:fs/promises`, `node:path`). Works
 on Node, Deno, and Bun. No `transpile()` implementation — suitable for
 `spa: 'none'` setups, or pair with a custom transpile override for SPA modes.
 
-```typescript
+```typescript filepath=server.ts
 import { UniversalFsRuntime } from '@emkodev/emroute/runtime/universal/fs';
 
 const runtime = new UniversalFsRuntime('path/to/app', {
@@ -189,7 +189,7 @@ Files on disk using Bun-native APIs (`Bun.file()`, `Bun.write()`,
 `UniversalFsRuntime`, plus on-the-fly `.ts` serving and a working
 `transpile()`. Bun-only.
 
-```typescript
+```typescript filepath=server.ts
 import { BunFsRuntime } from '@emkodev/emroute/runtime/bun/fs';
 
 const runtime = new BunFsRuntime('path/to/app');
@@ -200,7 +200,7 @@ const runtime = new BunFsRuntime('path/to/app');
 Files in SQLite. Useful for CMS scenarios where content is managed through an
 admin interface, not the filesystem.
 
-```typescript
+```typescript filepath=server.ts
 import { BunSqliteRuntime } from '@emkodev/emroute/runtime/bun/sqlite';
 
 // In-memory (great for tests)
@@ -229,7 +229,7 @@ const runtime = new FetchRuntime(location.origin);
 
 Extend the `Runtime` base class and implement `handle()` and `query()`:
 
-```typescript
+```typescript filepath=runtime.ts
 import { Runtime, type FetchParams, type FetchReturn } from '@emkodev/emroute/runtime';
 
 class MyRuntime extends Runtime {
@@ -344,7 +344,7 @@ depend on this convention.
 
 ### Example: REST API Runtime
 
-```typescript
+```typescript filepath=runtime.ts
 class ApiRuntime extends Runtime {
   constructor(private baseUrl: string, config?: RuntimeConfig) {
     super(config);
@@ -369,7 +369,7 @@ class ApiRuntime extends Runtime {
 
 ### Example: Existing CMS Schema
 
-```typescript
+```typescript filepath=runtime.ts
 class CmsRuntime extends Runtime {
   constructor(private db: Database, config?: RuntimeConfig) {
     super(config);

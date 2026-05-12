@@ -147,13 +147,13 @@ a content file (`.html`, `.md`, or `.ts`), not stand alone.
 
 **Example: `.page.ts` using a `.page.html` template**
 
-```html
+```html filepath=routes/profile.page.html
 <!-- profile.page.html -->
 <h1>{{name}}</h1>
 <p>{{role}}</p>
 ```
 
-```ts
+```ts filepath=routes/profile.page.ts
 // profile.page.ts
 class ProfilePage extends PageComponent<Record<string, string>, ProfileData> {
   override readonly name = 'profile';

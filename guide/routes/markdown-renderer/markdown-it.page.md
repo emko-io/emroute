@@ -14,7 +14,7 @@ bun add -d @types/markdown-it
 
 Create a single module shared by both client and server:
 
-````ts
+````ts filepath=renderer.ts
 // renderer.ts
 import MarkdownIt from 'markdown-it';
 
@@ -73,7 +73,7 @@ becomes `<router-slot>`, and ```` ```widget:counter ```` becomes
 
 ## 3. Server setup
 
-```ts
+```ts filepath=server.ts
 // server.ts
 import { Emroute } from '@emkodev/emroute/server';
 import { BunFsRuntime } from '@emkodev/emroute/runtime/bun/fs';
@@ -99,7 +99,7 @@ Bun.serve({
 
 ## 4. Client setup
 
-```ts
+```ts filepath=main.ts
 // main.ts
 import { bootEmrouteApp, MarkdownElement } from '@emkodev/emroute/spa';
 import { render } from './renderer.ts';
@@ -116,7 +116,7 @@ connected to the DOM.
 
 markdown-it controls raw HTML via the `html` option:
 
-```ts
+```ts filepath=renderer.ts
 // Escape raw HTML tags (default, safe for untrusted content)
 const md = new MarkdownIt({ html: false });
 

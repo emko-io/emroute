@@ -42,9 +42,7 @@ components use DOM APIs (custom elements, URLPattern), so add DOM types:
 
 Make a `routes/` directory and add an HTML page:
 
-**`routes/index.page.html`**
-
-```html
+```html filepath=routes/index.page.html
 <h1>Hello emroute</h1>
 <p>This is my first page.</p>
 ```

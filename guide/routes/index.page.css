@@ -72,6 +72,23 @@ body {
   line-height: 1.45;
 }
 
+.page-main pre[data-filepath] {
+  padding-top: 0;
+}
+
+.page-main pre[data-filepath]::before {
+  content: attr(data-filepath);
+  display: block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85em;
+  color: #6b7280;
+  background: #e5e7eb;
+  padding: 0.3rem 0.75rem;
+  margin: 0 -1rem 0.75rem;
+  border-radius: 6px 6px 0 0;
+  border-bottom: 1px solid #d1d5db;
+}
+
 .page-main pre code {
   background: none;
   padding: 0;
@@ -130,6 +147,11 @@ body {
   .page-main h1 { color: #f9fafb; }
   .page-main code { background: #1f2937; }
   .page-main pre { background: #111827; }
+  .page-main pre[data-filepath]::before {
+    background: #1f2937;
+    color: #9ca3af;
+    border-bottom-color: #374151;
+  }
   .page-main a { color: #60a5fa; }
   .page-main blockquote { border-color: #374151; color: #9ca3af; }
   .page-main th { background: #111827; }

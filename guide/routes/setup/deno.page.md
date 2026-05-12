@@ -44,9 +44,7 @@ Deno has built-in TypeScript support. Add DOM types to your `deno.json`:
 
 Make a `routes/` directory and add an HTML page:
 
-**`routes/index.page.html`**
-
-```html
+```html filepath=routes/index.page.html
 <h1>Hello emroute</h1>
 <p>This is my first page.</p>
 ```

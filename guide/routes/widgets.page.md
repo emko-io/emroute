@@ -8,9 +8,7 @@ lifecycle: `getData()` → `renderHTML()` / `renderMarkdown()`.
 
 Place widgets in `widgets/{name}/{name}.widget.ts`:
 
-**`widgets/counter/counter.widget.ts`**
-
-```ts
+```ts filepath=widgets/counter/counter.widget.ts
 import { WidgetComponent } from '@emkodev/emroute';
 
 interface CounterData {

@@ -10,9 +10,7 @@ renders the `.page.html` or `.page.md` directly.
 
 The simplest page type. Write markdown, get HTML and markdown output:
 
-**`routes/about.page.md`**
-
-```md
+```md filepath=routes/about.page.md
 # About
 
 Built with emroute.
@@ -26,9 +24,7 @@ Built with emroute.
 HTML fragments for static content. No `<!DOCTYPE>`, `<html>`, or `<body>` — the
 server wraps your content in a full document:
 
-**`routes/about.page.html`**
-
-```html
+```html filepath=routes/about.page.html
 <h1>About</h1>
 <p>Built with emroute.</p>
 ```
@@ -41,9 +37,7 @@ server wraps your content in a full document:
 Full components with data fetching, custom rendering, and titles. Extend
 `PageComponent`:
 
-**`routes/projects.page.ts`**
-
-```ts
+```ts filepath=routes/projects.page.ts
 import { PageComponent } from '@emkodev/emroute';
 
 interface ProjectData {

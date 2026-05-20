@@ -38,7 +38,7 @@ Full components with data fetching, custom rendering, and titles. Extend
 `PageComponent`:
 
 ```ts filepath=routes/projects.page.ts
-import { PageComponent } from '@emkodev/emroute';
+import { PageComponent, escapeHtml } from '@emkodev/emroute';
 
 interface ProjectData {
   count: number;
@@ -51,12 +51,12 @@ class ProjectsPage extends PageComponent<Record<string, string>, ProjectData> {
     return { count: 3 };
   }
 
-  override renderHTML({ data }: this['RenderArgs']) {
-    return `<h1>Projects (${data?.count ?? 0})</h1>`;
-  }
-
   override renderMarkdown({ data }: this['RenderArgs']) {
     return `# Projects (${data?.count ?? 0})`;
+  }
+
+  override renderHTML(args: this['RenderArgs']) {
+    return `<mark-down>${escapeHtml(this.renderMarkdown(args))}</mark-down>`;
   }
 
   override getTitle({ data }: this['RenderArgs']) {
@@ -67,6 +67,16 @@ class ProjectsPage extends PageComponent<Record<string, string>, ProjectData> {
 export default new ProjectsPage();
 ```
 
+**Markdown is the source of truth.** `renderMarkdown()` produces the canonical
+content; `renderHTML()` wraps it in `<mark-down>` so the same content is rendered
+to HTML by the configured markdown renderer. This is exactly what the framework's
+built-in `.md`-companion fallback does — duplicating the content as two different
+strings causes the `/html/*` and `/md/*` endpoints to drift over time.
+
+If your page has no dynamic data, you don't need a `.page.ts` at all — drop a
+`.page.md` companion and inherit the default `renderHTML()`/`renderMarkdown()`
+behavior.
+
 **Key points:**
 
 - The file must `export default` a component **instance** (not the class).
@@ -75,8 +85,9 @@ export default new ProjectsPage();
 - `PageComponent<TParams, TData>` — first generic is URL params, second is
   data shape
 - `getData()` runs first, its return value is passed to render methods as `data`
-- `renderHTML()` returns an HTML fragment string
-- `renderMarkdown()` returns a markdown string
+- `renderMarkdown()` returns a markdown string — the source of truth
+- `renderHTML()` wraps the same markdown in `<mark-down>` (escape with
+  `escapeHtml`) so the same content renders through your markdown renderer
 - `getTitle()` sets the page `<title>` (optional)
 - All render methods receive `{ data, params, context }` via `this['RenderArgs']`
 
@@ -96,11 +107,11 @@ export default new ProjectsPage();
     ],
     [
       "`renderHTML()`",
-      "Renders companion `.html`, falls back to `.md` wrapped in `<mark-down>`, falls back to a router-slot"
+      "Companion `.html` (with embedded `<mark-down></mark-down>` filled from `.md` when both exist) → otherwise `.md` wrapped in `<mark-down>` (with a `<router-slot>` appended for non-leaf pages that don't already include one) → otherwise `<router-slot>` for non-leaf pages, `''` for leaves"
     ],
     [
       "`renderMarkdown()`",
-      "Renders companion `.md`, falls back to a router-slot"
+      "Companion `.md` → `` ```router-slot\\n``` `` for non-leaf pages, `''` for leaves"
     ],
     [
       "`getTitle()`",
@@ -109,6 +120,11 @@ export default new ProjectsPage();
   ]
 }
 ```
+
+The leaf-vs-layout distinction matters: a leaf page with no files renders
+nothing, while a layout-position page with no files renders only the slot
+so its children can fill it. `context.isLeaf` carries this flag — see
+[Nesting](nesting) for the full rendering matrix.
 
 ## Companion files
 

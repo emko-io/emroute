@@ -10,7 +10,7 @@ client assets (`emroute.js`, `app.js`, `importmap.json`) for SPA modes.
 ```ts filepath=server.ts
 import { Emroute } from '@emkodev/emroute/server';
 import { UniversalFsRuntime } from '@emkodev/emroute/runtime/universal/fs';
-import { render } from './renderer.ts';
+import { renderMarkdown } from '@emkodev/emkoma/render';
 
 const appRoot = import.meta.dirname!;
 
@@ -18,7 +18,7 @@ const runtime = new UniversalFsRuntime(appRoot);
 
 const emroute = await Emroute.create({
   spa: 'none',
-  markdownRenderer: { render },
+  markdownRenderer: { render: renderMarkdown },
 }, runtime);
 
 Bun.serve({
@@ -41,7 +41,7 @@ runtime build step is not required for development. For SPA modes, call
 import { Emroute } from '@emkodev/emroute/server';
 import { buildClientBundles } from '@emkodev/emroute/server/build';
 import { BunFsRuntime } from '@emkodev/emroute/runtime/bun/fs';
-import { render } from './renderer.ts';
+import { renderMarkdown } from '@emkodev/emkoma/render';
 
 const appRoot = import.meta.dirname!;
 
@@ -56,7 +56,7 @@ await buildClientBundles({
 
 const emroute = await Emroute.create({
   spa: 'root',
-  markdownRenderer: { render },
+  markdownRenderer: { render: renderMarkdown },
 }, runtime);
 
 Bun.serve({
@@ -74,14 +74,35 @@ Bun.serve({
 1. Copies `emroute.js` (pre-built framework bundle) into the runtime
 2. Transpiles the consumer's `main.ts` to `app.js` (or auto-generates a
    default `main.ts` if none exists)
-3. Copies `main.css` from disk into the runtime if present
+3. Copies `main.css` from disk into the runtime when it exists on disk and
+   isn't already present in the runtime — if you've already seeded
+   `/main.css` via `runtime.command()`, the build leaves it alone
 4. Writes a merged `importmap.json` combining the framework's externals
    with any user-defined entries
+
+When using a filesystem runtime, these assets land in your project root as
+`emroute.js`, `app.js`, and `importmap.json`. Add them to `.gitignore` —
+they're build outputs regenerated on every server start:
+
+```gitignore filepath=.gitignore
+emroute.js
+app.js
+```
+
+If you maintain your own `importmap.json` with custom entries, keep it
+checked in — `buildClientBundles()` reads it, merges in the framework's
+externals, and writes the result back.
 
 Per-route module compilation (merging `.ts` source with its `.html`, `.md`,
 `.css` companions into a single `.js` artifact) happens at **request time**
 by the runtime when a `.ts` URL is requested — it's not part of the build
 step.
+
+> **Adding files requires a restart.** The route and widget manifests are
+> scanned once and cached in the runtime. Editing an existing
+> `.page.ts` / `.page.md` / `.page.html` / `.widget.*` is picked up live, but
+> adding a new file (or moving/renaming one) means restarting the server
+> before the route is reachable.
 
 ## Runtime config
 
@@ -209,9 +230,10 @@ MarkdownElement.setRenderer({ render: renderMarkdown });
 await bootEmrouteApp();
 ```
 
-`bootEmrouteApp()` handles everything: fetches route tree and widget manifest
-as JSON from the runtime, registers widgets with lazy module loading, creates
-the SPA router, and wires client-side navigation.
+`bootEmrouteApp()` handles everything: fetches the route, widget, and element
+manifests as JSON from the runtime, registers widgets with lazy module
+loading, imports and registers discovered elements, creates the SPA router,
+and wires client-side navigation.
 
 ## SPA modes
 

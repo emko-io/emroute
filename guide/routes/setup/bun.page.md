@@ -19,24 +19,24 @@ bun add @emkodev/emroute
 
 ## Configure TypeScript
 
-Bun's default `tsconfig.json` only includes `"lib": ["ESNext"]`. emroute
-components use DOM APIs (custom elements, URLPattern), so add DOM types:
+Bun's default `tsconfig.json` ships with `"lib": ["ESNext"]`. emroute
+components use DOM APIs (custom elements, URLPattern), so add DOM types —
+edit the `lib` array in the generated `tsconfig.json`:
 
 ```json filepath=tsconfig.json
 {
   "compilerOptions": {
-    "lib": ["ESNext", "DOM", "DOM.Iterable"],
-    "target": "ESNext",
-    "module": "Preserve",
-    "moduleResolution": "bundler",
-    "strict": true,
-    "skipLibCheck": true,
-    "noEmit": true,
-    "allowImportingTsExtensions": true,
-    "verbatimModuleSyntax": true
+    "lib": ["ESNext", "DOM", "DOM.Iterable"]
+    // keep the rest of Bun's defaults — emroute is compatible with
+    // strict, noUncheckedIndexedAccess, noImplicitOverride, etc.
   }
 }
 ```
+
+Don't replace the whole file — Bun's defaults include strictness flags
+(`noUncheckedIndexedAccess`, `noImplicitOverride`,
+`noFallthroughCasesInSwitch`) that emroute is compatible with and that you
+likely want to keep.
 
 ## First route
 
@@ -48,8 +48,15 @@ Make a `routes/` directory and add an HTML page:
 ```
 
 > To use Markdown (`.page.md`) instead, you'll need a markdown renderer.
-> See [Markdown Renderers](markdown-renderer) — [marked](markdown-renderer/marked)
-> and [markdown-it](markdown-renderer/markdown-it) both work.
+> See [Markdown Renderers](markdown-renderer) — [emkoma](markdown-renderer/emkoma)
+> is built for emroute (handles `router-slot` and widget fences natively);
+> [marked](markdown-renderer/marked) and
+> [markdown-it](markdown-renderer/markdown-it) also work with a small adapter.
+
+> **Heads up:** the root `index.page.html` also acts as the layout for every
+> child route (e.g. `/about`). As soon as you add a second route, this file
+> needs a `<router-slot></router-slot>` where the child should render —
+> otherwise the child page won't appear. See [Nesting](nesting).
 
 ## Write the server
 
@@ -81,8 +88,10 @@ console.log('http://localhost:1420/');
 ```
 
 Bun understands TypeScript natively, so `BunFsRuntime` uses Bun-native APIs
-(`Bun.file()`, `Bun.write()`, `Bun.Transpiler`) for best I/O performance. SPA
-mode bundling uses `Bun.build` — no extra tooling required.
+(`Bun.file()`, `Bun.write()`, `Bun.Transpiler`) for best I/O performance. The
+SPA build step transpiles `main.ts` with `Bun.Transpiler` and reuses the
+pre-built `emroute.js` bundle shipped with the package — no extra tooling
+required.
 
 ## Run it
 

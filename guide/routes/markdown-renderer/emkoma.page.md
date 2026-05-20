@@ -40,6 +40,27 @@ Bun.serve({
 
 ## 3. Client setup
 
+The default SPA mode is `'root'`, which ships a JS bundle to the browser. If
+your `main.ts` imports `@emkodev/emkoma/render`, the browser also needs to
+resolve that specifier — and emroute's auto-generated import map only includes
+its own packages.
+
+Add an `importmap.json` so the browser can resolve the bare `@emkodev/emkoma/`
+specifier:
+
+```json filepath=importmap.json
+{
+  "imports": {
+    "@emkodev/emkoma/": "https://esm.sh/@emkodev/emkoma/"
+  }
+}
+```
+
+`buildClientBundles()` merges this with the framework's externals. See
+[Browser JS](browser-js) for details on import maps.
+
+Then write `main.ts`:
+
 ```ts filepath=main.ts
 // main.ts
 import { bootEmrouteApp, MarkdownElement } from '@emkodev/emroute/spa';
@@ -52,6 +73,11 @@ await bootEmrouteApp();
 
 `setRenderer()` must be called **before** any `<mark-down>` elements are
 connected to the DOM.
+
+> **SSR-only?** If you don't need a SPA, pass `spa: 'none'` to
+> `Emroute.create()` and skip the client setup entirely — no `main.ts`, no
+> import map needed. The server still renders markdown via the configured
+> `markdownRenderer` for `/html/*` and serves raw markdown at `/md/*`.
 
 ## Why emkoma?
 

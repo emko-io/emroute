@@ -64,17 +64,17 @@ The boundary file exports a `PageComponent`:
 
 ```ts filepath=routes/projects/[id].error.ts
 // routes/projects/[id].error.ts
-import { PageComponent } from '@emkodev/emroute';
+import { PageComponent, escapeHtml } from '@emkodev/emroute';
 
 class ProjectErrorBoundary extends PageComponent {
   override readonly name = 'project-error';
 
-  override renderHTML() {
-    return '<h1>Project Error</h1><p>Something went wrong loading this project.</p>';
-  }
-
   override renderMarkdown() {
     return '# Project Error\n\nSomething went wrong loading this project.';
+  }
+
+  override renderHTML(args: this['RenderArgs']) {
+    return `<mark-down>${escapeHtml(this.renderMarkdown(args))}</mark-down>`;
   }
 }
 
@@ -104,17 +104,17 @@ routes/
 
 ```ts filepath=routes/index.error.ts
 // routes/index.error.ts
-import { PageComponent } from '@emkodev/emroute';
+import { PageComponent, escapeHtml } from '@emkodev/emroute';
 
 class RootError extends PageComponent {
   override readonly name = 'root-error';
 
-  override renderHTML() {
-    return '<h1>Something Went Wrong</h1><p>Please try again later.</p>';
-  }
-
   override renderMarkdown() {
     return '# Something Went Wrong\n\nPlease try again later.';
+  }
+
+  override renderHTML(args: this['RenderArgs']) {
+    return `<mark-down>${escapeHtml(this.renderMarkdown(args))}</mark-down>`;
   }
 }
 

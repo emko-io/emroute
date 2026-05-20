@@ -82,6 +82,13 @@ Omit the JSON body when the widget takes no parameters:
 ```
 ````
 
+> **Don't paste raw `<widget-{name}>` tags into `.page.md` files.** Markdown
+> renderers escape inline HTML by default, so `<widget-counter></widget-counter>`
+> in a `.md` becomes `&lt;widget-counter&gt;&lt;/widget-counter&gt;` in the
+> HTML output — your widget will not appear. Use the fenced block syntax
+> above in markdown; the raw tag syntax is for `.page.html` files and
+> `renderHTML()` strings only.
+
 ## SSR output
 
 In SSR HTML mode, widgets render server-side with Declarative Shadow DOM:
@@ -178,6 +185,45 @@ override destroy() {
 `hydrate()` is called after both SSR adoption and fresh SPA rendering. Use
 `this.element` to access the host `<widget-{name}>` custom element (only
 available in the browser — `undefined` on the server).
+
+### `data` in `hydrate()` after SSR adoption
+
+When a widget is SSR'd and the client adopts the server-rendered DOM, the
+client does **not** re-run `getData()` — that would defeat the purpose of
+SSR. By default this means `hydrate({ data })` receives `data: null` in that
+flow. You have two options.
+
+**Option 1: read state from the DOM.** The SSR output already contains
+everything the user can see — query the shadow root for the values you need:
+
+```ts filepath=counter.widget.ts
+override hydrate() {
+  const span = this.element?.shadowRoot?.querySelector('.count');
+  let count = Number(span?.textContent ?? 0);
+  // ...
+}
+```
+
+**Option 2: opt into `exposeSsrData`.** Set
+`override readonly exposeSsrData = true` on the widget class. The server
+serializes the `getData()` result as JSON text in light DOM; the client
+parses it back into `this.data` before `hydrate()` runs, so `data` is
+populated:
+
+```ts filepath=counter.widget.ts
+class CounterWidget extends WidgetComponent<{ start?: string }, CounterData> {
+  override readonly name = 'counter';
+  override readonly exposeSsrData = true;
+  // ...
+  override hydrate({ data }: this['RenderArgs']) {
+    let count = data?.count ?? 0; // data is populated here
+  }
+}
+```
+
+On client-side SPA navigation (no SSR adoption), `getData()` runs as usual
+and `hydrate()` receives the freshly fetched `data` regardless of
+`exposeSsrData`.
 
 ## Best practices
 

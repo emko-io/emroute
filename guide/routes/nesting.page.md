@@ -86,38 +86,44 @@ When a page has no `.html` or `.md` file and no render overrides, the base
   "body": [
     [
       "`.html` + `.md`",
-      "HTML file content",
-      "Markdown file content"
+      "HTML file content (any `<mark-down></mark-down>` placeholder is filled with the escaped `.md`)",
+      "Markdown file content as-is"
     ],
     [
       "`.html` only",
       "HTML file content",
-      "`router-slot` placeholder"
+      "`` ```router-slot\\n``` `` for layouts, `''` for leaves"
     ],
     [
       "`.md` only",
-      "`<mark-down>` wrapper + `router-slot`",
-      "Markdown file content"
+      "`.md` wrapped in `<mark-down>` (a `<router-slot>` is appended for layouts, unless the `.md` already contains a `` ```router-slot `` block)",
+      "Markdown file content as-is"
     ],
     [
       "Neither",
-      "Bare `<router-slot>`",
-      "`router-slot` placeholder"
+      "`<router-slot>` for layouts, `''` for leaves",
+      "`` ```router-slot\\n``` `` for layouts, `''` for leaves"
     ]
   ]
 }
 ```
 
-Every fallback produces a slot. This means:
+Layouts always produce a slot; leaves produce nothing when there are no
+files. `context.isLeaf` is what the framework checks — see
+[Leaf vs Layout](#leaf-vs-layout-contextisleaf) below. This means:
 
 - A page with **no files at all** (just a `.ts` with `name`) becomes a
-  transparent passthrough — it contributes no visible content but still passes
-  children through.
+  transparent passthrough when it sits in a layout position — it contributes
+  no visible content but still passes children through via the slot. As a
+  leaf, it renders nothing.
 - A page with **only `.html`** has no markdown representation. In SSR Markdown
-  mode, it produces an invisible slot placeholder. The page works in SSR HTML
-  and SPA, but `curl /md/...` will not show its content.
-- A page with **only `.md`** works in all three modes. `renderHTML` wraps it in
-  a `<mark-down>` element and appends a `<router-slot>`.
+  mode, layouts produce an invisible slot placeholder; leaves produce empty
+  output. The page works in SSR HTML and SPA, but `curl /md/...` will not show
+  its content.
+- A page with **only `.md`** works in all three modes. `renderHTML` wraps the
+  markdown in a `<mark-down>` element; for layouts, it also appends a
+  `<router-slot>` unless the `.md` already contains a `` ```router-slot ``
+  block of its own.
 
 ## Example: Full Nesting
 

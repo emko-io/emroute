@@ -188,15 +188,19 @@ loading. See the [widget documentation](widgets) for details.
 
 If you have a widget from an external package, register it in `main.ts`:
 
-```ts
-import { ComponentElement } from '@emkodev/emroute/spa';
+```ts filepath=main.ts
+import { bootEmrouteApp, ComponentElement } from '@emkodev/emroute/spa';
 import { ExternalWidget } from 'some-package';
 
 ComponentElement.register(new ExternalWidget());
 
-import { bootEmrouteApp } from '@emkodev/emroute/spa';
 await bootEmrouteApp();
 ```
+
+JavaScript hoists `import` statements to the top of the module, so order
+within the file doesn't change runtime evaluation. Group all imports at the
+top — `register()` then runs before `bootEmrouteApp()` because of statement
+order, which is what you want.
 
 ## Custom elements
 

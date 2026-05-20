@@ -77,8 +77,8 @@ matter, rapid prototyping, apps where you want full client-side control.
 The SSR server and the SPA client are two separate applications that share
 the same content. The server reads routes, widgets, and companion files from
 a Runtime and renders HTML. The SPA client does the same — it fetches the
-route tree and widget manifest as JSON, loads `.js` modules on demand via
-`FetchRuntime`, and renders in the browser.
+route, widget, and element manifests as JSON, loads `.js` modules on demand
+via `FetchRuntime`, and renders in the browser.
 
 Neither depends on the other at runtime. The server does not build the client.
 The client does not require the server to be aware of it.
@@ -239,9 +239,10 @@ await bootEmrouteApp();
 ```
 
 `bootEmrouteApp()` handles everything:
-1. Fetches route tree and widget manifest as JSON from the runtime
+1. Fetches the route, widget, and element manifests as JSON from the runtime
 2. Registers all discovered widgets with lazy module loading
-3. Creates the SPA router and wires client-side navigation
+3. Imports and registers discovered elements
+4. Creates the SPA router and wires client-side navigation
 
 ## Choosing a mode
 

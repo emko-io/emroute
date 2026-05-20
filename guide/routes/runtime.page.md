@@ -248,6 +248,7 @@ class MyRuntime extends Runtime {
   query(resource: FetchParams[0], options: FetchParams[1] & { as: 'text' }): Promise<string>;
   query(resource: FetchParams[0], options?: FetchParams[1]): FetchReturn;
   query(resource: FetchParams[0], options?: FetchParams[1] & { as?: 'text' }): Promise<Response | string> {
+    const url = typeof resource === 'string' ? resource : new URL(resource.url).pathname;
     if (options?.as === 'text') {
       // Fast path — return string directly, skip Response overhead
       return this.loadText(url);
@@ -322,13 +323,22 @@ class MyRuntime extends Runtime {
 
 The base `Runtime` class provides:
 
-- **`command(resource, options?)`** — write shortcut (delegates to `handle` with PUT)
+- **`command(resource, options?)`** — write (or `{ method: 'DELETE' }`)
+  with manifest upkeep. When the path falls under `routesDir`,
+  `widgetsDir`, or `elementsDir`, `command()` also merges (or prunes) the
+  corresponding manifest and re-transpiles the affected `.js` artifact via
+  `retranspileIfNeeded()`. CMS-style writes therefore stay consistent with
+  the cached manifests without an explicit invalidation step.
 - **`resolveRoutesManifest()`** — scans `routesDir`, builds routes manifest JSON
 - **`resolveWidgetsManifest()`** — scans `widgetsDir`, builds widgets manifest JSON
-- **`walkDirectory(dir)`** — async generator that recursively lists files
+- **`resolveElementsManifest()`** — scans `elementsDir`, builds elements manifest JSON
 - **`invalidateManifests()`** — clears cached manifests for the next scan
 - **`transpileModule(path, source)`** — protected helper that calls
   `transpile()` and inlines companion files as `__files`
+
+A `walkDirectory(dir)` async generator exists on the base class but is
+`protected` — it's available to subclasses implementing their own scans,
+not to external callers.
 
 ### Directory listing contract
 

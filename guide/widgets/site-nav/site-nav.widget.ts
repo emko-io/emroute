@@ -35,6 +35,7 @@ const STATIC_SECTIONS: NavSection[] = [
       { label: 'Widgets', href: 'widgets' },
       { label: 'Shadow DOM', href: 'shadow-dom' },
       { label: 'Styling', href: 'styling' },
+      { label: 'Markdown Layout', href: 'markdown-layout' },
     ],
   },
   {

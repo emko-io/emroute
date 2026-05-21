@@ -66,9 +66,22 @@ export function render(markdown: string): string {
 }
 ````
 
-The `code` override intercepts fenced blocks: ```` ```router-slot ```` becomes
-`<router-slot>`, and ```` ```widget:counter ```` becomes `<widget-counter>`.
-The JSON body (if present) is parsed into HTML attributes.
+The `code` override intercepts fenced blocks:
+
+````md
+```router-slot
+```
+````
+
+becomes `<router-slot>`, and
+
+````md
+```widget:counter
+{"key": "value"}
+```
+````
+
+becomes `<widget-counter>`. The JSON body (if present) is parsed into HTML attributes.
 
 ## 3. Server setup
 

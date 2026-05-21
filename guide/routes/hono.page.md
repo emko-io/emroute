@@ -12,10 +12,23 @@ bun add hono @emkodev/emroute marked
 ## Markdown renderer
 
 Create a shared renderer used by both server and client. It must handle
-emroute's fenced block conventions:
+emroute's fenced block conventions — `router-slot` (for nested routes) and
+`widget:name` (for embedded widgets):
 
-- ```` ```router-slot ```` → `<router-slot></router-slot>`
-- ```` ```widget:name ```` → `<widget-name></widget-name>` (JSON body → attributes)
+````md
+```router-slot
+```
+````
+
+renders as `<router-slot></router-slot>`, and
+
+````md
+```widget:counter
+{"start": "42"}
+```
+````
+
+renders as `<widget-counter start="42"></widget-counter>`.
 
 See [Markdown Renderers](markdown-renderer) for full setup with
 [marked](markdown-renderer/marked) or [markdown-it](markdown-renderer/markdown-it).

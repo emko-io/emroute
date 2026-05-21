@@ -1,8 +1,22 @@
 # Setting Up emkoma
 
 This guide uses [@emkodev/emkoma](https://github.com/emkodev/emkoma), a
-markdown renderer built for emroute. It natively handles ```` ```router-slot ````
-and ```` ```widget:name ```` fenced blocks — no custom renderer code needed.
+markdown renderer built for emroute. It natively handles
+
+````md
+```router-slot
+```
+````
+
+and
+
+````md
+```widget:name
+{"key": "value"}
+```
+````
+
+fenced blocks — no custom renderer code needed.
 
 emkoma is currently pre-release. It works well but the API may change.
 

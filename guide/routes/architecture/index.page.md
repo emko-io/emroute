@@ -1,24 +1,41 @@
+<!--==chunk:hero==-->
+
 # Architecture
 
 Deeper dives into how emroute works internally, plus historical records.
 
-## Design and flow
+<!--==chunk:card==-->
 
-- **[SPA → PWA Architecture](architecture/spa-flow)** — the four-mode model
-  (none/leaf/root/only) and how the server runs in different places
-  (remote vs. browser vs. service worker).
-- **[SSR HTML Rendering Flow](architecture/ssr-html-flow)** — step-by-step
-  request flow through the renderer pipeline.
+## SPA → PWA flow
 
-## Migration
+The four-mode model (`none` / `leaf` / `root` / `only`) and how the server
+runs in different places — remote, browser, or service worker.
 
-- **[Migrating from 1.6 to 1.7](architecture/migration-1-7)** — historical
-  reference. Documents API changes when 1.7 replaced the SPA router layer,
-  switched to a route tree, and separated bundling from the Runtime.
+[Read the SPA flow →](architecture/spa-flow)
+
+<!--==chunk:card==-->
+
+## SSR HTML flow
+
+Step-by-step request flow through the renderer pipeline. Where the route
+tree is walked, where companions get inlined, where widgets render.
+
+[Read the SSR flow →](architecture/ssr-html-flow)
+
+<!--==chunk:card==-->
+
+## Migration 1.6 → 1.7
+
+Historical reference: the API changes when 1.7 replaced the SPA router
+layer, switched to a route tree, and separated bundling from the Runtime.
+
+[Read the migration →](architecture/migration-1-7)
+
+<!--==chunk:detail==-->
 
 ## Decision records
 
-ADR (Architecture Decision Record) documents capturing why specific design
+ADR (Architecture Decision Record) documents capture why specific design
 choices were made. See the framework's
 [`doc/architecture/`](https://github.com/emko-io/emroute/tree/main/doc/architecture)
 directory for the full set.

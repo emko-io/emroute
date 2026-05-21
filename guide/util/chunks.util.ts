@@ -65,3 +65,40 @@ export function stripChunkMarkers(md: string): string {
 export function wrapMarkdown(content: string): string {
   return `<mark-down>${escapeHtml(content)}</mark-down>`;
 }
+
+/**
+ * Render a section landing: hero + responsive card grid + optional detail
+ * and outro. Picks chunks by name:
+ *
+ * - `hero`    — full-width header (h1 + tagline)
+ * - `card`    — grid item (one per chunk)
+ * - `detail`  — full-width content below the card grid
+ * - `outro`   — small trailing paragraph
+ *
+ * Card count drives the grid class (`two`, three default, `four`).
+ */
+export function renderSectionLanding(md: string): string {
+  const chunks = parseChunks(md);
+  if (chunks.length === 0) return '';
+  const byName = (n: string) => chunks.filter((c) => c.name === n);
+  const hero = byName('hero')[0]?.content ?? chunks[0]!.content;
+  const cards = byName('card');
+  const detail = byName('detail')[0]?.content;
+  const outro = byName('outro')[0]?.content;
+
+  const heroHtml = `<header class="section-hero">${wrapMarkdown(hero)}</header>`;
+  const gridClass = cards.length === 2 ? ' two' : cards.length === 4 ? ' four' : '';
+  const cardsHtml = cards.length === 0
+    ? ''
+    : `<div class="section-cards${gridClass}">${cards
+        .map((c) => `<article class="section-card">${wrapMarkdown(c.content)}</article>`)
+        .join('')}</div>`;
+  const detailHtml = detail
+    ? `<section class="section-detail">${wrapMarkdown(detail)}</section>`
+    : '';
+  const outroHtml = outro
+    ? `<p class="section-outro">${wrapMarkdown(outro)}</p>`
+    : '';
+
+  return `${heroHtml}${cardsHtml}${detailHtml}${outroHtml}`;
+}

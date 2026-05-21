@@ -133,6 +133,113 @@ body {
   font-weight: 600;
 }
 
+/* ─── Section landings (inside .page-main: /setup, /markdown-renderer, etc.) ─── */
+
+.section-hero {
+  padding: 0.5rem 0 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 1.75rem;
+}
+
+.section-hero h1 {
+  margin: 0 0 0.5rem;
+  font-size: 2rem;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.section-hero p {
+  margin: 0;
+  color: #4b5563;
+  font-size: 1.05rem;
+}
+
+.section-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+  margin: 0 0 1.75rem;
+}
+
+.section-cards.two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.section-cards.four {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.section-card {
+  padding: 1rem 1.1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+  transition: border-color 0.15s;
+}
+
+.section-card:hover {
+  border-color: #9ca3af;
+}
+
+.section-card h2 {
+  margin: 0 0 0.4rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.section-card h2:first-child {
+  margin-top: 0;
+}
+
+.section-card p {
+  margin: 0 0 0.6rem;
+  color: #4b5563;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.section-card a {
+  color: #2563eb;
+  text-decoration: none;
+  font-size: 0.92rem;
+  font-weight: 500;
+}
+
+.section-card a:hover {
+  text-decoration: underline;
+}
+
+.section-detail {
+  border-top: 1px solid #e5e7eb;
+  padding-top: 1.5rem;
+}
+
+.section-outro {
+  margin-top: 0.5rem;
+  color: #4b5563;
+  font-size: 0.95rem;
+}
+
+@media (max-width: 700px) {
+  .section-cards,
+  .section-cards.two,
+  .section-cards.four {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .section-hero { border-bottom-color: #1f2937; }
+  .section-hero p { color: #9ca3af; }
+  .section-card { background: #111827; border-color: #1f2937; }
+  .section-card:hover { border-color: #374151; }
+  .section-card p { color: #9ca3af; }
+  .section-card a { color: #60a5fa; }
+  .section-detail { border-top-color: #1f2937; }
+  .section-outro { color: #9ca3af; }
+}
+
 /* ─── Landing (leaf: /html/) ─────────────────────────────────────── */
 
 .home {

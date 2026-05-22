@@ -81,7 +81,7 @@ class HomePage extends PageComponent<Record<string, never>, null> {
       <span>emroute</span>
     </a>
     <nav class="home-topnav">
-      <a href="pages">Docs</a>
+      <a href="decisions">Decisions</a>
       <a href="architecture">Architecture</a>
       <a href="setup">Setup</a>
       <a class="home-topnav-github" href="https://github.com/emkodev/emroute" aria-label="GitHub">

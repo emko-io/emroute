@@ -8,7 +8,8 @@
     "@guide/": "./util/"
   },
   "tasks": {
-    "dev": "deno run --config=deno.dev.json --allow-net --allow-read --allow-write --allow-env --allow-run server.ts"
+    "dev": "deno run --config=deno.dev.json --allow-net --allow-read --allow-write --allow-env --allow-run server.ts",
+    "sync-bundle": "deno run --allow-read --allow-write scripts/sync-bundle.ts"
   },
   "deploy": {
     "org": "emkodev",

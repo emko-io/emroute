@@ -1,8 +1,8 @@
 import { PageComponent } from '@emkodev/emroute';
 import { renderSectionLanding, stripChunkMarkers } from '@guide/chunks.util.ts';
 
-class ArchitectureIndexPage extends PageComponent<Record<string, never>, null> {
-  override readonly name = 'architecture-index';
+class DecisionsIndexPage extends PageComponent<Record<string, never>, null> {
+  override readonly name = 'decisions-index';
 
   override renderMarkdown({ context }: this['RenderArgs']): string {
     return stripChunkMarkers(context.files?.md ?? '');
@@ -13,4 +13,4 @@ class ArchitectureIndexPage extends PageComponent<Record<string, never>, null> {
   }
 }
 
-export default new ArchitectureIndexPage();
+export default new DecisionsIndexPage();

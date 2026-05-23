@@ -35,7 +35,8 @@ layer, switched to a route tree, and separated bundling from the Runtime.
 
 ## Decision records
 
-ADR (Architecture Decision Record) documents capture why specific design
-choices were made. See the framework's
-[`doc/architecture/`](https://github.com/emko-io/emroute/tree/main/doc/architecture)
-directory for the full set.
+ADRs (Architecture Decision Records) capture why specific design choices
+were made — the principles behind file-based routing, triple rendering,
+zero dependencies, and the rest.
+
+[Browse all decisions →](decisions)

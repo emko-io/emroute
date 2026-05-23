@@ -3,7 +3,9 @@
     "@emkodev/emroute": "../src/index.ts",
     "@emkodev/emroute/server": "../server/emroute.server.ts",
     "@emkodev/emroute/runtime/universal/fs": "../runtime/universal/fs/universal-fs.runtime.ts",
-    "@emkodev/emkoma/render": "npm:@emkodev/emkoma@^0.4.0/render"
+    "@emkodev/emkoma/render": "npm:@emkodev/emkoma@^0.4.0/render",
+    "esbuild": "npm:esbuild@^0.24.0",
+    "@guide/": "./util/"
   },
   "compilerOptions": {
     "lib": ["deno.ns", "esnext", "dom", "dom.iterable", "dom.asynciterable"]

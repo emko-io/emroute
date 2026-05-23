@@ -31,6 +31,31 @@ The filesystem **is** the router. `routes/about.page.md` → `/about`. Add a
 file, get a route. Dynamic segments via `[id]`. Nested layouts via
 directory index. No config file.
 
+<!--==chunk:demo==-->
+
+## See it for yourself
+
+The same emroute widget renders differently depending on the SPA mode it
+runs in. Open this page at `/html/` and `/app/` side-by-side — the clock
+below is the same component, but only one of them ticks.
+
+```widget:clock
+```
+
+In `none` (`/html/`) the server captures the time at request and ships a
+static `<time>` snapshot — refresh to update. In `only` (`/app/`) the client
+runs `getData()` and a `setInterval` started by `hydrate()` makes it tick
+live. In `leaf` and `root` modes the server renders the snapshot and the
+client hydrates: SSR-fast first paint, then live.
+
+Same widget contract, anything inside. The counter below is rendered by
+Preact loaded on-demand from a CDN — the widget itself only owns the
+mount point and the `hydrate()` boundary:
+
+```widget:preact-counter
+{ "start": "0", "label": "clicks" }
+```
+
 <!--==chunk:showcase==-->
 
 ## Markdown is content

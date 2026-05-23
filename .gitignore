@@ -19,3 +19,7 @@ test/browser/fixtures/routes/**/*.js
 test/browser/fixtures/widgets/**/*.js
 test/browser/fixtures/assets/*.wasm
 .claude/
+
+# Guide generated bundles
+guide/build/
+guide/.emroute.tmp

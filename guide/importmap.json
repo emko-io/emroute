@@ -1,0 +1,13 @@
+{
+  "imports": {
+    "@emkodev/emroute": "/static/emroute.js",
+    "@emkodev/emroute/spa": "/static/emroute.js",
+    "@emkodev/emroute/overlay": "/static/emroute.js",
+    "@emkodev/emroute/server": "/static/emroute.js",
+    "@emkodev/emroute/runtime/fetch": "/static/emroute.js",
+    "@emkodev/emkoma/render": "https://esm.sh/@emkodev/emkoma@0.4.0/render",
+    "@guide/": "/util/",
+    "preact": "https://esm.sh/preact@10.25.0",
+    "preact/hooks": "https://esm.sh/preact@10.25.0/hooks?deps=preact@10.25.0"
+  }
+}

@@ -1,5 +1,5 @@
 import { PageComponent } from '@emkodev/emroute';
-import { parseChunks, stripChunkMarkers, wrapMarkdown } from '../util/chunks.util.ts';
+import { parseChunks, stripChunkMarkers, wrapMarkdown } from '@guide/chunks.util.ts';
 
 class MarkdownLayoutPage extends PageComponent<Record<string, never>, null> {
   override readonly name = 'markdown-layout';

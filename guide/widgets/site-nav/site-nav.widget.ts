@@ -67,6 +67,21 @@ const STATIC_SECTIONS: NavSection[] = [
       { label: 'SSR HTML Flow', href: 'architecture/ssr-html-flow' },
     ],
   },
+  {
+    title: 'Decisions',
+    items: [
+      { label: 'Overview', href: 'decisions' },
+      { label: 'Triple rendering', href: 'decisions/triple-rendering' },
+      { label: 'File-based routing', href: 'decisions/file-based-routing' },
+      { label: 'Zero dependencies', href: 'decisions/zero-dependencies' },
+      { label: 'Unified components', href: 'decisions/unified-component-widget' },
+      { label: 'Light DOM + SSR', href: 'decisions/light-dom-ssr' },
+      { label: 'Content-first pages', href: 'decisions/content-first-pages' },
+      { label: 'Keep it simple', href: 'decisions/keep-it-simple' },
+      { label: 'Navigation API', href: 'decisions/navigation-api' },
+      { label: 'All decisions →', href: 'decisions' },
+    ],
+  },
 ];
 
 class SiteNavWidget extends WidgetComponent<Record<string, never>, NavData> {

@@ -336,7 +336,7 @@ describe('Route Trie', () => {
     });
   });
 
-  describe('doc/05-nesting.md promises', () => {
+  describe('nesting guide promises', () => {
     test('exact route + catch-all directory coexistence', () => {
       const t = trie([
         route('/docs'),

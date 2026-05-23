@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.6] - 2026-05-24
+
+### Changed
+
+- **Documentation moved to [emroute.emko.dev](https://emroute.emko.dev)**:
+  the long-form prose docs under `doc/0X-*.md` have been removed from the
+  repo. The guide site is now the canonical reference, with a `/decisions`
+  section that surfaces all 20 ADRs. The repository's `README.md` is
+  reduced to a short hook + pointer to the guide.
+
+- **Test description label**: `'doc/05-nesting.md promises'` →
+  `'nesting guide promises'` (the file no longer exists; the behavior
+  under test is unchanged).
+
+No framework source changes in this release.
+
+## [1.12.5] - 2026-05-15
+
+### Fixed
+
+- **Root `index.js` shim for compiled-binary resolver**: Bun's standalone
+  binary resolver (`bun build --compile`) ignores the `exports` map when
+  resolving bare specifiers from files loaded via `import()` of a real
+  disk path, and only honors `<pkg>/index.js` at the package root.
+  `BunFsRuntime.loadModule()` hits exactly this case, so route files
+  imported at runtime inside a compiled binary could not previously
+  import `@emkodev/emroute`. Added hand-written `index.js` and
+  `index.d.ts` shims at the package root, each a one-line re-export
+  from `./dist/src/index.js`. Normal Bun/Deno/Node module resolution is
+  unaffected.
+
 ## [1.12.4] - 2026-03-17
 
 ### Added

@@ -19,3 +19,4 @@
     "lib": ["deno.ns", "esnext", "dom", "dom.iterable", "dom.asynciterable"]
   }
 }
+

@@ -6,7 +6,7 @@ import { renderMarkdown } from '@emkodev/emkoma/render';
 import * as esbuild from 'esbuild';
 import { readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 
 const root = import.meta.dirname!;
 
@@ -64,7 +64,12 @@ function resourcePath(resource: string | URL | Request): string {
 
 /**
  * Locate the @emkodev/emroute package root by walking up from a resolved
- * module URL until a package.json with the matching name is found.
+ * module path until a `package.json` with the matching name is found.
+ *
+ * Uses `createRequire().resolve()` rather than `import.meta.resolve` so we
+ * get a real filesystem path on every host (Deno local, Deno Deploy,
+ * Node). `import.meta.resolve` returns `npm:` URLs on Deno Deploy, which
+ * are not consumable by `fileURLToPath`.
  *
  * Works for both:
  * - Local dev (`src/index.ts` → repo root → `dist/emroute.js`)
@@ -74,8 +79,8 @@ function resourcePath(resource: string | URL | Request): string {
  * `resolvePrebuiltBundle()` which mis-resolves on Deno Deploy.
  */
 async function resolveEmrouteJs(): Promise<string> {
-  const moduleUrl = import.meta.resolve('@emkodev/emroute');
-  const modulePath = fileURLToPath(moduleUrl);
+  const require = createRequire(import.meta.url);
+  const modulePath = require.resolve('@emkodev/emroute');
   let dir = dirname(modulePath);
   while (dir !== dirname(dir)) {
     try {

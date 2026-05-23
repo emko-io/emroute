@@ -1,5 +1,5 @@
 import { PageComponent } from '@emkodev/emroute';
-import { parseChunks, stripChunkMarkers, wrapMarkdown } from '../util/chunks.util.ts';
+import { parseChunks, stripChunkMarkers, wrapMarkdown } from '@guide/chunks.util.ts';
 
 const LOGO_MARK = `<svg class="logo-mark" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
   <circle cx="40" cy="40" r="7.5" fill="currentColor" />

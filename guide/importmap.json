@@ -1,0 +1,11 @@
+{
+  "imports": {
+    "@emkodev/emroute/spa": "/build/emroute.js",
+    "@emkodev/emroute/overlay": "/build/emroute.js",
+    "@emkodev/emroute": "/build/emroute.js",
+    "@emkodev/emroute/server": "/build/emroute.js",
+    "@emkodev/emroute/runtime/fetch": "/build/emroute.js",
+    "@emkodev/emkoma/render": "https://esm.sh/@emkodev/emkoma@0.4.0/render",
+    "@guide/": "/util/"
+  }
+}

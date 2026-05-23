@@ -137,6 +137,6 @@
     "test:browser:root": "bun test test/browser/root",
     "test:browser:only": "bun test test/browser/only",
     "lint": "eslint .",
-    "dev": "echo 'Use a custom server.ts — see doc/01-setup.md'"
+    "dev": "echo 'Use a custom server.ts — see https://emroute.emko.dev/html/setup'"
   }
 }

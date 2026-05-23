@@ -1,0 +1,14 @@
+:host {
+  display: inline-flex;
+  align-items: baseline;
+  font-family: ui-monospace, 'JetBrains Mono', SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+time {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--brand-light, #6b88ff);
+  text-shadow: 0 0 18px rgba(74, 108, 247, 0.35);
+}

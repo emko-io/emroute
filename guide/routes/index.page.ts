@@ -43,6 +43,7 @@ class HomePage extends PageComponent<Record<string, never>, null> {
     const byName = (n: string) => chunks.filter((c) => c.name === n);
     const hero = byName('hero')[0]?.content ?? '';
     const features = byName('feature');
+    const demo = byName('demo')[0]?.content;
     const showcase = byName('showcase')[0]?.content;
     const cta = byName('cta')[0]?.content;
 
@@ -54,6 +55,10 @@ class HomePage extends PageComponent<Record<string, never>, null> {
             <div class="home-feature-body">${wrapMarkdown(f.content)}</div>
           </article>`)
           .join('')}</section>`;
+
+    const demoHtml = demo
+      ? `<section class="home-demo">${wrapMarkdown(demo)}</section>`
+      : '';
 
     const showcaseHtml = showcase
       ? `<section class="home-showcase">
@@ -123,6 +128,7 @@ class HomePage extends PageComponent<Record<string, never>, null> {
   </section>
 
   ${featuresHtml}
+  ${demoHtml}
   ${showcaseHtml}
   ${ctaHtml}
 

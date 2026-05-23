@@ -1,22 +1,23 @@
 import { Emroute } from '@emkodev/emroute/server';
 import { UniversalFsRuntime } from '@emkodev/emroute/runtime/universal/fs';
-import { buildClientBundles } from '@emkodev/emroute/server/build';
 import { DEFAULT_BASE_PATH } from '@emkodev/emroute';
 import type { MarkdownRenderer } from '@emkodev/emroute';
 import { renderMarkdown } from '@emkodev/emkoma/render';
 import * as esbuild from 'esbuild';
 import { readFile } from 'node:fs/promises';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const root = import.meta.dirname!;
 
 /**
  * UniversalFsRuntime augmented with on-demand TypeScript transpilation.
  *
- * - `transpile()` uses esbuild for the build step (main.ts → app.js).
+ * - `transpile()` uses esbuild for any direct `transpile()` callers.
  * - `handle()` intercepts GET requests for `.ts` files and returns the
  *   transpiled JS plus inlined companion files (via the inherited
  *   `transpileModule()`), so the browser can fetch route/widget modules
- *   directly without a pre-build step.
+ *   directly without a separate build step.
  */
 class GuideRuntime extends UniversalFsRuntime {
   override async transpile(source: string): Promise<string> {
@@ -61,6 +62,35 @@ function resourcePath(resource: string | URL | Request): string {
   return decodeURIComponent(new URL(resource.url).pathname);
 }
 
+/**
+ * Locate the @emkodev/emroute package root by walking up from a resolved
+ * module URL until a package.json with the matching name is found.
+ *
+ * Works for both:
+ * - Local dev (`src/index.ts` → repo root → `dist/emroute.js`)
+ * - npm-installed (`dist/src/index.js` → package root → `dist/emroute.js`)
+ *
+ * Sidesteps the path bug in `@emkodev/emroute/server/build`'s
+ * `resolvePrebuiltBundle()` which mis-resolves on Deno Deploy.
+ */
+async function resolveEmrouteJs(): Promise<string> {
+  const moduleUrl = import.meta.resolve('@emkodev/emroute');
+  const modulePath = fileURLToPath(moduleUrl);
+  let dir = dirname(modulePath);
+  while (dir !== dirname(dir)) {
+    try {
+      const pkg = JSON.parse(await readFile(resolve(dir, 'package.json'), 'utf-8'));
+      if (pkg.name === '@emkodev/emroute') {
+        return resolve(dir, 'dist', 'emroute.js');
+      }
+    } catch {
+      // keep walking
+    }
+    dir = dirname(dir);
+  }
+  throw new Error('Could not locate @emkodev/emroute package root');
+}
+
 const runtime = new GuideRuntime(root);
 const markdownRenderer: MarkdownRenderer = { render: renderMarkdown };
 
@@ -68,19 +98,27 @@ const DESCRIPTION =
   'A file-based, storage-agnostic TypeScript router with triple rendering (SPA, SSR HTML, SSR Markdown) and zero external dependencies.';
 const TITLE = 'emroute guide';
 
-const BUNDLE_PATHS = { emroute: '/build/emroute.js', app: '/build/app.js' };
+const BUNDLE_PATHS = { emroute: '/build/emroute.js' };
 
-// One-shot build for the PWA instance. Writes emroute.js, app.js,
-// importmap.json into the runtime (which here means guide/build/* on disk).
-await buildClientBundles({
-  runtime,
-  root,
-  spa: 'only',
-  bundlePaths: BUNDLE_PATHS,
-});
+// Copy the framework bundle into the runtime so the browser can fetch it.
+const emrouteJsPath = await resolveEmrouteJs();
+await runtime.command(BUNDLE_PATHS.emroute, { body: await readFile(emrouteJsPath) });
 
-// Read the merged importmap once for embedding in the PWA shell.
-const importMap = await (await runtime.query('/importmap.json')).text();
+// Build the merged import map (user-provided entries + framework specifiers).
+const EMROUTE_EXTERNALS = [
+  '@emkodev/emroute/spa',
+  '@emkodev/emroute/overlay',
+  '@emkodev/emroute',
+  '@emkodev/emroute/server',
+  '@emkodev/emroute/runtime/fetch',
+];
+
+const userImportMapRaw = await readFile(resolve(root, 'importmap.json'), 'utf-8');
+const userImportMap = JSON.parse(userImportMapRaw) as { imports?: Record<string, string> };
+const mergedImports: Record<string, string> = {};
+for (const pkg of EMROUTE_EXTERNALS) mergedImports[pkg] = BUNDLE_PATHS.emroute;
+for (const [k, v] of Object.entries(userImportMap.imports ?? {})) mergedImports[k] = v;
+const importMap = JSON.stringify({ imports: mergedImports }, null, 2);
 
 const FAVICON_HREF =
   "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 80'>" +
@@ -136,7 +174,7 @@ const pwaEmroute = await Emroute.create({
 </head>
 <body>
   <router-slot></router-slot>
-  <script type="module" src="${BUNDLE_PATHS.app}"></script>
+  <script type="module" src="/main.js"></script>
 </body>
 </html>`,
 }, runtime);

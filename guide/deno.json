@@ -2,7 +2,6 @@
   "imports": {
     "@emkodev/emroute": "npm:@emkodev/emroute@1.12.4",
     "@emkodev/emroute/server": "npm:@emkodev/emroute@1.12.4/server",
-    "@emkodev/emroute/server/build": "npm:@emkodev/emroute@1.12.4/server/build",
     "@emkodev/emroute/runtime/universal/fs": "npm:@emkodev/emroute@1.12.4/runtime/universal/fs",
     "@emkodev/emkoma/render": "npm:@emkodev/emkoma@^0.4.0/render",
     "esbuild": "npm:esbuild@^0.24.0",
